@@ -72,14 +72,11 @@ class ReaderPagedTextViewController: BaseObservingViewController {
     // Chapter navigation
     private var previousChapter: AidokuRunner.Chapter?
     private var nextChapter: AidokuRunner.Chapter?
-    private let readingProgressLoader: (@Sendable (String) async -> CGFloat?)?
 
     // MARK: - Initialization
 
-    init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga,
-         readingProgressLoader: (@Sendable (String) async -> CGFloat?)? = nil) {
+    init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga) {
         self.viewModel = ReaderTextViewModel(source: source, manga: manga)
-        self.readingProgressLoader = readingProgressLoader
         super.init()
     }
 
@@ -324,7 +321,6 @@ class ReaderPagedTextViewController: BaseObservingViewController {
 
     /// Load previously saved reading progress for a chapter.
     private func loadReadingProgress(for chapterKey: String) async -> CGFloat? {
-        if let readingProgressLoader { return await readingProgressLoader(chapterKey) }
         return await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
             guard let self else { return nil }
             let object = CoreDataManager.shared.getHistory(

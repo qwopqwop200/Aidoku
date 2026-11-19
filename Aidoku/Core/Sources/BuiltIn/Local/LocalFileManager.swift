@@ -19,8 +19,6 @@ actor LocalFileManager {
     private let fileOperations = LocalFileOperationGate()
     private let dataManager: LocalFileDataManager
     private let localDirectory: URL
-    private let scanCheckpoint: (@Sendable () async -> Void)?
-    private let closeListenerDescriptor: @Sendable (CInt) -> Void
 
     private var lastScanTime = Date.distantPast
     private var scanTask: Task<Void, Never>?
@@ -45,14 +43,10 @@ actor LocalFileManager {
 
     init(
         dataManager: LocalFileDataManager = .shared, startsListener: Bool = true,
-        localDirectory: URL = FileManager.default.documentDirectory.appendingPathComponent("Local", isDirectory: true),
-        scanCheckpoint: (@Sendable () async -> Void)? = nil,
-        closeListenerDescriptor: @escaping @Sendable (CInt) -> Void = { close($0) }
+        localDirectory: URL = FileManager.default.documentDirectory.appendingPathComponent("Local", isDirectory: true)
     ) {
         self.dataManager = dataManager
         self.localDirectory = localDirectory
-        self.scanCheckpoint = scanCheckpoint
-        self.closeListenerDescriptor = closeListenerDescriptor
         if startsListener {
             Task { await startFileSystemListener() }
         }
@@ -708,7 +702,6 @@ extension LocalFileManager {
             at: localFolder, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles
         )
         let mangaFolders = try localContents.filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
-        await scanCheckpoint?()
         try Task.checkCancellation()
 
         // Complete every directory read before reconciling deletions. A failed
@@ -794,8 +787,7 @@ extension LocalFileManager {
             // run a scan when a file is changed
             Task { await self?.scanLocalFiles() }
         }
-        let closeDescriptor = closeListenerDescriptor
-        source.setCancelHandler { closeDescriptor(fd) }
+        source.setCancelHandler { close(fd) }
         localFolderSource = source
         source.resume()
     }

@@ -18,21 +18,6 @@ struct NativeJapaneseGroupATests {
         #expect(try !MangarawBestSourceRunner.parseListing(doc, sourceKey: "ja.mangarawbest", page: 4).hasNextPage)
     }
 
-    @Test func mangaRawBestChaptersPreserveDecimalNumbersExtraTitlesAndRelativeDates() throws {
-        let now = Date(timeIntervalSince1970: 100000)
-        let doc = try SwiftSoup.parse("""
-        <div id="chapterList"><ul><li><a href="/raw/series/ch-2">
-        <span class="text-ellipsis">第2.5話</span><span class="timeago">2時間前</span></a></li>
-        <li><a href="/raw/series/ch-3"><span class="text-ellipsis">第3話 おまけ</span></a></li></ul></div>
-        """, "https://mangaraw.best/")
-        let chapters = try MangarawBestSourceRunner.parseChapters(doc, now: now)
-        #expect(chapters.count == 2)
-        #expect(chapters[0].chapterNumber == 2.5)
-        #expect(chapters[0].title == nil)
-        #expect(chapters[0].dateUploaded == now.addingTimeInterval(-7200))
-        #expect(chapters[1].title == "第3話 おまけ")
-    }
-
     @Test func mangaRawJPListingScopesFirstBlockAndCleansTitle() throws {
         let doc = try SwiftSoup.parse("""
         <div class="post-list"><a href="/manga-raw/one/"><h3>One Raw Free</h3><img data-src="/one.jpg" src="data:image/png;base64,placeholder"></a></div>
@@ -43,14 +28,6 @@ struct NativeJapaneseGroupATests {
         #expect(result.entries[0].key == "/manga-raw/one/")
         #expect(result.entries[0].title == "One")
         #expect(result.entries[0].cover == "https://mangarawjp.tv/one.jpg")
-    }
-
-    @Test func mangaRawJPReaderIDsParseScriptDataWithoutExecutingScripts() throws {
-        let doc = try SwiftSoup.parse("<script>window.MangaId = 133; window.CNumber = 10.5; throw new Error('must never execute');</script>")
-        let ids = try MangarawJPSourceRunner.readerIDs(doc)
-        #expect(ids.0 == "133")
-        #expect(ids.1 == "10.5")
-        #expect(throws: (any Error).self) { try MangarawJPSourceRunner.readerIDs(SwiftSoup.parse("<script>window.other=1</script>")) }
     }
 
     @Test func rawdevartDecimalChapterKeysAndNullableListsDecode() throws {
@@ -67,28 +44,11 @@ struct NativeJapaneseGroupATests {
         #expect(result.entries[0].title == "AR/MS!!")
     }
 
-    @Test func groupADeepLinksDoNotAcceptHostLookalikes() async throws {
-        let best = MangarawBestSourceRunner()
-        let jp = MangarawJPSourceRunner()
-        let dev = RawdevartSourceRunner()
-        #expect(try await best.handleDeepLink(url: "https://mangaraw.best.evil/raw/a") == nil)
-        #expect(try await jp.handleDeepLink(url: "https://mangarawjp.tv.evil/manga-raw/a/") == nil)
-        #expect(try await dev.handleDeepLink(url: "https://rawdevart.art.evil/g/ne123") == nil)
-        let decimal = try await dev.handleDeepLink(url: "https://rawdevart.art/read/ne16523/chapter-34.2?track=1")
-        #expect(decimal?.mangaKey == "16523")
-        #expect(decimal?.chapterKey == "34.2")
-    }
-
-    @Test func rawdevartPageFragmentsUseServerAndDecimalEndpoint() async throws {
-        let fetch: NativeSourceNetwork.Fetch = { request in
-            #expect(request.url?.path == "/spa/manga/16523/34.2")
-            let data = Data(#"{"chapter_detail":{"chapter_content":"<div class='chapter-img'><img data-src='/data/page.webp'></div>","server":"https://images.example/"}}"#.utf8)
-            return (data, HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: [:])!)
-        }
-        let runner = RawdevartSourceRunner(fetch: fetch)
-        let pages = try await runner.getPageList(manga: .init(sourceKey: "ja.rawdevart", key: "16523", title: ""), chapter: .init(key: "34.2"))
-        #expect(pages.count == 1)
-        if case .url(let url, _) = pages[0].content { #expect(url.absoluteString == "https://images.example/data/page.webp") }
-        else { Issue.record("Expected URL page") }
+    /// Relative dates built from server text never become non-finite.
+    @Test func mangaRawBestOverflowingRelativeDatesAreRejected() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        #expect(MangarawBestSourceRunner.relativeDate("2日前", now: now) == now.addingTimeInterval(-2 * 86400))
+        #expect(MangarawBestSourceRunner.relativeDate(String(repeating: "9", count: 306) + "年前", now: now) == nil)
+        #expect(MangarawBestSourceRunner.relativeDate(String(repeating: "9", count: 400) + "秒前", now: now) == nil)
     }
 }

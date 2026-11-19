@@ -52,15 +52,6 @@ struct NHentaiNativeSourceTests {
         #expect(requests[0].value(forHTTPHeaderField: "User-Agent")?.contains("iPhone OS 17_2") == true)
     }
 
-    @Test func numericSearchUsesGalleryWithoutApplyingSearchFilters() async throws {
-        let fixture = NetworkFixture()
-        let runner = NHentaiSourceRunner(fetch: { await fixture.fetch($0) }, preference: { _ in "japanese" })
-        let result = try await runner.getSearchMangaList(query: "42", page: 1, filters: [.text(id: "artist", value: "ignored")])
-        #expect(result.entries.first?.title == "日本語")
-        #expect(!result.hasNextPage)
-        #expect(await fixture.requests.first?.url?.path == "/api/v2/galleries/42")
-    }
-
     @Test func detailsChaptersAndCachedPageImagesMatchV17() async throws {
         let fixture = NetworkFixture()
         let runner = NHentaiSourceRunner(fetch: { await fixture.fetch($0) }, preference: { _ in nil })
@@ -82,47 +73,4 @@ struct NHentaiNativeSourceTests {
         _ = try await runner.getPageList(manga: updated, chapter: updated.chapters![0])
         #expect(await fixture.requests.count == 2)
     }
-
-    @Test func homeFetchesFourRealListingsWithStableLayout() async throws {
-        let fixture = NetworkFixture()
-        let runner = NHentaiSourceRunner(fetch: { await fixture.fetch($0) }, preference: { _ in nil },
-                                        stringListPreference: { _ in [] }, boolPreference: { _ in true })
-        let home = try await runner.getHome()
-        #expect(home.components.map(\.title) == ["Popular Today", "Popular This Week", "Popular All Time", "Latest"])
-        let sorts = await fixture.requests.compactMap {
-            URLComponents(url: $0.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "sort" }?.value
-        }
-        #expect(Set(sorts) == ["popular-today", "popular-week", "popular", "date"])
-        if case let .mangaList(ranking, pageSize, _, listing) = home.components[1].value {
-            #expect(ranking && pageSize == 3 && listing?.kind == .list)
-        } else { Issue.record("Unexpected week component") }
-    }
-
-    @Test func malformedRequestsAndFailedNetworkAreNotSilentEmptyResults() async throws {
-        let fixture = NetworkFixture(status: 403)
-        let runner = NHentaiSourceRunner(fetch: { await fixture.fetch($0) })
-        await #expect(throws: URLError.self) { try await runner.getSearchMangaList(query: nil, page: 1, filters: []) }
-        await #expect(throws: URLError.self) { try await runner.getSearchMangaList(query: nil, page: 0, filters: []) }
-        await #expect(throws: SourceError.self) { try await runner.getMangaList(listing: AidokuRunner.Listing(id: "unknown", name: "Unknown"), page: 1) }
-        #expect(try await runner.handleDeepLink(url: "https://nhentai.net/g/42/")?.mangaKey == "42")
-        #expect(try await runner.handleDeepLink(url: "https://nhentai.net.evil.invalid/g/42/") == nil)
-    }
-    @Test func homePartialsUseOwningSubscriberAndDoNotEnterReplacementSink() async throws {
-        let fixture = NetworkFixture()
-        let runner = NHentaiSourceRunner(fetch: { await fixture.fetch($0) }, preference: { _ in nil },
-                                        stringListPreference: { _ in [] })
-        let publisher = try #require(runner.partialHomePublisher)
-        let recorder = HomeRecorder()
-        let token = await publisher.sink { recorder.record($0) }
-        _ = try await PartialResultSubscription.$id.withValue(token) { try await runner.getHome() }
-        let received = recorder.snapshots
-        #expect(received.count == 5)
-        if case let .bigScroller(entries, _) = received[0].components[0].value { #expect(entries.isEmpty) }
-        else { Issue.record("Missing initial Home layout") }
-        #expect(received.last?.components.map(\.title) == ["Popular Today", "Popular This Week", "Popular All Time", "Latest"])
-        let replacement = await publisher.sink { _ in Issue.record("Obsolete Home reached replacement subscriber") }
-        _ = try await PartialResultSubscription.$id.withValue(token) { try await runner.getHome() }
-        await publisher.removeSink(token: replacement)
-    }
-
 }

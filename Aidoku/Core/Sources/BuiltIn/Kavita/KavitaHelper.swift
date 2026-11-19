@@ -15,8 +15,6 @@ struct KavitaHelper: Sendable {
     private static let wholeFormatter = makeFormatter("yyyy-MM-dd'T'HH:mm:ss")
 
     let sourceKey: String
-    // Optional transport keeps cancellation/retry behavior testable without a server.
-    var transport: (@Sendable (URLRequest) async throws -> (Data, URLResponse))?
 
     func authorize(request: inout URLRequest) -> Bool {
         if let token = UserDefaults.standard.string(forKey: "\(sourceKey).token") {
@@ -101,9 +99,7 @@ struct KavitaHelper: Sendable {
             }
 
             guard !Task.isCancelled else { throw SourceError.networkError }
-            let result: (Data, URLResponse)?
-            if let transport { result = try? await transport(request) }
-            else { result = try? await session.data(for: request) }
+            let result = try? await session.data(for: request)
             guard !Task.isCancelled else { throw SourceError.networkError }
             guard
                 let data = result?.0,

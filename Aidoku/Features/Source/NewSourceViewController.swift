@@ -15,7 +15,6 @@ class NewSourceViewController: UIViewController {
     let source: AidokuRunner.Source
     // if the listings/home should be hidden and the search view shown by default
     private let onlySearch: Bool
-    private let suggestionService: SearchSuggestionService?
 
     private let searchController: UISearchController = .init(searchResultsController: nil)
 
@@ -36,7 +35,7 @@ class NewSourceViewController: UIViewController {
     private lazy var suggestionConfiguration = SearchSuggestionConfiguration.load(sourceURL: source.url)
     private lazy var suggestionsViewController: SearchSuggestionsViewController? = {
         guard let configuration = suggestionConfiguration else { return nil }
-        let controller = SearchSuggestionsViewController(viewModel: .init(configuration: configuration, service: suggestionService))
+        let controller = SearchSuggestionsViewController(viewModel: .init(configuration: configuration))
         controller.onSelect = { [weak self] query, suggestion in
             self?.applySearchSuggestion(suggestion, to: query)
         }
@@ -207,13 +206,11 @@ class NewSourceViewController: UIViewController {
     init(
         source: AidokuRunner.Source,
         onlySearch: Bool? = nil,
-        searchQuery: String? = nil,
-        suggestionService: SearchSuggestionService? = nil
+        searchQuery: String? = nil
     ) {
         self.source = source
         self.onlySearch = onlySearch ?? source.onlySearch
         self.searchText = searchQuery ?? ""
-        self.suggestionService = suggestionService
         super.init(nibName: nil, bundle: nil)
 
         self.searchViewController.searchText = self.searchText

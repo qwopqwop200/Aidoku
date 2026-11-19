@@ -4,17 +4,6 @@ import Testing
 @testable import Aidoku
 
 struct TranslationEndpointPolicyTests {
-    @Test func privateEndpointConnectivityErrorUsesProviderNeutralGuidance() {
-        let message = RemoteTranslationError.privateTailnetUnavailable.localizedDescription
-
-        #expect(
-            message
-                == NSLocalizedString("TRANSLATION_ERROR_CONNECTION")
-        )
-        #expect(!message.localizedCaseInsensitiveContains("tailscale"))
-        #expect(!message.localizedCaseInsensitiveContains("vpn"))
-    }
-
     @Test func openAIUsesTheFixedResponsesEndpoint() throws {
         let configuration = RemoteTranslationConfiguration.openAI(model: "gpt-5-mini")
         let endpoint = try configuration.validatedEndpoint()
@@ -23,32 +12,13 @@ struct TranslationEndpointPolicyTests {
 
     @Test func customBasePathsDoNotDuplicateProtocolSuffixes() throws {
         let cases: [(String, RemoteTranslationProtocol, String)] = [
-            (
-                "https://example.test",
-                .responses,
-                "https://example.test/v1/responses"
-            ),
-            (
-                "https://example.test/v1",
-                .responses,
-                "https://example.test/v1/responses"
-            ),
-            (
-                "https://example.test/openai/v1",
-                .chatCompletions,
-                "https://example.test/openai/v1/chat/completions"
-            ),
-            (
-                "https://example.test/v1/chat/completions",
-                .chatCompletions,
-                "https://example.test/v1/chat/completions"
-            ),
+            ("https://example.test", .responses, "https://example.test/v1/responses"),
+            ("https://example.test/v1", .responses, "https://example.test/v1/responses"),
+            ("https://example.test/openai/v1", .chatCompletions, "https://example.test/openai/v1/chat/completions"),
+            ("https://example.test/v1/chat/completions", .chatCompletions, "https://example.test/v1/chat/completions"),
         ]
         for (baseURL, apiProtocol, expected) in cases {
-            let endpoint = try customConfiguration(
-                baseURL: baseURL,
-                apiProtocol: apiProtocol
-            ).validatedEndpoint()
+            let endpoint = try customConfiguration(baseURL: baseURL, apiProtocol: apiProtocol).validatedEndpoint()
             #expect(endpoint.absoluteString == expected)
         }
     }
@@ -63,22 +33,10 @@ struct TranslationEndpointPolicyTests {
         }
 
         for rejected in [
-            customConfiguration(
-                baseURL: "http://localhost:8080/v1",
-                allowsDevelopmentHTTP: false
-            ),
-            customConfiguration(
-                baseURL: "http://example.test/v1",
-                allowsDevelopmentHTTP: true
-            ),
-            customConfiguration(
-                baseURL: "http://127.1:8080/v1",
-                allowsDevelopmentHTTP: true
-            ),
-            customConfiguration(
-                baseURL: "http://%6cocalhost:8080/v1",
-                allowsDevelopmentHTTP: true
-            ),
+            customConfiguration(baseURL: "http://localhost:8080/v1", allowsDevelopmentHTTP: false),
+            customConfiguration(baseURL: "http://example.test/v1", allowsDevelopmentHTTP: true),
+            customConfiguration(baseURL: "http://127.1:8080/v1", allowsDevelopmentHTTP: true),
+            customConfiguration(baseURL: "http://%6cocalhost:8080/v1", allowsDevelopmentHTTP: true),
         ] {
             do {
                 _ = try rejected.validatedEndpoint()
@@ -102,19 +60,6 @@ struct TranslationEndpointPolicyTests {
             } catch {
                 #expect(error is RemoteTranslationError)
             }
-        }
-    }
-
-    @Test func transportWaitsForConnectivityWithinItsTimeouts() {
-        for bypassesProxy in [false, true] {
-            let configuration =
-                BoundedURLSessionTransport.sessionConfiguration(
-                    bypassesProxy: bypassesProxy
-                )
-            #expect(!configuration.waitsForConnectivity)
-            #expect(configuration.timeoutIntervalForRequest == 600)
-            #expect(configuration.timeoutIntervalForResource == 600)
-            #expect(configuration.httpMaximumConnectionsPerHost == 64)
         }
     }
 

@@ -29,10 +29,6 @@ actor HTTPSDNSResolver {
     private let query: Query
     private var entries: [String: Entry] = [:]
     private var pending: [String: Pending] = [:]
-    var waitingConnectionCount: Int { pending.values.reduce(0) { $0 + $1.waiters.count } }
-
-    init(query: @escaping Query) { self.query = query }
-
     init(session: URLSession) {
         query = { try await Self.query(host: $0, type: $1, session: session) }
     }

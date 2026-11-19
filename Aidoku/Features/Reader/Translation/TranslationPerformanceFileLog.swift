@@ -67,8 +67,6 @@ final class TranslationPerformanceFileWriter: @unchecked Sendable {
     private var dropped = 0
     private var writeFailures = 0 // Writer queue only.
     private var memorySample: (uptime: TimeInterval, footprint: Int64, available: UInt64) = (-1, -1, 0)
-    private(set) var writeBatchCount = 0 // Read only after flushForTesting.
-    private(set) var memorySampleCount = 0
 
     init(directory: URL, maximumBytes: Int = 524_288, maximumPending: Int = 256,
          filename: String = "translation-performance", samplesMemory: Bool = false, flushInterval: TimeInterval = 0.25) {
@@ -110,9 +108,6 @@ final class TranslationPerformanceFileWriter: @unchecked Sendable {
         if shouldSchedule { queue.asyncAfter(deadline: .now() + flushInterval) { [self] in drain() } }
     }
 
-    /// Explicit test barrier only; production readers never wait for disk.
-    func flushForTesting() { queue.sync { drain() } }
-
     private func drain() {
         let batch: ([Entry], Int) = lock.withLock {
             let batch = (pending, dropped)
@@ -134,7 +129,6 @@ final class TranslationPerformanceFileWriter: @unchecked Sendable {
                 }
                 memorySample = (now, status == KERN_SUCCESS ? Int64(info.phys_footprint / 1_048_576) : -1,
                                 UInt64(os_proc_available_memory() / 1_048_576))
-                memorySampleCount += 1
             }
             let lines = batch.0.enumerated().map { index, entry -> Data in
                 var line = "time=\(entry.timestamp) uptime=\(entry.uptime) pid=\(ProcessInfo.processInfo.processIdentifier) seq=\(entry.sequence) "
@@ -176,7 +170,6 @@ final class TranslationPerformanceFileWriter: @unchecked Sendable {
                     try file?.seekToEnd()
                 }
                 try file?.write(contentsOf: buffer)
-                writeBatchCount += 1
                 buffer.removeAll(keepingCapacity: true)
             }
             for line in lines where line.count <= maximumBytes {

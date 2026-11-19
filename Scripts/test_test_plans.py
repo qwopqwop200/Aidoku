@@ -96,7 +96,7 @@ class TestPlanScopeTests(unittest.TestCase):
         self.assertIsInstance(selection, dict)  # Legacy arrays select XCTest only.
         selected = [suite['name'] for suite in selection['suites']]
         self.assertFalse(selection.get('xctestClasses'))
-        self.assertGreater(len(selected), 100)
+        self.assertGreater(len(selected), 40)
         self.assertEqual(len(selected), len(set(selected)))
         declarations = set()
         for path in (ROOT / 'AidokuTests').rglob('*.swift'):

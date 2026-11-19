@@ -4,12 +4,15 @@ import Testing
 
 struct NativeWebLoginPolicyTests {
     @Test func callbackMustMatchDeclaredRedirectAndState() {
-        let redirect = "aidoku://login/oauth"
-        let callback = URL(string: redirect + "?code=abc&state=attempt")!
-        #expect(NativeWebLoginPolicy.validatesCallback(callback, scheme: "aidoku", redirectURI: redirect, expectedState: "attempt"))
-        #expect(!NativeWebLoginPolicy.validatesCallback(callback, scheme: "other", redirectURI: redirect, expectedState: "attempt"))
-        #expect(!NativeWebLoginPolicy.validatesCallback(callback, scheme: "aidoku", redirectURI: "aidoku://login/other", expectedState: "attempt"))
-        #expect(!NativeWebLoginPolicy.validatesCallback(callback, scheme: "aidoku", redirectURI: redirect, expectedState: "old"))
+        let redirect = "aidoku://login/oauth?tenant=sourceA"
+        func valid(_ value: String, scheme: String = "aidoku", state: String = "s") -> Bool {
+            NativeWebLoginPolicy.validatesCallback(URL(string: value)!, scheme: scheme, redirectURI: redirect, expectedState: state)
+        }
+        #expect(valid("aidoku://login/oauth?tenant=sourceA&code=c&state=s"))
+        #expect(!valid("aidoku://login/oauth?tenant=sourceA&code=c&state=s", scheme: "other"))
+        #expect(!valid("aidoku://login/oauth?tenant=sourceA&code=c&state=s", state: "old"))
+        #expect(!valid("aidoku://login/oauth?tenant=sourceB&code=c&state=s"))
+        #expect(!valid("aidoku://login/oauth?tenant=sourceA&tenant=sourceA&code=c&state=s"))
     }
 
     @Test func providerErrorAndAmbiguousParametersAreRejected() {
@@ -19,14 +22,8 @@ struct NativeWebLoginPolicyTests {
         }
     }
 
-    @Test func fragmentCallbackPreservesEncodedState() {
-        let callback = URL(string: "aidoku://login#access_token=token&state=a%26b%3Dc")!
-        #expect(NativeWebLoginPolicy.validatesCallback(callback, scheme: "aidoku", redirectURI: nil, expectedState: "a&b=c"))
-    }
-
     @Test func loginURLsRequireHTTPHostAndNoEmbeddedCredentials() {
         #expect(NativeWebLoginPolicy.isHTTPURL(URL(string: "https://source.invalid/login")!))
-        #expect(NativeWebLoginPolicy.isHTTPURL(URL(string: "http://localhost:8080/login")!))
         for value in ["javascript:alert(1)", "file:///login", "https://user:password@source.invalid/login"] {
             #expect(!NativeWebLoginPolicy.isHTTPURL(URL(string: value)!))
         }
@@ -34,25 +31,26 @@ struct NativeWebLoginPolicyTests {
 }
 
 @MainActor
-struct NativeLoginAttemptTests {
-    @Test func cancelRejectsLateBasicOrCookieAuthenticationSuccess() async throws {
+struct SettingsLoginAttemptTests {
+    /// A token exchange that completes after logout must not store credentials.
+    @Test func logoutRejectsLateTokenExchangeCompletion() async throws {
         let owner = SettingsLoginAttempt()
-        var gate: CheckedContinuation<Bool, Never>?
+        var reply: CheckedContinuation<(Data, URLResponse), Never>?
         var writes = 0
-        let attempt = owner.begin()
-        owner.authenticate(attempt: attempt, operation: {
-            await withCheckedContinuation { gate = $0 }
-        }, commit: { writes += 1 }, failed: { writes += 1 })
-        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while gate == nil {
+        var errors = 0
+        owner.exchange(attempt: owner.begin(), operation: {
+            await withCheckedContinuation { reply = $0 }
+        }, commit: { _ in writes += 1 }, failed: { errors += 1 })
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while reply == nil {
             guard ContinuousClock.now < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(1))
+            await Task.yield()
         }
-        #expect(owner.isLoading)
         owner.cancel()
-        gate?.resume(returning: true)
-        try await Task.sleep(for: .milliseconds(20))
-        #expect(writes == 0)
         #expect(!owner.isLoading)
+        reply?.resume(returning: (Data("stale".utf8), HTTPURLResponse(url: URL(string: "https://settings.invalid/token")!,
+                                                                      statusCode: 200, httpVersion: nil, headerFields: nil)!))
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(writes == 0 && errors == 0)
     }
 }

@@ -73,27 +73,24 @@ struct WebView: UIViewRepresentable {
         private var revision = UUID()
         private var needsRefresh = false
         typealias Snapshot = (cookies: [String: String], storage: [String: String])
-        private let extract: @MainActor (WKWebView, URL, [String]) async -> Snapshot
 
-        init(
-            parent: WebView,
-            extract: @escaping @MainActor (WKWebView, URL, [String]) async -> Snapshot = { webView, url, keys in
-                let browserCookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
-                // Source settings expose flat cookie values, without a credential request endpoint.
-                // Retain API-path cookies rather than incorrectly scope them to the login page.
-                let cookies = SourceLoginBrowserPolicy.cookieValues(browserCookies, for: url, includePath: false)
-                // Identity-provider localStorage must never become a source credential.
-                let storage = if SourceLoginBrowserPolicy.sameOrigin(webView.url, url) {
-                    await webView.getLocalStorage(keys: keys)
-                } else {
-                    [String: String]()
-                }
-                return (cookies, storage)
-            }
-        ) {
+        init(parent: WebView) {
             self.parent = parent
-            self.extract = extract
             super.init()
+        }
+
+        private static func extract(_ webView: WKWebView, _ url: URL, _ keys: [String]) async -> Snapshot {
+            let browserCookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
+            // Source settings expose flat cookie values, without a credential request endpoint.
+            // Retain API-path cookies rather than incorrectly scope them to the login page.
+            let cookies = SourceLoginBrowserPolicy.cookieValues(browserCookies, for: url, includePath: false)
+            // Identity-provider localStorage must never become a source credential.
+            let storage = if SourceLoginBrowserPolicy.sameOrigin(webView.url, url) {
+                await webView.getLocalStorage(keys: keys)
+            } else {
+                [String: String]()
+            }
+            return (cookies, storage)
         }
 
         func startObserving(_ webView: WKWebView) {
@@ -134,7 +131,7 @@ struct WebView: UIViewRepresentable {
                     let url = self.parent.url
                     let keys = self.parent.localStorageKeys
                     let documentURL = webView.url
-                    let snapshot = await self.extract(webView, url, keys)
+                    let snapshot = await Self.extract(webView, url, keys)
                     guard !Task.isCancelled, self.revision == current, self.isObservingCookies else { return }
                     guard self.parent.url == url, self.parent.localStorageKeys == keys, webView.url == documentURL else {
                         self.needsRefresh = true

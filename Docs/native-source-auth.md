@@ -49,11 +49,6 @@ establish native adapter parity by themselves.
 | `multi.hitomi` | 2 | `3d30ac30cbe182ef38ce56ecf91776689f17c6cb33c370c25e1e4c6483500446` | `c9b0f184d12bdfa2f706f85ae612e14f4238e0cbdccf43f1c046e6ec0bbb763d` | 2 |
 | `multi.nhentai` | 17 | `2321d4c01d07a7852ac631aac39d02a702a6b814887ce2946a8450cb101a8992` | `eb39593169a6f9540a8678c7a2898ceeebb85aa30ddf604679a71d5c7cb341b1` | 115 |
 
-Complete safe installed source metadata and hashes are retained in
-`AidokuTests/Fixtures/NativeSourceBackupMetadata.json`. It contains manifests,
-filter/settings definitions and provenance only, with no executable bytes,
-preferences, saved login credentials or cookies.
-
 ## Authentication compatibility
 
 `CloudflareResponsePolicy` classifies challenge responses natively and permits
@@ -99,24 +94,22 @@ remain necessary for newer system authentication and networking APIs.
 ## Tests
 
 New implementation suites include `NativeWebLoginPolicyTests` and
-`NativeLoginAttemptTests`. `SourceLoginBrowserPolicyTests` exercises cookie scope,
+`SettingsLoginAttemptTests`. `SourceLoginBrowserPolicyTests` exercises cookie scope,
 host-only and secure cookies, same-origin localStorage, and exact OIDC callback
-matching. `NativeSourceRoutingTests` covers external-versus-built-in classification
-and manifest identity rejection before executable loading. Registry package tests cover supported selection
+matching. `NativeSourceRoutingTests` covers exact id/version routing and manifest
+identity rejection before executable loading. Registry package tests cover supported selection
 without an executable and preserved metadata, explicit unsupported key/version
 rejection including packages that still contain executable bytes, factory failure
 propagation, atomic overlapping registration, registration from a factory without
 holding the lock, and concurrent lookup.
 
-`CloudflareResponsePolicyTests` covers authoritative challenge headers, ordinary
-403 rejection, legacy markup, safe cached retries, mutation/cookie preservation,
-bodyless browser verification and cookie boundaries. `NativeHitomiSourceTests`
-covers model/settings mapping, gallery-cache sharing and invalidation, cancelled
-gallery fan-out, reader Referer preservation and deep-link host validation.
+`CloudflareResponsePolicyTests` covers challenge detection, bodyless browser
+verification and cookie boundaries. `NativeHitomiSourceTests` covers metadata
+mapping, ranged pagination, index size limits, untrusted index/routing parsing and
+deep-link host validation.
 
-Relevant existing suites include `SettingsLoginWebSchedulingTests`,
-`SourcePaginationTests`, `SourceBrowseSafetyTests`,
-`SourceListingPaginationTests`, `BuiltInSourceModelTests`, and `HTTPSBypassTests`.
+Relevant existing suites include `SourcePaginationTests`, `SourceBrowseSafetyTests`
+and `HTTPSBypassTests`.
 Select affected suites based on changed behavior, not the entire app test plan.
 
 ```sh
@@ -145,15 +138,8 @@ The upstream repository also offers Apache 2.0 as an alternative.
 
 `SenMangaSourceRunner` ports the matching `ja.senmanga` v2 JSON API, search sort
 and select parameters, details, ratings/viewer, chapters, page lists, deep links
-and old-key migration. `NativeSenMangaSourceTests` exercises query encoding,
-nullable pagination, null-status preservation, genre/chapter/date mapping,
-page validation, migration identity, strict deep-link host and cancellation.
-These tests are included in AidokuFast.
+and old-key migration. `NativeSenMangaSourceTests` covers detail and chapter mapping.
 
-`NativeSourceBackupCoverageTests` loads all 12 exact installed source versions
-from the combined bundled metadata fixture into temporary source packages with
-no executable. It verifies identity, version, languages, listings, filter and
-settings preservation, and explicit unknown-version rejection. The fixture is
-bundled in the test target, so the suite does not depend on host checkout paths
-or access actual backup directories at runtime. The test contains no live source
-requests.
+`NativeSourceRoutingTests` loads each of the 12 exact built-in source ids and versions
+into a temporary package with no executable, checks that it routes to its native runner,
+and verifies explicit rejection of every other version.

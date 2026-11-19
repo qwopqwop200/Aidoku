@@ -20,7 +20,7 @@ python3 Scripts/test_quick.py
 python3 Scripts/test_quick.py --fast-ios --device <UDID>
 
 # Explicit affected suites
-python3 Scripts/test_quick.py --ios V2PipelineSchedulingTests --device <UDID> --configuration Release --jobs 2
+python3 Scripts/test_quick.py --ios V2StageTests --device <UDID> --configuration Release --jobs 2
 
 # Full plans, only when the broader scope is required
 python3 Scripts/test_quick.py --full-ios --device <UDID>

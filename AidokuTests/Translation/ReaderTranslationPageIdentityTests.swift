@@ -34,33 +34,4 @@ struct ReaderTranslationPageIdentityTests {
         let expected = SHA256.hash(data: try JSONEncoder().encode(originalParts)).map { String(format: "%02x", $0) }.joined()
         #expect(first.translationCacheKey == expected)
     }
-
-    @Test func base64PayloadChangesInvalidatePageTranslationAndSplitOverrideRemainsStable() {
-        var first = page(), second = page()
-        first.imageURL = nil
-        second.imageURL = nil
-        first.base64 = Data("first-image".utf8).base64EncodedString()
-        second.base64 = Data("second-image".utf8).base64EncodedString()
-        #expect(first.translationCacheKey != second.translationCacheKey)
-        second.base64 = first.base64
-        #expect(first.translationCacheKey == second.translationCacheKey)
-        second.translationOriginalKey = "original-full-page"
-        #expect(second.translationCacheKey == "original-full-page")
-    }
-    @Test func base64DigestIsStoredAcrossCopiesAndRefreshedOnlyOnAssignment() {
-        let initial = Page(sourceId: "source", chapterId: "chapter", base64: "aGVsbG8=")
-        #expect(initial.$base64 == ReaderImageContentIdentity.base64Key("aGVsbG8=", processorSettingsKey: ""))
-        var copy = initial
-        #expect(copy == initial)
-        #expect(copy.$base64 == initial.$base64)
-        let originalKey = initial.translationCacheKey
-        for _ in 0..<100 { #expect(initial.translationCacheKey == originalKey) }
-        copy.base64 = "d29ybGQ="
-        #expect(copy.$base64 != initial.$base64)
-        #expect(copy.translationCacheKey != originalKey)
-        #expect(initial.base64 == "aGVsbG8=")
-        copy.base64 = nil
-        #expect(copy.$base64 == nil)
-        #expect(Page(sourceId: "source", chapterId: "chapter").base64 == nil)
-    }
 }

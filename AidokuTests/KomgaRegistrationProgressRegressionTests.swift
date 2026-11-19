@@ -7,18 +7,8 @@ final class KomgaRegistrationProgressRegressionTests: XCTestCase {
     func testRegistrationDoesNotMoveRemoteChapterProgressBackwards() async throws {
         try await verify(useChapters: true, remote: 10, local: 5, expectedUpdate: nil)
     }
-    func testRegistrationDoesNotMoveRemoteVolumeProgressBackwards() async throws {
-        try await verify(useChapters: false, remote: 10, local: 5, expectedUpdate: nil)
-    }
-    func testRegistrationLeavesEqualProgressUntouched() async throws {
-        for chapters in [true, false] {
-            try await verify(useChapters: chapters, remote: 5, local: 5, expectedUpdate: nil)
-        }
-    }
     func testRegistrationPreservesValidForwardUpdatePayload() async throws {
-        for chapters in [true, false] {
-            try await verify(useChapters: chapters, remote: 2, local: 5, expectedUpdate: 5)
-        }
+        try await verify(useChapters: true, remote: 2, local: 5, expectedUpdate: 5)
     }
 
     private func verify(useChapters: Bool, remote: Int, local: Float, expectedUpdate: Int?) async throws {

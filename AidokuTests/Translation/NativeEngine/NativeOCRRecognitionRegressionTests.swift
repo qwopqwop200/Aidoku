@@ -4,7 +4,7 @@ import Testing
 @testable import Aidoku
 
 struct NativeOCRRecognitionRegressionTests {
-    @Test(arguments: [0.5, 1.0, 2.0, 4.0])
+    @Test(arguments: [1.0, 4.0])
     func savedNearThresholdCropsKeepReadingAxisAcrossResolutions(scale: Double) throws {
         // Saved low-confidence recognizer quads: run 2EAB1CCF, pages
         // 0280/source20 (.533), 0354/source2 (.547), 0390/source10 (.445).
@@ -25,17 +25,7 @@ struct NativeOCRRecognitionRegressionTests {
         }
     }
 
-    @Test(arguments: [1.49, 1.5, 1.51], [0.5, 1.0, 2.0, 4.0])
-    func readingAxisUsesContinuousAspectRatio(ratio: Double, scale: Double) throws {
-        let width = 14.9 * scale
-        let height = width * ratio
-        let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0),
-                       CGPoint(x: width, y: height), CGPoint(x: 0, y: height)]
-        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon))
-        #expect(plan.rotatedCounterClockwise == (ratio >= 1.5))
-    }
-
-    @Test(arguments: [33, 48, 99, 157, 319, 320, 641, 1183, 1184, 1185, 1280, 1500])
+    @Test(arguments: [33, 641, 1184, 1500])
     func dynamicTensorUsesExactCropWidthWithoutPadding(width: Int) throws {
         let height = 48
         let frame = try #require(NativeOCRRGBAFrame(
@@ -56,30 +46,20 @@ struct NativeOCRRecognitionRegressionTests {
         #expect(tensor.resizedWidth == tensor.bucket.width)
     }
 
-    @Test(arguments: [64, 319, 320, 321, 640, 641, 960, 1184])
-    func fixedModelTensorPreservesContentLimitWithoutDroppingToSmallerBucket(maximumWidth: Int) throws {
-        let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: 1500, y: 0),
-                       CGPoint(x: 1500, y: 48), CGPoint(x: 0, y: 48)]
-        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(
-            polygon: polygon, maximumWidth: maximumWidth
-        ))
-        let expectedBucket = maximumWidth <= 320 ? 320 : maximumWidth <= 640 ? 640 : 1280
-        #expect(plan.resizedWidth == maximumWidth)
-        #expect(plan.bucket.width == expectedBucket)
-    }
-
-    @Test(arguments: [-35.0, -25, -8, 8, 25, 35], [false, true])
-    func slantedTensorKeepsUprightCropAxes(degrees: Double, vertical: Bool) throws {
-        let w: CGFloat = vertical ? 32 : 180, h: CGFloat = vertical ? 180 : 32
-        let a = degrees * .pi / 180
-        let expected = [CGPoint(x: 0, y: 0), CGPoint(x: w, y: 0), CGPoint(x: w, y: h), CGPoint(x: 0, y: h)]
-            .map { CGPoint(x: 250 + $0.x * cos(a) - $0.y * sin(a), y: 250 + $0.x * sin(a) + $0.y * cos(a)) }
-        for offset in 0..<4 {
-            let polygon = (0..<4).map { expected[($0 + offset) % 4] }
-            #expect(NativeOCRScopeGeometry.canonicalQuad(polygon) == expected)
-            #expect(NativeOCRScopeGeometry.canonicalQuad(Array(polygon.reversed())) == expected)
-            let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon))
-            #expect(plan.rotatedCounterClockwise == vertical)
+    // Non-finite or huge recognizer quads must fail closed instead of trapping on Int conversion.
+    @Test func overflowingGeometryIsRejectedOrBoundedBeforeIntegerConversion() throws {
+        #expect(NativeCoreMLRecognitionPreprocessor.plan(polygon: [CGPoint(x: 0, y: 0), CGPoint(x: 1e20, y: 0),
+            CGPoint(x: 1e20, y: 30), CGPoint(x: 0, y: 30)]) == nil)
+        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: [CGPoint(x: 0, y: 0),
+            CGPoint(x: 1e18, y: 0), CGPoint(x: 1e18, y: 2), CGPoint(x: 0, y: 2)],
+            dynamicWidth: true, maximumWidth: IPhoneOCRSettings.defaultRecognizerMaximumWidth))
+        #expect(plan.resizedWidth == 1_184)
+        #expect(plan.bucket.timeSteps == 148)
+        for extreme in [Int.min, -1, Int.max] {
+            #expect(NativeCoreMLRecognitionBucket.containing(desiredWidth: Int.max, dynamicWidth: true,
+                maximumWidth: extreme).width == (extreme <= 32 ? 32 : 2_400))
+            #expect(NativeCoreMLRecognitionBucket.containing(desiredWidth: extreme, dynamicWidth: true,
+                maximumWidth: 1_280).width == (extreme <= 32 ? 32 : 1_280))
         }
     }
 

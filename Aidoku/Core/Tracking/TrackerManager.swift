@@ -55,7 +55,6 @@ actor TrackerManager {
 
     private let defaults: UserDefaults
     private let trackerResolver: @Sendable (String) -> Tracker?
-    var pendingPageUpdateCount: Int { trackingState.pendingPageUpdates.count }
     func waitForPendingPageUpdates() async { await pageUpdateTask?.value }
 
     init(defaults: UserDefaults = .standard,

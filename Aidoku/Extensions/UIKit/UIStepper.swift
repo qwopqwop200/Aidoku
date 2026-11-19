@@ -53,7 +53,6 @@ extension UIStepper {
 @MainActor
 final class SettingStepperLease {
     private static var idleControls: [UIStepper] = []
-    private(set) static var createdControlCount = 0
     let control: UIStepper
 
     init() {
@@ -61,7 +60,6 @@ final class SettingStepperLease {
             control = idle
         } else {
             control = UIStepper()
-            Self.createdControlCount += 1
         }
     }
 

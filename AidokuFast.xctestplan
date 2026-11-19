@@ -17,28 +17,16 @@
       "selectedTests" : {
         "suites" : [
           {
-            "name" : "Agent2UtilityRegressionTests"
+            "name" : "AppMiscTests"
           },
           {
             "name" : "ArchiveTests"
           },
           {
-            "name" : "AutomaticBackupIntervalTests"
-          },
-          {
             "name" : "BackupSafetyTests"
           },
           {
-            "name" : "BlockingCancellationForwardingTests"
-          },
-          {
-            "name" : "BoundedConcurrentMapTests"
-          },
-          {
-            "name" : "BuiltInSourceModelTests"
-          },
-          {
-            "name" : "CategoryOrderingTests"
+            "name" : "BuiltInServerSourceTests"
           },
           {
             "name" : "CloudflareResponsePolicyTests"
@@ -56,61 +44,13 @@
             "name" : "CropBordersProcessorRegressionTests"
           },
           {
-            "name" : "DictionaryFileOperationsTests"
-          },
-          {
-            "name" : "DictionaryOperationSchedulingTests"
-          },
-          {
-            "name" : "DictionaryReadingOrderTests"
-          },
-          {
-            "name" : "DictionaryTextAnalysisQueueTests"
-          },
-          {
-            "name" : "DiscoverySchedulingTests"
-          },
-          {
-            "name" : "DownloadAuditTests"
-          },
-          {
-            "name" : "DownloadCompressedAdmissionTests"
-          },
-          {
-            "name" : "DownloadDescriptionPersistenceTests"
-          },
-          {
-            "name" : "DownloadIdentityAuditTests"
+            "name" : "DictionaryTests"
           },
           {
             "name" : "DownloadMetadataTests"
           },
           {
-            "name" : "DownloadMetadataWriteFailureTests"
-          },
-          {
             "name" : "DownloadPathContainmentTests"
-          },
-          {
-            "name" : "DownloadPathSafetyRegressionTests"
-          },
-          {
-            "name" : "DownloadPrefetchCancellationTests"
-          },
-          {
-            "name" : "DownloadQueueOwnershipTests"
-          },
-          {
-            "name" : "DownloadQueuePathSafetyTests"
-          },
-          {
-            "name" : "DownloadSchedulingContinuityTests"
-          },
-          {
-            "name" : "DownloadTransportAdmissionTests"
-          },
-          {
-            "name" : "DownloadedMangaSortOrderTests"
           },
           {
             "name" : "EHentaiNativeSourceTests"
@@ -119,58 +59,16 @@
             "name" : "FixedAPIDateFormatTests"
           },
           {
-            "name" : "FollowupDiscoveryTests"
-          },
-          {
             "name" : "FormEncodingTests"
           },
           {
-            "name" : "HistoryBatchClearAcknowledgmentTests"
-          },
-          {
-            "name" : "HistoryIdentityIngestionTests"
-          },
-          {
-            "name" : "HistoryIngestionSchedulingTests"
-          },
-          {
-            "name" : "HistoryMetadataCacheTests"
-          },
-          {
-            "name" : "HistoryOptimisticConflictTests"
-          },
-          {
-            "name" : "HitomiNativeUtilityTests"
+            "name" : "HistoryDataTests"
           },
           {
             "name" : "JSONAnyValueTests"
           },
           {
-            "name" : "KavitaCancellationTests"
-          },
-          {
-            "name" : "KomgaReleaseDateSafetyTests"
-          },
-          {
-            "name" : "LibraryCategoryHeaderLifetimeTests"
-          },
-          {
-            "name" : "LibraryCategorySelectionBoundsTests"
-          },
-          {
-            "name" : "LibraryFollowupWorkTests"
-          },
-          {
-            "name" : "LibraryIncrementalOrderRegressionTests"
-          },
-          {
-            "name" : "LibrarySnapshotSchedulingTests"
-          },
-          {
-            "name" : "LibraryUndoPreservationTests"
-          },
-          {
-            "name" : "LocalDeletionSaveFailureTests"
+            "name" : "LibraryDataTests"
           },
           {
             "name" : "LocalFileNameParserTests"
@@ -185,49 +83,16 @@
             "name" : "LocalPathContainmentTests"
           },
           {
-            "name" : "LocalSourceDefaultsTests"
-          },
-          {
             "name" : "MangaDescriptionTranslationTests"
-          },
-          {
-            "name" : "MangarawJPImageCodecTests"
-          },
-          {
-            "name" : "MetadataDownloadCacheAuditTests"
-          },
-          {
-            "name" : "NativeAuthCloudflareAuditTests"
-          },
-          {
-            "name" : "NativeCTFontStrokePainterTests"
-          },
-          {
-            "name" : "NativeGallerySourceAuditTests"
-          },
-          {
-            "name" : "NativeHitomiAuditTests"
           },
           {
             "name" : "NativeHitomiSourceTests"
           },
           {
-            "name" : "NativeHorizontalGlobalFillPainterTests"
-          },
-          {
-            "name" : "NativeImageCodecAuditTests"
-          },
-          {
-            "name" : "NativeJapaneseAAuditTests"
-          },
-          {
-            "name" : "NativeJapaneseBAuditTests"
+            "name" : "NativeImageCodecTests"
           },
           {
             "name" : "NativeJapaneseGroupATests"
-          },
-          {
-            "name" : "NativeLoginAttemptTests"
           },
           {
             "name" : "NativeOCRRecognitionRegressionTests"
@@ -245,19 +110,10 @@
             "name" : "NativeSoraRawSourceTests"
           },
           {
-            "name" : "NativeSourceBackupCoverageTests"
-          },
-          {
-            "name" : "NativeSourceIntegrationAuditTests"
-          },
-          {
             "name" : "NativeSourceRoutingTests"
           },
           {
             "name" : "NativeSpoilerPlusSourceTests"
-          },
-          {
-            "name" : "NativeTranslationEscapedLanguageCacheTests"
           },
           {
             "name" : "NativeWebLoginPolicyTests"
@@ -269,85 +125,13 @@
             "name" : "NHentaiNativeSourceTests"
           },
           {
-            "name" : "NotificationDelegateTests"
-          },
-          {
-            "name" : "ObserverObjectFilteringTests"
-          },
-          {
-            "name" : "OCRGeometryOverflowRegressionTests"
-          },
-          {
             "name" : "PageInterceptorProcessorTests"
           },
           {
             "name" : "PartialDownloadTests"
           },
           {
-            "name" : "PerformanceOOMOptimizationTests"
-          },
-          {
-            "name" : "PersistentHistoryStoreTests"
-          },
-          {
-            "name" : "ProviderCacheIdentityAuditTests"
-          },
-          {
-            "name" : "ReaderAdmissionRecoveryTests"
-          },
-          {
-            "name" : "ReaderChapterHandoffTests"
-          },
-          {
-            "name" : "ReaderEntryLoadingTests"
-          },
-          {
-            "name" : "ReaderHistoryCompletionAcknowledgmentTests"
-          },
-          {
-            "name" : "ReaderImageCacheRecoveryTests"
-          },
-          {
-            "name" : "ReaderImageContentIdentityTests"
-          },
-          {
-            "name" : "ReaderImageDownloadDemandTests"
-          },
-          {
-            "name" : "ReaderLocalPageIdentityTests"
-          },
-          {
-            "name" : "ReaderPageControllerStoreTests"
-          },
-          {
-            "name" : "ReaderPagedDemandSchedulingTests"
-          },
-          {
-            "name" : "ReaderPagePrefetchReservationsTests"
-          },
-          {
-            "name" : "ReaderRawImageProcessingTests"
-          },
-          {
-            "name" : "ReaderTemporaryIdentityTests"
-          },
-          {
-            "name" : "ReaderTextNavigationRecoveryTests"
-          },
-          {
-            "name" : "ReaderTextProgressRestorationTests"
-          },
-          {
-            "name" : "ReaderToolbarLocalizationTests"
-          },
-          {
-            "name" : "ReaderTranslationConcurrencyTests"
-          },
-          {
-            "name" : "ReaderTranslationConnectionTestModelTests"
-          },
-          {
-            "name" : "ReaderTranslationDiskReadBudgetAuditTests"
+            "name" : "ReaderPageIdentityTests"
           },
           {
             "name" : "ReaderTranslationLanguageFilterTests"
@@ -362,76 +146,13 @@
             "name" : "ReaderTranslationProviderTests"
           },
           {
-            "name" : "ReaderWebtoonSchedulingTests"
-          },
-          {
-            "name" : "ReauditAuthenticationTests"
-          },
-          {
-            "name" : "ReauditCloudflareTests"
-          },
-          {
-            "name" : "ReauditEHentaiTests"
-          },
-          {
-            "name" : "ReauditHitomiTests"
-          },
-          {
-            "name" : "ReauditMangaLoadOwnershipTests"
-          },
-          {
-            "name" : "ReauditMangarawBestTests"
-          },
-          {
-            "name" : "ReauditMangarawJPTests"
-          },
-          {
-            "name" : "ReauditNHentaiTests"
-          },
-          {
-            "name" : "ReauditRawdevartTests"
-          },
-          {
-            "name" : "ReauditRawkumaTests"
-          },
-          {
-            "name" : "ReauditRawOtakuTests"
-          },
-          {
-            "name" : "ReauditSoraRawTests"
-          },
-          {
-            "name" : "ReauditSourceIntegrationTests"
-          },
-          {
-            "name" : "ReauditSpoilerPlusTests"
-          },
-          {
-            "name" : "ReauditYomiiTests"
-          },
-          {
-            "name" : "RomajiCandidatePruningTests"
-          },
-          {
-            "name" : "SettingControlLifetimeTests"
-          },
-          {
-            "name" : "SettingsAuditRegressionTests"
-          },
-          {
-            "name" : "SettingsLoginWebSchedulingTests"
+            "name" : "SettingsLoginAttemptTests"
           },
           {
             "name" : "SharedImageInboxTests"
           },
           {
-            "name" : "SoraRawImageCodecTests"
-          },
-          {
             "name" : "SourceBrowseSafetyTests"
-          },
-          {
-            "name" : "SourceListingPaginationTests"
           },
           {
             "name" : "SourceLoginBrowserPolicyTests"
@@ -443,19 +164,10 @@
             "name" : "SourceRequestCookieScopeTests"
           },
           {
-            "name" : "TemporarySharedImageSessionTests"
-          },
-          {
             "name" : "TitleTranslationTests"
           },
           {
-            "name" : "TrackerFollowupSchedulingTests"
-          },
-          {
-            "name" : "TrackerOAuthSchedulingTests"
-          },
-          {
-            "name" : "TrackerPresentationTests"
+            "name" : "TrackerRegressionTests"
           },
           {
             "name" : "TrackerSyncTests"
@@ -464,55 +176,22 @@
             "name" : "TranslatedDownloadTests"
           },
           {
-            "name" : "TranslatedTitleLabelNotificationTests"
-          },
-          {
-            "name" : "TranslationCacheAuditTests"
-          },
-          {
             "name" : "TranslationEndpointPolicyTests"
-          },
-          {
-            "name" : "TranslationErrorLocalizationTests"
           },
           {
             "name" : "TranslationHTTPCodecTests"
           },
           {
-            "name" : "TranslationImageSupportTests"
-          },
-          {
-            "name" : "TranslationJoinedPriorityTests"
-          },
-          {
-            "name" : "TranslationPerformanceFileLogTests"
+            "name" : "TranslationServiceCacheTests"
           },
           {
             "name" : "TranslationStreamingTests"
           },
           {
-            "name" : "V2CoreTests"
-          },
-          {
-            "name" : "V2DetectionTests"
-          },
-          {
-            "name" : "V2GroupingTests"
-          },
-          {
-            "name" : "V2LayoutTests"
-          },
-          {
             "name" : "V2ReaderPipelineTests"
           },
           {
-            "name" : "V2RecognitionTests"
-          },
-          {
-            "name" : "V2RemovalMaskTests"
-          },
-          {
-            "name" : "V2StyleTests"
+            "name" : "V2StageTests"
           }
         ]
       },

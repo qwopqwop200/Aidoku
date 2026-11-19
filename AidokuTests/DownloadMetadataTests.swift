@@ -6,28 +6,6 @@ import ZIPFoundation
 
 @Suite(.serialized)
 struct DownloadMetadataTests {
-    @Test @MainActor func folderReaderKeepsNaturalOrderAndPageDescriptions() async throws {
-        let source = "folder-pages-" + UUID().uuidString
-        let identifier = ChapterIdentifier(sourceKey: source, mangaKey: "book", chapterKey: "ch")
-        let root = DownloadManager.directory.appendingPathComponent(source)
-        let chapter = root.appendingPathComponent("book").appendingPathComponent("ch")
-        defer { root.removeItem() }
-        chapter.createDirectory()
-        for name in ["10.JPG", "2.md", ".hidden.png", "10.plist", "1.avif", "002.desc.txt", "800.desc.txt"] {
-            try Data(name.utf8).write(to: chapter.appendingPathComponent(name))
-        }
-        let pages = await DownloadManager().getDownloadedPages(for: identifier)
-        let files = chapter.contents
-        let expected: [AidokuRunner.PageContent] = [
-            .url(url: try #require(files.first { $0.lastPathComponent == "1.avif" })),
-            .text("2.md"),
-            .url(url: try #require(files.first { $0.lastPathComponent == "10.JPG" }))
-        ]
-        #expect(pages.map(\.content) == expected)
-        #expect(pages.map(\.description) == [nil, "002.desc.txt", nil])
-        #expect(pages.map(\.hasDescription) == [false, true, false])
-    }
-
     @Test func archiveAndFolderReadMetadataAndCountOnlyPages() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -78,5 +56,40 @@ struct DownloadMetadataTests {
         try Data("broken".utf8).write(to: file)
         #expect(DownloadedChapterFile.pageCount(in: file) == 0)
         #expect(DownloadedChapterFile.comicInfo(in: file) == nil)
+    }
+
+    @Test func nonFiniteVolumeMetadataDoesNotTrap() {
+        let manga = AidokuRunner.Manga(sourceKey: "test", key: "book", title: "Book")
+        #expect(ComicInfo.load(manga: manga, chapter: .init(key: "1", volumeNumber: .infinity)).volume == nil)
+        #expect(ComicInfo.load(manga: manga, chapter: .init(key: "1", volumeNumber: .nan)).volume == nil)
+        #expect(ComicInfo.load(manga: manga, chapter: .init(key: "1", volumeNumber: 2.5)).volume == 2)
+    }
+
+    @Test @MainActor func savedMetadataPreservesUTF8XMLAndOfflineIdentifiers() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { folder.removeItem() }
+        folder.createDirectory()
+        let manga = AidokuRunner.Manga(sourceKey: "test", key: "book", title: "한국어 & 日本語")
+        let chapter = AidokuRunner.Chapter(key: "chapter.1", title: "<첫 장>", chapterNumber: 1.5, volumeNumber: 2)
+        try await DownloadManager().saveChapterMetadata(manga: manga, chapter: chapter, to: folder)
+        let actual = try Data(contentsOf: folder.appendingPathComponent("ComicInfo.xml"))
+        let xml = try #require(String(data: actual, encoding: .utf8))
+        let decoded = try #require(ComicInfo.load(xmlString: xml))
+        #expect(decoded.series == manga.title)
+        #expect(decoded.title == chapter.title)
+        #expect(decoded.toManga()?.identifier == manga.identifier)
+        #expect(decoded.toChapter()?.key == chapter.key)
+        #expect(Data(decoded.export().utf8) == actual)
+    }
+
+    @Test func failedMetadataMigrationPreservesOriginal() async throws {
+        let root = DownloadManager.directory.appendingSafePathComponent("test.audit." + UUID().uuidString)
+        defer { root.removeItem() }
+        let chapter = root.appendingPathComponent("book").appendingPathComponent("chapter")
+        chapter.createDirectory()
+        let original = chapter.appendingPathComponent(".metadata.json")
+        try Data("{broken".utf8).write(to: original)
+        await DownloadManager().migrateOldMetadata()
+        #expect(original.exists)
     }
 }

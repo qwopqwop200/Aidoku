@@ -38,10 +38,8 @@ actor DownloadManager {
     private let cacheValidityDuration: TimeInterval = 60 // 1 minute
     private var snapshotRevision: UInt64 = 0
     private var snapshotWork: (id: UUID, revision: UInt64, task: Task<[DownloadedMangaInfo], Never>)?
-    private let snapshotLoader: (@Sendable () async -> [DownloadedMangaInfo])?
 
-    init(snapshotLoader: (@Sendable () async -> [DownloadedMangaInfo])? = nil) {
-        self.snapshotLoader = snapshotLoader
+    init() {
         self.queue = DownloadQueue(cache: cache)
         if !Self.directory.exists {
             Self.directory.createDirectory()
@@ -281,14 +279,9 @@ extension DownloadManager {
 
     /// Enumeration failures and chapters arriving after enumeration must leave
     /// their containing directory intact. Never recursively delete at this step.
-    nonisolated static func pruneEmptyMangaDirectory(
-        _ directory: URL,
-        contents: (URL) throws -> [URL] = {
-            try FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey])
-        }
-    ) -> Bool {
+    nonisolated static func pruneEmptyMangaDirectory(_ directory: URL) -> Bool {
         do {
-            let entries = try contents(directory)
+            let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey])
             for entry in entries {
                 let values = try entry.resourceValues(forKeys: [.isDirectoryKey])
                 guard values.isDirectory == false, entry.pathExtension.lowercased() != "cbz" else { return false }
@@ -413,8 +406,7 @@ extension DownloadManager {
             if let existing = snapshotWork { work = existing }
             else {
                 work = (UUID(), snapshotRevision, Task {
-                    if let snapshotLoader { return await snapshotLoader() }
-                    return await scanDownloadedManga()
+                    await scanDownloadedManga()
                 })
                 snapshotWork = work
             }

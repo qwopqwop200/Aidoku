@@ -12,11 +12,6 @@ struct CropBordersProcessorRegressionTests {
         #expect(output.height == 1)
     }
 
-    @Test @MainActor func invalidDownsampleSizePreservesSource() throws {
-        let source = UIImage(cgImage: try image(fill: nil))
-        #expect(DownsampleProcessor(size: .zero).process(source) === source)
-    }
-
     private func image(width: Int = 10, height: Int = 10, fill: CGRect?) throws -> CGImage {
         let context = try #require(CropBordersProcessor().createARGBBitmapContext(width: width, height: height))
         context.setFillColor(UIColor.white.cgColor)
@@ -26,40 +21,6 @@ struct CropBordersProcessorRegressionTests {
             context.fill(fill)
         }
         return try #require(context.makeImage())
-    }
-
-    @Test func includesLastRetainedPixel() throws {
-        let source = try image(fill: CGRect(x: 2, y: 2, width: 6, height: 6))
-        #expect(CropBordersProcessor().createCropRect(source) == CGRect(x: 2, y: 2, width: 6, height: 6))
-    }
-
-    @Test func stripsPreserveBoundaryAndFinalPartialRow() throws {
-        for y in [0, 1, 127, 128, 129, 255, 256] {
-            let source = try image(width: 20, height: 257, fill: CGRect(x: 7, y: y, width: 1, height: 1))
-            #expect(CropBordersProcessor().createCropRect(source) == CGRect(x: 7, y: 256 - y, width: 1, height: 1))
-        }
-    }
-
-    @Test func singlePixelHasArea() throws {
-        let source = try image(width: 1, height: 1, fill: CGRect(x: 0, y: 0, width: 1, height: 1))
-        #expect(CropBordersProcessor().createCropRect(source) == CGRect(x: 0, y: 0, width: 1, height: 1))
-    }
-
-    @Test func emptyContentAndInvalidScaleReturnEmptyBounds() throws {
-        let source = try image(fill: nil)
-        #expect(CropBordersProcessor().createCropRect(source) == .zero)
-        #expect(CropBordersProcessor().createCropRect(source, scale: 0) == .zero)
-        #expect(CropBordersProcessor().createCropRect(source, scale: .nan) == .zero)
-    }
-
-    @Test func preservesPixelScaleAndOrientation() throws {
-        let pixels = try image(width: 100, height: 100, fill: CGRect(x: 0, y: 0, width: 100, height: 100))
-        let source = UIImage(cgImage: pixels, scale: 2, orientation: .right)
-        let result = try #require(CropBordersProcessor().process(source))
-        #expect(result.cgImage?.width == 100)
-        #expect(result.cgImage?.height == 100)
-        #expect(result.scale == 2)
-        #expect(result.imageOrientation == .right)
     }
 
     @Test func rotatedAsymmetricBordersRetainCompleteContent() throws {

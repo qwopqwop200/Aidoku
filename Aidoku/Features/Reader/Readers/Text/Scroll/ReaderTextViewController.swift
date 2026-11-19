@@ -37,7 +37,6 @@ class ReaderTextViewController: BaseViewController {
     /// The chapter after the last loaded section (for the bottom transition).
     private var nextChapter: AidokuRunner.Chapter?
 
-    private let readingProgressLoader: (@Sendable (String) async -> CGFloat?)?
     private var chapterGeneration = UUID()
     private var isLoadingChapter = false
     private var loadingNext = false
@@ -62,7 +61,6 @@ class ReaderTextViewController: BaseViewController {
 
     /// Load previously saved reading progress for a chapter.
     private func loadReadingProgress(for chapterKey: String) async -> CGFloat? {
-        if let readingProgressLoader { return await readingProgressLoader(chapterKey) }
         return await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
             guard let self else { return nil }
             let object = CoreDataManager.shared.getHistory(
@@ -151,9 +149,7 @@ class ReaderTextViewController: BaseViewController {
         view.bounds.height
     }
 
-    init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga,
-         readingProgressLoader: (@Sendable (String) async -> CGFloat?)? = nil) {
-        self.readingProgressLoader = readingProgressLoader
+    init(source: AidokuRunner.Source?, manga: AidokuRunner.Manga) {
         self.viewModel = .init(source: source, manga: manga)
         super.init()
     }

@@ -17,7 +17,6 @@ actor DictionaryTextAnalysisQueue {
         let continuation: CheckedContinuation<Void, Error>
     }
     private var waiters: [Waiter] = []
-    var queuedCount: Int { waiters.count }
 
     func waitForTurn() async throws {
         try Task.checkCancellation()

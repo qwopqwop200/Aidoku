@@ -110,8 +110,6 @@ actor ReaderTranslationV2Service {
 
     // MARK: Models
 
-    var hasResidentModels: Bool { models != nil }
-
     /// Loads every V2 model once per session (lazily, off the cooperative pool).
     func residentModels() async throws -> V2Models {
         if let models { return models }
@@ -157,8 +155,6 @@ actor ReaderTranslationV2Service {
 
     /// Drops the in-memory page bitmaps (memory pressure; settings reset).
     func clearMemory() { memory.removeAll() }
-
-    var memoryCachedCount: Int { memory.count }
 
     // MARK: Cache identity
 
@@ -467,9 +463,6 @@ final class V2ComputeSlots: @unchecked Sendable {
     private var waiters: [Waiter] = []
 
     init(count: Int) { available = max(1, count) }
-
-    var waitingCount: Int { lock.withLock { waiters.count } }
-    var availableCount: Int { lock.withLock { available } }
 
     func acquire(priority: TranslationRequestPriority) async throws {
         try Task.checkCancellation()

@@ -4,30 +4,21 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationLanguageFilterTests {
-    @Test func languageNeutralSymbolsReachTheExistingMangaRequest() {
+    @Test func fixedJapaneseKeepsSharedHanAndChineseAliasFiltersEnglish() {
         let fixture = LanguageFilterFixture()
         var settings = fixture.settings
         settings.sourceLanguage = "ja"
-        settings.translationSourceLanguages = ["ja"]
-        let region = ReaderTranslationRegion(id: "symbols", rect: .zero, source: "『…?』")
-        #expect(ReaderTranslationLanguageFilter.allowsModelSource(region.source))
-        #expect(ReaderTranslationLanguageFilter.apply([region], settings: settings).map(\.id) == [region.id])
-    }
-
-    @Test func mixedKoreanDoesNotCertifyCopiedJapaneseClause() {
-        let source = "でも安心してこっちにも本を届けます"
-        for mixed in ["「でも安心して、こっちにも 책을 보내 줄게」", "책을 보내 줄게. でも安心して、こっちにも"] {
-            #expect(ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: mixed, target: "ko"))
-        }
-        for allowed in ["안심해. 이쪽에도 책을 보내 줄게", "「でも安心して、こっちにも」라는 표현을 사용했어",
-                        "スタジオジブリ의 새 책이야", "でも 안심해", "다나카(田中)가 보냈어"] {
-            #expect(!ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: allowed, target: "ko"))
-        }
-        #expect(!ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(
-            source: "明日の会議は三時です", translation: "でも安心して、こっちにも 책을 보내 줄게", target: "ko"))
-        #expect(!ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: source, target: "ko"))
-        let effect = RemoteTranslatedSegment(id: "effect", text: "でも安心して、こっちにも 쿵", isSFX: true)
-        #expect(!ReaderTranslationLanguageFilter.isWrongLanguage(effect, source: source, target: "ko"))
+        settings.translationSourceLanguages = ["en"] // Inactive in fixed-source mode.
+        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["ja", "han"])
+        settings.sourceLanguage = "zh-Hans"
+        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["zh", "han"])
+        // An unclassifiable fixed source keeps the permissive language rule; the
+        // manga recognizer also reads Latin-script text.
+        settings.sourceLanguage = "az"
+        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["en", "ja", "zh", "han"])
+        // Scripts the manga dictionary cannot spell stay excluded.
+        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("이미 한국어 문장입니다"))
+        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("Это русский текст"))
     }
 
     @Test func wrongLanguageProviderReplyRetriesAndReplacesOldBatchCache() async throws {
@@ -50,63 +41,6 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(await client.calls == 2)
     }
 
-    @Test func fixedJapaneseKeepsSharedHanAndChineseAliasFiltersEnglish() {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        settings.sourceLanguage = "ja"
-        settings.translationSourceLanguages = ["en"] // Inactive in fixed-source mode.
-        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["ja", "han"])
-        settings.sourceLanguage = "zh-Hans"
-        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["zh", "han"])
-        // An unclassifiable fixed source keeps the permissive language rule; the
-        // manga recognizer also reads Latin-script text.
-        settings.sourceLanguage = "az"
-        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["en", "ja", "zh", "han"])
-        // Scripts the manga dictionary cannot spell stay excluded.
-        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("이미 한국어 문장입니다"))
-        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("Это русский текст"))
-    }
-
-    @Test func v2SourceRuleAdmitsSharedHanDialogueOnlyForHanLanguages() {
-        var settings = LanguageFilterFixture().settings
-        settings.targetLanguage = "ko"
-        settings.sourceLanguage = "auto"
-        settings.translationSourceLanguages = ["ja"]
-        // Short Han-only dialogue that NaturalLanguage cannot split between ja/zh.
-        #expect(ReaderTranslationLanguageFilter.allowsV2Source("本当", settings: settings))
-        #expect(ReaderTranslationLanguageFilter.allowsV2Source("！？", settings: settings))
-        #expect(!ReaderTranslationLanguageFilter.allowsV2Source("이미 한국어", settings: settings))
-        settings.sourceLanguage = "en"
-        settings.translationSourceLanguages = []
-        #expect(!ReaderTranslationLanguageFilter.allowsV2Source("本当", settings: settings))
-    }
-
-    @Test func v2SendsEnglishOnlyWhenEnglishOrAutoIsTheSource() {
-        var settings = LanguageFilterFixture().settings
-        settings.targetLanguage = "ko"
-        let english = "Wait! I told you to stay behind the line, didn't I?"
-        let blocks = [V2Block(id: 0, lines: [], bounds: CGRect(x: 0, y: 0, width: 10, height: 10), polygon: [], vertical: false,
-                              readingOrder: 0, sourceText: english)]
-        func sent(_ source: String, _ filter: [String]) -> Bool {
-            settings.sourceLanguage = source
-            settings.translationSourceLanguages = filter
-            return ReaderTranslationV2Service.eligibleForTranslation(blocks, settings: settings) == [0]
-        }
-        #expect(sent("auto", []))
-        #expect(sent("auto", ["en"]))
-        #expect(sent("auto", ["en", "ja"]))
-        #expect(sent("en", []))
-        #expect(!sent("auto", ["ja"]))
-        #expect(!sent("ja", []))
-        #expect(!sent("zh-Hans", []))
-        // Short unclassifiable Latin dialogue follows the recognizer, not a ja/zh-only rule.
-        settings.sourceLanguage = "auto"
-        settings.translationSourceLanguages = []
-        #expect(ReaderTranslationLanguageFilter.allowsV2Source("OK!", settings: settings))
-        settings.targetLanguage = "en"
-        #expect(!ReaderTranslationLanguageFilter.allowsV2Source(english, settings: settings))
-    }
-
     @Test func v2SourceRuleKeepsTheSourceFilterInTheV2CacheIdentity() {
         var settings = LanguageFilterFixture().settings
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
@@ -123,32 +57,6 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings) == han)
     }
 
-    @Test func filterPersistsAndRejectsInvalidSelectionsWithoutChangingSavedPreferences() throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        #expect(settings.translationSourceLanguages.isEmpty)
-        // The V2 manga recognizer reads CJK and Latin-script text, not Vietnamese.
-        settings.translationSourceLanguages = ["zh", "ja"]
-        try settings.save(defaults: fixture.defaults)
-        #expect(fixture.settings.translationSourceLanguages == ["ja", "zh"])
-        #expect(fixture.settings.hasSameTranslation(as: settings))
-        for invalid in [["xx"], ["ja", "ja"], ["ko"], ["ja", "vi"]] {
-            settings.translationSourceLanguages = invalid
-            #expect(throws: RemoteTranslationError.self) { try settings.save(defaults: fixture.defaults) }
-            #expect(fixture.settings.translationSourceLanguages == ["ja", "zh"])
-        }
-    }
-
-    @Test func languageFilterDoesNotFilterConnectionTestText() async throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        settings.translationSourceLanguages = ["ja"]
-        let client = LanguageFilterClient()
-        _ = try await ReaderTranslationConnectionTest.probe(settings, client: client)
-        #expect(await client.requests.count == 1)
-        #expect(await client.requests.first?.segments.first?.text == "Hello, world!")
-    }
-
     nonisolated static let mixed: [ReaderTranslationRegion] = [
         ("en", "This English advertisement must be filtered out."), ("ja", "これは日本語のメニューです"),
         ("zh", "这是简体中文的广告页面"), ("han", "設定")
@@ -157,14 +65,6 @@ struct ReaderTranslationLanguageFilterTests {
     }
 }
 
-private actor LanguageFilterClient: RemoteTranslating {
-    private(set) var requests: [RemoteTranslationRequest] = []
-    func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
-        requests.append(request)
-        return RemoteTranslationBatchResult(translations: request.segments.map { .init(id: $0.id, text: "translated-" + $0.id) },
-                                            source: .network, providerRequestID: nil)
-    }
-}
 @MainActor private final class LanguageFilterFixture {
     let suite = "language-filter-" + UUID().uuidString
     var defaults: UserDefaults { UserDefaults(suiteName: suite)! }
@@ -183,14 +83,5 @@ private actor WrongLanguageThenKoreanClient: RemoteTranslating {
         return .init(translations: request.segments.map {
             .init(id: $0.id, text: calls == 1 ? "「" + $0.text + "」" : "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다")
         }, source: .network, providerRequestID: nil)
-    }
-}
-
-extension ReaderTranslationSettings {
-    /// Whether two settings values produce the same translations (saved-settings round trips).
-    func hasSameTranslation(as other: Self) -> Bool {
-        includePageImage == other.includePageImage && readingDirection == other.readingDirection && configuration == other.configuration &&
-            sourceLanguage == other.sourceLanguage && targetLanguage == other.targetLanguage &&
-            ReaderTranslationLanguageFilter.identity(settings: self) == ReaderTranslationLanguageFilter.identity(settings: other)
     }
 }

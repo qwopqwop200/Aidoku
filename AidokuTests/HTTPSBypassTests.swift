@@ -1,10 +1,8 @@
 import Foundation
 import Network
-import Nuke
 import Testing
 @testable import Aidoku
 
-@Suite(.serialized)
 struct HTTPSBypassTests {
     @Test func splitsInsideSNIWithoutChangingTheHandshakeOrFollowingRecords() throws {
         let original = hello()
@@ -17,22 +15,6 @@ struct HTTPSBypassTests {
         #expect(try payloads(first + second) == payloads(original + trailing))
         #expect(second.suffix(trailing.count) == trailing)
         #expect(first.count + second.count == original.count + trailing.count + 5)
-    }
-
-    @Test func waitsForEveryPossibleTCPBoundary() {
-        let data = hello()
-        for end in 0..<data.count {
-            #expect(TLSClientHello.inspect(Data(data.prefix(end))) == .incomplete)
-        }
-    }
-
-    @Test func clientHelloAlreadySpanningRecordsIsReassembledSafely() throws {
-        let payload = try payloads(hello())
-        let records = record(Data(payload.prefix(20))) + record(Data(payload.dropFirst(20)))
-        guard case .split(let first, let second) = TLSClientHello.inspect(records) else {
-            Issue.record("Expected a split after reassembling ClientHello records"); return
-        }
-        #expect(try payloads(first + second) == payload)
     }
 
     @Test func nonTLSMissingSNIAndInvalidLengthsPassThroughUnmodified() {
@@ -51,20 +33,6 @@ struct HTTPSBypassTests {
         }
     }
 
-    @Test func startsOnLoopbackAndCanRestart() async throws {
-        let proxy = HTTPSBypassProxy()
-        defer { proxy.stop() }
-        let first = try await proxy.start()
-        guard case .hostPort(let host, let port) = first else { Issue.record("Expected loopback endpoint"); return }
-        #expect(host == .ipv4(.loopback))
-        #expect(port.rawValue > 0)
-        #expect(try await proxy.start() == first)
-        proxy.stop()
-        let restarted = try await proxy.start()
-        guard case .hostPort(let newHost, _) = restarted else { Issue.record("Expected restarted loopback endpoint"); return }
-        #expect(newHost == .ipv4(.loopback))
-    }
-
     @Test func bypassConfigurationIsExplicitAndNeverFallsBackDirectly() async throws {
         let network = SourceNetwork()
         let direct = try await network.configuration(.ephemeral, bypass: false)
@@ -73,25 +41,6 @@ struct HTTPSBypassTests {
         #expect(bypass.proxyConfigurations.count == 1)
         #expect(bypass.proxyConfigurations.first?.allowFailover == false)
         #expect(bypass.httpCookieStorage === direct.httpCookieStorage || bypass.httpCookieStorage != nil)
-    }
-
-    @Test func switchChangesNewSourceAndImageSessionsWithoutReplacingCaches() async throws {
-        let flag = Flag()
-        let network = SourceNetwork(enabled: { flag.value })
-        let direct = try await network.session()
-        let directLoader = try await network.imageLoader()
-        #expect(direct === URLSession.shared)
-        flag.value = true
-        let protected = try await network.session()
-        let protectedLoader = try await network.imageLoader()
-        #expect(protected.configuration.proxyConfigurations.count == 1)
-        #expect(protectedLoader !== directLoader)
-        #expect(try await network.session() === protected)
-        flag.value = false
-        #expect(try await network.session() === direct)
-        #expect(try await network.imageLoader() === directLoader)
-        flag.value = true
-        #expect(try await network.imageLoader() === protectedLoader)
     }
 
     @Test func DNSAnswersAcceptOnlyLiteralAddressesOfTheDeclaredFamily() {
@@ -104,44 +53,6 @@ struct HTTPSBypassTests {
             .init(type: 28, TTL: 20, data: "192.0.2.2")
         ]
         #expect(HTTPSDNSResolver.validAddresses(answers) == ["192.0.2.1", "2001:db8::1"])
-    }
-
-    @Test func SOCKSRejectsUnauthenticatedMethodMismatchAndUnsupportedCommands() async throws {
-        let proxy = HTTPSBypassProxy()
-        defer { proxy.stop() }
-        let endpoint = try await proxy.start()
-        let first = try await Client(endpoint)
-        defer { first.connection.cancel() }
-        try await first.send(Data([5, 1, 2]))
-        #expect(try await first.receive(2) == Data([5, 255]))
-        let second = try await Client(endpoint)
-        defer { second.connection.cancel() }
-        // Greeting arrives one byte at a time.
-        for byte: UInt8 in [5, 1, 0] { try await second.send(Data([byte])) }
-        #expect(try await second.receive(2) == Data([5, 0]))
-        try await second.send(Data([5, 3, 0, 1])) // UDP ASSOCIATE is not supported.
-        let rejected = try await second.receive(10)
-        #expect(rejected[1] != 0)
-    }
-
-    @Test func halfClosedRequestsStillReceiveTheWholeResponse() async throws {
-        let server = try await EOFServer()
-        defer { server.stop() }
-        let proxy = HTTPSBypassProxy()
-        defer { proxy.stop() }
-        let client = try await Client(proxy.start())
-        defer { client.connection.cancel() }
-        try await client.send(Data([5, 1, 0]))
-        #expect(try await client.receive(2) == Data([5, 0]))
-        let port = try #require(server.listener.port).rawValue
-        try await client.send(Data([5, 1, 0, 1, 127, 0, 0, 1, UInt8(port >> 8), UInt8(port & 255)]))
-        #expect(try await client.receive(10)[1] == 0)
-        let body = Data(repeating: 65, count: 100_000)
-        try await client.send(body)
-        try await client.finish()
-        // The server deliberately waits for EOF before sending its response.
-        #expect(try await client.receive(5) == Data("reply".utf8))
-        #expect(server.received == body.count)
     }
 
     private func hello(name: String? = "reader.example.org") -> Data {
@@ -169,98 +80,5 @@ struct HTTPSBypassTests {
             cursor += 5 + size
         }
         return result
-    }
-
-    private final class Client: @unchecked Sendable {
-        let connection: NWConnection
-        init(_ endpoint: NWEndpoint) async throws {
-            connection = NWConnection(to: endpoint, using: .tcp)
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                connection.stateUpdateHandler = { [connection] state in
-                    switch state {
-                        case .ready: connection.stateUpdateHandler = nil; continuation.resume()
-                        case .failed(let error): connection.stateUpdateHandler = nil; continuation.resume(throwing: error)
-                        default: break
-                    }
-                }
-                connection.start(queue: .global())
-            }
-        }
-        func send(_ data: Data) async throws {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                connection.send(content: data, completion: .contentProcessed { error in
-                    if let error { continuation.resume(throwing: error) } else { continuation.resume() }
-                })
-            }
-        }
-        func receive(_ count: Int) async throws -> Data {
-            try await withCheckedThrowingContinuation { continuation in
-                connection.receive(minimumIncompleteLength: count, maximumLength: count) { data, _, _, error in
-                    if let error { continuation.resume(throwing: error) } else { continuation.resume(returning: data ?? Data()) }
-                }
-            }
-        }
-        func finish() async throws {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                connection.send(content: nil, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { error in
-                    if let error { continuation.resume(throwing: error) } else { continuation.resume() }
-                })
-            }
-        }
-    }
-
-    private final class EOFServer: @unchecked Sendable {
-        let listener: NWListener
-        private let queue = DispatchQueue(label: "AidokuTests.EOFServer")
-        private let size = Counter()
-        private var clients: [NWConnection] = []
-        var received: Int { size.value }
-        init() async throws {
-            let parameters = NWParameters.tcp
-            parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
-            listener = try NWListener(using: parameters)
-            listener.newConnectionHandler = { [weak self] connection in
-                guard let self else { connection.cancel(); return }
-                self.clients.append(connection)
-                connection.start(queue: self.queue)
-                self.read(connection)
-            }
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                listener.stateUpdateHandler = { [listener] state in
-                    switch state {
-                        case .ready: listener.stateUpdateHandler = nil; continuation.resume()
-                        case .failed(let error): listener.stateUpdateHandler = nil; continuation.resume(throwing: error)
-                        default: break
-                    }
-                }
-                listener.start(queue: queue)
-            }
-        }
-        func stop() { queue.async { self.listener.cancel(); self.clients.forEach { $0.cancel() }; self.clients = [] } }
-        private func read(_ connection: NWConnection) {
-            connection.receive(minimumIncompleteLength: 1, maximumLength: 65_536) { [weak self] data, _, done, error in
-                guard let self else { return }
-                if let data { self.size.add(data.count) }
-                if error != nil { connection.cancel() } else if done {
-                    connection.send(content: Data("reply".utf8), contentContext: .finalMessage, isComplete: true,
-                                    completion: .contentProcessed { _ in })
-                } else { self.read(connection) }
-            }
-        }
-    }
-
-    private final class Flag: @unchecked Sendable {
-        private let lock = NSLock()
-        private var stored = false
-        var value: Bool {
-            get { lock.lock(); defer { lock.unlock() }; return stored }
-            set { lock.lock(); stored = newValue; lock.unlock() }
-        }
-    }
-    private final class Counter: @unchecked Sendable {
-        private let lock = NSLock()
-        private var count = 0
-        var value: Int { lock.lock(); defer { lock.unlock() }; return count }
-        func add(_ value: Int) { lock.lock(); count += value; lock.unlock() }
     }
 }

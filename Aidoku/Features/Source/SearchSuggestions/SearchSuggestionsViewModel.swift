@@ -8,14 +8,13 @@ final class SearchSuggestionsViewModel: ObservableObject {
 
     private let configuration: SearchSuggestionConfiguration
     private let service: SearchSuggestionService
-    private let delay: UInt64
+    private let delay: UInt64 = 250_000_000
     private var task: Task<Void, Never>?
     private var generation = 0
 
-    init(configuration: SearchSuggestionConfiguration, service: SearchSuggestionService? = nil, delay: UInt64 = 250_000_000) {
+    init(configuration: SearchSuggestionConfiguration) {
         self.configuration = configuration
-        self.service = service ?? .init(configuration: configuration)
-        self.delay = delay
+        self.service = .init(configuration: configuration)
     }
 
     func update(text: String, selection: NSRange) {
@@ -43,9 +42,5 @@ final class SearchSuggestionsViewModel: ObservableObject {
         task = nil
         query = nil
         suggestions = []
-    }
-
-    func waitForUpdate() async {
-        await task?.value
     }
 }

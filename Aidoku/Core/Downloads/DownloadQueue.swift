@@ -14,11 +14,8 @@ import UIKit
 // creates a downloadtask for every source
 // only one chapter per source is downloaded at a time
 actor DownloadQueue {
-    typealias WorkerFactory = @Sendable (String, DownloadCache, [Download], any DownloadTaskDelegate) -> DownloadTask
     private let cache: DownloadCache
-    private let workerFactory: WorkerFactory
     private var cancelAllTask: Task<Void, Never>?
-    var isCancellingAll: Bool { cancelAllTask != nil }
     private var onCompletion: (() -> Void)?
 
     private(set) var queue: [String: [Download]] = [:] // all queued downloads stored under source id
@@ -42,12 +39,8 @@ actor DownloadQueue {
 
     private static let taskIdentifier = (Bundle.main.bundleIdentifier ?? "") + ".download"
 
-    init(cache: DownloadCache, onCompletion: (() -> Void)? = nil,
-         workerFactory: @escaping WorkerFactory = { id, cache, downloads, delegate in
-             DownloadTask(id: id, cache: cache, downloads: downloads, delegate: delegate)
-         }) {
+    init(cache: DownloadCache, onCompletion: (() -> Void)? = nil) {
         self.cache = cache
-        self.workerFactory = workerFactory
         self.onCompletion = onCompletion
     }
 
@@ -99,7 +92,7 @@ actor DownloadQueue {
             if tasks[sourceKey] == nil {
                 // Publish a fully initialized worker without an actor suspension;
                 // foreground and scheduler callbacks may both arrive here.
-                tasks[sourceKey] = workerFactory(sourceKey, cache, downloads, self)
+                tasks[sourceKey] = DownloadTask(id: sourceKey, cache: cache, downloads: downloads, delegate: self)
             }
             guard cancelAllTask == nil, !paused, !suspendedForBackground, canUseNetwork else { return }
             await tasks[sourceKey]?.resume()

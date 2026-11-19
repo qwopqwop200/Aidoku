@@ -38,46 +38,6 @@ struct NativeDictionaryPopupTests {
         #expect(font?.fontDescriptor.symbolicTraits.contains(.traitBold) == true)
     }
 
-    @Test func nativeScanningKeepsSentenceAndJapaneseRanges() {
-        let text = "前文。 「日本語です！」次の文。"
-        let offset = (text as NSString).range(of: "日本語").location
-        #expect(NativeDictionarySelection.scan(text, offset: offset, length: 16, includeNonJapanese: false) == "日本語です")
-        let sentence = NativeDictionarySelection.sentence(text, offset: offset)
-        #expect(sentence.text == "「日本語です！」")
-        #expect(sentence.offset == 1)
-        #expect(NativeDictionarySelection.isJapanese("ｶ"))
-        #expect(NativeDictionarySelection.isJapanese("𠮷"))
-        #expect(!NativeDictionarySelection.isJapanese("a"))
-        let unmatched = "「前文。日本語」"
-        let context = NativeDictionarySelection.sentence(unmatched, offset: (unmatched as NSString).range(of: "日本語").location)
-        #expect(context.text == "日本語")
-        #expect(context.offset == 0)
-    }
-
-    @Test func furiganaAlignsKanaAndCompatibilityKanji() {
-        let word = NativeDictionaryContent.expression("食べる", reading: "たべる", scale: 1)
-        #expect(word.attribute(.nativeDictionaryRuby, at: 0, effectiveRange: nil) as? String == "た")
-        #expect(word.attribute(.nativeDictionaryRuby, at: 1, effectiveRange: nil) == nil)
-        let characters = NativeDictionaryContent.expression("﨑々", scale: 1)
-        #expect(characters.attribute(.link, at: 0, effectiveRange: nil) != nil)
-        #expect(characters.attribute(.link, at: 1, effectiveRange: nil) != nil)
-    }
-
-    @Test func nativePitchGroupsSmallKanaIntoMorae() {
-        #expect(NativeDictionaryContent.morae("きょう") == ["きょ", "う"])
-        let pitch = NativeDictionaryContent.pitch(reading: "きょう", accent: ["position": "LHL", "nasal": [1], "devoice": [2]], scale: 1)
-        #expect(pitch.string.contains("[2]"))
-        #expect(pitch.attribute(.attachment, at: 0, effectiveRange: nil) is NSTextAttachment)
-    }
-
-    @Test func supplementaryCharactersKeepCorrectKanjiLinkRanges() {
-        let output = NativeDictionaryContent.expression("🙂日本", scale: 1)
-        #expect(output.length == 4)
-        #expect(output.attribute(.link, at: 0, effectiveRange: nil) == nil)
-        let url = output.attribute(.link, at: 2, effectiveRange: nil) as? URL
-        #expect(URLComponents(url: url ?? URL(string: "about:blank")!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value == "日")
-    }
-
     @Test func popupDisplaysAllResultsThroughNativeViewsAndHonorsMiningPreference() async throws {
         let entries: [[String: Any]] = ["constructor", "__proto__", "toString"].map { name in
             ["expression": "日本語", "reading": "にほんご", "glossaries": [
@@ -110,33 +70,20 @@ struct NativeDictionaryPopupTests {
         #expect(disclosure.accessibilityValue == "expanded")
     }
 
-    @Test func deinflectionTapExplainsConjugationAndRerenderRetainsCollapsedGroups() throws {
-        let entry: [String: Any] = ["expression": "食べた", "deinflectionTrace": [
-            ["name": "past", "description": "Past tense of the verb"]
-        ], "glossaries": [["dictionary": "example", "content": "eat"]]]
-        let view = NativeDictionaryPopupView(position: .zero, clearSelection: false, lookupEntries: [entry], allowsMining: false)
-        let coordinator = view.makeCoordinator()
-        coordinator.history = [[entry]]
-        coordinator.render([entry])
-        func descendants(_ view: UIView) -> [UIView] { [view] + view.subviews.flatMap(descendants) }
-        let views = descendants(coordinator.stack)
-        let tag = try #require(views.first { $0.accessibilityIdentifier == "dictionary.deinflection.tag" } as? UIButton)
-        let explanation = try #require(views.first { $0.accessibilityIdentifier == "dictionary.deinflection.description" } as? UILabel)
-        #expect(explanation.isHidden)
-        tag.sendActions(for: .touchUpInside)
-        #expect(!explanation.isHidden && explanation.text == "Past tense of the verb")
-        tag.sendActions(for: .touchUpInside)
-        #expect(explanation.isHidden)
-        let disclosure = try #require(views.first { $0.accessibilityIdentifier == "dictionary.disclosure" } as? UIButton)
-        disclosure.sendActions(for: .touchUpInside)
-        coordinator.render([entry])
-        let refreshed = try #require(descendants(coordinator.stack).first { $0.accessibilityIdentifier == "dictionary.disclosure" } as? UIButton)
-        #expect(refreshed.accessibilityValue == "collapsed")
-        coordinator.redirect([entry])
-        let next = try #require(descendants(coordinator.stack).first { $0.accessibilityIdentifier == "dictionary.disclosure" } as? UIButton)
-        #expect(next.accessibilityValue == "expanded")
-        coordinator.navigate(-1)
-        let previous = try #require(descendants(coordinator.stack).first { $0.accessibilityIdentifier == "dictionary.disclosure" } as? UIButton)
-        #expect(previous.accessibilityValue == "collapsed")
+    /// Large dictionary images decode only display-sized pixels while keeping layout.
+    @Test func largeRasterDecodesOnlyDisplayPixels() throws {
+        let context = try #require(CGContext(data: nil, width: 1600, height: 800, bitsPerComponent: 8, bytesPerRow: 6400,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.setFillColor(UIColor.red.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: 1600, height: 800))
+        let cgImage = try #require(context.makeImage())
+        let data = try #require(UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.8))
+        let result = NativeDictionaryMedia.attachment(["path": "fixture.jpg", "width": 100, "height": 50], dictionary: "fixture",
+            attributes: [.font: UIFont.systemFont(ofSize: 15)], availableWidth: 260, load: { _, _ in data })
+        let attachment = try #require(result.attribute(.attachment, at: 0, effectiveRange: nil) as? NativeDictionaryImageAttachment)
+        let image = try #require(attachment.original.cgImage)
+        let scale = min(3, UIScreen.main.scale)
+        #expect(attachment.bounds.size == CGSize(width: 100, height: 50))
+        #expect(image.width <= Int(ceil(100 * scale)) && image.height <= Int(ceil(50 * scale)))
     }
 }

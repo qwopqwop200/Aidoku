@@ -9,17 +9,14 @@ import WebKit
 
 extension WKWebView {
     @MainActor
-    func loadSourceRequest(
-        _ request: URLRequest,
-        configure: @escaping @MainActor (WKWebsiteDataStore) async throws -> Void = { try await SourceNetwork.configure($0) }
-    ) {
+    func loadSourceRequest(_ request: URLRequest) {
         cancelSourceRequest()
         let preparation = SourceNavigationPreparation()
         objc_setAssociatedObject(self, &SourceNavigationPreparation.key, preparation, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         let dataStore = configuration.websiteDataStore
         preparation.task = Task { @MainActor [weak self, weak preparation] in
             do {
-                try await configure(dataStore)
+                try await SourceNetwork.configure(dataStore)
                 guard !Task.isCancelled, preparation != nil else { return }
                 self?.load(request)
             } catch {

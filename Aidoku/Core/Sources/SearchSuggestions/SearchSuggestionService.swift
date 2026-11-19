@@ -19,14 +19,10 @@ actor SearchSuggestionService {
     private let transport: Transport
     private var cache: [CacheKey: CachedResult] = [:]
 
-    init(configuration: SearchSuggestionConfiguration, transport: Transport? = nil) {
+    init(configuration: SearchSuggestionConfiguration) {
         self.configuration = configuration
-        if let transport {
-            self.transport = transport
-        } else {
-            let client = SearchSuggestionHTTPClient()
-            self.transport = { try await client.data(for: $0) }
-        }
+        let client = SearchSuggestionHTTPClient()
+        self.transport = { try await client.data(for: $0) }
     }
 
     func suggestions(for query: SearchSuggestionQuery) async throws -> [SearchSuggestion] {

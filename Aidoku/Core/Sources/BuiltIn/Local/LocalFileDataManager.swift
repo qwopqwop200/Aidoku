@@ -13,21 +13,15 @@ final actor LocalFileDataManager {
     static let shared = LocalFileDataManager()
 
     private let context: NSManagedObjectContext
-    private let saveDeletion: @Sendable (NSManagedObjectContext) throws -> Void
     private let saveImport: @Sendable (NSManagedObjectContext) throws -> Void
-    private let saveReconciliation: @Sendable (NSManagedObjectContext) throws -> Void
     private let objectExecutor: ObjectActorSerialExecutor
     public nonisolated let unownedExecutor: UnownedSerialExecutor
 
     init(
         context suppliedContext: NSManagedObjectContext? = nil,
-        saveDeletion: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() },
-        saveImport: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() },
-        saveReconciliation: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() }
+        saveImport: @escaping @Sendable (NSManagedObjectContext) throws -> Void = { try $0.save() }
     ) {
-        self.saveDeletion = saveDeletion
         self.saveImport = saveImport
-        self.saveReconciliation = saveReconciliation
         context = suppliedContext ?? CoreDataManager.shared.container.newBackgroundContext()
         context.automaticallyMergesChangesFromParent = true
         context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
@@ -250,7 +244,7 @@ extension LocalFileDataManager {
             // remove manga object
             context.delete(mangaObject)
 
-            do { try saveDeletion(context) }
+            do { try context.save() }
             catch {
                 context.rollback()
                 LogManager.logger.error("Failed to remove local manga: \(error)")
@@ -289,7 +283,7 @@ extension LocalFileDataManager {
         // remove chapter object
         context.delete(object)
 
-        do { try saveDeletion(context) }
+        do { try context.save() }
         catch {
             context.rollback()
             LogManager.logger.error("Failed to remove local chapter: \(error)")
@@ -340,7 +334,7 @@ extension LocalFileDataManager {
             self.context.delete(chapter)
         }
 
-        if context.hasChanges { try saveReconciliation(context) }
+        if context.hasChanges { try context.save() }
 
         // get db chapters file names
         let dbChapterFileNames: Set<String> = Set(dbChapters.compactMap { chapter in
@@ -534,7 +528,7 @@ extension LocalFileDataManager {
             if let value = manga.cover, let url = URL(string: value), url.isFileURL,
                let relative = url.toAidokuImageUrl() { manga.cover = relative.absoluteString }
         }
-        if context.hasChanges { try saveReconciliation(context) }
+        if context.hasChanges { try context.save() }
 
         return (
             // manga that no longer exist on disk

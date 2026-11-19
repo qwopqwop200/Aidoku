@@ -1,54 +1,13 @@
+import Foundation
+import ImageIO
 import Testing
 import UIKit
 import UniformTypeIdentifiers
 @testable import Aidoku
 
+/// Share-extension inbox: durable batches, partial-share safety, poison-batch recovery and memory bounds.
 @MainActor
 struct SharedImageInboxTests {
-    @Test func acceptsObjectAndDataRepresentationsAfterBrokenPreferredType() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 16)).image { context in
-            UIColor.red.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 12, height: 16))
-        }
-        let data = try #require(image.pngData())
-        let provider = NSItemProvider()
-        provider.registerDataRepresentation(forTypeIdentifier: UTType.jpeg.identifier, visibility: .all) { completion in
-            completion(Data("broken preferred representation".utf8), nil)
-            return nil
-        }
-        provider.registerDataRepresentation(forTypeIdentifier: UTType.png.identifier, visibility: .all) { completion in
-            completion(data, nil)
-            return nil
-        }
-        let inbox = SharedImageInbox(root: root)
-        try await inbox.enqueue(providers: [provider, NSItemProvider(object: image)])
-        let batch = try #require(inbox.pendingBatches().first)
-        #expect(batch.images.count == 2)
-        for url in batch.images { #expect(UIImage(contentsOfFile: url.path) != nil) }
-        let prepared = await LocalFileManager.shared.prepareImageImport(from: batch.images, name: "Object images")
-        #expect(prepared?.pageCount == 2)
-    }
-
-    @Test func embeddedExtensionAcceptsImagesWithCaptionsAndLinks() throws {
-        let plugins = try #require(Bundle.main.builtInPlugInsURL)
-        let bundle = try #require(Bundle(url: plugins.appendingPathComponent("AidokuShare.appex")))
-        let configuration = try #require(bundle.infoDictionary?["NSExtension"] as? [String: Any])
-        let attributes = try #require(configuration["NSExtensionAttributes"] as? [String: Any])
-        let rule = NSPredicate(format: try #require(attributes["NSExtensionActivationRule"] as? String))
-        for (types, expected) in [
-            ([["public.png"]], true),
-            ([["public.plain-text"], ["public.jpeg"], ["public.url"]], true),
-            ([["public.url"]], false),
-            ([["public.plain-text"]], false),
-            ([], false)
-        ] {
-            let input: [String: Any] = ["extensionItems": [["attachments": types.map { ["registeredTypeIdentifiers": $0] }]]]
-            #expect(rule.evaluate(with: input) == expected)
-        }
-    }
-
     private func provider(file: URL, name: String) -> NSItemProvider {
         let provider = NSItemProvider()
         provider.suggestedName = name
@@ -125,5 +84,75 @@ struct SharedImageInboxTests {
         #expect(batches.map(\.directory.lastPathComponent) == ["valid"])
         #expect(!FileManager.default.fileExists(atPath: corrupt.path))
         #expect(!FileManager.default.fileExists(atPath: missing.path))
+    }
+
+    @Test func failingBatchIsDiscardedAfterBoundedAttemptsWithoutBlockingOthers() throws {
+        let root = try temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try makeBatch(in: root, name: "a-failing")
+        _ = try makeBatch(in: root, name: "b-valid")
+        let inbox = SharedImageInbox(root: root)
+        var rounds = 0
+        // Simulate repeated launches where the first batch always fails to import.
+        while let failing = try inbox.pendingBatches().first(where: { $0.title == "a-failing" }) {
+            rounds += 1
+            #expect(rounds <= SharedImageInbox.maxImportAttempts)
+            guard rounds <= SharedImageInbox.maxImportAttempts else { break }
+            #expect(inbox.failedAttempts(failing) == rounds - 1)
+            let discarded = inbox.recordFailedAttempt(failing)
+            #expect(discarded == (rounds == SharedImageInbox.maxImportAttempts))
+            #expect(try inbox.pendingBatches().contains { $0.title == "b-valid" })
+        }
+        #expect(rounds == SharedImageInbox.maxImportAttempts)
+        #expect(try inbox.pendingBatches().map(\.title) == ["b-valid"])
+    }
+
+    @Test func decodedImageObjectIsWrittenWithinPixelBudget() throws {
+        let root = try temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let image = UIImage(cgImage: try syntheticImage(width: 200, height: 100))
+        let bounded = root.appendingPathComponent("bounded")
+        try SharedImageInbox.storeSharedItem(image, error: nil, at: bounded, maxPixels: 5_000)
+        let boundedInfo = try imageInfo(at: bounded)
+        #expect(boundedInfo.width * boundedInfo.height <= 5_000)
+        #expect(boundedInfo.width > boundedInfo.height)
+    }
+
+    // MARK: - Helpers
+
+    private func temporaryRoot() throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
+
+    private func syntheticImage(width: Int, height: Int) throws -> CGImage {
+        let context = try #require(CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.setFillColor(UIColor.systemTeal.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setFillColor(UIColor.black.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: width / 2, height: height / 3))
+        return try #require(context.makeImage())
+    }
+
+    private func imageInfo(at url: URL) throws -> (type: String, width: Int, height: Int) {
+        let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let type = try #require(CGImageSourceGetType(source) as String?)
+        let properties = try #require(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
+        let width = try #require((properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue)
+        let height = try #require((properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue)
+        return (type, width, height)
+    }
+
+    private func makeBatch(in root: URL, name: String) throws -> URL {
+        let directory = root.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(#"{"title":"\#(name)","files":["00000001.image"]}"#.utf8)
+            .write(to: directory.appendingPathComponent("manifest.json"))
+        try Data([1]).write(to: directory.appendingPathComponent("00000001.image"))
+        return directory
     }
 }

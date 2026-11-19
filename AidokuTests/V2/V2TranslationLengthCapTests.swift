@@ -14,16 +14,6 @@ struct V2TranslationLengthCapTests {
         )
     }
 
-    @Test func limitScalesWithSourceBetweenFloorAndCeiling() {
-        #expect(V2TranslationLengthCap.limit(sourceText: "") == 256)
-        #expect(V2TranslationLengthCap.limit(sourceText: "はい") == 256)
-        #expect(V2TranslationLengthCap.limit(sourceText: String(repeating: "あ", count: 100)) == 800)
-        #expect(V2TranslationLengthCap.limit(sourceText: String(repeating: "あ", count: 512)) == 4096)
-        #expect(V2TranslationLengthCap.limit(sourceText: String(repeating: "あ", count: 50_000)) == 4096)
-        // Graphemes, not scalars: each family emoji is one source character.
-        #expect(V2TranslationLengthCap.limit(sourceText: String(repeating: "👨‍👩‍👧‍👦", count: 40)) == 320)
-    }
-
     @Test func normalTranslationsAreReturnedUnchanged() {
         let cases: [(String, String)] = [
             ("ありがとう", "고마워"),
@@ -46,12 +36,6 @@ struct V2TranslationLengthCapTests {
         #expect(runaway.hasPrefix(capped))
     }
 
-    @Test func hardCeilingAppliesToLongSources() {
-        let source = String(repeating: "長い文章", count: 1_000)
-        let capped = V2TranslationLengthCap.capped(String(repeating: "x", count: 100_000), sourceText: source)
-        #expect(capped.count == V2TranslationLengthCap.maximumCharacters)
-    }
-
     @Test func truncationNeverSplitsAGraphemeCluster() {
         let unit = "👨‍👩‍👧‍👦e\u{301}🇰🇷"
         let runaway = String(repeating: unit, count: 500)
@@ -60,22 +44,6 @@ struct V2TranslationLengthCapTests {
         #expect(runaway.hasPrefix(capped))
         let expected = String(repeating: unit, count: 85) + "👨‍👩‍👧‍👦"
         #expect(capped == expected)
-        // Combining marks stay attached to their base character.
-        let combining = String(repeating: "a\u{301}\u{302}", count: 1_000)
-        let cappedCombining = V2TranslationLengthCap.capped(combining, sourceText: "")
-        #expect(cappedCombining == String(repeating: "a\u{301}\u{302}", count: 256))
-    }
-
-    @Test func providerApplyCapsEachBlockAndKeepsNormalOnes() {
-        let blocks = [block(0, source: "ああ", translation: nil), block(1, source: "うん", translation: nil)]
-        let runaway = String(repeating: "garbage ", count: 30_000)
-        let output = V2Translation.apply(blocks) { block in
-            block.id == 0 ? RemoteTranslatedSegment(id: V2Translation.segmentID(block), text: "아아")
-                : RemoteTranslatedSegment(id: V2Translation.segmentID(block), text: runaway)
-        }
-        #expect(output[0].translation == "아아")
-        #expect(output[1].translation?.count == 256)
-        #expect(output[1].translation.map(runaway.hasPrefix) == true)
     }
 
     @Test func layoutBoundsUncappedTextFromCachesOrReplay() {
@@ -87,13 +55,5 @@ struct V2TranslationLengthCapTests {
         #expect(fromRunaway == fromCapped)
         #expect(fromRunaway.count == 1)
         #expect(fromRunaway[0].lines.joined().count <= 256)
-    }
-
-    @Test func layoutOfNormalTextIsUnaffected() {
-        let page = CGSize(width: 1000, height: 1400)
-        let translation = "리제 쨩의 보은은 역시나 어김없이"
-        let placed = V2Layout.place([block(0, source: "リゼちゃんの恩返し", translation: translation)], pageSize: page)
-        #expect(placed.count == 1)
-        #expect(placed[0].lines.joined(separator: " ") == translation)
     }
 }

@@ -4,8 +4,7 @@ extension CoreDataManager {
     /// Batches only persisted SQLite counts. Retains the scalar path for unsaved
     /// changes/other store types, since grouped dictionary fetches omit pending changes.
     func unreadCounts(
-        mangaIds: [MangaIdentifier], context: NSManagedObjectContext,
-        didExecuteCountQuery: ((Bool) -> Void)? = nil
+        mangaIds: [MangaIdentifier], context: NSManagedObjectContext
     ) -> [MangaIdentifier: Int] {
         struct Group: Hashable {
             let source: String
@@ -32,7 +31,6 @@ extension CoreDataManager {
             func scalar(_ subset: ArraySlice<MangaIdentifier>) {
                 for id in subset {
                     result[id] = unreadCount(mangaId: id, lang: group.language, scanlators: group.scanlators, context: context)
-                    didExecuteCountQuery?(false)
                 }
             }
             for start in stride(from: 0, to: ids.count, by: 128) {
@@ -57,7 +55,6 @@ extension CoreDataManager {
                 request.propertiesToGroupBy = ["mangaId"]
                 do {
                     let rows = try context.fetch(request)
-                    didExecuteCountQuery?(true)
                     var batch: [MangaIdentifier: Int] = [:]
                     var valid = true
                     for row in rows {

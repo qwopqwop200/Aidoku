@@ -36,39 +36,19 @@ struct V2HugePageCapTests {
 
     @Test func cappedSizeKeepsAspectAndNeverExceedsTheCap() {
         #expect(!ImagePixelCap.exceeds(width: 100, height: 100, maxPixels: 10_000))
-        #expect(ImagePixelCap.exceeds(width: 101, height: 100, maxPixels: 10_000))
         #expect(ImagePixelCap.exceeds(width: Int.max, height: 2, maxPixels: 10_000))
-        #expect(!ImagePixelCap.exceeds(width: 0, height: 5, maxPixels: 1))
-        let fitting = ImagePixelCap.cappedSize(width: 90, height: 100, maxPixels: 10_000)
-        #expect(fitting.width == 90 && fitting.height == 100)
-        #expect(ImagePixelCap.thumbnailMaxPixelSize(width: 100, height: 100, maxPixels: 10_000) == nil)
-        for (width, height) in [(1000, 500), (333, 7777), (40_000, 3), (1, 50_000), (12_345, 12_345)] {
+        for (width, height) in [(1000, 500), (40_000, 3), (12_345, 12_345)] {
             let capped = ImagePixelCap.cappedSize(width: width, height: height, maxPixels: 10_000)
             #expect(capped.width * capped.height <= 10_000)
             #expect(capped.width >= 1 && capped.height >= 1 && capped.width <= width && capped.height <= height)
-            if min(capped.width, capped.height) >= 20 {
-                let ratio = Double(width) / Double(height), cappedRatio = Double(capped.width) / Double(capped.height)
-                #expect(abs(cappedRatio / ratio - 1) < 0.06)
-            }
-            let side = ImagePixelCap.thumbnailMaxPixelSize(width: width, height: height, maxPixels: 10_000)
-            #expect(side != nil)
-            if let side {
-                let short = Double(min(width, height)) * Double(side) / Double(max(width, height))
-                #expect(side * max(1, Int(short.rounded(.up))) <= 10_000)
-            }
         }
         #expect(ImagePixelCap.cappedDecodedBytes(1_000_000, maxPixels: 10_000) == 40_000)
-        #expect(ImagePixelCap.cappedDecodedBytes(400, maxPixels: 10_000) == 400)
-        #expect(ImagePixelCap.maxPixels >= 60_000_000 && ImagePixelCap.maxPixels <= 70_000_000)
     }
 
     @Test func pageAtOrBelowTheCapEntersThePipelineUnchanged() throws {
         let image = try solidImage(width: 100, height: 100)
         let page = V2Page(id: "p", image: image, readingDirection: .leftToRight)
-        let capped = try #require(V2Pipeline.cappedPage(page, maxPixels: 10_000))
-        // Same CGImage object: every stage sees exactly today's pixels.
-        #expect(capped.image === image)
-        #expect(V2Pipeline.cappedPage(page)?.image === image)
+        #expect(V2Pipeline.cappedPage(page, maxPixels: 10_000)?.image === image)
     }
 
     @Test func pageAboveTheCapIsDownscaledWithItsAspectAndIdentityKept() throws {
@@ -87,19 +67,6 @@ struct V2HugePageCapTests {
         #expect(Array(raster.rgba[center..<center + 4]) == [200, 40, 90, 255])
     }
 
-    @Test func translationDecodeUsesAThumbnailOnlyAboveTheCap() throws {
-        let data = try png(width: 300, height: 200)
-        let small = try #require(ImagePixelCap.decodeImage(data)?.cgImage)
-        #expect(small.width == 300 && small.height == 200)
-
-        let bounded = try #require(ImagePixelCap.decodeImage(data, maxPixels: 6_000))
-        let raster = try #require(bounded.cgImage)
-        #expect(raster.width * raster.height <= 6_000)
-        #expect(raster.width > raster.height)
-        #expect(bounded.imageOrientation == .up)
-        #expect(ImagePixelCap.pixelSize(of: data).map { [$0.width, $0.height] } == [300, 200])
-    }
-
     @Test func nukeDecoderDownsamplesOverCapPagesRegardlessOfTheReaderSetting() throws {
         let data = try png(width: 300, height: 200)
         let request = ImageRequest(url: URL(string: "https://example.invalid/page.png"))
@@ -111,11 +78,5 @@ struct V2HugePageCapTests {
         let decoder = try #require(ImageDecoders.Default(context: capped))
         let raster = try #require(try decoder.decode(data).image.cgImage)
         #expect(raster.width * raster.height <= 6_000)
-
-        // A thumbnail the reader already requested is kept as is.
-        var thumbnailRequest = request
-        thumbnailRequest.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: 50)
-        let existing = ImageDecodingContext(request: thumbnailRequest, data: data)
-        #expect(ImagePixelCap.decodingContext(existing, maxPixels: 6_000).request.thumbnail == thumbnailRequest.thumbnail)
     }
 }

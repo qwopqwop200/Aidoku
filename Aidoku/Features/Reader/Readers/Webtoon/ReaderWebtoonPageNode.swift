@@ -19,7 +19,7 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     let page: Page
     let temporaryPageStore: ReaderTemporaryPageStore
     let pillarboxLayoutState: ReaderPillarboxLayoutState
-    private let imagePipeline: ImagePipeline
+    private let imagePipeline = ImagePipeline.shared
     @MainActor private lazy var imageDownloadDemand = ReaderImageDownloadDemand()
     private var imageDownloadDemandToken: UUID?
 
@@ -131,14 +131,12 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
         source: AidokuRunner.Source?,
         page: Page,
         temporaryPageStore: ReaderTemporaryPageStore,
-        pillarboxLayoutState: ReaderPillarboxLayoutState,
-        imagePipeline: ImagePipeline = .shared
+        pillarboxLayoutState: ReaderPillarboxLayoutState
     ) {
         self.source = source
         self.page = page
         self.temporaryPageStore = temporaryPageStore
         self.pillarboxLayoutState = pillarboxLayoutState
-        self.imagePipeline = imagePipeline
         super.init()
 
         automaticallyManagesSubnodes = true

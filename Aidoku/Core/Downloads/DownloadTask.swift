@@ -27,8 +27,8 @@ actor DownloadTask: Identifiable {
 
     private let cache: DownloadCache
     private let network: SourceNetwork
-    private let bulkAdmission: BulkDownloadAdmission
-    private let sourceLookup: @Sendable (String) async -> AidokuRunner.Source?
+    private let bulkAdmission = BulkDownloadAdmission.shared
+    private let sourceLookup: @Sendable (String) async -> AidokuRunner.Source? = { await SourceManager.shared.source(for: $0) }
     private var downloads: [Download]
     private weak var delegate: DownloadTaskDelegate?
 
@@ -59,13 +59,9 @@ actor DownloadTask: Identifiable {
     }
 
     init(id: String, cache: DownloadCache, downloads: [Download], network: SourceNetwork = .shared,
-         bulkAdmission: BulkDownloadAdmission = .shared,
-         sourceLookup: @escaping @Sendable (String) async -> AidokuRunner.Source? = { await SourceManager.shared.source(for: $0) },
          delegate: DownloadTaskDelegate? = nil) {
         self.id = id
         self.network = network
-        self.bulkAdmission = bulkAdmission
-        self.sourceLookup = sourceLookup
         self.cache = cache
         self.downloads = downloads
         self.delegate = delegate
