@@ -1167,3 +1167,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 acceptă doar text sursă în japoneză și chineză (simplificată și tradițională). Detectarea automată a limbii sursă și opțiunile de selectare a limbii sursă sunt limitate la aceste limbi. Traducerea în orice limbă țintă este în continuare posibilă. Selectarea modelului Manga aplică pragurile de detectare 0,85 și 0,25; dimensiunea implicită pentru detectare este de 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Toate limbile acceptate de OCR";
+"TRANSLATION_PIPELINE_V2" = "Procesare rapidă (beta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Folosește noul flux de traducere a paginilor orientat spre viteză. Paginile sunt recunoscute, șterse și redesenate ca o singură imagine finală, de obicei mult mai rapid. Rezultatele sunt stocate în cache separat de fluxul standard. Necesită iOS 18.";

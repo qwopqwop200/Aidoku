@@ -1200,3 +1200,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ondersteun slegs Japannese en Chinese bronteks (vereenvoudig en tradisioneel). Outomatiese identifikasie van die brontaal en die keuse van brontale is tot hierdie tale beperk. Jy kan steeds na enige teikentaal vertaal. Wanneer jy Manga kies, word opsporingsdrempels van 0.85 en 0.25 toegepas; die verstekgrootte vir teksopsporing is 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle ondersteunde OCR-tale";
+"TRANSLATION_PIPELINE_V2" = "Vinnige pyplyn (Beta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Gebruik die nuwe spoedgerigte bladsyvertaalpyplyn. Bladsye word herken, uitgevee en as een voltooide beeld herteken, gewoonlik baie vinniger. Resultate word apart van die standaardpyplyn gekas. Vereis iOS 18.";

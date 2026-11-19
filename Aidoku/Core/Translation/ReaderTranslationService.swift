@@ -1173,7 +1173,14 @@ actor ReaderTranslationService {
             metadataGeneration &+= 1
             for task in metadataTasks.values { task.cancel() }
             if warmsOCROnReaderOpen {
-                Self.requestOCRWarmUp()
+                if #available(iOS 18.0, *), ReaderTranslationSettings().usesPipelineV2 {
+                    // V2 owns its own resident models; never warm the legacy OCR set too.
+                    if ReaderTranslationSettings().shouldProcessReaderPages {
+                        Task(priority: .utility) { await ReaderTranslationV2Service.shared.prewarm() }
+                    }
+                } else {
+                    Self.requestOCRWarmUp()
+                }
                 let configuration = ReaderTranslationSettings().configuration
                 Task(priority: .utility) { [client] in await client.prepare(configuration: configuration) }
             }
@@ -1480,6 +1487,28 @@ actor ReaderTranslationService {
 
     func clearCache() async throws {
         try await service?.purgeCache()
+    }
+
+    /// V2 S5: one page request through the live provider client, sharing the
+    /// reader's provider concurrency limit and mandatory page settings.
+    @available(iOS 18.0, *)
+    func translateV2(
+        _ blocks: [V2Block], pageSize: CGSize, settings: ReaderTranslationSettings, imageJPEG: Data?,
+        priority: TranslationRequestPriority = .foreground
+    ) async throws -> [V2Block] {
+        try Task.checkCancellation()
+        let settings = Self.mandatoryPageSettings(settings)
+        let configuration = settings.configuration
+        _ = try configuration.validatedEndpoint()
+        let concurrency = max(1, min(3, settings.maximumConcurrentRequests))
+        await limiter.setMaximumConcurrentRequests(concurrency)
+        let client = client
+        return try await limiter.withPermit(priority: priority) {
+            try await V2Translation.translate(
+                blocks, pageSize: pageSize, client: client, configuration: configuration,
+                sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,
+                imageJPEG: settings.includePageImage ? imageJPEG : nil)
+        }
     }
 }
 

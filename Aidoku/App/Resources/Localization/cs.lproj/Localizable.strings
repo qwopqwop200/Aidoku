@@ -1172,3 +1172,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 podporuje pouze zdrojový text v japonštině a čínštině (zjednodušené i tradiční). Automatické určení zdrojového jazyka i výběr zdrojového jazyka jsou omezeny na tyto jazyky. Překlad do libovolného cílového jazyka je nadále možný. Výběrem modelu Manga se nastaví prahové hodnoty detektoru na 0,85 a 0,25; výchozí velikost pro detekci je 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Všechny podporované jazyky OCR";
+"TRANSLATION_PIPELINE_V2" = "Rychlý proces (beta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Používá nový proces překladu stránek zaměřený na rychlost. Stránky se rozpoznají, vymažou a překreslí jako jeden hotový obrázek, obvykle mnohem rychleji. Výsledky se ukládají do mezipaměti odděleně od standardního procesu. Vyžaduje iOS 18.";

@@ -281,15 +281,40 @@ enum ReaderTranslationLanguageFilter {
     }
 
     static func apply(_ regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings) -> [ReaderTranslationRegion] {
+        regions.filter { allowsSource($0.source, settings: settings) }
+    }
+
+    /// The per-text rule of `apply`. `tier` names the recognizer that read the
+    /// text (V2 always uses the manga recognizer, independent of the OCR setting).
+    static func allowsSource(_ text: String, settings: ReaderTranslationSettings,
+                             tier: IPhoneOCRModelTier? = nil) -> Bool {
         let source = canonical(settings.sourceLanguage)
         let languages = normalized(settings.translationSourceLanguages)
-        let eligible = regions.filter {
-            isLanguageNeutralSymbols($0.source) ||
-            ((!settings.usesOCRLanguagePolicy || allowsModelSource($0.source, tier: settings.modelTier)) &&
-            !isAlreadyTargetLanguage($0.source, target: settings.targetLanguage) &&
-            AutomaticSourceLanguageDetector.allowsOCRText($0.source, configuredSourceLanguage: source, automaticLanguageFilter: languages))
+        return isLanguageNeutralSymbols(text) ||
+            ((!settings.usesOCRLanguagePolicy || allowsModelSource(text, tier: tier ?? settings.modelTier)) &&
+            !isAlreadyTargetLanguage(text, target: settings.targetLanguage) &&
+            AutomaticSourceLanguageDetector.allowsOCRText(text, configuredSourceLanguage: source, automaticLanguageFilter: languages))
+    }
+
+    /// V2 cache identity of `allowsV2Source` (manga recognizer, shared-Han recall).
+    static let v2SourcePolicy = "v2-source-filter-v2-manga-shared-han"
+
+    /// V2 block rule: the legacy per-text rule, plus recall for Han-only
+    /// dialogue (names, short replies) that NaturalLanguage cannot split
+    /// between Japanese and Chinese. Such text is admitted whenever any
+    /// Han-script language is allowed; other scripts follow the legacy rule.
+    static func allowsV2Source(_ text: String, settings: ReaderTranslationSettings) -> Bool {
+        if allowsSource(text, settings: settings, tier: .manga) { return true }
+        let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
+        let han: (Unicode.Scalar) -> Bool = {
+            (0x3400...0x9FFF).contains($0.value) || (0x20000...0x323AF).contains($0.value) || (0xF900...0xFAFF).contains($0.value)
         }
-        return eligible
+        guard !letters.isEmpty, letters.allSatisfy(han) else { return false }
+        let source = canonical(settings.sourceLanguage)
+        let allowed = source == "auto" ? normalized(settings.translationSourceLanguages) : [source]
+        let hanLanguages: Set<String> = ["ja", "zh", "zh-Hant"]
+        return (allowed.isEmpty || allowed.contains(where: hanLanguages.contains)) &&
+            !isAlreadyTargetLanguage(text, target: settings.targetLanguage)
     }
 
     /// Keep filtered-out lettering as an explicit source owner during composition.

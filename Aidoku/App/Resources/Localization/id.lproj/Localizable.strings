@@ -1199,3 +1199,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 hanya mendukung teks sumber dalam bahasa Jepang dan bahasa Tionghoa (aksara sederhana dan tradisional). Deteksi otomatis bahasa sumber dan pilihan bahasa sumber juga terbatas pada bahasa-bahasa tersebut. Anda tetap dapat menerjemahkan ke bahasa tujuan apa pun. Memilih Manga menerapkan ambang deteksi 0.85 dan 0.25; ukuran deteksi bawaannya adalah 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Semua bahasa OCR yang didukung";
+"TRANSLATION_PIPELINE_V2" = "Pipeline Cepat (Beta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Menggunakan pipeline terjemahan halaman baru yang mengutamakan kecepatan. Halaman dikenali, dihapus, dan digambar ulang sebagai satu gambar jadi, biasanya jauh lebih cepat. Hasil disimpan di cache terpisah dari pipeline standar. Memerlukan iOS 18.";

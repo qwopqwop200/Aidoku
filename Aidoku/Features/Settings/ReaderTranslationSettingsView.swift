@@ -20,6 +20,7 @@ struct ReaderTranslationSettingsView: View {
         List {
             languageSection
             pageTranslationSection
+            pipelineSection
             translationTargetsSection
             providerSection
             translationOptionsSection
@@ -153,6 +154,15 @@ struct ReaderTranslationSettingsView: View {
             Text(NSLocalizedString("TRANSLATION_PAGE_SETTINGS"))
         } footer: {
             Text(NSLocalizedString("TRANSLATION_PRETRANSLATION_LIMIT_HELP"))
+        }
+    }
+
+    private var pipelineSection: some View {
+        Section {
+            Toggle(NSLocalizedString("TRANSLATION_PIPELINE_V2"), isOn: persistedSettings.pipelineV2)
+                .accessibilityIdentifier("translation.pipelineV2")
+        } footer: {
+            Text(NSLocalizedString("TRANSLATION_PIPELINE_V2_HELP"))
         }
     }
 

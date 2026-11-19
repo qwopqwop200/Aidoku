@@ -1202,3 +1202,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 unterstützt nur japanischen und chinesischen Ausgangstext (vereinfachte und traditionelle Schriftzeichen). Auch die automatische Erkennung und die manuelle Auswahl der Ausgangssprache sind auf diese Sprachen beschränkt. Übersetzungen in beliebige Zielsprachen sind weiterhin möglich. Bei Auswahl von Manga werden die Schwellenwerte für die Textbereichserkennung auf 0.85 und 0.25 gesetzt; die Standardgröße für die Textbereichserkennung beträgt 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle unterstützten OCR-Sprachen";
+"TRANSLATION_PIPELINE_V2" = "Schnelle Pipeline (Beta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Verwendet die neue, auf Geschwindigkeit ausgelegte Seitenübersetzung. Seiten werden erkannt, bereinigt und als ein fertiges Bild neu gezeichnet, meist deutlich schneller. Ergebnisse werden getrennt von der Standard-Pipeline zwischengespeichert. Erfordert iOS 18.";

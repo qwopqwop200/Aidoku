@@ -1172,3 +1172,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 僅支援辨識日文與中文（簡體、繁體）原文。自動偵測原文語言與手動選擇原文語言的範圍也僅限於這些語言。仍可翻譯成任意目標語言。選擇 Manga 後，偵測閾值會設為 0.85 與 0.25；預設偵測尺寸為 1120px。";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "所有支援的 OCR 語言";
+"TRANSLATION_PIPELINE_V2" = "快速管線（測試版）";
+"TRANSLATION_PIPELINE_V2_HELP" = "使用以速度為先的新頁面翻譯管線。頁面的辨識、擦除與重繪會合成為一張完成的圖像，通常快得多。結果與標準管線分開快取。需要 iOS 18。";

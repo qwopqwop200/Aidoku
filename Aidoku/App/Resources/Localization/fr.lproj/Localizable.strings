@@ -1170,3 +1170,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ne prend en charge que les textes sources en japonais et en chinois (simplifié et traditionnel). La détection automatique et la sélection de la langue source sont également limitées à ces langues. La traduction vers n’importe quelle langue cible reste possible. Sélectionner Manga applique des seuils de détection du texte de 0,85 et 0,25 ; la taille de détection par défaut est de 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Toutes les langues OCR prises en charge";
+"TRANSLATION_PIPELINE_V2" = "Traitement rapide (bêta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Utilise le nouveau traitement de traduction des pages axé sur la vitesse. Les pages sont reconnues, effacées et redessinées en une seule image finale, généralement bien plus vite. Les résultats sont mis en cache séparément du traitement standard. Nécessite iOS 18.";

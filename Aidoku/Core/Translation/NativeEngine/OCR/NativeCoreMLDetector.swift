@@ -792,6 +792,21 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         )
     }
 
+    /// DB-decoded geometry only (polygon, score and the decoder's own erasure/recognition polygons) for the
+    /// V2 pipeline. Skips the legacy column, ownership-seed, ROI-probability and alternate-envelope evidence;
+    /// every other entry point keeps that evidence and is unchanged.
+    func detectGeometry(
+        image: CGImage,
+        requestID: String = UUID().uuidString,
+        configuration: NativeCoreMLDBPostprocessConfiguration = .manga,
+        cancellationCheck: @escaping @Sendable () throws -> Void = {}
+    ) async throws -> NativeCoreMLDetectionResult {
+        try await performDetection(
+            providedFrame: nil, image: image, requestID: requestID, configuration: configuration,
+            recognitionScopes: nil, geometryOnly: true, cancellationCheck: cancellationCheck
+        )
+    }
+
     /// Captures one immutable frame, normalized tensor and detector for a single cache lookup.
     /// Only a cache miss invokes the observer. Actual emission still attests its own resources.
     struct ProbabilityRequest: Sendable {
@@ -835,6 +850,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         recognitionScopes: [CGRect]?,
         probabilityObserver: NativeMainEnsembleOCRProbability.Observer? = nil,
         probabilityOnlyInput: NativeCoreMLDetectionPreparedTensor? = nil,
+        geometryOnly: Bool = false,
         cancellationCheck: @escaping @Sendable () throws -> Void
     ) async throws -> NativeCoreMLDetectionResult {
         let issuedGeneration = generation.begin()
@@ -1041,6 +1057,10 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                     }
                     // OCR retains its detection evidence; source replacement no longer needs erasure masks.
                     let boxes = result.boxes
+                    if geometryOnly {
+                        dbPostprocessingMilliseconds += Self.nowMilliseconds() - stageStarted
+                        return result
+                    }
                     let mapGeometry = NativeCoreMLDetectionMapGeometry(originX: region.x, originY: region.y,
                         fullWidth: prepared.resizedWidth, fullHeight: prepared.resizedHeight)
                     let columns = try NativeOCRDBChildColumnEvidence.extract(map: map, boxes: boxes,

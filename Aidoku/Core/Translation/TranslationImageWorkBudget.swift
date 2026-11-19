@@ -32,7 +32,10 @@ final class TranslationImageWorkBudget: Sendable {
                 ReaderTranslationRenderCache.shared.clearMemory()
             }
         }, purgeModels: {
-            if #available(iOS 18.0, *) { await ReaderOCRService.shared.purge() }
+            if #available(iOS 18.0, *) {
+                await ReaderOCRService.shared.purge()
+                await ReaderTranslationV2Service.shared.releaseModels()
+            }
         })
     }
 

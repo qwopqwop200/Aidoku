@@ -1200,3 +1200,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 subtenas nur fonttekston en la japana kaj la ĉina (simpligitaj kaj tradiciaj skribsignoj). Aŭtomata identigo de la fontlingvo kaj la elektoj de fontlingvo ankaŭ limiĝas al tiuj lingvoj. Vi ankoraŭ povas traduki al ajna cellingvo. Elekto de Manga aplikas detektajn sojlojn de 0.85 kaj 0.25; ĝia defaŭlta detekta grandeco estas 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Ĉiuj lingvoj subtenataj de OCR";
+"TRANSLATION_PIPELINE_V2" = "Rapida procezo (beta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Uzas la novan rapidec-celan procezon por traduki paĝojn. Paĝoj estas rekonataj, viŝataj kaj redesegnataj kiel unu preta bildo, kutime multe pli rapide. Rezultoj estas kaŝmemorataj aparte de la norma procezo. Postulas iOS 18.";

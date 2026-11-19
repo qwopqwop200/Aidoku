@@ -232,6 +232,14 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var metadataInstructions = ""
     var credentialGeneration: UInt64 = 0
     var cacheLimitBytes: Int64 = ReaderTranslationDiskCache.defaultBytes
+    /// Opt-in speed-first V2 page pipeline (`Reader.translationPipelineV2`).
+    var pipelineV2 = false
+    static let pipelineV2Key = "Reader.translationPipelineV2"
+    /// V2 requires the iOS 18 Core ML runtime; older systems stay on legacy.
+    var usesPipelineV2: Bool {
+        if #available(iOS 18.0, *) { return pipelineV2 }
+        return false
+    }
 
     init(defaults: UserDefaults = .standard) {
         // Keep the existing OpenAI preferences and Keychain account during migration.
@@ -289,6 +297,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
             .flatMap(OpenAIReasoningEffort.init(rawValue:)) ?? openAIReasoningEffort
         maximumConcurrentRequests = defaults.object(forKey: Self.keyPrefix + "concurrency") as? Int ?? maximumConcurrentRequests
         credentialGeneration = UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))
+        pipelineV2 = defaults.bool(forKey: Self.pipelineV2Key)
         if let value = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber,
            ReaderTranslationDiskCache.limitChoices.contains(value.int64Value) { cacheLimitBytes = value.int64Value }
         normalizeOCRSourceLanguages()
@@ -314,7 +323,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     }
 
     func hasSameTranslation(as other: Self) -> Bool {
-        includePageImage == other.includePageImage && rightToLeftPanelOrder == other.rightToLeftPanelOrder && configuration == other.configuration && ocrConfiguration == other.ocrConfiguration &&
+        pipelineV2 == other.pipelineV2 && includePageImage == other.includePageImage && rightToLeftPanelOrder == other.rightToLeftPanelOrder && configuration == other.configuration && ocrConfiguration == other.ocrConfiguration &&
             sourceLanguage == other.sourceLanguage && targetLanguage == other.targetLanguage &&
             ReaderTranslationLanguageFilter.identity(settings: self) == ReaderTranslationLanguageFilter.identity(settings: other)
     }
@@ -413,6 +422,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(chapterTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "chapterTitleSourceLanguages")
         defaults.set(customData, forKey: Self.keyPrefix + "custom")
         defaults.set(maximumConcurrentRequests, forKey: Self.keyPrefix + "concurrency")
+        defaults.set(pipelineV2, forKey: Self.pipelineV2Key)
         defaults.set(openAIModel.trimmingCharacters(in: .whitespacesAndNewlines), forKey: Self.keyPrefix + "model")
         defaults.set(targetLanguage, forKey: Self.keyPrefix + "targetLanguage")
         defaults.set(sourceLanguage, forKey: Self.keyPrefix + "sourceLanguage")

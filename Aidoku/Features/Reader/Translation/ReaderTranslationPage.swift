@@ -71,6 +71,12 @@ final class ReaderTranslationPage {
     private let progressiveTranslate: ProgressiveTranslator?
     private var settingsObserver: NSObjectProtocol?
     private var memoryObserver: NSObjectProtocol?
+    // Opt-in V2 pipeline: one fully rendered page bitmap per source image.
+    private var v2Task: Task<Void, Never>?
+    private var v2Identity: String?
+    private weak var v2Source: UIImage?
+    private var v2Failed = false
+    private(set) var isPresentingV2 = false
 
     init(
         imageView: UIImageView,
@@ -103,6 +109,7 @@ final class ReaderTranslationPage {
 
     deinit {
         task?.cancel()
+        v2Task?.cancel()
         sourceObservation?.cancel()
         renderLookupTask?.cancel()
         if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
@@ -158,6 +165,7 @@ final class ReaderTranslationPage {
         generation = UUID()
         task?.cancel()
         task = nil
+        cancelV2Work()
         // Keep a provisional frame until its replacement commits; only stop
         // scheduling further provisional renders.
         provisionalTask?.cancel()
@@ -230,6 +238,11 @@ final class ReaderTranslationPage {
         overlay?.cancelWork()
         overlay?.removeFromSuperview()
         overlay = nil
+        isPresentingV2 = false
+        if v2Task == nil {
+            v2Identity = nil
+            v2Failed = false
+        }
     }
 
     func process(translate: Bool, settings: ReaderTranslationSettings, renderOverlay: Bool = true) async throws -> Int {
@@ -323,11 +336,16 @@ final class ReaderTranslationPage {
     }
 
     var canExportTranslation: Bool {
-        !isExportingTranslation && completedTranslation && analyzedImage != nil && analyzedImage === imageView?.image &&
+        if isPresentingV2 { return !isExportingTranslation && cachedOverlay?.snapshotImage != nil }
+        return !isExportingTranslation && completedTranslation && analyzedImage != nil && analyzedImage === imageView?.image &&
             regions.contains { !($0.translation?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true) }
     }
 
     func exportTranslatedImage(host: UIView) async throws -> UIImage {
+        if isPresentingV2 {
+            guard let snapshot = cachedOverlay?.snapshotImage else { throw ReaderTranslationImageExporter.ExportError.unavailable }
+            return snapshot
+        }
         guard canExportTranslation, let imageView, let image = imageView.image, let settings = lastSettings else {
             throw ReaderTranslationImageExporter.ExportError.unavailable
         }
@@ -794,6 +812,97 @@ final class ReaderTranslationPage {
         if wasHidden || !settings.automaticallyTranslate {
             overlay?.isHidden = true
             cachedOverlay?.setPresentationHidden(true)
+        }
+    }
+}
+
+// MARK: - V2 pipeline presentation
+
+extension ReaderTranslationPage {
+    /// Starts (or keeps) V2 translation of the displayed image. The result is a
+    /// complete page bitmap presented through the cached-page canvas; legacy
+    /// OCR/overlay state is never involved. Repeated calls for the same source
+    /// and identity are free, and a failure is not retried until `retryV2()`.
+    func processV2(settings: ReaderTranslationSettings, persistsCache: Bool,
+                   onPresented: @escaping @MainActor () -> Void = {},
+                   onFailure: @escaping @MainActor (Error) -> Void) {
+        guard #available(iOS 18.0, *), let imageView, let image = imageView.image, let sourcePage else { return }
+        let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
+        let key = ReaderTranslationV2Service.cacheKey(page: sourcePage.translationCacheKey, crop: crop, settings: settings)
+        if v2Identity == key, v2Source === image {
+            if isPresentingV2 { cachedOverlay?.setPresentationHidden(!settings.overlay.visible) }
+            return
+        }
+        reset()
+        v2Identity = key
+        v2Source = image
+        v2Failed = false
+        let issued = generation
+        v2Task = Task { [weak self] in
+            do {
+                let pixels = await Task.detached(priority: .userInitiated) {
+                    ReaderTranslationImagePreparation.uprightSourceImage(image).cgImage
+                }.value
+                try Task.checkCancellation()
+                guard let pixels else { throw NativeCoreMLDetectorError.imageConversionFailed }
+                let output = try await ReaderTranslationV2Service.shared.translatePage(
+                    pixels, cacheKey: persistsCache ? key : nil, settings: settings, priority: .foreground)
+                try Task.checkCancellation()
+                guard let self, generation == issued, v2Identity == key, self.imageView?.image === image else { return }
+                v2Task = nil
+                if let timings = output.timings {
+                    ReaderTranslationDiagnostics.record("v2_page", page: sourcePage.index + 1,
+                        elapsedMilliseconds: timings.stages[V2Pipeline.Stage.nonLLM])
+                }
+                displayV2(UIImage(cgImage: output.image, scale: image.scale, orientation: .up), source: image, settings: settings)
+                onPresented()
+            } catch {
+                guard let self, generation == issued, v2Identity == key else { return }
+                v2Task = nil
+                guard !(error is CancellationError) else { v2Identity = nil; return }
+                v2Failed = true
+                onFailure(error)
+            }
+        }
+    }
+
+    /// Cancels in-flight V2 work for a page leaving the viewport. A finished
+    /// presentation stays attached; unfinished work restarts when visible again.
+    func cancelV2Work() {
+        guard let v2Task else { return }
+        v2Task.cancel()
+        self.v2Task = nil
+        if !isPresentingV2, !v2Failed { v2Identity = nil }
+    }
+
+    /// Removes the V2 presentation and any pending V2 work.
+    func hideV2() {
+        guard isPresentingV2 || v2Task != nil || v2Identity != nil else { return }
+        cancel()
+        releaseOverlay()
+        v2Identity = nil
+        v2Failed = false
+    }
+
+    func retryV2() {
+        guard v2Failed else { return }
+        v2Failed = false
+        v2Identity = nil
+    }
+
+    private func displayV2(_ output: UIImage, source: UIImage, settings: ReaderTranslationSettings) {
+        let identity = v2Identity
+        displaySnapshot(output, source: source, settings: settings, sourceSized: true)
+        v2Identity = identity
+        v2Source = source
+        isPresentingV2 = true
+        // The bitmap is the whole source-aspect page: geometry or appearance
+        // changes never require a re-render (unlike viewport-sized legacy frames).
+        cachedOverlay?.onGeometryChanged = { [weak canvas = cachedOverlay] in
+            guard let canvas else { return }
+            canvas.initialSize = canvas.bounds.size
+            canvas.initialStyle = canvas.traitCollection.userInterfaceStyle
+            canvas.initialScale = canvas.traitCollection.displayScale
         }
     }
 }

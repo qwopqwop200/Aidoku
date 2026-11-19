@@ -855,6 +855,30 @@
           },
           {
             "name" : "TranslationStreamingTests"
+          },
+          {
+            "name" : "V2CoreTests"
+          },
+          {
+            "name" : "V2DetectionTests"
+          },
+          {
+            "name" : "V2GroupingTests"
+          },
+          {
+            "name" : "V2LayoutTests"
+          },
+          {
+            "name" : "V2ReaderPipelineTests"
+          },
+          {
+            "name" : "V2RecognitionTests"
+          },
+          {
+            "name" : "V2RemovalMaskTests"
+          },
+          {
+            "name" : "V2StyleTests"
           }
         ]
       },

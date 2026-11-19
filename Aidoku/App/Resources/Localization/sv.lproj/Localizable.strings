@@ -1202,3 +1202,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 stöder endast källtext på japanska och kinesiska (förenklad och traditionell). Automatisk identifiering av källspråket och val av källspråk är begränsade till dessa språk. Du kan fortfarande översätta till valfritt målspråk. När du väljer Manga används detekteringströsklarna 0.85 och 0.25; standardstorleken för textdetektering är 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alla OCR-språk som stöds";
+"TRANSLATION_PIPELINE_V2" = "Snabb pipeline (beta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Använder den nya, hastighetsinriktade pipelinen för sidöversättning. Sidor känns igen, raderas och ritas om som en enda färdig bild, vanligtvis mycket snabbare. Resultaten cachelagras separat från standardpipelinen. Kräver iOS 18.";

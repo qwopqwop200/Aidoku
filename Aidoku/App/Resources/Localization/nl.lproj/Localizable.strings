@@ -1202,3 +1202,5 @@
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ondersteunt alleen Japanse en Chinese brontekst (vereenvoudigd en traditioneel). Automatische herkenning van de brontaal en de beschikbare brontalen zijn beperkt tot deze talen. Je kunt nog steeds naar elke doeltaal vertalen. Als je Manga kiest, worden de detectiedrempels 0.85 en 0.25 toegepast; de standaardgrootte voor detectie is 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle ondersteunde OCR-talen";
+"TRANSLATION_PIPELINE_V2" = "Snelle pijplijn (bèta)";
+"TRANSLATION_PIPELINE_V2_HELP" = "Gebruikt de nieuwe, op snelheid gerichte pijplijn voor paginavertaling. Pagina's worden herkend, gewist en opnieuw getekend als één afgewerkte afbeelding, meestal veel sneller. Resultaten worden apart van de standaardpijplijn in de cache bewaard. Vereist iOS 18.";

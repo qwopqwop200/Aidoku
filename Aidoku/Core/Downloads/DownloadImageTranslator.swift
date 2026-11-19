@@ -52,6 +52,7 @@ enum DownloadImageTranslator {
     }
 
     private static func translateAdmitted(_ data: Data, settings: ReaderTranslationSettings) async throws -> Data {
+        if #available(iOS 18.0, *), settings.usesPipelineV2 { return try await translateV2(data, settings: settings) }
         let prepared = try await gate.withPermit(priority: .prefetch,
             decodedBytes: TranslationImageWorkBudget.decodedBytes(in: data)) {
             try await prepare(data, settings: settings)
@@ -62,6 +63,18 @@ enum DownloadImageTranslator {
             settings: settings, preparedPage: prepared.pageImage, priority: .prefetch)
         guard !regions.isEmpty else { return data }
         return try await translate(data, settings: settings) { _, _ in regions }
+    }
+
+    /// V2 pipeline: the rendered page needs no reader host or overlay renderer.
+    @available(iOS 18.0, *)
+    private nonisolated static func translateV2(_ data: Data, settings: ReaderTranslationSettings) async throws -> Data {
+        let image = try decode(data)
+        guard let pixels = image.cgImage else { throw ReaderTranslationImageExporter.ExportError.unavailable }
+        let output = try await ReaderTranslationV2Service.shared.translatePage(
+            pixels, cacheKey: nil, settings: settings, priority: .prefetch)
+        try Task.checkCancellation()
+        guard let png = UIImage(cgImage: output.image).pngData() else { throw ReaderTranslationImageExporter.ExportError.renderFailed }
+        return png
     }
 
     struct RenderEnvironment: Sendable {
