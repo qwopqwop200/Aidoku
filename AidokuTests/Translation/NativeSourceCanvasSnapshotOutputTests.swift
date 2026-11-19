@@ -57,26 +57,6 @@ import UIKit
         #expect(finalPrefix == original, "Immutable full-resolution prefix is unchanged")
     }
 
-    @Test(arguments: [3, 4, 5]) func targetCaptureCancellationRestoresHierarchy(checkpoint: Int) throws {
-        let scale = try activeScale()
-        let prefix = try pattern(width: Int(page.width * scale), height: Int(page.height * scale), translucent: true)
-        let source = try pattern(width: 32, height: 32, translucent: false)
-        let request = NativeSourceCanvasHierarchyCompositor.Request(prefix: prefix, source: source,
-            viewport: page, scale: scale, sourceFrame: frame,
-            outputSize: CGSize(width: page.width / 2, height: page.height / 2))
-        let before = hierarchySignature()
-        var calls = 0
-        do {
-            _ = try NativeSourceCanvasHierarchyCompositor.compose(request, checkCancellation: {
-                calls += 1
-                if calls == checkpoint { throw CancellationError() }
-            })
-            Issue.record("Injected cancellation must propagate at requested target capture checkpoint")
-        } catch is CancellationError { }
-        #expect(calls == checkpoint)
-        #expect(hierarchySignature() == before)
-    }
-
     private func activeScale() throws -> CGFloat {
         let window = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .filter { $0.activationState == .foregroundActive }.flatMap(\.windows)

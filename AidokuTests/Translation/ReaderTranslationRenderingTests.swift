@@ -822,10 +822,6 @@ struct ReaderTranslationRenderingTests {
         try await export(overlay, image: nil, name: "ocr-preview-replacement.png")
     }
 
-    // Opt-in real-image audit. Copy manifest.json and referenced images into the
-    // host application's Documents/RealComicRendering before test-without-building.
-    // Fixtures contain actual OCR geometry and provider translations, never keys.
-
     private func fixtureSettings() -> ReaderTranslationSettings {
         // Rendering assertions must not inherit the host app's saved OFF state.
         let name = "ReaderTranslationRenderingTests-" + UUID().uuidString
@@ -908,25 +904,4 @@ private actor RenderingProgressBarrier {
     private var continuation: CheckedContinuation<Void, Never>?
     func wait() async { await withCheckedContinuation { continuation = $0; started = true } }
     func release() { continuation?.resume(); continuation = nil }
-}
-
-private struct RealComicRenderingFixture: Decodable {
-    let id: String
-    let work: String
-    let sourceURL: String
-    let image: String
-    let targetLanguage: String
-    let regions: [Region]
-
-    struct Region: Decodable {
-        let id: String
-        let x: Double
-        let y: Double
-        let width: Double
-        let height: Double
-        let source: String
-        let translation: String
-        let vertical: Bool?
-        let originalPolygon: [[Double]]?
-    }
 }

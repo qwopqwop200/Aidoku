@@ -39,11 +39,12 @@ struct ReaderEntryLoadingTests {
         }
     }
 
-    @Test func historyMetadataSQLiteBeforeAfter() throws {
+    @Test func historyMetadataBatchMatchesStoredObjectsForSharedManga() throws {
         try withDatabase { context in
             var ids: [ChapterIdentifier] = []
             for index in 0..<100 {
-                let mangaId = MangaIdentifier(sourceKey: "benchmark", mangaKey: "manga-\(index / 5)")
+                // Five chapters per manga exercise grouped chapter lookups.
+                let mangaId = MangaIdentifier(sourceKey: "batch", mangaKey: "manga-\(index / 5)")
                 if index % 5 == 0 {
                     let manga = MangaObject(context: context)
                     manga.load(from: AidokuRunner.Manga(sourceKey: mangaId.sourceKey, key: mangaId.mangaKey, title: mangaId.mangaKey))
@@ -53,33 +54,20 @@ struct ReaderEntryLoadingTests {
                 ids.append(ChapterIdentifier(sourceKey: mangaId.sourceKey, mangaKey: mangaId.mangaKey, chapterKey: "chapter-\(index)"))
             }
             try context.save()
-            var oldTimes: [Double] = []
-            var newTimes: [Double] = []
-            for _ in 0..<5 {
-                context.reset()
-                let oldStart = ProcessInfo.processInfo.systemUptime
-                var old = HistoryMetadataBatch()
-                for id in ids {
-                    let mangaRequest = MangaObject.fetchRequest()
-                    mangaRequest.fetchLimit = 1
-                    mangaRequest.predicate = NSPredicate(format: "sourceId == %@ AND id == %@", id.sourceKey, id.mangaKey)
-                    old.manga[id.mangaIdentifier] = try context.fetch(mangaRequest).first?.toNewManga()
-                    let chapterRequest = ChapterObject.fetchRequest()
-                    chapterRequest.fetchLimit = 1
-                    chapterRequest.predicate = NSPredicate(
-                        format: "id == %@ AND mangaId == %@ AND sourceId == %@", id.chapterKey, id.mangaKey, id.sourceKey
-                    )
-                    old.chapters[id] = try context.fetch(chapterRequest).first?.toNewChapter()
-                }
-                oldTimes.append((ProcessInfo.processInfo.systemUptime - oldStart) * 1_000)
-                context.reset()
-                let newStart = ProcessInfo.processInfo.systemUptime
-                let batch = HistoryMetadataBatch.load(chapterIds: ids, context: context)
-                newTimes.append((ProcessInfo.processInfo.systemUptime - newStart) * 1_000)
-                #expect(batch.manga == old.manga)
-                #expect(batch.chapters == old.chapters)
+            context.reset()
+            let storedManga = try context.fetch(MangaObject.fetchRequest()).map { $0.toNewManga() }
+            let storedChapters = try context.fetch(ChapterObject.fetchRequest()).map {
+                (ChapterIdentifier(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.id), $0.toNewChapter())
             }
-            print("HISTORY_METADATA_SQLITE_100 old_ms=\(oldTimes) new_ms=\(newTimes)")
+            context.reset()
+            let batch = HistoryMetadataBatch.load(chapterIds: ids, context: context)
+            #expect(batch.manga.count == 20 && batch.chapters.count == 100)
+            for manga in storedManga {
+                #expect(batch.manga[MangaIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key)] == manga)
+            }
+            for (id, chapter) in storedChapters {
+                #expect(batch.chapters[id] == chapter)
+            }
         }
     }
 

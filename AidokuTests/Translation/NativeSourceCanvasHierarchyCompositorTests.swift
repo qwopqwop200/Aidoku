@@ -76,12 +76,14 @@ import UIKit
         #expect(hierarchySignature() == before)
     }
 
-    @Test(arguments: [3, 4, 5]) func injectedPostDisplayCaptureOrCleanupCancellationRestoresHierarchy(checkpoint: Int) throws {
+    @Test(arguments: [3, 4, 5], [false, true])
+    func injectedPostDisplayCaptureOrCleanupCancellationRestoresHierarchy(checkpoint: Int, halfOutput: Bool) throws {
         let scale = try activeScale()
         let prefix = try pattern(width: Int(page.width * scale), height: Int(page.height * scale), translucent: true)
         let source = try pattern(width: 32, height: 32, translucent: false)
         let request = NativeSourceCanvasHierarchyCompositor.Request(prefix: prefix, source: source,
-            viewport: page, scale: scale, sourceFrame: frame)
+            viewport: page, scale: scale, sourceFrame: frame,
+            outputSize: halfOutput ? CGSize(width: page.width / 2, height: page.height / 2) : nil)
         let before = hierarchySignature()
         var calls = 0
         do {

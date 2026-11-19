@@ -215,8 +215,8 @@ struct ReaderTranslationFixtureLatencyTests {
         #expect(ReaderTranslationRegion.layoutItems(reused.regions, imageSize: source.size) ==
                 ReaderTranslationRegion.layoutItems(record.regions, imageSize: source.size))
         #expect(warm === cold, "The validated loaded-page cache must return the exact completed bitmap")
-        let comparison = try RecordedTranslationReplay.decodedPixelComparison(actual: #require(cold.cgImage), reference: #require(source.cgImage))
-        #expect(comparison["equalDecodedPixels"] as? Bool == false)
+        let coldMatchesSource = try decodedPixelsEqual(#require(cold.cgImage), #require(source.cgImage))
+        #expect(!coldMatchesSource)
 
         // A different page and a different source under the same resident models.
         // Repeat with a fresh page key and an empty provider-response cache to
@@ -237,8 +237,8 @@ struct ReaderTranslationFixtureLatencyTests {
             try #require(current.sourceRasterClaim != nil && current.sourceRasterClaim != record.sourceRasterClaim)
             try #require(current.regions.contains { $0.translation == "빨리 움직여!" && !$0.preservesOriginalText })
             try #require(current.regions.map(\.source) != record.regions.map(\.source))
-            let painted = try RecordedTranslationReplay.decodedPixelComparison(actual: #require(result.cgImage), reference: #require(original.cgImage))
-            try #require(painted["equalDecodedPixels"] as? Bool == false)
+            let unpainted = try decodedPixelsEqual(#require(result.cgImage), #require(original.cgImage))
+            try #require(!unpainted)
             return (result, current)
         }
         let (nextImage, nextRecord) = try await renderNewPage(1, phase: "resident_models_new_page")
@@ -247,12 +247,34 @@ struct ReaderTranslationFixtureLatencyTests {
         #expect(repeatedImage !== nextImage)
         #expect(repeatedRecord.sourceRasterClaim == nextRecord.sourceRasterClaim)
         #expect(ReaderTranslationRenderAsset.digest(repeatedRecord.regions) == ReaderTranslationRenderAsset.digest(nextRecord.regions))
-        let parity = try RecordedTranslationReplay.decodedPixelComparison(actual: #require(repeatedImage.cgImage), reference: #require(nextImage.cgImage))
-        #expect(parity["equalDecodedPixels"] as? Bool == true)
+        let repeatedMatches = try decodedPixelsEqual(#require(repeatedImage.cgImage), #require(nextImage.cgImage))
+        #expect(repeatedMatches)
     }
 }
 
 private final class LatencyFixtureBundle: NSObject {}
+
+/// Compares decoded pixels in a canonical sRGB RGBA8 buffer, so PNG encoding
+/// differences cannot be mistaken for rendered-output differences.
+private func decodedPixelsEqual(_ actual: CGImage, _ reference: CGImage) throws -> Bool {
+    guard actual.width == reference.width && actual.height == reference.height else { return false }
+    func rgba(_ image: CGImage) throws -> Data {
+        let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        var data = Data(count: image.width * image.height * 4)
+        let drawn = data.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(data: bytes.baseAddress, width: image.width, height: image.height,
+                bitsPerComponent: 8, bytesPerRow: image.width * 4, space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)
+            else { return false }
+            context.setBlendMode(.copy)
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+            return true
+        }
+        try #require(drawn, "Could not create a canonical sRGB pixel buffer")
+        return data
+    }
+    return try rgba(actual) == rgba(reference)
+}
 
 private struct ContractCredential: TranslationCredentialProviding {
     func secret(for account: String) throws -> String { "local-mock-only" }

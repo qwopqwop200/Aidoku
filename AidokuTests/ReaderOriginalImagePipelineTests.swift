@@ -107,13 +107,10 @@ struct ReaderOriginalImagePipelineTests {
 
     @Test func fullSizeOriginalReachesReaderAndTranslationLoaderUnchanged() async throws {
         let defaults = UserDefaults.standard
-        let keys = ["Reader.cropBorders", "Reader.downsampleImages", "Reader.upscaleImages", "Reader.upscaleMaxHeight", "Data.enabledModelFile", "Reader.liveText", "Dictionary.enable", "Reader.translation.automatic"]
+        let keys = ["Reader.cropBorders", "Reader.downsampleImages", "Reader.liveText", "Dictionary.enable", "Reader.translation.automatic"]
         let saved = keys.map { defaults.object(forKey: $0) }
         defer { for (key, value) in zip(keys, saved) { defaults.set(value, forKey: key) } }
         for key in keys { defaults.set(false, forKey: key) }
-        defaults.set(true, forKey: "Reader.upscaleImages")
-        defaults.set(4000, forKey: "Reader.upscaleMaxHeight")
-        defaults.set("SwinUNetV3Art2x.mlpackage", forKey: "Data.enabledModelFile")
         let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.preferredRange = .standard
         let source = UIGraphicsImageRenderer(size: CGSize(width: 1600, height: 2000), format: format).image { context in
             UIColor.white.setFill(); context.fill(CGRect(x: 0, y: 0, width: 1600, height: 2000))

@@ -5,7 +5,6 @@ import UIKit
 @Suite(.serialized)
 @MainActor
 struct ReaderColumnLayoutTests {
-    private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("ColumnLayout") }
 
     @Test func adjacentColumnsShareTypeSizeWithoutCrossingTheImageOrEachOther() throws {
         let sources = [CGRect(x: 4, y: 20, width: 12, height: 100),

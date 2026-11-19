@@ -93,38 +93,4 @@ import Testing
         }
         #expect(pixels.allSatisfy { $0 == 0 })
     }
-
-    @Test(arguments: [0, 1, 2]) func unchangedGrowthRetainsInsetAbsoluteOrNoneUntilAnActualWrite(mode: Int) throws {
-        let owner = CGRect(x: 10.25, y: 20.25, width: 100.25, height: 80.25)
-        let initial: NativeCSSCoveragePath.Declaration?
-        switch mode {
-        case 0: initial = NativeCSSCoveragePath.inset([10,20,30,40], unit: .percent)
-        case 1: initial = NativeCSSCoveragePath.declaration(coverage: [owner], origin: owner.origin, commands: .absolute)
-        default: initial = nil
-        }
-        var panel = NativeTranslationSourceStylePostPolish.Panel(rect: owner, background: [20,40,60],
-            coverage: [owner], clipped: mode != 2, coverageClip: initial)
-        panel.captionUnionClipped = true
-        let input = NativeTypographyPlateGrowth.Input(text: "가나다라마바사", font: 10,
-            originalFont: 10, sourceGlyph: 20, cap: 15, plate: owner,
-            currentInk: CGRect(x: 30,y: 40,width: 30,height: 12), coverage: [owner], frame: nil)
-        let result = try #require(NativeTypographyPlateGrowth.grow(input,
-            state: .init(), budget: .init(), advance: { _,font in font },
-            measure: { proposal in .init(ink: CGRect(x: 30,y: 40,width: 30,height: 12),
-                lineRects: [CGRect(x: 30,y: 40,width: 30,height: 12)],
-                scrollWidth: 30, clientWidth: Double(proposal.box.width), scrollHeight: 12, clientHeight: Double(proposal.box.height)) },
-            roomProvider: { _,_ in nil }))
-        #expect(result.coverageClipWritten == false)
-        NativeTranslationRenderer.commitPlateGrowthCoverage(&panel, result: result)
-        #expect(panel.coverageClip?.subpaths == initial?.subpaths)
-        #expect(panel.coverageClip?.inset?.values == initial?.inset?.values)
-        #expect(panel.clipped == (mode != 2) && panel.captionUnionClipped)
-        var changed = result
-        changed.coverage = [owner, CGRect(x: owner.maxX-3,y: 25,width: 8,height: 20)]
-        changed.coverageClipWritten = true
-        NativeTranslationRenderer.commitPlateGrowthCoverage(&panel, result: changed)
-        #expect(panel.coverageClip?.inset == nil)
-        #expect(panel.coverageClip?.subpaths.count == 2 && panel.clipped)
-    }
-
 }

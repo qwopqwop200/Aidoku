@@ -14,8 +14,20 @@ ROOT=Path(__file__).resolve().parents[2]
 def chunk(kind,data):
     return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data))
 
+BALLOON=(880,630,1220,810)  # White balloon holding the source text owner.
+
+def ink(x,y):
+    # Text-like dark strokes: two lines of 34px glyph cells inside the owner box.
+    if not (910<=x<1190 and (670<=y<704 or 730<=y<764)):return False
+    cx,cy=(x-910)%40,(y-670)%60
+    return cx<34 and (cy in range(14,18) or cx in range(15,19) or (cy<4 and cx>4) or (cy>29 and cx<30))
+
 def png(w,h):
-    rows=b''.join(b'\0'+bytes((35,105,165) if y<h//2 else (220,75,45))*w for y in range(h))
+    def color(x,y):
+        if BALLOON[0]<=x<BALLOON[2] and BALLOON[1]<=y<BALLOON[3]:return (15,15,15) if ink(x,y) else (250,250,250)
+        return (35,105,165) if y<h//2 else (220,75,45)
+    rows=b''.join(b'\0'+(b''.join(bytes(color(x,y)) for x in range(w)) if BALLOON[1]<=y<BALLOON[3]
+        else bytes(color(0,y))*w) for y in range(h))
     return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>2I5B',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(rows))+chunk(b'IEND',b'')
 
 def pixels(file):
@@ -43,19 +55,28 @@ def pixels(file):
 with tempfile.TemporaryDirectory(prefix='aidoku-composite-') as temporary:
     run=Path(temporary);directory=run/'0001';directory.mkdir();(directory/'input.png').write_bytes(png(2600,1800))
     (directory/'final.json').write_text(json.dumps({'input':'synthetic-large-page','mode':'translation','regions':[]}))
-    payload={'items':[{'id':'text','text':'합성 확인','x':900,'y':650,'width':300,'height':140,'fontSize':35,'lineHeight':45,
+    # A real run records its OCR settings twice (PipelineMain: HostDump of
+    # options.ocrConfiguration in "input" and "runtime-settings"), which the
+    # render-side DB capability requires. These are the default manga-tier values.
+    ocr={'modelTier':'manga','detectorMaximumSide':1120,'recognizerMaximumWidth':2400,'confidenceThreshold':0.3,
+        'detectorPixelThreshold':0.85,'detectorConfidenceThreshold':0.25,'detectorMinimumBoxSide':3.0}
+    (directory/'001-input.json').write_text(json.dumps({'stage':'input','value':{'engineFingerprint':'unknown',
+        'file':'synthetic-large-page','width':2600,'height':1800,'configuration':ocr}},sort_keys=True))
+    (directory/'002-runtime-settings.json').write_text(json.dumps({'stage':'runtime-settings','value':{'ocr':ocr}},sort_keys=True))
+    payload={'items':[{'id':'text','text':'합성 확인','sourceOriginalText':'合成確認','x':900,'y':650,'width':300,'height':140,'fontSize':35,'lineHeight':45,
         'paddingTop':1,'paddingRight':1,'paddingBottom':1,'paddingLeft':1,'vertical':False,'rotation':0,'sourceTextOnly':False,'sourceColorEligible':False,'sourcePanelRestorationEligible':False,
         'sourceCleanup':False,'keptLettering':False,'sourceBounds':[900/2600,650/1800,300/2600,140/1800],
         'sourceFrame':[0,0,2600,1800],'fontScript':'korean','wrappingScript':'korean'}],
         'revision':1,'session':'raster-test','appearance':{'opacity':1,'minimumReadableFontSize':5,
         'preserveSourceTextColor':False,'preserveSourceBackgroundColor':False,'inpaintingEnabled':False,'sourceLetterFonts':False}}
-    (directory/'001-render-payload.json').write_text(json.dumps({'stage':'render-payload','value':payload},ensure_ascii=False))
+    (directory/'003-render-payload.json').write_text(json.dumps({'stage':'render-payload','value':payload},ensure_ascii=False))
     subprocess.run(['swift',str(ROOT/'Scripts/image-translation.swift'),'--render-run',str(run)],cwd=ROOT,check=True)
     w,h,pixel=pixels(directory/'final.png');assert (w,h)==(2600,1800)
     for x,y in [(5,5),(2500,5),(5,1700),(2500,1700),(1800,700),(1800,1400)]:
         expected=(35,105,165) if y<900 else (220,75,45)
         assert all(abs(a-b)<=2 for a,b in zip(pixel(x,y),expected)),(x,y,pixel(x,y),expected)
-    assert any(pixel(x,y)!=(35,105,165) for x in range(910,1180,20) for y in range(660,780,20)), 'Translation layer must also be present'
+    # Source ink is removed and the translated text is drawn inside the balloon.
+    assert any(not ink(x,y) and max(pixel(x,y))<128 for x in range(900,1200,2) for y in range(650,790,2)), 'Translation layer must also be present'
     assert (run/'analysis-index.html').exists()
     assert json.loads((directory/'final.json').read_text())['renderEngine'] == 'native-coretext-coregraphics'
     visible_output = (directory/'final.png').read_bytes()
@@ -63,7 +84,7 @@ with tempfile.TemporaryDirectory(prefix='aidoku-composite-') as temporary:
     # even when the user's live overlay preference is switched off.
     payload['nativeSettings'] = {'visible': False, 'opacity': 1, 'preserveSourceTextColor': False,
         'preserveSourceBackgroundColor': False, 'inpaintingEnabled': False}
-    (directory/'001-render-payload.json').write_text(json.dumps({'stage':'render-payload','value':payload},ensure_ascii=False))
+    (directory/'003-render-payload.json').write_text(json.dumps({'stage':'render-payload','value':payload},ensure_ascii=False))
     subprocess.run(['swift',str(ROOT/'Scripts/image-translation.swift'),'--render-run',str(run)],cwd=ROOT,check=True)
     assert (directory/'final.png').read_bytes() == visible_output, 'Saved export must ignore live overlay visibility'
 

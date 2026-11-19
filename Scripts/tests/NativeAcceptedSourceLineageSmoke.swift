@@ -72,9 +72,19 @@ enum NativeAcceptedSourceLineageSmoke {
             passed += ["legacy-region-equality"]
             let oldStored = try encoder.encode(ReaderTranslationStoredRegion(originalRegion))
             let newStored = try encoder.encode(ReaderTranslationStoredRegion(region))
-            try require(oldStored == newStored, "actual-disk-encoding-exact")
+            // Production persists only the tracked BODY member polygons (for
+            // source-geometry consumers); membership itself never reaches disk.
+            let bodyPolygons = union.bodySourcePolygons ?? []
+            var withPolygons = originalRegion
+            withPolygons.cachedSourceMemberPolygons = bodyPolygons
+            let expectedStored = try encoder.encode(ReaderTranslationStoredRegion(withPolygons))
+            try require(!bodyPolygons.isEmpty && oldStored != newStored && newStored == expectedStored,
+                        "actual-disk-encoding-exact")
             let restored = try JSONDecoder().decode(ReaderTranslationStoredRegion.self, from: newStored).region
-            try require(restored.acceptedSource.membership == nil && restored == originalRegion, "actual-disk-decode-unknown")
+            try require(restored.acceptedSource.membership == nil && restored == withPolygons &&
+                        restored.sourceMemberPolygons == bodyPolygons, "actual-disk-decode-unknown")
+            let legacy = try JSONDecoder().decode(ReaderTranslationStoredRegion.self, from: oldStored).region
+            try require(legacy == originalRegion && legacy.sourceMemberPolygons.isEmpty, "actual-disk-decode-unknown")
             passed += ["actual-disk-encoding-exact", "actual-disk-decode-unknown"]
             let extended = NativeOCRAdjacentLineRecovery.extending([originalRegion], with: [region],
                 baseLines: [bound[0]], recovered: [line("乙", y: 150, h: 50)],

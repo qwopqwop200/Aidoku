@@ -184,10 +184,696 @@
       ]
     },
     {
-      "name": "native-host: Hoshi source/reader/C API sanitizers",
+      "name": "native-host: Hoshi, Glaze and unordered_dense sanitizer boundaries",
       "command": [
         "$PYTHON",
         "Scripts/tests/run-hoshi-boundaries-regression.py"
+      ]
+    },
+    {
+      "name": "native-host: simple OCR boundary-expansion runtime default-off, compatibility matrix and TaskLocal restoration",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-boundary-expansion-runtime-contract.py"
+      ]
+    },
+    {
+      "name": "native-host: clipped source-ink component cap completion rejects detached/foreign ink",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-clipped-edge-ink-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: cohort backing upright admission ignores detector tilt",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-cohort-upright-backing-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: white-rim connected-lobe outlines extend observation without joining owners",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-connected-rim-roi-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: detector seed evidence v2 preserving-union ownership rules",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-detector-seed-v2-union-independent.py"
+      ]
+    },
+    {
+      "name": "native-host: source owner recovery display-target fragment partition",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-display-fragment-dedup-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: OCR crop endpoint continuation: weak detached ink, long bars, polarity across angles",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-endpoint-continuation-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: text expansion exterior balloon exclusion admission",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-exterior-balloon-exclusion-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: host analysis raw-byte pool across former 64MB boundary",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-host-analysis-large-pool.py"
+      ]
+    },
+    {
+      "name": "native-host: host CLI image folder selection and format decoding",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-image-input-formats-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: Latin OCR quad normalization over rotations and cyclic starts",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-latin-baseline-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: ensemble ownership local original gutter witness controls",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-local-gutter-witness-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: detector CC candidates retain ambiguity without erasure authorization",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-cc-candidates-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: DB child-column producer to multiline column recovery geometry",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-multiline-column-recovery.py"
+      ]
+    },
+    {
+      "name": "native-host: RF shared raw cache tensor parity, singleflight, cancellation and budgets",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-rf-shared-cache-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: text box geometry saved-parameter compatibility and trial validation",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-textbox-parameters-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: OCR v2 source pixel decoder exact RGBA parity",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-ocr-v2-source-decoder-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: paragraph fragment grouping RF owner stability",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-paragraph-owner-stability-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: OCR physical paint support overlap and eligibility",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-physical-paint-support-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: host probability map diagnostic capture bytes",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-probability-diagnostic-memory-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: raw canonical geometry connections on frozen numerical fixture",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-raw-canonical-connections-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: raw required-head model provider lock, transaction and cancellation",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-raw-required-head-provider-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: Core ML recognizer execution snapshot/diagnostics contract",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-recognition-execution-contract.py"
+      ]
+    },
+    {
+      "name": "native-host: renderer paragraph ownership preservation contract",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-render-paragraph-ownership-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: RF semantic admission aggregation, anchors, OCR veto and selection",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-rf-semantic-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: OCR shared-line election support and grouping",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-shared-line-election-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: tiny-core context sampling with peer ink and original ownership",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-small-core-context-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source closed-barrier interior detection",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-closed-barrier-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: local-axis source ink column proposal kernel",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-ink-columns-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source color sampler role evidence",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-role-evidence-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: accepted source-weight ordered reuse helper",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-weight-ordered-reuse-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: page-local generated-word proposal cache isolation and bounds",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-word-proposal-cache-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: standalone evidence-lease registry and original-mask fringe completion contracts",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-standalone-native-contracts.py"
+      ]
+    },
+    {
+      "name": "native-host: ReaderTranslationChromaticBalloon dominant component vote is insertion-order independent with support tie-breaks",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-chromatic-vote-order-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: cohort text-box family contract on the real cohort search and Core Text shaping",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-cohort-family-contract-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: NativeOCRRFGapRecovery common-boundary calibration across 24 angles",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-common-boundary-calibration-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: contour-constrained word wrap with real Core Text on synthetic masks",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-contour-word-wrap-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: NativeCoreMLDetector input padding and fill contract",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-detector-padding-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: NativeOCRDirectionGeometry polygon containment, coverage and reading-quad invariance",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-direction-polygon-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: early text-box surface trial backing admission geometry and peer veto",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-early-backing-obligation-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: OCR pipeline endpoint layout metadata",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-endpoint-layout-metadata-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: NativeFinalOutputDuplicateResolver final-owner contracts and 600 generated cases",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-final-output-duplicate-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: native OCR geometry deduplication ranking, provenance and deterministic ties",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-geometry-dedup-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: host module bank typed observers and persistence with a model-free fake producer",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-host-module-bank-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: NativeTextExpansionPolicy multi-lobe mask intervals, projections, codable roundtrip and malformed rejection",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-mask-interval-domain-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: image-translation launcher stable output-map object identities across source additions and removals",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-output-map-regression.py"
+      ]
+    },
+    {
+      "name": "native-host: paragraph ink separation on production Surface.contains",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-paragraph-ink-separation-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source-font context boundary: parity, packet order, priors and malformed batches",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-source-font-context-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: ReaderTranslationBalloonMerger textInk background/ink/rim colour callback",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-text-ink-rim.py"
+      ]
+    },
+    {
+      "name": "native-host: NativePostMergeSignalFilter merged REC/RF/DET admission and missing-value cases",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-postmerge-signal-filter-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: recognizer commit/admission, CTC tokens, cancel and stream callbacks with simulated outputs",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-recognition-observation-contract.py"
+      ]
+    },
+    {
+      "name": "native-host: TranslationRoleVerificationPlanner planner/DTO synthetic checks",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-role-verification-planner-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: saved OCR replay identity against text/geometry/image edits and page isolation",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-saved-ocr-identity-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: exporter PDF/canvas settled source alpha for held and translated, fresh and replay",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-settled-source-alpha-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: short-point cap checks across 24 angles",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-short-point-cap-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source-aligned column placement across 24 angles",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-aligned-columns-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source cohort packing width choice, spacing, capacity and fragmentation bounds",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-cohort-packing-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source lettering restoration/original/logical coordinates and overflow",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-lettering-coordinate-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: OCR source ROI probability evidence",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-roi-probability-evidence-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source role reconciliation 146 cases",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-role-reconciliation-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: translation codec source/ID fidelity and mocked recovery helper (local mock, no network)",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-translation-source-fidelity-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: ReaderTranslationWhiteRimBalloon closed-rim detection controls and budget/invalid rejection",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-white-rim-contour-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: ReaderTranslationQuotedStack quoted vertical stack grouping controls",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-reader-translation-quoted-stack-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: SourceWeightFeatures C++ raw597 numeric parity against the Python oracle",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/source-weight-numeric/parity.py"
+      ]
+    },
+    {
+      "name": "native-host: SourceWeightStrokeGeometry Objective-C++ parity against the Python oracle",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/source-weight-stroke-geometry/parity.py"
+      ]
+    },
+    {
+      "name": "native-host: production caption baseline interval, outlines, scale and invalid bounds",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-caption-baseline-interval-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source-owned component projection compact detector transport controls",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-causal8-component-projection-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: cohort painted pitch reaches requested clearance after floor quantisation",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-cohort-painted-pitch-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: conditional learned emission context-only reciprocity and observed-quad protection",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-conditional-learned-emission-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: early surface separation source-preserving proposal and containment",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-early-surface-separation-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: excluded narration/menu sources retain ownership in language filter",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-excluded-source-preservation-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: final original-witness NMS/duplicate resolver pipeline",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-final-owner-simple-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: OCR geometry representative election and abstention",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-geometry-representatives-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: sync-iphone-settings OCR profiles match Swift reader OCR settings",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-iphone-ocr-profile-parity-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: AOT exact tensor cache keying, invalidation and opt-in",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-aot-exact-cache-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: raw AOT prediction snapshot, archive quota and attested replay",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-aot-raw-prediction-replay-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: DB child-column evidence and recognition clearance",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-db-child-columns.py"
+      ]
+    },
+    {
+      "name": "native-host: source pixel reader bounded page promotion and exact cached RGBA",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-native-source-reader-cache-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: OCR ensemble stage snapshot and Reader bridge checks",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-ocr-ensemble-stage-snapshot-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: outlined lobe proof actual-frame vs ROI-edge contracts",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-outlined-lobe-boundary-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: owned-glyph RF boundary protection helper (41 synthetic checks)",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-owned-glyph-rf-boundary-protection-tests.py"
+      ]
+    },
+    {
+      "name": "native-host: physical boundary mode policy and retained witnesses",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-physical-boundary-modes-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: preseg production evidence binding, codec and abstention",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-preseg-production-evidence-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: quoted-stack retry predicate keeps real translations/SFX unchanged",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-quoted-stack-retry-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: frozen raw-geometry model reader bit-identical to strict decode",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-raw-geometry-frozen-reader.py"
+      ]
+    },
+    {
+      "name": "native-host: CoreML recognizer dynamic handle store",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-recognition-dynamic-handles.py"
+      ]
+    },
+    {
+      "name": "native-host: recognition preprocessor tensor identity for replay",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-recognition-tensor-identity-contract.py"
+      ]
+    },
+    {
+      "name": "native-host: retained lettering risk policy",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-retained-lettering-risk-tests.py"
+      ]
+    },
+    {
+      "name": "native-host: segmentation connected-weak gate vs reference oracle",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-segmentation-connected-weak-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: simple OCR post-recognition dedup",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-simple-ocr-dedup-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source body stroke colour sampling",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-body-stroke-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source style colour consistency endpoints and harmonisation",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-colour-consistency-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source contrast support parity with OpenCV reference (needs numpy+cv2 in $PYTHON)",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-contrast-parity.py"
+      ]
+    },
+    {
+      "name": "native-host: accepted-source member packets and metadata union",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-member-packets-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: original colour fidelity source-role confidence audit",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-source-role-confidence-provenance-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: whole-word wrap objective vs exhaustive lexical oracle",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/run-whole-word-objective-smoke.py"
+      ]
+    },
+    {
+      "name": "native-host: source-weight image policy Swift vs Python oracle parity (needs numpy)",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/source-weight-image-policy/parity.py"
+      ]
+    },
+    {
+      "name": "native-host: FontWeightPhysical native vs Python oracle parity (needs numpy, cv2, PIL, macOS Hiragino fonts)",
+      "command": [
+        "$PYTHON",
+        "Scripts/tests/source-weight-physical/parity.py"
       ]
     }
   ],

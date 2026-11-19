@@ -38,6 +38,9 @@
             "name" : "BoundedConcurrentMapTests"
           },
           {
+            "name" : "BrowserOverlayMeasurementCacheTests"
+          },
+          {
             "name" : "BuiltInSourceModelTests"
           },
           {
@@ -117,6 +120,9 @@
           },
           {
             "name" : "DownloadTransportAdmissionTests"
+          },
+          {
+            "name" : "DownloadedMangaSortOrderTests"
           },
           {
             "name" : "EHentaiNativeSourceTests"
@@ -227,12 +233,6 @@
             "name" : "NativeCanvasTextureResamplerTests"
           },
           {
-            "name" : "NativeCaptionCSSProvenanceTests"
-          },
-          {
-            "name" : "NativeCaptionFixedBoxReflowTests"
-          },
-          {
             "name" : "NativeCaptionLineSpacingTests"
           },
           {
@@ -249,9 +249,6 @@
           },
           {
             "name" : "NativeCollapsedRowLayoutTests"
-          },
-          {
-            "name" : "NativeColumnPanelAnchorFlowTests"
           },
           {
             "name" : "NativeCSSCoveragePathTests"
@@ -282,9 +279,6 @@
           },
           {
             "name" : "NativeForeignBackgroundCompositorTests"
-          },
-          {
-            "name" : "NativeForeignBackgroundGradientTests"
           },
           {
             "name" : "NativeFrozenPositiveBatchTests"
@@ -380,9 +374,6 @@
             "name" : "NativePDFCropTests"
           },
           {
-            "name" : "NativePlateGrowthScrollTests"
-          },
-          {
             "name" : "NativePreformattedTabTests"
           },
           {
@@ -456,6 +447,9 @@
           },
           {
             "name" : "NativeSourcePanelOverflowTests"
+          },
+          {
+            "name" : "NativeSourcePanelClipPaintTests"
           },
           {
             "name" : "NativeSourceRoutingTests"

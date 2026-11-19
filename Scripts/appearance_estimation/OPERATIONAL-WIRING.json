@@ -13,8 +13,8 @@
   ],
   "operationalAssets": {
     "appearance": "Scripts/appearance_estimation/assets/accepted",
-    "appearanceFiles": 231,
-    "appearanceBytes": 43775298,
+    "appearanceFiles": 172,
+    "appearanceBytes": 43468253,
     "helperIntegrity": "Original expected SHA values retained. Only NativePrimary policy absolute path keys relocated inside packed closure; original policy SHA and relocation recorded in PACKAGE.json.",
     "activeSelectorUpdated": "../appearance-estimation-20261109/ACTIVE-ESTIMATOR.json",
     "segmentation": "Scripts/segmentation/assets/accepted-final via default SourceMaskRuntime/Producer constructors",

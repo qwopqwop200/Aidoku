@@ -916,7 +916,6 @@ struct NativeTextBoxReplacementTests {
             for x in [left, right] {
                 #expect(try pixelRGB(bitmap.overlayImage, x: x, y: y) == [255, 255, 255])
                 let actual = try pixelRGB(image, x: x, y: y)
-                print("neutral-panel-edge", deviceScale, origin, x, actual)
                 #expect(actual.allSatisfy { $0 >= 250 })
             }
             for x in [left - 2, right + 2] {
@@ -997,7 +996,6 @@ struct NativeTextBoxReplacementTests {
         let sampled = try NativeTranslationRenderer.textBoxSurroundingColor(
             item: item, layout: layout, source: source, reader: reader, excluded: [])
         let actual = try #require(sampled)
-        print("neutral-sampling", flat, "differentPixels", differingPixels, "actual", actual, "reference", expected)
         #expect(differingPixels == 0)
         #expect(actual == expected)
     }
@@ -1158,8 +1156,6 @@ struct NativeTextBoxReplacementTests {
             requested: [requested.id: requested], owners: [requested.id: owner],
             sourceRect: bounds, imageSize: size, pdfDeviceScale: 1)
         let improved = try #require(cards.first)
-        print("neutral-waist", explicitRows, "before", baseline.style.fontSize,
-            "after", improved.style.fontSize, "frame", improved.item.rect)
         #expect(improved.style.fontSize >= baseline.style.fontSize)
         #expect(improved.sourcePlateRect == baseline.sourcePlateRect)
         #expect(improved.typography.fits)

@@ -91,25 +91,12 @@ Swift `NativeCosineNeighbors.search` borrows UnsafeBufferPointer<Float> directly
 from NativeFrozenTensor.withUnsafeBytes (caller checks tensor f32 dtype/shape).
 The wrapper returns only flattened Qx8 indices/distances and copies no bank data.
 
-`test_cosine_neighbors.py <isolated-host-dylib>` compares to the actual Python
-optimized_measurements._neighbors. COSINE-VERIFICATION.json records random259x198
-query batching, page exclusions, version84 weighting, stable ties/zero vectors,
-exactly8 eligible references,41Kx198 bank and invalid-input cases. Neighbor indices
-were exact in tested cases; max distance error1.1920929e-7 (tolerance1e-6).
+COSINE-VERIFICATION.json records the one-time parity check against Python
+optimized_measurements._neighbors (random259x198 query batching, page exclusions,
+version84 weighting, stable ties/zero vectors, exactly8 eligible references,
+41Kx198 bank and invalid-input cases): neighbor indices exact; max distance
+error1.1920929e-7 (tolerance1e-6). The standalone comparison script was removed.
 
-Host test library can be built without touching any shared MAIN cache:
-```
-mkdir -p build/native-source-cosine-check
-xcrun clang++ -std=c++17 -O2 -dynamiclib \
-  -IVendor/NativeSourceCV/include -IVendor/NativeSourceCV/freetype/include \
-  Vendor/NativeSourceCV/NativeSourceCV.cpp \
-  Vendor/NativeSourceCV/opencv2.xcframework/macos-arm64/libopencv2.a \
-  Vendor/NativeSourceCV/FreeType.xcframework/macos-arm64/libfreetype.a \
-  -lz -framework Accelerate -framework Foundation \
-  -o build/native-source-cosine-check/libCosineCheck.dylib
-/opt/anaconda3/bin/python3.12 Scripts/native-source-cv/test_cosine_neighbors.py \
-  build/native-source-cosine-check/libCosineCheck.dylib
-```
 Production build.py automatically incorporates the changed primitive object.
 The parent alone owns rebuilding its shared archive/MAIN app and graph callers.
 

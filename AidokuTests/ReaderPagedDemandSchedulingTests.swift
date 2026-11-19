@@ -204,7 +204,7 @@ struct ReaderPagedDemandSchedulingTests {
         let defaults = UserDefaults.standard
         let settings: [String: Any] = ["Reader.pagesToPreload": preload, "Reader.pagedPageLayout": doublePages ? "double" : "single",
             "Reader.splitWideImages": false, "Reader.translation.automatic": false,
-            "Reader.liveText": false, "Dictionary.enable": false, "Reader.upscaleImages": false]
+            "Reader.liveText": false, "Dictionary.enable": false]
         let saved = settings.keys.reduce(into: [String: Any]()) { result, key in result[key] = defaults.object(forKey: key) }
         settings.forEach { defaults.set($0.value, forKey: $0.key) }
         defer {

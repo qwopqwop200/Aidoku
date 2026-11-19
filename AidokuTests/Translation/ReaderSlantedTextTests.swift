@@ -6,8 +6,6 @@ import UIKit
 @MainActor
 struct ReaderSlantedTextTests {
 
-    private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("SlantedText") }
-
     private func quad(angle: CGFloat, size: CGSize = CGSize(width: 180, height: 48), center: CGPoint = CGPoint(x: 200, y: 180)) -> [CGPoint] {
         [CGPoint(x: -size.width / 2, y: -size.height / 2), CGPoint(x: size.width / 2, y: -size.height / 2),
          CGPoint(x: size.width / 2, y: size.height / 2), CGPoint(x: -size.width / 2, y: size.height / 2)].map {

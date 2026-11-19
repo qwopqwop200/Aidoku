@@ -5,7 +5,6 @@ import UIKit
 @Suite(.serialized)
 @MainActor
 struct ReaderSourcePanelRestorationTests {
-    private nonisolated static var directory: URL { URL.documentsDirectory.appendingPathComponent("MangaQuality") }
 
     @Test func restorationRequiresReplacementDisplay() throws {
         var settings = ReaderTranslationSettings.defaultOverlay

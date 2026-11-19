@@ -34,6 +34,12 @@ def declaration(text, marker):
     return text[start:end] + '\n'
 
 
+def line(text, marker):
+    """Extract one production line; fail on a missing/drifted anchor."""
+    start = text.index(marker)
+    return text[start:text.index('\n', start)] + '\n'
+
+
 def before(text, start, end):
     begin = text.index(start)
     return text[begin:text.index(end, begin)]
@@ -76,6 +82,25 @@ def main():
                       '    static func identitiesBySegmentID(') + '}\n'
     support += '// Only an unused nil cache-key dependency; no cache identity claim.\n'
     support += 'struct TranslationCacheKey: Codable, Hashable, Sendable {}\n'
+    # Source reread receipts are nil-defaulted, never stored on disk and not
+    # exercised here; fixture types only, no recognition claim.
+    support += 'enum NativeCausalPacketColumnRecognition { struct Correction: Equatable, Sendable {} }\n'
+    support += 'enum NativeCausalRFParagraphRecognition { struct Correction: Equatable, Sendable {} }\n'
+    # Disk-stored evidence keeps its real Codable shape and validation helpers.
+    role = (TRANS / 'NativeEngine/Translation/TranslationBackgroundRolePolicy.swift').read_text()
+    support += 'import CryptoKit\n' + line(role, 'typealias NativeTranslationRoleEvidence')
+    support += 'enum TranslationBackgroundRolePolicy {\n' + line(role, '    static let version =')
+    support += declaration(role, '    struct Evidence:')
+    support += declaration(role, '    private static func digest(')
+    support += declaration(role, '    private static func validBounds(') + '}\n'
+    post = (TRANS / 'NativePostLLMContentReclassifier.swift').read_text()
+    final = (TRANS / 'NativeFinalOutputContentFilter.swift').read_text()
+    support += 'enum NativeFinalOutputContentFilter {\n' + line(final, '    static let policyVersion =') + '}\n'
+    support += 'enum NativePostLLMContentReclassifier {\n' + line(post, '    static let evidenceVersion =')
+    support += '    // Fixture schema count only: this smoke never constructs post-LLM evidence.\n'
+    support += '    fileprivate static let expectedFeatureCount = 0\n'
+    support += declaration(post, '    struct Evidence:')
+    support += declaration(post, '    private static func validDetectorVector(') + '}\n'
     support += declaration((TRANS / 'ReaderTranslationDiskCache.swift').read_text(),
                            'struct ReaderTranslationStoredRegion:')
     boundary = OUT / 'ProductionStorage.swift'
@@ -99,7 +124,7 @@ def main():
         'NativeOCRDetectorSeedEvidence', 'NativeOCRSourceROIProbabilityEvidence')]
     host = neutral + [OCR / (name + '.swift') for name in (
         'PaddleOCRTypes', 'NativeOCRSpatialIndex', 'NativeOCRAuxiliaryOwnership',
-        'NativeOCRSlantedDependentColumns', 'NativeOCRTextLineMerger')]
+        'NativeOCRSlantedDependentColumns', 'NativeOCRTextLineMerger', 'NativeOCRLocalCoordinates')]
     host += [boundary, extracted, FIXTURE]
     version = checked(['xcrun', 'swiftc', '--version'])
     command = ['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library', '-O',

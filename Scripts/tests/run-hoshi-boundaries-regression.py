@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and execute all three maintained Hoshi boundary probes, sequentially.
+"""Build and execute the maintained Hoshi/Glaze/unordered_dense boundary probes, sequentially.
 
 Uses current vendored Hoshi sources and the exact Zstd revision in Package.resolved.
 Compiler objects are reused from build/hoshi-boundaries-host; assertions, ASan and
@@ -22,7 +22,10 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 HOSHI = ROOT / 'Vendor/HoshiDicts'
 CACHE = ROOT / 'build/hoshi-boundaries-host'
-PROBES = ('hoshi-source-boundaries', 'hoshi-reader-boundaries', 'hoshi-c-api-regression')
+PROBES = ('hoshi-source-boundaries', 'hoshi-reader-boundaries', 'hoshi-c-api-regression',
+          'glaze-bit-array-boundaries', 'glaze-compressed-boundaries', 'glaze-generic-number-boundaries',
+          'glaze-integer-key-boundaries', 'glaze-lazy-boundaries', 'glaze-map-boundaries',
+          'glaze-value-boundaries', 'unordered-segment-allocation-regression')
 FLAGS = ['-O2', '-g', '-UNDEBUG', '-fsanitize=address,undefined',
          '-fno-omit-frame-pointer', '-fno-sanitize-recover=all']
 
@@ -159,7 +162,7 @@ def main():
     with (CACHE / '.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         (CACHE / 'results.json').write_text(json.dumps({
-            'status': 'running', 'passedProbes': 0, 'executedProbes': 0, 'expectedProbes': 3,
+            'status': 'running', 'passedProbes': 0, 'executedProbes': 0, 'expectedProbes': len(PROBES),
         }, indent=2) + '\n')
         # Avoid implicit compiler include/library injection; these probes use the
         # same checked-in native source closure on every machine.
@@ -176,7 +179,7 @@ def main():
             for name in PROBES:
                 source = ROOT / 'Scripts/tests' / (name + '.cpp')
                 text = source.read_text()
-                assertion_sites = len(re.findall(r'\bassert\s*\(', text))
+                assertion_sites = len(re.findall(r'\b(?:assert|check)\s*\(', text))
                 if assertion_sites == 0 or not re.search(r'\bint\s+main\s*\(', text):
                     raise ValueError(f'{name} has no executable assertion probe')
                 if re.search(r'^\s*#\s*define\s+NDEBUG\b', text, re.M):
@@ -194,7 +197,7 @@ def main():
                           'buildSeconds': build_seconds, 'testSeconds': time.monotonic() - test_start}
                 records.append(record)
                 print(json.dumps(record), flush=True)
-        report = {'status': 'passed' if len(records) == 3 and all(item['exitCode'] == 0 for item in records) else 'failed',
+        report = {'status': 'passed' if len(records) == len(PROBES) and all(item['exitCode'] == 0 for item in records) else 'failed',
                   'passedProbes': sum(item['exitCode'] == 0 for item in records),
                   'executedProbes': len(records), 'expectedProbes': len(PROBES),
                   'assertionsEnabled': True, 'optimization': '-O2', 'sanitizers': ['address', 'undefined'],
@@ -202,10 +205,10 @@ def main():
                   'zstdRevision': revision, 'sourceClosureSHA256': builder.closure,
                   'wallSeconds': time.monotonic() - started, 'probes': records}
         (CACHE / 'results.json').write_text(json.dumps(report, indent=2) + '\n')
-        if report['executedProbes'] != 3 or report['passedProbes'] != 3:
-            print('FAIL: all three Hoshi assertion probes must execute and pass', flush=True)
+        if report['executedProbes'] != len(PROBES) or report['passedProbes'] != len(PROBES):
+            print('FAIL: all boundary assertion probes must execute and pass', flush=True)
             return 1
-        print(f"PASS: 3 Hoshi boundary probes; compiled {builder.compiled}, reused {builder.reused} objects; "
+        print(f"PASS: {len(PROBES)} boundary probes; compiled {builder.compiled}, reused {builder.reused} objects; "
               f"{report['wallSeconds']:.2f}s; assertions + ASan/UBSan enabled", flush=True)
         return 0
 
