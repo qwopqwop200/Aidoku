@@ -27,13 +27,10 @@ permissions:
 
 jobs:
   native-host:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: "26.6"
+      # The "xcode-27" image ships Xcode 27 as the default toolchain.
       - name: Set up native pixel kernel toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Prepare native image dependencies for the host
@@ -49,13 +46,10 @@ jobs:
           if-no-files-found: warn
 
   native-quality:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: "26.6"
+      # The "xcode-27" image ships Xcode 27 as the default toolchain.
       - name: Set up native pixel kernel toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
