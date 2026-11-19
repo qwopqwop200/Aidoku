@@ -78,6 +78,7 @@ actor KavitaApi {
         }
         let response: Response = try await helper.request(path: "api/reader/chapter-info?chapterId=\(chapterId)")
 
+        guard response.pages >= 0 else { throw URLError(.cannotParseResponse) }
         let pageNum = if progress.completed {
             response.pages
         } else {
@@ -116,6 +117,8 @@ actor KavitaApi {
 
         for volume in volumes {
             for chapter in volume.chapters {
+                // Negative server counts cannot describe reading progress.
+                guard chapter.pages >= 0, chapter.pagesRead >= 0 else { continue }
                 let completed = chapter.pagesRead == chapter.pages
                 let page = chapter.pagesRead
                 if page == 0 && !completed {

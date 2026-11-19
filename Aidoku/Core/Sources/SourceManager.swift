@@ -531,15 +531,18 @@ extension SourceManager {
                 url.stopAccessingSecurityScopedResource()
             }
         }
+        // Packages are untrusted archives: bound entry count and inflated size, reject
+        // traversal and symlinks, and remove any partial extraction on failure.
+        let extracted = temporaryDirectory.appendingPathComponent("package", isDirectory: true)
         do {
-            try FileManager.default.unzipItem(at: fileUrl, to: temporaryDirectory)
+            try SourcePackageExtractor.extract(fileUrl, to: extracted)
         } catch {
             LogManager.logger.error("Failed to unarchive source package: \(error)")
             return nil
         }
 
         // Preflight the staged manifest. The runner must own only the final installed location.
-        let payload = temporaryDirectory.appendingPathComponent("Payload")
+        let payload = extracted.appendingPathComponent("Payload")
         let sourceKey: String
         do {
             try Task.checkCancellation()

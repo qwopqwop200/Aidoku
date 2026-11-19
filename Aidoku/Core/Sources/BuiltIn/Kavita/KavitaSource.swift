@@ -222,8 +222,10 @@ actor KavitaSourceRunner: Runner {
 
         baseUrl = lastWorkingMirrorCopy ?? baseUrl
 
-        guard chapter.pages >= 0 else { throw SourceError.message("SOURCE_INVALID_PAGE_COUNT") }
-        return (0..<chapter.pages).compactMap { page in
+        guard let pageCount = KavitaVolume.Chapter.boundedPageCount(chapter.pages) else {
+            throw SourceError.message("SOURCE_INVALID_PAGE_COUNT")
+        }
+        return (0..<pageCount).compactMap { page in
             let path = "api/Reader/image?chapterId=\(chapter.id)&page=\(page)&apiKey=\(apiKey)&extractPdf=true"
             return URL(string: path, relativeTo: baseUrl).flatMap {
                 .init(content: .url(url: $0))

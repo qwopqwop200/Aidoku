@@ -366,7 +366,9 @@ enum V2Layout {
 
     private static func placeBlock(_ block: V2Block, page: CGRect, obstacles: [CGRect],
                                    placedFrames: [CGRect], options: Options) -> (V2PlacedText, Diagnostic) {
-        let text = MeasuredText(block.translation ?? "", font: font(size: referenceSize))
+        // Bounds text from every path (live, replay, saved block caches) before shaping.
+        let text = MeasuredText(V2TranslationLengthCap.capped(block.translation ?? "", sourceText: block.sourceText),
+                                font: font(size: referenceSize))
         let source = sourcePixels(block)
         let (target, usedBalloon) = targetBox(block, page: page, source: source,
                                                  marginRatio: options.marginRatio, obstacles: obstacles)

@@ -93,9 +93,17 @@ enum V2Pipeline {
         Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
     }
 
-    static func run(_ page: V2Page, models: V2Models, translate: V2Translator,
-                    hooks: V2PipelineHooks = V2PipelineHooks()) async -> V2PageResult {
+    static func run(_ source: V2Page, models: V2Models, translate: V2Translator,
+                    hooks: V2PipelineHooks = V2PipelineHooks(),
+                    maxPixels: Int = ImagePixelCap.maxPixels) async -> V2PageResult {
         let started = DispatchTime.now().uptimeNanoseconds
+        // Every stage, the translator and the painted output use the capped page, so
+        // coordinates stay consistent; the reader presents the output aspect-fit in
+        // place of the source, so a smaller same-aspect bitmap displays the same.
+        guard let page = cappedPage(source, maxPixels: maxPixels) else {
+            return V2PageResult(pageID: source.id, blocks: [], placed: [], output: source.image, removalMask: nil,
+                                timings: V2Timings(), failure: "decode: page exceeds the pixel cap and could not be downscaled")
+        }
         var timings = V2Timings()
         var failures: [String] = []
         let pageSize = CGSize(width: page.width, height: page.height)
@@ -219,6 +227,15 @@ enum V2Pipeline {
         return V2PageResult(pageID: page.id, blocks: finalBlocks, placed: painted, output: output,
                             removalMask: erased?.removal, timings: timings,
                             failure: failures.isEmpty ? nil : failures.joined(separator: "; "))
+    }
+
+    /// A page within `maxPixels` is returned unchanged (same image, so its output is
+    /// byte-identical to an uncapped run); a larger one is downscaled with its aspect
+    /// kept. Nil when the smaller raster cannot be allocated.
+    static func cappedPage(_ page: V2Page, maxPixels: Int = ImagePixelCap.maxPixels) -> V2Page? {
+        guard ImagePixelCap.exceeds(width: page.width, height: page.height, maxPixels: maxPixels) else { return page }
+        guard let image = ImagePixelCap.downscaled(page.image, maxPixels: maxPixels) else { return nil }
+        return V2Page(id: page.id, image: image, readingDirection: page.readingDirection)
     }
 
     /// The block fields S8 reads: everything except S5's translation/role and S8's own output.

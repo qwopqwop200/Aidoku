@@ -132,7 +132,10 @@ actor MangarawBestSourceRunner: AidokuRunner.Runner {
         let unit = text.dropFirst(digits.count).trimmingCharacters(in: .whitespaces)
         let seconds: [String: Double] = ["秒": 1, "分": 60, "時間": 3600, "日": 86400, "週間": 604800,
             "ヶ月": 2592000, "ヵ月": 2592000, "カ月": 2592000, "か月": 2592000, "年": 31536000]
-        return seconds[unit].map { now.addingTimeInterval(-count * $0) }
+        // A long digit run parses to a huge or infinite count; never store a non-finite date.
+        guard let interval = seconds[unit].map({ -count * $0 }), interval.isFinite else { return nil }
+        let date = now.addingTimeInterval(interval)
+        return date.timeIntervalSinceReferenceDate.isFinite ? date : nil
     }
 
     func getPageList(manga: AidokuRunner.Manga, chapter: AidokuRunner.Chapter) async throws -> [AidokuRunner.Page] {

@@ -694,11 +694,29 @@ extension AppDelegate {
                 let batches = try inbox.pendingBatches()
                 guard !batches.isEmpty else { return }
                 if !AppSettings.reader.saveSharedImages.get() {
-                    guard let info = await LocalFileManager.shared.prepareImageImport(
-                        from: batches.flatMap(\.images), name: batches[0].title
-                    ) else { throw LocalFileManagerError.invalidFileType }
+                    var readable = batches
+                    var info = await LocalFileManager.shared.prepareImageImport(
+                        from: readable.flatMap(\.images), name: readable[0].title
+                    )
+                    if info == nil {
+                        // Find the bad batches so they cannot keep every other share from opening.
+                        readable = []
+                        for batch in batches {
+                            if await LocalFileManager.shared.prepareImageImport(from: batch.images, name: batch.title) != nil {
+                                readable.append(batch)
+                            } else {
+                                inbox.recordFailedAttempt(batch)
+                            }
+                        }
+                        if let first = readable.first {
+                            info = await LocalFileManager.shared.prepareImageImport(
+                                from: readable.flatMap(\.images), name: first.title
+                            )
+                        }
+                    }
+                    guard let info else { throw LocalFileManagerError.invalidFileType }
                     let temporary = try TemporarySharedImageSession(fileInfo: info)
-                    for batch in batches { try inbox.remove(batch) }
+                    for batch in readable { try? inbox.remove(batch) }
                     presentSharedImageReader(ReaderViewController(
                         source: temporary.source, manga: temporary.manga, chapter: temporary.chapter,
                         startPage: 1, temporaryImageSession: temporary
@@ -712,25 +730,31 @@ extension AppDelegate {
                     // A previous launch may have saved the chapter before removing the inbox item.
                     if await LocalFileDataManager.shared.hasChapter(series: batch.title.normalized, volume: nil, chapter: 1) {
                         lastMangaID = batch.title.normalized
-                        try inbox.remove(batch)
+                        try? inbox.remove(batch)
                         continue
                     }
-                    // Keep a batch that cannot be prepared for a later retry, but do not let it
-                    // block every newer share behind it.
-                    guard let info = await LocalFileManager.shared.prepareImageImport(
-                        from: batch.images, name: batch.title
-                    ) else {
+                    // Keep a batch that cannot be imported for a bounded number of retries, but do
+                    // not let it (or a failed save) block every newer share behind it.
+                    do {
+                        guard let info = await LocalFileManager.shared.prepareImageImport(
+                            from: batch.images, name: batch.title
+                        ) else { throw LocalFileManagerError.invalidFileType }
+                        try await LocalFileManager.shared.uploadFile(
+                            from: info.url,
+                            mangaName: batch.title,
+                            chapterName: batch.title,
+                            chapter: 1
+                        )
+                    } catch {
                         failedBatches += 1
+                        if inbox.recordFailedAttempt(batch) {
+                            LogManager.logger.error("Discarded shared image batch after repeated failures: \(error)")
+                        }
                         continue
                     }
                     lastMangaID = batch.title.normalized
-                    try await LocalFileManager.shared.uploadFile(
-                        from: info.url,
-                        mangaName: batch.title,
-                        chapterName: batch.title,
-                        chapter: 1
-                    )
-                    try inbox.remove(batch)
+                    // The saved chapter is detected on the next launch if this removal fails.
+                    try? inbox.remove(batch)
                 }
                 NotificationCenter.default.post(name: .init("refresh-content"), object: nil)
                 if let lastMangaID,
@@ -1031,7 +1055,9 @@ extension AppDelegate: ImagePipeline.Delegate {
             // when using a page processor, don't decode data as an image since it may be invalid
             ImageDecoders.Empty.init()
         } else {
-            pipeline.configuration.makeImageDecoder(context)
+            // Hard decode cap: an over-cap page is decoded through ImageIO's thumbnail
+            // path even when reader downsampling is off, never at full resolution.
+            pipeline.configuration.makeImageDecoder(ImagePixelCap.decodingContext(context))
         }
     }
 }

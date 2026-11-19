@@ -1,4 +1,5 @@
 import AidokuRunner
+import ImageIO
 import Nuke
 import UIKit
 
@@ -122,10 +123,11 @@ actor ReaderTranslationImageLoader {
                 return try await loadURL(url, page: page, cacheInMemory: cacheInMemory, handoff: handoff)
             }
             if let base64 = page.base64 {
-                guard let data = Data(base64Encoded: base64), let image = UIImage(data: data) else {
-                    throw URLError(.cannotDecodeContentData)
-                }
-                try TranslationImageWorkBudget.shared.checkHeadroom(decodedBytes: TranslationImageWorkBudget.decodedBytes(in: data))
+                guard let data = Data(base64Encoded: base64) else { throw URLError(.cannotDecodeContentData) }
+                // Admit and decode by the header: an over-cap page decodes as a bounded thumbnail.
+                try TranslationImageWorkBudget.shared.checkHeadroom(
+                    decodedBytes: ImagePixelCap.cappedDecodedBytes(TranslationImageWorkBudget.decodedBytes(in: data)))
+                guard let image = ImagePixelCap.decodeImage(data) else { throw URLError(.cannotDecodeContentData) }
                 return try await processRaw(image)
             }
             throw URLError(.cannotDecodeContentData)
@@ -150,6 +152,12 @@ actor ReaderTranslationImageLoader {
             try Task.checkCancellation()
             return result
         }
+    }
+
+    private static func headerPixelSize(at url: URL) -> (width: Int, height: Int)? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary)
+        else { return nil }
+        return ImagePixelCap.pixelSize(of: source)
     }
 
     private func loadURL(_ url: URL, page: Page, cacheInMemory: Bool,
@@ -193,8 +201,15 @@ actor ReaderTranslationImageLoader {
                 bytes = try await archiveSource.decodedBytes()
             } else {
                 bytes = TranslationImageWorkBudget.decodedBytes(at: url)
+                // An over-cap file decodes as a bounded thumbnail on any pipeline, not
+                // only through the app pipeline's capped decoder (which covers archives).
+                if request.thumbnail == nil, let size = Self.headerPixelSize(at: url),
+                   let thumbnail = ImagePixelCap.thumbnailOptions(width: size.width, height: size.height) {
+                    request.thumbnail = thumbnail
+                }
             }
-            try TranslationImageWorkBudget.shared.checkHeadroom(decodedBytes: bytes)
+            // The decode never exceeds the pixel cap, so admit the capped size.
+            try TranslationImageWorkBudget.shared.checkHeadroom(decodedBytes: ImagePixelCap.cappedDecodedBytes(bytes))
         }
         try Task.checkCancellation()
         request.priority = .low

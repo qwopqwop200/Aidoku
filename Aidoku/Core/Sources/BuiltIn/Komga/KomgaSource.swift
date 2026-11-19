@@ -540,7 +540,9 @@ actor KomgaSourceRunner: Runner {
         struct Response: Codable {
             let email: String
         }
-        let response: Response? = try? await SourceNetwork.shared.object(from: request)
+        let response: Response? = try? await JSONDecoder().decode(
+            Response.self, from: NativeSourceNetwork.limitedData(for: request).0
+        )
 
         guard let response, response.email == email else {
             return false

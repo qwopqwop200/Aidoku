@@ -63,11 +63,49 @@ enum V2Translation {
         blocks.map { block in
             var output = block
             guard let segment = lookup(block) else { return output }
-            output.translation = segment.text
+            output.translation = V2TranslationLengthCap.capped(segment.text, sourceText: block.sourceText)
             if segment.isSFX == true || segment.textRole == .sfx { output.role = .sfx }
             if segment.textRole == .background { output.role = .background }
             return output
         }
+    }
+}
+
+/// Per-block bound on translation text, relative to the block's source.
+///
+/// A runaway provider reply (one segment repeating for hundreds of KB) would
+/// otherwise reach S9 shaping, S10 painting and the block/layout caches. The
+/// codec only bounds a segment at `TranslationHTTPCodec.maximumTranslationBytes`
+/// (512 KiB), which is right for metadata descriptions but far too much for a
+/// speech balloon. Normal dialogue is a small multiple of its source length,
+/// so these limits never touch a real translation.
+enum V2TranslationLengthCap {
+    /// Allowance for any block, even one with very short or empty source text.
+    static let minimumCharacters = 256
+    /// Translated characters allowed per source character.
+    static let charactersPerSourceCharacter = 8
+    /// Hard ceiling regardless of source length.
+    static let maximumCharacters = 4096
+
+    /// Maximum translation length, in Characters (grapheme clusters).
+    static func limit(sourceText: String) -> Int {
+        // A source longer than the ceiling cannot raise the limit further, so
+        // counting stops there instead of walking an arbitrarily long string.
+        let ceilingSource = maximumCharacters / charactersPerSourceCharacter
+        let sourceCount = sourceText.utf8.count <= ceilingSource ? sourceText.count
+            : sourceText.prefix(ceilingSource).count
+        return min(maximumCharacters, max(minimumCharacters, sourceCount * charactersPerSourceCharacter))
+    }
+
+    /// `translation` unchanged when within the limit, else its first `limit`
+    /// grapheme clusters (never splitting a Character).
+    static func capped(_ translation: String, sourceText: String) -> String {
+        let limit = limit(sourceText: sourceText)
+        // UTF-8 length bounds the Character count, so short text skips any walk.
+        guard translation.utf8.count > limit else { return translation }
+        let end = translation.index(translation.startIndex, offsetBy: limit, limitedBy: translation.endIndex)
+        guard let end, end < translation.endIndex else { return translation }
+        return String(translation[..<end])
     }
 }
 

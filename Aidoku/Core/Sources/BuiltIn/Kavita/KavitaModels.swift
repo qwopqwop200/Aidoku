@@ -246,6 +246,19 @@ struct KavitaVolume: Codable, Sendable {
     let chapters: [Chapter]
 }
 
+extension KavitaVolume.Chapter {
+    /// Kavita reports page counts from the server; a hostile or corrupt value such as
+    /// `Int.max` must not drive page-array or URL construction.
+    static let maximumPageCount = 10_000
+
+    /// Returns the number of pages to build, or nil for a negative count.
+    /// Counts above `maximum` are clamped so the reader stays usable.
+    static func boundedPageCount(_ pages: Int, maximum: Int = maximumPageCount) -> Int? {
+        guard pages >= 0 else { return nil }
+        return min(pages, max(0, maximum))
+    }
+}
+
 extension KavitaVolume {
     func intoChapters(baseUrl: URL, apiKey: String) -> [AidokuRunner.Chapter] {
         chapters.compactMap { chapter -> AidokuRunner.Chapter? in

@@ -231,6 +231,9 @@ extension LocalFileManager {
                     // Drawing applies EXIF orientation consistently for reading and OCR.
                     let format = UIGraphicsImageRendererFormat()
                     format.scale = 1
+                    // .automatic picks a 16-bit-per-channel extended-range buffer for wide-color
+                    // photos on P3 devices, doubling a page that may already be 48 MP (~384 MB).
+                    format.preferredRange = .standard
                     let normalized = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
                         image.draw(in: CGRect(origin: .zero, size: image.size))
                     }

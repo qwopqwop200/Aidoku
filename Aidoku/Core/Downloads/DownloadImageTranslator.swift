@@ -72,7 +72,8 @@ enum DownloadImageTranslator {
     nonisolated static func admittedDecodedBytes(
         _ data: Data, physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory
     ) throws -> UInt64 {
-        let bytes = TranslationImageWorkBudget.decodedBytes(in: data)
+        // `decode` never exceeds the pixel cap (an over-cap page decodes as a bounded thumbnail).
+        let bytes = ImagePixelCap.cappedDecodedBytes(TranslationImageWorkBudget.decodedBytes(in: data))
         guard TranslationImageWorkBudget.requiredHeadroom(decodedBytes: bytes) < physicalMemory else {
             throw TranslationImageWorkBudget.AdmissionError.imageTooLarge
         }
@@ -82,7 +83,8 @@ enum DownloadImageTranslator {
     private nonisolated static func decode(_ data: Data) async throws -> UIImage {
         try Task.checkCancellation()
         let bytes = try admittedDecodedBytes(data)
-        guard let decoded = UIImage(data: data) else { throw ReaderTranslationImageExporter.ExportError.unavailable }
+        // Header-checked: above the pixel cap this is an upright ImageIO thumbnail, never a full decode.
+        guard let decoded = ImagePixelCap.decodeImage(data) else { throw ReaderTranslationImageExporter.ExportError.unavailable }
         guard decoded.imageOrientation != .up else { return decoded }
         // The upright redraw allocates a second full raster before the page
         // pipeline's own admission; wait for the same memory headroom first.

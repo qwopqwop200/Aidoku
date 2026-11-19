@@ -36,6 +36,20 @@ struct KomgaHelper: Sendable {
         return serverUrl
     }
 
+    /// Reads a response body without letting a misconfigured or hostile server make one
+    /// API call buffer an unbounded body (`unpaged=true` chapter lists are the largest).
+    static func limitedBody(
+        for request: URLRequest,
+        session: URLSession,
+        maximum: Int = NativeSourceNetwork.maximumBodyBytes
+    ) async throws(SourceError) -> Data {
+        do {
+            return try await SourceResponseBody.read(request, session: session) { _ in .limited(maximum) }.0
+        } catch {
+            throw SourceError.networkError
+        }
+    }
+
     func getMirrors() -> [URL] {
         UserDefaults.standard.stringArray(forKey: "\(sourceKey).mirrors")?
             .compactMap { $0.urlWithTrailingSlash() } ?? []
@@ -103,10 +117,7 @@ struct KomgaHelper: Sendable {
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             }
 
-            let result = try? await session.data(for: request)
-            guard let data = result?.0 else {
-                throw SourceError.networkError
-            }
+            let data = try await Self.limitedBody(for: request, session: session)
 
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .custom({ decoder in

@@ -63,17 +63,9 @@ struct SharedImageInbox {
                     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                         let complete: (Any?, Error?) -> Void = { item, error in
                             do {
-                                if let url = item as? URL {
-                                    let access = url.startAccessingSecurityScopedResource()
-                                    defer { if access { url.stopAccessingSecurityScopedResource() } }
-                                    try FileManager.default.copyItem(at: url, to: destination)
-                                } else if let data = item as? Data {
-                                    try data.write(to: destination, options: .atomic)
-                                } else if let image = item as? UIImage, let data = image.pngData() {
-                                    try data.write(to: destination, options: .atomic)
-                                } else { throw error ?? InboxError.invalidImages }
-                                guard let source = CGImageSourceCreateWithURL(destination as CFURL, nil),
-                                      CGImageSourceGetCount(source) > 0 else { throw InboxError.invalidImages }
+                                // Release ImageIO/UIKit temporaries per image; share extensions are
+                                // limited to roughly 120 MB.
+                                try autoreleasepool { try storeSharedItem(item, error: error, at: destination) }
                                 continuation.resume()
                             } catch { continuation.resume(throwing: error) }
                         }
@@ -90,8 +82,110 @@ struct SharedImageInbox {
         throw lastError
     }
 
-    func pendingBatches() throws -> [Batch] {
+    /// Image containers the app imports directly. Their original bytes are copied as-is, so the
+    /// extension never decodes them; anything else ImageIO can read is downsampled and re-encoded.
+    static let passthroughTypes: Set<String> = [
+        UTType.jpeg.identifier, UTType.png.identifier, UTType.gif.identifier, UTType.tiff.identifier,
+        UTType.bmp.identifier, UTType.heic.identifier, UTType.heif.identifier,
+        "org.webmproject.webp", "public.avif", "public.avci"
+    ]
+    /// Pixel budget for images that must be re-encoded in the extension (16 MP is 64 MB as RGBA).
+    static let maxTranscodePixels = 16_000_000
+
+    /// Writes one provider item to `destination` without decoding it whenever possible.
+    static func storeSharedItem(
+        _ item: Any?, error: Error?, at destination: URL, maxPixels: Int = maxTranscodePixels
+    ) throws {
+        if let url = item as? URL {
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            try FileManager.default.copyItem(at: url, to: destination)
+        } else if let data = item as? Data {
+            try data.write(to: destination, options: .atomic)
+        } else if let image = item as? UIImage {
+            // The host already decoded this image; stream it to disk instead of building PNG data.
+            try writeImage(image, to: destination, maxPixels: maxPixels)
+            return
+        } else {
+            throw error ?? InboxError.invalidImages
+        }
+        try normalizeStoredImage(at: destination, maxPixels: maxPixels)
+    }
+
+    /// Keeps supported files byte-for-byte; re-encodes other readable formats as bounded PNG.
+    private static func normalizeStoredImage(at url: URL, maxPixels: Int) throws {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
+              CGImageSourceGetCount(source) > 0,
+              let type = CGImageSourceGetType(source) as String?
+        else { throw InboxError.invalidImages }
+        if passthroughTypes.contains(type) { return }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let width = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? 0
+        let height = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue ?? 0
+        guard width > 0, height > 0 else { throw InboxError.invalidImages }
+        let scale = min(1, (Double(maxPixels) / (width * height)).squareRoot())
+        let maxSide = max(1, Int((max(width, height) * scale).rounded(.down)))
+        // Thumbnail decoding allocates only the downsampled bitmap and applies EXIF orientation.
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxSide
+        ] as CFDictionary) else { throw InboxError.invalidImages }
+        let temporary = url.deletingLastPathComponent().appendingPathComponent("." + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        try writePNG(thumbnail, to: temporary)
+        try FileManager.default.removeItem(at: url)
+        try FileManager.default.moveItem(at: temporary, to: url)
+    }
+
+    private static func writeImage(_ image: UIImage, to url: URL, maxPixels: Int) throws {
+        guard let cgImage = image.cgImage else {
+            // CIImage-backed images have no bitmap to stream; this is the only full encode.
+            guard let data = image.pngData() else { throw InboxError.invalidImages }
+            try data.write(to: url, options: .atomic)
+            return
+        }
+        let pixels = Double(cgImage.width) * Double(cgImage.height)
+        guard pixels > 0 else { throw InboxError.invalidImages }
+        guard pixels > Double(maxPixels) || image.imageOrientation != .up else {
+            try writePNG(cgImage, to: url)
+            return
+        }
+        // The source bitmap is already resident; drawing allocates only the bounded target and
+        // bakes in the orientation, which PNG files do not reliably carry.
+        let scale = min(1, (Double(maxPixels) / pixels).squareRoot())
+        let pointScale = max(image.scale, 1)
+        let size = CGSize(
+            width: max(1, (image.size.width * pointScale * scale).rounded(.down)),
+            height: max(1, (image.size.height * pointScale * scale).rounded(.down))
+        )
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.preferredRange = .standard
+        let rendered = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        guard let bitmap = rendered.cgImage else { throw InboxError.invalidImages }
+        try writePNG(bitmap, to: url)
+    }
+
+    private static func writePNG(_ image: CGImage, to url: URL) throws {
+        guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)
+        else { throw InboxError.invalidImages }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { throw InboxError.invalidImages }
+    }
+
+    /// Imports tried this many times are dropped so a bad share is never retried forever.
+    static let maxImportAttempts = 3
+    /// The extension is killed (e.g. by its memory limit) without running its staging cleanup.
+    static let staleStagingAge: TimeInterval = 60 * 60
+    private static let attemptsFile = ".attempts"
+
+    func pendingBatches(now: Date = Date()) throws -> [Batch] {
         guard FileManager.default.fileExists(atPath: root.path) else { return [] }
+        removeStaleStaging(now: now)
         return try FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: [.creationDateKey], options: [.skipsHiddenFiles]
         ).sorted {
@@ -125,5 +219,40 @@ struct SharedImageInbox {
 
     func remove(_ batch: Batch) throws {
         try FileManager.default.removeItem(at: batch.directory)
+    }
+
+    func failedAttempts(_ batch: Batch) -> Int {
+        let url = batch.directory.appendingPathComponent(Self.attemptsFile)
+        guard let data = try? Data(contentsOf: url), data.count < 32,
+              let count = Int(String(decoding: data, as: UTF8.self)) else { return 0 }
+        return max(0, count)
+    }
+
+    /// Counts a failed import. Returns true when the batch was discarded because it reached
+    /// `maxImportAttempts` (or its counter cannot be persisted, which would allow endless retries).
+    @discardableResult
+    func recordFailedAttempt(_ batch: Batch) -> Bool {
+        let count = failedAttempts(batch) + 1
+        if count < Self.maxImportAttempts,
+           (try? Data(String(count).utf8).write(to: batch.directory.appendingPathComponent(Self.attemptsFile), options: .atomic)) != nil {
+            return false
+        }
+        try? FileManager.default.removeItem(at: batch.directory)
+        return true
+    }
+
+    /// Removes half-written staging directories left behind by an extension that was terminated.
+    private func removeStaleStaging(now: Date) {
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey, .isDirectoryKey]
+        ) else { return }
+        for entry in entries where entry.lastPathComponent.hasPrefix(".") {
+            guard let values = try? entry.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .isDirectoryKey]),
+                  values.isDirectory == true else { continue }
+            let date = [values.creationDate, values.contentModificationDate].compactMap { $0 }.max() ?? .distantPast
+            if now.timeIntervalSince(date) > Self.staleStagingAge {
+                try? FileManager.default.removeItem(at: entry)
+            }
+        }
     }
 }

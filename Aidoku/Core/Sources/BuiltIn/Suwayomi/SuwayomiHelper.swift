@@ -51,7 +51,7 @@ struct SuwayomiHelper: Sendable {
 
         let data: Data
         do {
-            (data, _) = try await SourceNetwork.shared.data(for: request)
+            (data, _) = try await NativeSourceNetwork.limitedData(for: request)
         } catch {
             throw SourceError.networkError
         }
@@ -103,7 +103,7 @@ struct SuwayomiHelper: Sendable {
             )
         defer { session.finishTasksAndInvalidate() }
         guard
-            let (_, response) = try? await session.data(for: request),
+            let (_, response) = try? await Self.limitedData(for: request, session: session),
             let httpResponse = response as? HTTPURLResponse,
             Self.isSuccessfulSimpleLogin(httpResponse)
         else {
@@ -380,13 +380,27 @@ extension SuwayomiHelper {
         var cookie: String?
     }
 
+    /// Login and GraphQL bodies are small; never buffer an unbounded body from the server.
+    /// The per-task body delegate leaves redirect handling to the session's delegate.
+    static func limitedData(
+        for request: URLRequest,
+        session: URLSession,
+        maximum: Int = NativeSourceNetwork.maximumBodyBytes
+    ) async throws -> (Data, URLResponse) {
+        do {
+            return try await SourceResponseBody.read(request, session: session) { _ in .limited(maximum) }
+        } catch is SourceResponseBody.TooLarge {
+            throw URLError(.dataLengthExceedsMaximum)
+        }
+    }
+
     private static func send(_ request: URLRequest, followRedirects: Bool = true) async -> SuwayomiResponse {
         guard let config = try? await SourceNetwork.shared.configuration(followRedirects ? .default : .ephemeral) else { return .init() }
         let session = URLSession(configuration: config, delegate: followRedirects ? nil : NoRedirectDelegate(), delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
 
         guard
-            let (data, response) = try? await session.data(for: request),
+            let (data, response) = try? await limitedData(for: request, session: session),
             let httpResponse = response as? HTTPURLResponse
         else {
             return .init()

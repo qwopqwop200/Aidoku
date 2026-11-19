@@ -13,7 +13,7 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
     private let preference: @Sendable (String) -> String?
     private let listPreference: @Sendable (String) -> [String]
     private let setPreference: @Sendable (String, String?) -> Void
-    private static let maximumMetadataBytes = 20_000_000
+    static let maximumMetadataBytes = 20_000_000
     private static let userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     enum Failure: Error { case accessDenied, noPages, invalidGallery, invalidImage, resourceLimit }
 
@@ -44,11 +44,13 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
 
     nonisolated private static func fetchMetadata(_ request: URLRequest) async throws -> (Data, URLResponse) {
         let session = try await SourceNetwork.shared.session()
-        return try await SourceResponseBody.read(request, session: session) { response in
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-                  !CloudflareResponsePolicy.isChallenge(response: http, data: Data()) else { return .unrestricted }
-            return .limited(maximumMetadataBytes)
-        }
+        return try await SourceResponseBody.read(request, session: session) { _ in metadataBodyPolicy() }
+    }
+
+    /// Error pages and verification challenges are buffered too, so they get the same
+    /// cap as successful metadata responses rather than an unbounded body.
+    nonisolated static func metadataBodyPolicy(maximum: Int = maximumMetadataBytes) -> SourceResponseBody.Policy {
+        .limited(maximum)
     }
 
     func restart() async throws { try Task.checkCancellation() }
