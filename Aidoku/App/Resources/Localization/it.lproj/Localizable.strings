@@ -141,7 +141,6 @@
 "HISTORY_LOCKED" = "La cronologia è bloccata.";
 "AUTH_TO_ENABLE" = "Autenticati per abilitare.";
 "AUTH_TO_DISABLE" = "Autenticati per disabilitare.";
-"SUPPPORT_DEVELOPMENT" = "Sostieni lo sviluppo";
 "GENERAL" = "Generale";
 "ICLOUD_SYNC" = "Sincronizzazione iCloud";
 "INCOGNITO_MODE" = "Modalità Incognito";
@@ -215,7 +214,7 @@
 "WITH_COMPLETED_STATUS" = "Con stato concluso";
 "BACKUPS" = "Backup";
 "IMPORT_FAIL" = "Importazione fallita";
-"BACKUP_IMPORT_FAIL_TEXT" = "Impossibile salvare il backup. Assicurati che il backup sia nel formato corretto.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Impossibile importare il backup. Assicurati che il backup sia nel formato corretto.";
 "LOGS" = "Log";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "L'URL dell'elenco delle fonti non è valido o è già stato aggiunto.";
 "EXPORT_LOGS" = "Esporta i log";
@@ -427,7 +426,6 @@
 "DISCARD_CHANGES" = "Scarta Modifiche";
 "INVALID_URL" = "URL invalido";
 "INVALID_URL_TEXT" = "L'URL per questa fonte non è valido.";
-"NO_RESULT" = "Nessun Risultato";
 "UNIMPLEMENTED" = "Non implementato";
 "NETWORK_ERROR" = "Errore di rete";
 "NO_RESULTS" = "Nessun Risultato";
@@ -719,7 +717,7 @@
 "CATEGORY_SEARCH" = "Trova nella categoria";
 "REFRESH_NO_WIFI" = "Non connesso al Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "L’impostazione «Aggiornamento solo su Wi-Fi» è attiva, quindi la Raccolta non può essere aggiornata finché non è disponibile una connessione Wi-Fi.";
-"REFRESH_ANYWAYS" = "Aggiorna comunque";
+"REFRESH_ANYWAY" = "Aggiorna comunque";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Rimuovere dalla Raccolta?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Rimuovere questa serie dalla Raccolta rimuoverà anche tutti i collegamenti ai tracker. Vuoi procedere?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Aggiornamento della Raccolta interrotto";
@@ -839,8 +837,8 @@
 "STANDARD" = "Standard";
 "COMPACT" = "Compatto";
 "CUSTOM" = "Personalizzato";
-"PORTRAIT_ROWS" = "Colonne in orientamento verticale";
-"LANDSCAPE_ROWS" = "Colonne in orientamento orizzontale";
+"PORTRAIT_COLUMNS" = "Colonne in orientamento verticale";
+"LANDSCAPE_COLUMNS" = "Colonne in orientamento orizzontale";
 "RESUME_LAST_OPENED_CHAPTER" = "Riprendi l'ultimo capitolo aperto";
 "CONTINUE_READING_ON_RESELECT" = "Tocca di nuovo Cronologia per riprendere la lettura";
 "DOWNLOADED_CHAPTER_BADGES" = "Badge dei capitoli scaricati";

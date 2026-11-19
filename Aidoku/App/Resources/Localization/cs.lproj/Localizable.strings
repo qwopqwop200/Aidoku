@@ -230,7 +230,6 @@
 "UNPIN" = "Odepnout";
 "REORDER" = "Změnit pořadí";
 "ABOUT" = "O aplikaci";
-"SUPPPORT_DEVELOPMENT" = "Podpora vývoje";
 "GENERAL" = "Obecné";
 "ICLOUD_SYNC" = "Synchronizace s iCloudem";
 "PORTRAIT" = "Na výšku";
@@ -252,7 +251,7 @@
 "RESTORE_BACKUP_TEXT" = "Všechna aktuální data budou odstraněna a nahrazena daty z této zálohy.";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Chcete-li obnovit tuto zálohu, najděte ji na stránce záloh v nastavení.";
 "IMPORT_FAIL" = "Import se nezdařil";
-"BACKUP_IMPORT_FAIL_TEXT" = "Nepodařilo se uložit zálohu. Zkontrolujte, zda je záloha ve správném formátu.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Nepodařilo se importovat zálohu. Zkontrolujte, zda je záloha ve správném formátu.";
 "LOGS" = "Protokoly";
 "LOGGING" = "Protokolování";
 "LOG_SERVER" = "Server protokolu";
@@ -601,7 +600,7 @@
 "PROCESSING_ENTRIES" = "Zpracování záznamů…";
 "REFRESH_NO_WIFI" = "Není připojeno k Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Nastavení aktualizace pouze přes Wi-Fi je povoleno. Připojte se k Wi-Fi a obnovte svou knihovnu.";
-"REFRESH_ANYWAYS" = "Přesto obnovit";
+"REFRESH_ANYWAY" = "Přesto obnovit";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Odebrat z knihovny?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Odstraněním této série z knihovny odstraníte také její propojení se sledovači. Opravdu chcete pokračovat?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Obnovení knihovny bylo přerušeno";
@@ -642,7 +641,6 @@
 "MORE_BARBUTTON" = "Více";
 "RETRY" = "Zkusit znovu";
 "RESTART" = "Restartovat";
-"NO_RESULT" = "Žádný výsledek";
 "UNIMPLEMENTED" = "Neimplementováno";
 "NETWORK_ERROR" = "Chyba sítě";
 "DECODING_ERROR" = "Chyba dekódování";
@@ -817,8 +815,8 @@
 "STANDARD" = "Standardní";
 "COMPACT" = "Kompaktní";
 "CUSTOM" = "Vlastní";
-"PORTRAIT_ROWS" = "Sloupce na výšku";
-"LANDSCAPE_ROWS" = "Sloupce na šířku";
+"PORTRAIT_COLUMNS" = "Sloupce na výšku";
+"LANDSCAPE_COLUMNS" = "Sloupce na šířku";
 "RESUME_LAST_OPENED_CHAPTER" = "Obnovit naposledy otevřenou kapitolu";
 "CONTINUE_READING_ON_RESELECT" = "Dalším klepnutím na kartu Historie pokračovat ve čtení";
 "DOWNLOADED_CHAPTER_BADGES" = "Odznaky stažených kapitol";

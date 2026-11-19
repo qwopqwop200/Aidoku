@@ -13,7 +13,7 @@ extension Error {
         if let error = self as? SourceError {
             switch error {
                 case .missingResult:
-                    NSLocalizedString("NO_RESULT")
+                    NSLocalizedString("NO_RESULTS")
                 case .unimplemented:
                     NSLocalizedString("UNIMPLEMENTED")
                 case .networkError:

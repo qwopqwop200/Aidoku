@@ -121,7 +121,6 @@
 "ABOUT" = "Over";
 "GITHUB_REPO" = "GitHub-repository";
 "DISCORD_SERVER" = "Discord-server";
-"SUPPPORT_DEVELOPMENT" = "Ondersteun ontwikkeling";
 "GENERAL" = "Algemeen";
 "ICLOUD_SYNC" = "iCloud-synchronisatie";
 "INCOGNITO_MODE" = "Incognitomodus";
@@ -287,7 +286,7 @@
 "FINISHED" = "Einddatum";
 "MISSING_SOURCES_TEXT" = "De herstelde back-up kan gegevens bevatten uit de volgende bronnen, die momenteel niet zijn geïnstalleerd:";
 "RESTORE_BACKUP_TEXT" = "Alle huidige gegevens worden verwijderd en vervangen door de gegevens uit deze back-up.";
-"BACKUP_IMPORT_FAIL_TEXT" = "Kan back-up niet opslaan. Zorg ervoor dat je back-up het juiste formaat heeft.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Kan back-up niet importeren. Zorg ervoor dat je back-up het juiste formaat heeft.";
 "MANGA" = "Manga";
 "CLEAR_TRACKED_MANGA_TEXT" = "Deze actie is onomkeerbaar. Alle koppelingen tussen manga en trackers worden verwijderd.";
 "SELECT" = "Selecteer";
@@ -365,7 +364,6 @@
 "INVALID_URL_TEXT" = "De URL is ongeldig voor deze bron.";
 "MORE_BARBUTTON" = "Meer";
 "RETRY" = "Opnieuw proberen";
-"NO_RESULT" = "Geen resultaat";
 "UNIMPLEMENTED" = "Niet geïmplementeerd";
 "NETWORK_ERROR" = "Netwerkfout";
 "DECODING_ERROR" = "Decodeerfout";
@@ -650,7 +648,7 @@
 "PROCESSING_ENTRIES" = "Items verwerken…";
 "REFRESH_NO_WIFI" = "Niet verbonden met wifi";
 "REFRESH_NO_WIFI_TEXT" = "De instelling ‘Alleen bijwerken via wifi’ is ingeschakeld, dus de bibliotheek kan pas worden vernieuwd als er een wifi-verbinding beschikbaar is.";
-"REFRESH_ANYWAYS" = "Toch vernieuwen";
+"REFRESH_ANYWAY" = "Toch vernieuwen";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Verwijderen uit bibliotheek?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Als je deze serie uit je bibliotheek verwijdert, worden ook de koppelingen van deze serie met trackers verwijderd. Weet je zeker dat je wilt doorgaan?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Bibliotheekvernieuwing onderbroken";
@@ -832,8 +830,8 @@
 "STANDARD" = "Standaard";
 "COMPACT" = "Compact";
 "CUSTOM" = "Aangepast";
-"PORTRAIT_ROWS" = "Kolommen in portretstand";
-"LANDSCAPE_ROWS" = "Kolommen in landschapsstand";
+"PORTRAIT_COLUMNS" = "Kolommen in portretstand";
+"LANDSCAPE_COLUMNS" = "Kolommen in landschapsstand";
 "RESUME_LAST_OPENED_CHAPTER" = "Hervat het laatst geopende hoofdstuk";
 "CONTINUE_READING_ON_RESELECT" = "Tik opnieuw op Geschiedenis om verder te lezen";
 "DOWNLOADED_CHAPTER_BADGES" = "Badges voor gedownloade hoofdstukken";

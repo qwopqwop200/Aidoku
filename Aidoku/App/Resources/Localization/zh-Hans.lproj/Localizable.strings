@@ -144,7 +144,6 @@
 "ABOUT" = "关于";
 "GITHUB_REPO" = "GitHub 仓库";
 "DISCORD_SERVER" = "Discord 服务器";
-"SUPPPORT_DEVELOPMENT" = "支持开发";
 "GENERAL" = "通用";
 "ICLOUD_SYNC" = "iCloud 同步";
 "INCOGNITO_MODE" = "无痕模式";
@@ -201,7 +200,7 @@
 "BACKUP_IMPORT_SUCCESS" = "备份已导入";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "要恢复到此备份，请在设置中的备份页面中找到它。";
 "IMPORT_FAIL" = "导入失败";
-"BACKUP_IMPORT_FAIL_TEXT" = "无法保存备份。请确保您的备份格式正确。";
+"BACKUP_IMPORT_FAIL_TEXT" = "无法导入备份。请确保您的备份格式正确。";
 "EXPORT" = "导出";
 "RESTORE" = "恢复";
 "LOGS" = "日志";
@@ -381,7 +380,6 @@
 "INVALID_URL_TEXT" = "此图源的 URL 无效。";
 "MORE_BARBUTTON" = "更多";
 "RETRY" = "重试";
-"NO_RESULT" = "没有结果";
 "UNIMPLEMENTED" = "未实现";
 "NETWORK_ERROR" = "网络错误";
 "DECODING_ERROR" = "解码错误";
@@ -696,7 +694,7 @@
 "TOGGLE_PAGE_OFFSET" = "切换页面偏移";
 "REFRESH_NO_WIFI" = "未连接 Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "已启用“仅在 Wi-Fi 更新”，连接 Wi-Fi 后才能刷新书架。";
-"REFRESH_ANYWAYS" = "强制刷新";
+"REFRESH_ANYWAY" = "强制刷新";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "从书架移除？";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "从书架中移除此作品也会移除此作品与追踪器的关联。确定要继续吗？";
 "INCOGNITO_FILTERS_NOTICE" = "修改后的筛选条件在无痕模式下不会保留。";
@@ -711,8 +709,8 @@
 "STANDARD" = "标准";
 "COMPACT" = "紧凑";
 "CUSTOM" = "自定义";
-"PORTRAIT_ROWS" = "竖屏列数";
-"LANDSCAPE_ROWS" = "横屏列数";
+"PORTRAIT_COLUMNS" = "竖屏列数";
+"LANDSCAPE_COLUMNS" = "横屏列数";
 "DISABLE_DOUBLE_TAP_ZOOM" = "禁用双击缩放";
 "CONTINUOUS_WITH_GAPS" = "连续滚动（带间距）";
 "SYNC_WITH_TRACKER_INFO_1" = "追踪器检测到 1 个章节已阅读。您要将此章节标记为已读吗？";

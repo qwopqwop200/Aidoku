@@ -577,12 +577,12 @@ private struct LayoutSettingView: View {
             if showCustomSettings {
                 SettingView(setting: .init(
                     key: AppSettings.appearance.customPortraitRows.key,
-                    title: NSLocalizedString("PORTRAIT_ROWS"),
+                    title: NSLocalizedString("PORTRAIT_COLUMNS"),
                     value: .stepper(.init(minimumValue: 1, maximumValue: 15))
                 ))
                 SettingView(setting: .init(
                     key: AppSettings.appearance.customLandscapeRows.key,
-                    title: NSLocalizedString("LANDSCAPE_ROWS"),
+                    title: NSLocalizedString("LANDSCAPE_COLUMNS"),
                     value: .stepper(.init(minimumValue: 1, maximumValue: 15))
                 ))
             }

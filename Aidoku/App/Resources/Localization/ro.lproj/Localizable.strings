@@ -47,7 +47,6 @@
 "CATEGORY_ADD" = "Adaugă categorie";
 "GITHUB_REPO" = "Depozit GitHub";
 "DISCORD_SERVER" = "Server Discord";
-"SUPPPORT_DEVELOPMENT" = "Sprijină dezvoltarea aplicației";
 "GENERAL" = "General";
 "ICLOUD_SYNC" = "Sincronizare iCloud";
 "INCOGNITO_MODE" = "Modul Incognito";
@@ -92,7 +91,7 @@
 "RESTORE_BACKUP" = "Restaurați la această copie de rezervă?";
 "BACKUP_IMPORT_SUCCESS" = "Copie de rezervă importată";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Pentru a restaura această copie de rezervă, găsiți-o în pagina de copii de rezervă din setări.";
-"BACKUP_IMPORT_FAIL_TEXT" = "Nu s-a reușit salvarea copiei de rezervă. Vă rugăm să vă asigurați că copia de rezervă este în formatul corespunzător.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Nu s-a reușit importarea copiei de rezervă. Vă rugăm să vă asigurați că copia de rezervă este în formatul corespunzător.";
 "EXPORT" = "Exportează";
 "RESTORE" = "Restaurează";
 "DISPLAY_LOGS" = "Afișarea jurnalelor";
@@ -601,7 +600,7 @@
 "PROCESSING_ENTRIES" = "Se procesează intrările…";
 "REFRESH_NO_WIFI" = "Nu este conectat la Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Setarea de actualizare numai prin Wi-Fi este activată. Conectați-vă la Wi-Fi pentru a vă reîmprospăta biblioteca.";
-"REFRESH_ANYWAYS" = "Actualizează oricum";
+"REFRESH_ANYWAY" = "Actualizează oricum";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Eliminați din Bibliotecă?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Eliminarea acestei serii din bibliotecă va elimina și legăturile sale cu serviciile de urmărire. Sigur doriți să continuați?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Reîmprospătarea bibliotecii a fost întreruptă";
@@ -642,7 +641,6 @@
 "MORE_BARBUTTON" = "Mai mult";
 "RETRY" = "Reîncercați";
 "RESTART" = "Reporniți";
-"NO_RESULT" = "Niciun rezultat";
 "UNIMPLEMENTED" = "Neimplementat";
 "NETWORK_ERROR" = "Eroare de rețea";
 "DECODING_ERROR" = "Eroare de decodare";
@@ -817,8 +815,8 @@
 "STANDARD" = "Standard";
 "COMPACT" = "Compact";
 "CUSTOM" = "Personalizat";
-"PORTRAIT_ROWS" = "Număr de coloane în modul portret";
-"LANDSCAPE_ROWS" = "Număr de coloane în modul peisaj";
+"PORTRAIT_COLUMNS" = "Număr de coloane în modul portret";
+"LANDSCAPE_COLUMNS" = "Număr de coloane în modul peisaj";
 "RESUME_LAST_OPENED_CHAPTER" = "Reluați ultimul capitol deschis";
 "CONTINUE_READING_ON_RESELECT" = "Atingeți din nou fila Istoric pentru a relua citirea";
 "DOWNLOADED_CHAPTER_BADGES" = "Indicatoare pentru capitole descărcate";

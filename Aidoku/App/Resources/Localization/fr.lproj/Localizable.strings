@@ -175,7 +175,6 @@
 "READING_MODE" = "Mode de lecture";
 "VERTICAL_SCROLL" = "Défilement vertical";
 "DISCORD_SERVER" = "Serveur Discord";
-"SUPPPORT_DEVELOPMENT" = "Soutenez le développement";
 "INCOGNITO_MODE_TEXT" = "Suspend l’enregistrement de l’historique de lecture lorsque ce mode est activé";
 "APPEARANCE_DARK" = "Sombre";
 "RESTORE_BACKUP" = "Restaurer avec cette sauvegarde ?";
@@ -204,7 +203,7 @@
 "SOURCE_LIST_ADD_TEXT" = "Entrez l'URL de la liste de sources";
 "SOURCE_LIST_ADD_FAIL" = "Échec de l'ajout de la liste des sources";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Pour restaurer cette sauvegarde, retrouvez-la dans la page des sauvegardes dans les paramètres.";
-"BACKUP_IMPORT_FAIL_TEXT" = "Échec de l'enregistrement de la sauvegarde. Veuillez vous assurer que votre sauvegarde est dans le bon format.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Échec de l'importation de la sauvegarde. Veuillez vous assurer que votre sauvegarde est dans le bon format.";
 "CLEAR_NETWORK_CACHE_TEXT" = "Cette action est irréversible. Les requêtes réseau et les images mises en cache seront effacées.";
 "BACKUPS" = "Sauvegardes";
 "BACKUP_NAME" = "Nom de la sauvegarde";
@@ -384,7 +383,6 @@
 "INVALID_URL_TEXT" = "L'URL de cette source n'est pas valide.";
 "MORE_BARBUTTON" = "Plus";
 "RETRY" = "Réessayer";
-"NO_RESULT" = "Aucun résultat";
 "UNIMPLEMENTED" = "Non mis en œuvre";
 "NETWORK_ERROR" = "Erreur réseau";
 "DECODING_ERROR" = "Erreur de décodage";
@@ -697,7 +695,7 @@
 "TOGGLE_PAGE_OFFSET" = "Activer ou désactiver le décalage de page";
 "REFRESH_NO_WIFI" = "Non connecté au Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Le réglage « Mettre à jour uniquement en Wi-Fi » est activé. La bibliothèque ne peut donc être actualisée que lorsqu’une connexion Wi-Fi est disponible.";
-"REFRESH_ANYWAYS" = "Forcer l'actualisation";
+"REFRESH_ANYWAY" = "Forcer l'actualisation";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Retirer de la bibliothèque ?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Retirer cette série de votre bibliothèque supprimera également tous ses liens avec les services de suivi. Êtes-vous sûr de vouloir continuer ?";
 "INCOGNITO_FILTERS_NOTICE" = "Les filtres modifiés ne sont pas conservés en mode Incognito.";
@@ -712,8 +710,8 @@
 "STANDARD" = "Standard";
 "COMPACT" = "Compact";
 "CUSTOM" = "Personnalisé";
-"PORTRAIT_ROWS" = "Colonnes en mode portrait";
-"LANDSCAPE_ROWS" = "Colonnes en mode paysage";
+"PORTRAIT_COLUMNS" = "Colonnes en mode portrait";
+"LANDSCAPE_COLUMNS" = "Colonnes en mode paysage";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Désactiver le double appui pour zoomer";
 "CONTINUOUS_WITH_GAPS" = "Continu avec espaces";
 "SYNC_WITH_TRACKER_INFO_1" = "D’après le service de suivi, 1 chapitre a déjà été lu. Voulez-vous le marquer comme lu ?";

@@ -149,7 +149,6 @@
 "ABOUT" = "Thông tin";
 "GITHUB_REPO" = "Mã nguồn trên GitHub";
 "DISCORD_SERVER" = "Discord";
-"SUPPPORT_DEVELOPMENT" = "Ủng hộ nhà phát triển";
 "GENERAL" = "Chung";
 "ICLOUD_SYNC" = "Đồng bộ hoá với iCloud";
 "INCOGNITO_MODE" = "Chế độ ẩn danh";
@@ -200,7 +199,7 @@
 "BACKUP_IMPORT_SUCCESS" = "Đã thêm bản sao lưu";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Để khôi phục từ bản sao lưu này, hãy tìm nó trong trang Sao lưu ở mục Cài đặt.";
 "IMPORT_FAIL" = "Không thể nhập";
-"BACKUP_IMPORT_FAIL_TEXT" = "Không thể thêm bản sao lưu. Hãy đảm bảo bản sao lưu có định dạng phù hợp.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Không thể nhập bản sao lưu. Hãy đảm bảo bản sao lưu có định dạng phù hợp.";
 "EXPORT" = "Xuất";
 "RESTORE" = "Khôi phục";
 "LOGS" = "Nhật ký";
@@ -376,7 +375,6 @@
 "INVALID_URL" = "URL không hợp lệ";
 "MORE_BARBUTTON" = "Xem thêm";
 "RETRY" = "Thử lại";
-"NO_RESULT" = "Không có kết quả";
 "NETWORK_ERROR" = "Lỗi mạng";
 "UNKNOWN_ERROR" = "Lỗi không xác định";
 "ADD_SOURCE" = "Thêm nguồn";
@@ -670,7 +668,7 @@
 "STANDARD" = "Tiêu chuẩn";
 "COMPACT" = "Nhỏ gọn";
 "CUSTOM" = "Tùy chỉnh";
-"PORTRAIT_ROWS" = "Số cột khi xoay dọc";
+"PORTRAIT_COLUMNS" = "Số cột khi xoay dọc";
 "RESUME_LAST_OPENED_CHAPTER" = "Tiếp tục chương cuối cùng đã mở";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Tắt tính năng nhấn đúp để thu phóng";
 "HIDE_BARS_ON_SWIPE" = "Ẩn các thanh điều khiển khi vuốt";
@@ -918,7 +916,7 @@
 "DOWNLOAD_INCOMPLETE" = "Tải về chưa hoàn tất";
 "CATEGORY_SEARCH" = "Tìm trong danh mục";
 "REFRESH_NO_WIFI_TEXT" = "Cài đặt chỉ cập nhật qua Wi-Fi đã được bật. Kết nối với Wi-Fi để làm mới thư viện của bạn.";
-"REFRESH_ANYWAYS" = "Vẫn làm mới";
+"REFRESH_ANYWAY" = "Vẫn làm mới";
 "LIBRARY_REFRESH_INTERRUPTED" = "Làm mới thư viện bị gián đoạn";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Lần làm mới thư viện cuối cùng đã bị gián đoạn trước khi hoàn thành. Bạn có muốn tiếp tục không?";
 "CREATE_FILTER_GROUP" = "Tạo nhóm bộ lọc";
@@ -947,7 +945,7 @@
 "INVALID_KEY" = "Khóa không hợp lệ";
 "REFRESH_DETAILS" = "Làm mới chi tiết";
 "REFRESH_LOGIN" = "Làm mới đăng nhập";
-"LANDSCAPE_ROWS" = "Số cột khi xoay ngang";
+"LANDSCAPE_COLUMNS" = "Số cột khi xoay ngang";
 "CONTINUE_READING_ON_RESELECT" = "Nhấn lại tab Lịch sử để tiếp tục đọc";
 "NEW_CHAPTER_NOTIFICATIONS" = "Thông báo chương mới";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Gửi thông báo khi thư viện được làm mới ở chế độ nền.";

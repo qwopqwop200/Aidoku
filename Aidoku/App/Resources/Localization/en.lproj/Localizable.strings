@@ -108,7 +108,7 @@
 "PROCESSING_ENTRIES" = "Processing Entries…";
 "REFRESH_NO_WIFI" = "Not Connected to Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "The \"Only Update on Wi-Fi\" setting is enabled, so the library cannot be refreshed until a Wi-Fi connection is available.";
-"REFRESH_ANYWAYS" = "Refresh Anyway";
+"REFRESH_ANYWAY" = "Refresh Anyway";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Remove from Library?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Removing this series from your library will also remove its tracker links. Are you sure you want to proceed?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Library Refresh Interrupted";
@@ -192,7 +192,6 @@
 "MORE_BARBUTTON" = "More";
 "RETRY" = "Retry";
 "RESTART" = "Restart";
-"NO_RESULT" = "No Result";
 "UNIMPLEMENTED" = "Unimplemented";
 "NETWORK_ERROR" = "Network Error";
 "DECODING_ERROR" = "Decoding Error";
@@ -450,7 +449,6 @@
 "ABOUT" = "About";
 "GITHUB_REPO" = "GitHub Repository";
 "DISCORD_SERVER" = "Discord Server";
-"SUPPPORT_DEVELOPMENT" = "Support Development";
 "GENERAL" = "General";
 "ICLOUD_SYNC" = "iCloud Sync";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync is an experimental feature. Enabling or disabling it may trigger data loss.";
@@ -465,8 +463,8 @@
 "STANDARD" = "Standard";
 "COMPACT" = "Compact";
 "CUSTOM" = "Custom";
-"PORTRAIT_ROWS" = "Columns in Portrait";
-"LANDSCAPE_ROWS" = "Columns in Landscape";
+"PORTRAIT_COLUMNS" = "Columns in Portrait";
+"LANDSCAPE_COLUMNS" = "Columns in Landscape";
 "PORTRAIT" = "Portrait";
 "LANDSCAPE" = "Landscape";
 "READER" = "Reader";
@@ -665,7 +663,7 @@
 "BACKUP_IMPORT_SUCCESS" = "Backup Imported";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "To restore to this backup, find it in the backups page in settings.";
 "IMPORT_FAIL" = "Import Failed";
-"BACKUP_IMPORT_FAIL_TEXT" = "Failed to save backup. Please ensure that your backup is in the proper format.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Failed to import backup. Please ensure that your backup is in the proper format.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Failed to import source. Please ensure that your aix file is valid.";
 "FILE_IMPORT_FAIL_TEXT" = "Failed to import file. Please ensure it is a readable image file or a valid CBZ or ZIP archive containing images.";
 "BACKUP_%@" = "Backup %@";

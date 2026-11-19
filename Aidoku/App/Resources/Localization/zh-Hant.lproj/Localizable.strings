@@ -196,7 +196,6 @@
 "AUTH_FOR_HISTORY" = "解鎖以查看閱讀記錄。";
 "BUILD" = "版號";
 "MISSING_SOURCE" = "缺少來源";
-"SUPPPORT_DEVELOPMENT" = "支持開發";
 "INCOGNITO_MODE_TEXT" = "啟用時不會記住閱讀記錄";
 "SOURCE_LIST_ADD_TEXT" = "輸入來源列表連結";
 "OPEN_READER_VIEW" = "開啟閱讀介面";
@@ -285,7 +284,7 @@
 "SELECTED" = "已選取";
 "BACKUP_ERROR" = "備份回復錯誤";
 "BACKUP_ERROR_TEXT" = "在回復時遇到錯誤：%@。備份可能無效。";
-"BACKUP_IMPORT_FAIL_TEXT" = "備份儲存失敗。請確保您的備份格式正確。";
+"BACKUP_IMPORT_FAIL_TEXT" = "備份匯入失敗。請確保您的備份格式正確。";
 "LOGGING" = "日誌記錄";
 "LOG_SERVER" = "日誌伺服器";
 "LOGS" = "日誌";
@@ -397,7 +396,6 @@
 "INVALID_URL" = "無效網址";
 "INVALID_URL_TEXT" = "此來源的網址無效。";
 "RETRY" = "重試";
-"NO_RESULT" = "沒有結果";
 "UNIMPLEMENTED" = "未實作";
 "NETWORK_ERROR" = "網路錯誤";
 "DECODING_ERROR" = "解碼錯誤";
@@ -691,7 +689,7 @@
 "CATEGORY_SEARCH" = "在類別中尋找";
 "REFRESH_NO_WIFI" = "未連接 Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "已啟用「只在使用Wi-Fi時更新」，因此必須連接 Wi-Fi 才能重新整理書庫。";
-"REFRESH_ANYWAYS" = "仍要更新";
+"REFRESH_ANYWAY" = "仍要更新";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "從書庫移除？";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "從書庫移除此作品也會移除此作品與追蹤器的連結。您確定要繼續嗎？";
 "INCOGNITO_FILTERS_NOTICE" = "修改過的過濾條件不會在無痕模式中保留。";
@@ -716,8 +714,8 @@
 "STANDARD" = "標準";
 "COMPACT" = "精簡";
 "CUSTOM" = "自訂";
-"PORTRAIT_ROWS" = "直向欄數";
-"LANDSCAPE_ROWS" = "橫向欄數";
+"PORTRAIT_COLUMNS" = "直向欄數";
+"LANDSCAPE_COLUMNS" = "橫向欄數";
 "RESUME_LAST_OPENED_CHAPTER" = "繼續閱讀上次的章節";
 "NEW_CHAPTER_NOTIFICATIONS" = "新章節通知";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "當書庫在背景重新整理時傳送通知。";

@@ -110,7 +110,6 @@
 "ABOUT" = "Om";
 "GITHUB_REPO" = "GitHub-kodelager";
 "DISCORD_SERVER" = "Discord-server";
-"SUPPPORT_DEVELOPMENT" = "Støtt utviklingen";
 "GENERAL" = "Generelt";
 "ICLOUD_SYNC" = "iCloud-synkronisering";
 "INCOGNITO_MODE" = "Inkognitomodus";
@@ -480,7 +479,7 @@
 "PROCESSING_ENTRIES" = "Behandler oppføringer …";
 "REFRESH_NO_WIFI" = "Ikke koblet til Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Innstillingen for å oppdatere kun over Wi-Fi er aktivert. Koble til Wi-Fi for å oppdatere biblioteket ditt.";
-"REFRESH_ANYWAYS" = "Oppdater uansett";
+"REFRESH_ANYWAY" = "Oppdater uansett";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Vil du fjerne fra biblioteket?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Hvis du fjerner denne serien fra biblioteket, fjernes også seriens koblinger til sporingstjenester. Er du sikker på at du vil fortsette?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Bibliotekets oppdatering avbrutt";
@@ -537,7 +536,6 @@
 "MORE_BARBUTTON" = "Mer";
 "RETRY" = "Prøv på nytt";
 "RESTART" = "Start på nytt";
-"NO_RESULT" = "Ingen resultater";
 "UNIMPLEMENTED" = "Uimplementert";
 "NETWORK_ERROR" = "Nettverksfeil";
 "DECODING_ERROR" = "Dekodingsfeil";
@@ -731,8 +729,8 @@
 "STANDARD" = "Standard";
 "COMPACT" = "Kompakt";
 "CUSTOM" = "Egendefinert";
-"PORTRAIT_ROWS" = "Kolonner i stående retning";
-"LANDSCAPE_ROWS" = "Kolonner i liggende retning";
+"PORTRAIT_COLUMNS" = "Kolonner i stående retning";
+"LANDSCAPE_COLUMNS" = "Kolonner i liggende retning";
 "RESUME_LAST_OPENED_CHAPTER" = "Fortsett sist åpnede kapittel";
 "CONTINUE_READING_ON_RESELECT" = "Trykk på Historikk igjen for å fortsette lesingen";
 "UNREAD_CHAPTER_BADGES" = "Merker for uleste kapitler";
@@ -900,7 +898,7 @@
 "RESTORE_BACKUP_TEXT" = "Alle gjeldende data vil bli fjernet og erstattet av dataene fra denne sikkerhetskopien.";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "For å gjenopprette til denne sikkerhetskopien, finn den på sikkerhetskopieringssiden i innstillingene.";
 "IMPORT_FAIL" = "Import mislyktes";
-"BACKUP_IMPORT_FAIL_TEXT" = "Kunne ikke lagre sikkerhetskopien. Sørg for at sikkerhetskopien er i riktig format.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Kunne ikke importere sikkerhetskopien. Sørg for at sikkerhetskopien er i riktig format.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Kunne ikke importere kilden. Sørg for at aix-filen din er gyldig.";
 "FILE_IMPORT_FAIL_TEXT" = "Kunne ikke importere filen. Kontroller at det er en lesbar bildefil eller et gyldig CBZ- eller ZIP-arkiv med bilder.";
 "BACKUP_%@" = "Sikkerhetskopi %@";

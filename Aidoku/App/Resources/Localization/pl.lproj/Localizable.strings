@@ -147,7 +147,6 @@
 "AUTH_TO_DISABLE" = "Uwierzytelnij się, aby wyłączyć.";
 "ABOUT" = "O aplikacji";
 "GITHUB_REPO" = "Repozytorium GitHub";
-"SUPPPORT_DEVELOPMENT" = "Wspomóż twórcę";
 "INCOGNITO_MODE_TEXT" = "Wstrzymuje zapisywanie historii czytania, gdy jest włączony";
 "APPEARANCE" = "Wygląd";
 "APPEARANCE_LIGHT" = "Jasny";
@@ -215,7 +214,7 @@
 "LOG_SERVER" = "Serwer dzienników";
 "RESTORE_BACKUP_TEXT" = "Wszystkie obecne dane zostaną usunięte i zamienione na te z kopii zapasowej.";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Aby przywrócić tę kopię zapasową, znajdź ją na stronie kopii zapasowych w ustawieniach.";
-"BACKUP_IMPORT_FAIL_TEXT" = "Nie udało się zapisać kopii zapasowej. Upewnij się, że kopia ma prawidłowy format.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Nie udało się zaimportować kopii zapasowej. Upewnij się, że kopia ma prawidłowy format.";
 "LOGS" = "Dzienniki";
 "PAGE_X_OF_X" = "Strona %i z %i";
 "LIBRARY_LOCKED" = "Biblioteka jest zablokowana.";
@@ -617,7 +616,7 @@
 "PROCESSING_ENTRIES" = "Przetwarzanie wpisów…";
 "REFRESH_NO_WIFI" = "Brak połączenia z Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Opcja aktualizacji tylko przez Wi-Fi jest włączona. Połącz się z Wi-Fi, aby odświeżyć swoją bibliotekę.";
-"REFRESH_ANYWAYS" = "Odśwież mimo wszystko";
+"REFRESH_ANYWAY" = "Odśwież mimo wszystko";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Usunąć z biblioteki?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Usunięcie tej serii z biblioteki usunie również jej powiązania z trackerami. Czy na pewno chcesz kontynuować?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Odświeżanie biblioteki zostało przerwane";
@@ -658,7 +657,6 @@
 "MORE_BARBUTTON" = "Więcej";
 "RETRY" = "Spróbuj ponownie";
 "RESTART" = "Uruchom ponownie";
-"NO_RESULT" = "Brak wyniku";
 "UNIMPLEMENTED" = "Niezaimplementowane";
 "NETWORK_ERROR" = "Błąd sieci";
 "DECODING_ERROR" = "Błąd dekodowania";
@@ -825,8 +823,8 @@
 "STANDARD" = "Standardowe";
 "COMPACT" = "Kompaktowy";
 "CUSTOM" = "Niestandardowe";
-"PORTRAIT_ROWS" = "Kolumny w orientacji pionowej";
-"LANDSCAPE_ROWS" = "Kolumny w orientacji poziomej";
+"PORTRAIT_COLUMNS" = "Kolumny w orientacji pionowej";
+"LANDSCAPE_COLUMNS" = "Kolumny w orientacji poziomej";
 "RESUME_LAST_OPENED_CHAPTER" = "Wznów ostatnio otwarty rozdział";
 "CONTINUE_READING_ON_RESELECT" = "Dotknij ponownie karty Historia, aby wznowić czytanie";
 "DOWNLOADED_CHAPTER_BADGES" = "Oznaczenia pobranych rozdziałów";

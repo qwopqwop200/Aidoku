@@ -29,7 +29,7 @@
 "RESTORE_BACKUP" = "Rikthe në këtë kopje rezervë?";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Për të rikthyer në këtë kopje rezervë, gjeni atë në faqen e kopjeve rezervë në cilësime.";
 "IMPORT_FAIL" = "Importimi Dështoi";
-"BACKUP_IMPORT_FAIL_TEXT" = "Dështoi ruajtja e kopjes rezervë. Ju lutemi sigurohuni që kopja juaj rezervë të jetë në formatin e duhur.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Dështoi importimi i kopjes rezervë. Ju lutemi sigurohuni që kopja juaj rezervë të jetë në formatin e duhur.";
 "EXPORT" = "Eksporto";
 "LOGS" = "Regjistrat";
 "LOGGING" = "Regjistrimi";
@@ -262,7 +262,6 @@
 "ABOUT" = "Rreth";
 "GITHUB_REPO" = "Depoja në GitHub";
 "DISCORD_SERVER" = "Serveri në Discord";
-"SUPPPORT_DEVELOPMENT" = "Mbështet Zhvillimin";
 "GENERAL" = "Të Përgjithshme";
 "ICLOUD_SYNC" = "Sinkronizimi me iCloud";
 "INCOGNITO_MODE_TEXT" = "Ndërpret historinë e leximit kur aktivizohet";
@@ -596,7 +595,7 @@
 "PROCESSING_ENTRIES" = "Regjistrimet po përpunohen…";
 "REFRESH_NO_WIFI" = "Nuk është i lidhur me Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Cilësimi „Përditëso vetëm në Wi-Fi” është aktiv, prandaj biblioteka nuk mund të rifreskohet derisa të ketë lidhje Wi-Fi.";
-"REFRESH_ANYWAYS" = "Rifresko gjithsesi";
+"REFRESH_ANYWAY" = "Rifresko gjithsesi";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Të hiqet nga biblioteka?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Heqja e kësaj serie nga biblioteka juaj do të heqë gjithashtu lidhjet e saj me gjurmuesit. A jeni të sigurt që dëshironi të vazhdoni?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Rifreskimi i bibliotekës u ndërpre";
@@ -637,7 +636,6 @@
 "MORE_BARBUTTON" = "Më shumë";
 "RETRY" = "Provo sërish";
 "RESTART" = "Rinis";
-"NO_RESULT" = "Asnjë rezultat";
 "UNIMPLEMENTED" = "E pazbatuar";
 "NETWORK_ERROR" = "Gabim rrjeti";
 "DECODING_ERROR" = "Gabim dekodimi";
@@ -804,8 +802,8 @@
 "STANDARD" = "Standard";
 "COMPACT" = "Kompakt";
 "CUSTOM" = "E personalizuar";
-"PORTRAIT_ROWS" = "Numri i kolonave në orientim vertikal";
-"LANDSCAPE_ROWS" = "Numri i kolonave në orientim horizontal";
+"PORTRAIT_COLUMNS" = "Numri i kolonave në orientim vertikal";
+"LANDSCAPE_COLUMNS" = "Numri i kolonave në orientim horizontal";
 "RESUME_LAST_OPENED_CHAPTER" = "Rifillo kapitullin e hapur së fundi";
 "CONTINUE_READING_ON_RESELECT" = "Prekni sërish skedën Historia për të rifilluar leximin";
 "DOWNLOADED_CHAPTER_BADGES" = "Shenjat e kapitullit të shkarkuar";

@@ -469,7 +469,7 @@
 "PROCESSING_ENTRIES" = "Prilaborante erojn…";
 "REFRESH_NO_WIFI" = "Ne Konektita al Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "La agordo ĝisdatigi nur per Wi-Fi estas ebligita. Konektiĝu al Wi-Fi por refreŝigi vian bibliotekon.";
-"REFRESH_ANYWAYS" = "Refreŝigi Ĉiuokaze";
+"REFRESH_ANYWAY" = "Refreŝigi Ĉiuokaze";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Ĉu forigi el Biblioteko?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Forigo de ĉi tiu serio el via biblioteko ankaŭ forigos ĝiajn ligilojn al spuriloj. Ĉu vi certas, ke vi volas daŭrigi?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Refreŝigo de biblioteko interrompita";
@@ -519,7 +519,6 @@
 "MORE_BARBUTTON" = "Pli";
 "RETRY" = "Reprovi";
 "RESTART" = "Rekomenci";
-"NO_RESULT" = "Neniu Rezulto";
 "UNIMPLEMENTED" = "Neefektivigita";
 "NETWORK_ERROR" = "Reta Eraro";
 "DECODING_ERROR" = "Malkoda eraro";
@@ -707,7 +706,6 @@
 "BASIC" = "Baza";
 "AUTH_TO_ENABLE" = "Aŭtentikiĝu por ebligi.";
 "AUTH_TO_DISABLE" = "Aŭtentikiĝu por malebligi.";
-"SUPPPORT_DEVELOPMENT" = "Subteni la disvolvon";
 "ICLOUD_SYNC" = "iCloud-sinkronigo";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud-sinkronigo estas eksperimenta funkcio. Ebligi aŭ malebligi ĝin povas kaŭzi perdon de datumoj.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud-sinkronigo disponeblas nur kiam la aplikaĵo estas instalita per TestFlight.";
@@ -716,8 +714,8 @@
 "STANDARD" = "Normo";
 "COMPACT" = "Kompakta";
 "CUSTOM" = "Propra";
-"PORTRAIT_ROWS" = "Kolumnoj en vertikala formato";
-"LANDSCAPE_ROWS" = "Kolumnoj en horizontala formato";
+"PORTRAIT_COLUMNS" = "Kolumnoj en vertikala formato";
+"LANDSCAPE_COLUMNS" = "Kolumnoj en horizontala formato";
 "RESUME_LAST_OPENED_CHAPTER" = "Daŭrigi la lastan malfermitan ĉapitron";
 "CONTINUE_READING_ON_RESELECT" = "Frapetu la langeton Historio denove por daŭrigi la legadon";
 "UNREAD_CHAPTER_BADGES" = "Insignoj de nelegitaj ĉapitroj";
@@ -888,7 +886,7 @@
 "RESTORE_BACKUP_TEXT" = "Ĉiuj aktualaj datumoj estos forigitaj kaj anstataŭigitaj per la datumoj de ĉi tiu savkopio.";
 "BACKUP_IMPORT_SUCCESS" = "Savkopio importita";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Por restarigi ĉi tiun savkopion, trovu ĝin en la paĝo pri savkopioj en agordoj.";
-"BACKUP_IMPORT_FAIL_TEXT" = "Malsukcesis konservi savkopion. Bonvolu certigi, ke via savkopio estas en la taŭga formato.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Malsukcesis importi savkopion. Bonvolu certigi, ke via savkopio estas en la taŭga formato.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Malsukcesis importi fonton. Bonvolu certigi, ke via aix-dosiero estas valida.";
 "FILE_IMPORT_FAIL_TEXT" = "Malsukcesis importi la dosieron. Certigu, ke ĝi estas legebla bilddosiero aŭ valida CBZ- aŭ ZIP-arkivo enhavanta bildojn.";
 "BACKUP_%@" = "Savkopio %@";

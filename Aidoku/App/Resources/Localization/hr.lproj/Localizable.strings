@@ -147,7 +147,6 @@
 "%@_AGO" = "prije %@";
 "PAGE_X" = "Stranica %i";
 "GITHUB_REPO" = "GitHub repozitorij";
-"SUPPPORT_DEVELOPMENT" = "Podrška razvoju";
 "GENERAL" = "Općenito";
 "ICLOUD_SYNC" = "iCloud sinkronizacija";
 "PORTRAIT" = "Uspravno";
@@ -189,7 +188,7 @@
 "CORRUPTED_BACKUP" = "Oštećena sigurnosna kopija";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Za vraćanje na ovu sigurnosnu kopiju, pronađi je na stranici sigurnosnih kopija u postavkama.";
 "IMPORT_FAIL" = "Uvoz neuspješan";
-"BACKUP_IMPORT_FAIL_TEXT" = "Spremanje sigurnosne kopije nije uspjelo. Provjeri format sigurnosne kopije.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Uvoz sigurnosne kopije nije uspio. Provjeri format sigurnosne kopije.";
 "EXPORT" = "Izvezi";
 "RESTORE" = "Obnovi";
 "LOGS" = "Zapisi";
@@ -310,7 +309,7 @@
 "DEFAULT_READING_MODE" = "Zadani način čitanja";
 "UPLOAD_DATE" = "Datum prijenosa";
 "ALL_CHAPTERS_READ" = "Sva poglavlja su pročitana";
-"PILLARBOX_ORIENTATION_INFO" = "Odaberite orijentacije zaslona u kojima će se prikazivati bočne margine.";
+"PILLARBOX_ORIENTATION_INFO" = "Odaberi orijentacije zaslona u kojima će se prikazivati bočne margine.";
 "BOTH" = "Oba";
 "COPY" = "Kopiraj";
 "REORDER" = "Promijeni redoslijed";
@@ -397,7 +396,6 @@
 "INVALID_URL" = "Neispravan URL";
 "INVALID_URL_TEXT" = "URL za ovaj izvor nije ispravan.";
 "RETRY" = "Pokušaj ponovo";
-"NO_RESULT" = "Nema rezultata";
 "UNIMPLEMENTED" = "Nije implementirano";
 "NETWORK_ERROR" = "Mrežna greška";
 "DECODING_ERROR" = "Greška u dekodiranju";
@@ -494,7 +492,7 @@
 "RELOAD_FAILED" = "Ponovno učitavanje nije uspjelo";
 "RELOAD_FAILED_TEXT" = "Ponovno učitavanje slike nije uspjelo. Pokušaj ponovo.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Uvoz izvora nije uspio. Osiguraj da je aix datoteka valjana.";
-"FILE_IMPORT_FAIL_TEXT" = "Uvoz datoteke nije uspio. Provjerite je li to čitljiva slikovna datoteka ili valjana CBZ ili ZIP arhiva koja sadrži slike.";
+"FILE_IMPORT_FAIL_TEXT" = "Uvoz datoteke nije uspio. Provjeri je li to čitljiva slikovna datoteka ili valjana CBZ ili ZIP arhiva koja sadrži slike.";
 "ADD" = "Dodaj";
 "MARK_DUPLICATE_CHAPTERS" = "Označi dupla poglavlja kao pročitana";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Ovaj izvor je imao promjenu koja uzrokuje nekompatibilnost i zahtijeva migraciju kako bi se tvoja biblioteka i povijest sačuvali.";
@@ -669,7 +667,7 @@
 "TEXT_FONT_SIZE" = "Veličina fonta";
 "TEXT_LINE_SPACING" = "Razmak između redaka";
 "TEXT_HORIZONTAL_PADDING" = "Vodoravni odmak";
-"REFRESH_ANYWAYS" = "Svejedno osvježi";
+"REFRESH_ANYWAY" = "Svejedno osvježi";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Ukloniti iz biblioteke?";
 "REFRESH_NO_WIFI" = "Ne postoji veza s Wi-Fi mrežom";
 "REFRESH_NO_WIFI_TEXT" = "Postavka „Ažuriraj samo putem Wi-Fi mreže” je uključena, pa se biblioteka ne može osvježiti dok Wi-Fi veza nije dostupna.";
@@ -688,8 +686,8 @@
 "STANDARD" = "Standardno";
 "COMPACT" = "Kompaktno";
 "CUSTOM" = "Prilagođeno";
-"PORTRAIT_ROWS" = "Broj stupaca u uspravnom prikazu";
-"LANDSCAPE_ROWS" = "Broj stupaca u položenom prikazu";
+"PORTRAIT_COLUMNS" = "Broj stupaca u uspravnom prikazu";
+"LANDSCAPE_COLUMNS" = "Broj stupaca u položenom prikazu";
 "RESUME_LAST_OPENED_CHAPTER" = "Nastavi pri zadnjem otvorenom poglavlju";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Trenutačno imaš konfiguriran popis izvora u starom formatu. Ovaj format je zastario i prestat će raditi u budućoj verziji aplikacije Aidoku. Iako zasad i dalje radi, preporučuje se da pronađeš zamjenu i konfiguriraš je u Postavkama > Popisi izvora.";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Deaktiviraj zumiranje dvostrukim dodirom";
@@ -699,7 +697,7 @@
 "IMPORT_BACKUP" = "Uvezi sigurnosnu kopiju";
 "PAGE_OFFSET" = "Odmak stranice";
 "SYNC_WITH_TRACKER" = "Sinkroniziraj s alatom praćenja";
-"SYNC_WITH_TRACKER_INFO_%i" = "Broj već pročitanih poglavlja prema alatu praćenja: %i. Želite li ih označiti kao pročitana?";
+"SYNC_WITH_TRACKER_INFO_%i" = "Broj već pročitanih poglavlja prema alatu praćenja: %i. Želiš li ih označiti kao pročitana?";
 "UNAVAILABLE_TRACKER_ITEM" = "Nedostupna stavka alata praćenja";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "Ova povezana stavka alata praćenja povezana je s alatom praćenja koji više nije dostupan. Ukloni ovu stavku ili se ponovo prijavi na povezani alat praćenja.";
 "ENHANCED_TRACKERS" = "Poboljšani alati praćenja";
@@ -733,7 +731,7 @@
 
 "TRANSLATION_HELP" = "Ikona prijevoda uključuje ili isključuje prevođenje. Najprije se pripremaju vidljive stranice, a zatim obližnje. Priprema prati tvoj položaj u čitanju. Spremljeni rezultati OCR-a, prijevodi i raspored teksta mogu se ponovno koristiti nakon ponovnog otvaranja čitača ili pokretanja aplikacije. Privremene dijeljene slike ne spremaju tu predmemoriju. Izlazak iz čitača otkazuje nedovršenu obradu.";
 
-"TRANSLATION_PRIVACY" = "OCR radi na vašem uređaju. Prijevod šalje prepoznati tekst i vaše upute odabranom pružatelju usluga. Ako je uključena opcija Uključi sliku stranice u prijevod, može se poslati i obrađena slika stranice. Ako unos slika nije podržan, prijevod se nastavlja samo s tekstom. Cijene API-ja ovise o vašem pružatelju usluga. API ključevi pohranjuju se u Keychain. OCR, prijevodi i raspored teksta spremaju se u zaštićenu pohranu aplikacije isključenu iz sigurnosnih kopija.";
+"TRANSLATION_PRIVACY" = "OCR radi na tvom uređaju. Prijevod šalje prepoznati tekst i tvoje upute odabranom pružatelju usluga. Ako je uključena opcija Uključi sliku stranice u prijevod, može se poslati i obrađena slika stranice. Ako unos slika nije podržan, prijevod se nastavlja samo s tekstom. Cijene API-ja ovise o tvom pružatelju usluga. API ključevi pohranjuju se u Keychain. OCR, prijevodi i raspored teksta spremaju se u zaštićenu pohranu aplikacije isključenu iz sigurnosnih kopija.";
 
 "TRANSLATION_KEY_REPLACE" = "Zamijeni spremljeni API ključ (izborno)";
 
@@ -816,7 +814,7 @@
 
 "TRANSLATION_API_FORMAT" = "API format";
 
-"TRANSLATION_CUSTOM_HELP" = "Unesite HTTPS osnovni URL ili punu API krajnju točku i model koji podržava vaš poslužitelj. Svaki URL poslužitelja ima vlastiti spremljeni ključ; promjena URL-a briše ključ koji trenutačno unosite. Responses i Chat Completions koriste strukturirani JSON izlaz.";
+"TRANSLATION_CUSTOM_HELP" = "Unesi HTTPS osnovni URL ili punu API krajnju točku i model koji podržava tvoj poslužitelj. Svaki URL poslužitelja ima vlastiti spremljeni ključ; promjena URL-a briše ključ koji trenutačno unosiš. Responses i Chat Completions koriste strukturirani JSON izlaz.";
 
 "TRANSLATION_AUTOMATIC" = "Automatski prijevod";
 
@@ -830,7 +828,7 @@
 
 "TRANSLATION_TEST_FAILURE" = "Povezivanje nije uspjelo";
 
-"TRANSLATION_TEST_HELP" = "Prevodi kratku rečenicu koristeći vrijednosti iz ovog obrasca. Ostavite polje ključa prazno da biste koristili spremljeni ključ ovog poslužitelja. Promjene se automatski spremaju.";
+"TRANSLATION_TEST_HELP" = "Prevodi kratku rečenicu koristeći vrijednosti iz ovog obrasca. Ostavi polje ključa prazno za korištenje spremljenog ključa ovog poslužitelja. Promjene se automatski spremaju.";
 
 "SEARCH_SUGGESTIONS" = "Prijedlozi za pretraživanje";
 
@@ -846,7 +844,7 @@
 
 "TRANSLATION_FILTER_ALL" = "Svi otkriveni jezici";
 
-"TRANSLATION_FILTER_HELP" = "Odaberite izvorne jezike za prijevod. Tekst na neodabranom jeziku ili tekst čiji jezik nije pouzdano prepoznat ostaje nepromijenjen. Odaberite Svi otkriveni jezici za uklanjanje filtra.";
+"TRANSLATION_FILTER_HELP" = "Odaberi izvorne jezike za prijevod. Tekst na neodabranom jeziku ili tekst čiji jezik nije pouzdano prepoznat ostaje nepromijenjen. Odaberi Svi otkriveni jezici za uklanjanje filtra.";
 
 "TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Prevodi se samo tekst identificiran kao odabrani izvorni jezik. Jezici bez detekcije na uređaju ostaju nefiltrirani.";
 
@@ -858,7 +856,7 @@
 
 "HTTPS_BYPASS_TEST_HELP" = "Testira ovu HTTPS adresu putem premosnice, čak i kada je prekidač isključen. Odgovor potvrđuje povezanost, a ne da je ISP blokirao.";
 
-"HTTPS_BYPASS_INVALID_URL" = "Unesite HTTPS URL bez korisničkog imena ili lozinke.";
+"HTTPS_BYPASS_INVALID_URL" = "Unesi HTTPS URL bez korisničkog imena ili lozinke.";
 
 "HTTPS_BYPASS_TEST_RESULT" = "HTTP %d primljen · TLS fragmentacija primijenjena";
 
@@ -866,13 +864,13 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nije moguće povezati se putem HTTPS premosnice.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Prijevod nije uspio. Prikazuje se tekst prepoznat OCR-om. Provjerite postavke i vezu.";
+"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Prijevod nije uspio. Prikazuje se tekst prepoznat OCR-om. Provjeri postavke i vezu.";
 
 "TRANSLATION_MANGA_TITLES" = "Prevedi naslove manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Prevedi naslove poglavlja";
 
-"TRANSLATION_TITLES_HELP" = "Koristi vaš API za prijevod i ciljani jezik neovisno o automatskom prijevodu stranica. Isključite pojedinu opciju za prikaz njezina izvornog teksta. Izvornici ostaju vidljivi tijekom učitavanja ili ako prijevod ne uspije.";
+"TRANSLATION_TITLES_HELP" = "Koristi tvoj API za prijevod i ciljani jezik neovisno o automatskom prijevodu stranica. Isključi pojedinu opciju za prikaz njezina izvornog teksta. Izvornici ostaju vidljivi tijekom učitavanja ili ako prijevod ne uspije.";
 
 "TRANSLATION_MANGA_TITLE_FILTER" = "Jezici naslova mange";
 
@@ -940,7 +938,7 @@
 "DOWNLOAD_INCOMPLETE" = "Nedovršeno preuzimanje";
 "CATEGORY_SEARCH" = "Pronađi u kategoriji";
 "LIBRARY_REFRESH_INTERRUPTED" = "Osvježavanje biblioteke prekinuto";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Posljednje osvježavanje biblioteke prekinuto je prije nego što je dovršeno. Želite li nastaviti?";
+"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Posljednje osvježavanje biblioteke prekinuto je prije nego što je dovršeno. Želiš li nastaviti?";
 "DISABLE" = "Onemogući";
 "ENABLE" = "Omogući";
 "RESTART" = "Ponovno pokreni";
@@ -950,7 +948,7 @@
 "EPUB_NAME" = "EPUB";
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "Poslužitelj za čitanje manga";
-"SUWAYOMI_INFO" = "Suwayomi je poslužitelj za čitanje manga s vlastitim hostingom koji pokreće proširenja napravljena za Mihon (Tachiyomi). Trebat će vam postavljen i pokrenut Suwayomi poslužitelj kako biste koristili ovaj izvor.";
+"SUWAYOMI_INFO" = "Suwayomi je poslužitelj za čitanje manga s vlastitim hostingom koji pokreće proširenja napravljena za Mihon (Tachiyomi). Trebat će ti postavljen i pokrenut Suwayomi poslužitelj za korištenje ovog izvora.";
 "SUWAYOMI_SETUP" = "Postavljanje Suwayomi";
 "STATUS_LICENSED" = "Licenciran";
 "STATUS_PUBLISHING_FINISHED" = "Objavljivanje završeno";
@@ -969,14 +967,14 @@
 "TEXT_THEME_PAPER" = "Papir";
 "TEXT_THEME_GRAY" = "Sivo";
 "DICTIONARY_LOOKUP" = "Traženje u rječniku";
-"DICTIONARY_SETTINGS_TEXT" = "Omogućite traženje u rječniku kako bi OCR prepoznao tekst na slikama stranica i omogućio pretraživanje riječi u uvezenim Yomitan rječnicima.";
+"DICTIONARY_SETTINGS_TEXT" = "Omogući traženje u rječniku kako bi OCR prepoznao tekst na slikama stranica i omogućio pretraživanje riječi u uvezenim Yomitan rječnicima.";
 "DICTIONARIES" = "Rječnici";
 "ABOUT_DICTIONARIES" = "O rječnicima";
-"ABOUT_DICTIONARIES_TEXT" = "Yomitan rječnici se mogu uvesti iz zip datoteka. Rječnike možete omogućiti ili onemogućiti, a redoslijed im se može promijeniti povlačenjem.";
+"ABOUT_DICTIONARIES_TEXT" = "Yomitan rječnici se mogu uvesti iz zip datoteka. Rječnike možeš omogućiti ili onemogućiti, a redoslijed im se može promijeniti povlačenjem.";
 "LOOKUP_GESTURE" = "Gesta traženja";
 "SINGLE_TAP" = "Jednostruki dodir";
 "LONG_PRESS" = "Dugi pritisak";
-"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Dodirom na početak riječi aktivirat ćete skočni prozor. Ovo onemogućuje dvostruki dodir za zumiranje kada je omogućeno.";
+"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Dodirom na početak riječi aktivirat ćeš skočni prozor. Ovo onemogućuje dvostruki dodir za zumiranje kada je omogućeno.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Držanje na početku riječi će je istaknuti, a otpuštanje će aktivirati skočni prozor. Ovo onemogućuje brze radnje stranice kada je omogućeno.";
 "LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Zaključano gestom traženja: jednostruki dodir.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Zaključano gestom traženja: dugi pritisak.";
@@ -985,7 +983,7 @@
 "DICTIONARY_OVERLAY_PADDING" = "Unutarnja margina preklapanja";
 "DICTIONARY_OVERLAY_TEXT_SCALE" = "Veličina teksta preklapanja";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Ograniči OCR jezike";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Kada je omogućeno, samo će poglavlja označena kao odabrani jezik(i) biti obrađena za OCR. Preporuča se odabrati samo one jezike za koje imate uvezene rječnike.";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Kada je omogućeno, samo će poglavlja označena kao odabrani jezik(i) biti obrađena za OCR. Preporuča se odabrati samo one jezike za koje imaš uvezene rječnike.";
 "DICTIONARY_OCR_LANGUAGES" = "OCR jezici";
 "DICTIONARY_POPUP" = "Skočni prozor rječnika";
 "DISPLAY_MODE" = "Način prikaza";
@@ -1030,9 +1028,9 @@
 "MONTHLY" = "Mjesečno";
 "GET_RECOMMENDED_DICTIONARIES" = "Nabavi preporučene rječnike";
 "RECOMMENDED_DICTIONARIES" = "Preporučeni rječnici";
-"RECOMMENDED_DICTIONARIES_NOTE" = "Svi rječnici u nastavku su japansko-engleski. Za druge jezike možete provjeriti popis Wiktionary rječnika.";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Svi rječnici u nastavku su japansko-engleski. Za druge jezike možeš provjeriti popis Wiktionary rječnika.";
 "RESTORE_MISSING_SOURCES" = "Vratiti nedostajuće izvore?";
-"RESTORE_MISSING_SOURCES_TEXT" = "Želite li potražiti i instalirati izvore koji nedostaju?";
+"RESTORE_MISSING_SOURCES_TEXT" = "Želiš li potražiti i instalirati izvore koji nedostaju?";
 "INSTALL_SOURCES" = "Instaliraj izvore";
 "INSTALLING_SOURCES" = "Instaliranje izvora…";
 "SET_TRACK_CHAPTER_OFFSET" = "Postavi odmak poglavlja";
@@ -1052,13 +1050,13 @@
 "POSITION_RIGHT" = "Desno";
 "UPLOAD_FILE" = "Uvezi datoteku";
 "MIGRATE_CHAPTER_HISTORY" = "Migriraj povijest poglavlja";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrira povijest čitanja preostalu iz starijih verzija koja nije povezana s poglavljima u lokalnoj bazi podataka. To se obično događa automatski nakon ažuriranja. Ako postupak nije završen, možete ga ponovno pokrenuti ovdje.";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrira povijest čitanja preostalu iz starijih verzija koja nije povezana s poglavljima u lokalnoj bazi podataka. To se obično događa automatski nakon ažuriranja. Ako postupak nije završen, možeš ga ponovno pokrenuti ovdje.";
 
 "TRANSLATION_SOURCE_LABELS" = "Prevedi izbornike i naslove odjeljaka izvora";
 
 // Local image import
 "IMPORT_PHOTO" = "Uvezi fotografije";
-"LOCAL_IMAGE_IMPORT_TEXT" = "Uvezite fotografije, slikovne datoteke ili CBZ ili ZIP arhivu za čitanje.";
+"LOCAL_IMAGE_IMPORT_TEXT" = "Uvezi fotografije, slikovne datoteke ili CBZ ili ZIP arhivu za čitanje.";
 
 // Translated page export
 "SAVE_TRANSLATED_IMAGE" = "Spremi sliku s prijevodom";
@@ -1092,9 +1090,9 @@
 
 
 
-"TRANSLATION_ERROR_CONFIGURATION" = "Postavke prijevoda nisu valjane. Provjerite URL poslužitelja, model i ostale postavke.";
+"TRANSLATION_ERROR_CONFIGURATION" = "Postavke prijevoda nisu valjane. Provjeri URL poslužitelja, model i ostale postavke.";
 "TRANSLATION_ERROR_REQUEST" = "Tekst, slika ili jezične postavke ne mogu se koristiti za prijevod.";
-"TRANSLATION_ERROR_RESPONSE" = "Poslužitelj za prijevod vratio je nevaljan odgovor. Pokušajte ponovno ili provjerite postavke modela.";
+"TRANSLATION_ERROR_RESPONSE" = "Poslužitelj za prijevod vratio je nevaljan odgovor. Pokušaj ponovno ili provjeri postavke modela.";
 "TRANSLATION_ERROR_KEY_REQUIRED" = "Za prijevod je potreban API ključ.";
 "TRANSLATION_ERROR_KEY_ACCESS" = "API ključ za prijevod nije moguće pročitati iz Keychaina.";
 "TRANSLATION_ERROR_ENDPOINT" = "Krajnja točka API-ja za prijevod nije dopuštena sigurnosnim pravilima.";
@@ -1103,7 +1101,7 @@
 "TRANSLATION_ERROR_HTTP" = "Poslužitelj za prijevod vratio je HTTP %d.";
 "TRANSLATION_ERROR_HTTP_REQUEST" = "Poslužitelj za prijevod vratio je HTTP %d (ID zahtjeva: %@).";
 "TRANSLATION_ERROR_NETWORK_CODE" = "Zahtjev za prijevod nije uspio (pogreška %d).";
-"TRANSLATION_ERROR_CONNECTION" = "Nije moguće povezati se s API-jem za prijevod. Provjerite mrežnu vezu, krajnju točku API-ja i stanje poslužitelja pa pokušajte ponovno.";
+"TRANSLATION_ERROR_CONNECTION" = "Nije moguće povezati se s API-jem za prijevod. Provjeri mrežnu vezu, krajnju točku API-ja i stanje poslužitelja pa pokušajte ponovno.";
 "TRANSLATION_ERROR_REFUSED" = "Pružatelj usluge prijevoda odbio je zahtjev.";
 "TRANSLATION_ERROR_KEY_ACCOUNT" = "Identifikator koji se koristi za pohranu API ključa nije valjan.";
 "TRANSLATION_ERROR_KEY_INVALID" = "API ključ je prazan, predugačak ili sadrži nepodržane znakove.";

@@ -95,7 +95,7 @@
 "THAT_HAVENT_BEEN_READ" = "Sonder hoofstukke wat as gelees gemerk is";
 "SOURCE_LISTS" = "Bronnelyste";
 "SOURCE_LIST_ADDED" = "Bronnelys Bygevoeg";
-"BACKUP_IMPORT_FAIL_TEXT" = "Kon nie rugsteun stoor nie. Verseker asseblief dat jou rugsteun in die regte formaat is.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Kon nie rugsteun invoer nie. Verseker asseblief dat jou rugsteun in die regte formaat is.";
 "EXPORT" = "Voer uit";
 "RESTORE" = "Herstel";
 "LOGS" = "Logboeke";
@@ -175,7 +175,6 @@
 
 // Settings
 "SETTINGS" = "Instellings";
-"SUPPPORT_DEVELOPMENT" = "Ondersteun Ontwikkeling";
 "GITHUB_REPO" = "GitHub-Bewaarplek";
 "ABOUT" = "Oor";
 "DISCORD_SERVER" = "Discord-Bediener";
@@ -498,7 +497,7 @@
 "PROCESSING_ENTRIES" = "Verwerk tans inskrywings…";
 "REFRESH_NO_WIFI" = "Nie aan Wi-Fi gekoppel nie";
 "REFRESH_NO_WIFI_TEXT" = "Die instelling om slegs oor Wi-Fi op te dateer is geaktiveer. Koppel aan Wi-Fi om jou biblioteek te verfris.";
-"REFRESH_ANYWAYS" = "Verfris in elk geval";
+"REFRESH_ANYWAY" = "Verfris in elk geval";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Verwyder uit biblioteek?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "As jy hierdie reeks uit jou biblioteek verwyder, word die reeks se skakels na naspoorders ook verwyder. Is jy seker jy wil voortgaan?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Biblioteekverversing onderbreek";
@@ -549,7 +548,6 @@
 "MORE_BARBUTTON" = "Meer";
 "RETRY" = "Probeer weer";
 "RESTART" = "Herbegin";
-"NO_RESULT" = "Geen resultaat";
 "UNIMPLEMENTED" = "Ongeïmplementeer";
 "NETWORK_ERROR" = "Netwerkfout";
 "DECODING_ERROR" = "Dekoderingsfout";
@@ -726,8 +724,8 @@
 "STANDARD" = "Standaard";
 "COMPACT" = "Kompak";
 "CUSTOM" = "Pasgemaak";
-"PORTRAIT_ROWS" = "Kolomme in portretoriëntasie";
-"LANDSCAPE_ROWS" = "Kolomme in landskaporiëntasie";
+"PORTRAIT_COLUMNS" = "Kolomme in portretoriëntasie";
+"LANDSCAPE_COLUMNS" = "Kolomme in landskaporiëntasie";
 "RESUME_LAST_OPENED_CHAPTER" = "Hervat laas oopgemaakte hoofstuk";
 "CONTINUE_READING_ON_RESELECT" = "Tik weer op Geskiedenis om verder te lees";
 "DOWNLOADED_CHAPTER_BADGES" = "Kentekens vir afgelaaide hoofstukke";

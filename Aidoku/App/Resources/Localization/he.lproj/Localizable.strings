@@ -97,7 +97,6 @@
 // Settings
 "SETTINGS" = "הגדרות";
 "AUTH_TO_ENABLE" = "הזדהה על מנת לאפשר.";
-"SUPPPORT_DEVELOPMENT" = "תמיכה בפיתוח";
 "GENERAL" = "כללי";
 "ICLOUD_SYNC" = "סנכרון iCloud";
 "INCOGNITO_MODE" = "קריאה בסתר";
@@ -271,7 +270,7 @@
 "SOURCE_LIST_ADD_FAIL_TEXT" = "כתובת ה-URL של רשימת המקורות שסופקה אינה תקינה או שכבר נוספה.";
 "SOURCE_LIST_ADDED_TEXT" = "כעת תוכל לעיין במקורות חיצוניים בלשונית העיון.";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "כדי לשחזר לגיבוי זה, מצא אותו בדף הגיבויים בהגדרות.";
-"BACKUP_IMPORT_FAIL_TEXT" = "שמירת הגיבוי נכשלה. אנא ודא שהגיבוי שלך הוא בפורמט המתאים.";
+"BACKUP_IMPORT_FAIL_TEXT" = "ייבוא הגיבוי נכשל. אנא ודא שהגיבוי שלך הוא בפורמט המתאים.";
 "CROP_BORDERS" = "חתוך שוליים";
 "ADVANCED" = "הגדרות מתקדמות";
 "RESET_TEXT" = "פעולה זו היא בלתי הפיכה. כל הנתונים, ההגדרות והמטמון ינוקו ויאופסו.";
@@ -580,7 +579,7 @@
 "PROCESSING_ENTRIES" = "מעבד ערכים...";
 "REFRESH_NO_WIFI" = "לא מחובר ל-Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "ההגדרה לעדכן רק באמצעות Wi-Fi מופעלת. התחבר ל-Wi-Fi כדי לרענן את הספרייה שלך.";
-"REFRESH_ANYWAYS" = "רענן בכל מקרה";
+"REFRESH_ANYWAY" = "רענן בכל מקרה";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "להסיר מהספרייה?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "הסרת סדרה זו מהספרייה תסיר גם את כל הקישורים לשירותי המעקב. האם להמשיך?";
 "LIBRARY_REFRESH_INTERRUPTED" = "רענון הספרייה הופסק";
@@ -624,7 +623,6 @@
 "MORE_BARBUTTON" = "עוד";
 "RETRY" = "נסה שוב";
 "RESTART" = "הפעל מחדש";
-"NO_RESULT" = "אין תוצאה";
 "UNIMPLEMENTED" = "לא מיושם";
 "NETWORK_ERROR" = "שגיאת רשת";
 "DECODING_ERROR" = "שגיאת פענוח";
@@ -799,8 +797,8 @@
 "STANDARD" = "סטנדרטי";
 "COMPACT" = "קומפקטי";
 "CUSTOM" = "מותאם אישית";
-"PORTRAIT_ROWS" = "מספר עמודות במצב אנכי";
-"LANDSCAPE_ROWS" = "מספר עמודות במצב אופקי";
+"PORTRAIT_COLUMNS" = "מספר עמודות במצב אנכי";
+"LANDSCAPE_COLUMNS" = "מספר עמודות במצב אופקי";
 "RESUME_LAST_OPENED_CHAPTER" = "המשך פרק שנפתח לאחרונה";
 "CONTINUE_READING_ON_RESELECT" = "הקש שוב על כרטיסיית ההיסטוריה כדי להמשיך בקריאה";
 "DOWNLOADED_CHAPTER_BADGES" = "תגי פרקים שהורדו";

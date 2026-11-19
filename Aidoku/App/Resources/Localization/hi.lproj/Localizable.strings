@@ -153,7 +153,6 @@
 // Settings
 "SETTINGS" = "सेटिंग्स";
 "DISCORD_SERVER" = "डिस्कॉर्ड सर्वर";
-"SUPPPORT_DEVELOPMENT" = "विकास में सहयोग करें";
 "APPEARANCE_LIGHT" = "हल्का";
 "APPEARANCE_DARK" = "गहरा";
 "USE_SYSTEM_APPEARANCE" = "सिस्टम के अनुसार दिखावट";
@@ -190,7 +189,7 @@
 "RESTORE_BACKUP_TEXT" = "मौजूदा सभी डेटा हटा दिया जाएगा और उसकी जगह इस बैकअप का डेटा रखा जाएगा।";
 "BACKUP_IMPORT_SUCCESS" = "बैकअप आयात किया गया";
 "IMPORT_FAIL" = "आयात विफल";
-"BACKUP_IMPORT_FAIL_TEXT" = "बैकअप सहेजने में विफल। कृपया सुनिश्चित करें कि आपका बैकअप सही प्रारूप में है।";
+"BACKUP_IMPORT_FAIL_TEXT" = "बैकअप आयात करने में विफल। कृपया सुनिश्चित करें कि आपका बैकअप सही प्रारूप में है।";
 "RESTORE" = "पुनर्स्थापित करें";
 "LOGS" = "लॉग";
 "LOGGING" = "लॉगिंग";
@@ -528,7 +527,7 @@
 "PROCESSING_ENTRIES" = "प्रविष्टियाँ संसाधित की जा रही हैं…";
 "REFRESH_NO_WIFI" = "वाई-फ़ाई से कनेक्ट नहीं है";
 "REFRESH_NO_WIFI_TEXT" = "केवल वाई-फाई पर अपडेट करने की सेटिंग सक्षम है। अपनी लाइब्रेरी को रीफ़्रेश करने के लिए वाई-फाई से कनेक्ट करें।";
-"REFRESH_ANYWAYS" = "फिर भी रीफ़्रेश करें";
+"REFRESH_ANYWAY" = "फिर भी रीफ़्रेश करें";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "लाइब्रेरी से हटाएँ?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "इस श्रृंखला को लाइब्रेरी से हटाने पर इसके सभी ट्रैकर लिंक भी हट जाएँगे। क्या आप आगे बढ़ना चाहते हैं?";
 "LIBRARY_REFRESH_INTERRUPTED" = "लाइब्रेरी रीफ़्रेश बाधित";
@@ -579,7 +578,6 @@
 "MORE_BARBUTTON" = "अधिक";
 "RETRY" = "पुनः प्रयास करें";
 "RESTART" = "पुनः प्रारंभ करें";
-"NO_RESULT" = "कोई नतीजा नहीं";
 "UNIMPLEMENTED" = "लागू नहीं किया गया";
 "NETWORK_ERROR" = "नेटवर्क त्रुटि";
 "DECODING_ERROR" = "डिकोडिंग त्रुटि";
@@ -754,8 +752,8 @@
 "STANDARD" = "मानक";
 "COMPACT" = "सघन";
 "CUSTOM" = "कस्टम";
-"PORTRAIT_ROWS" = "पोर्ट्रेट में कॉलम";
-"LANDSCAPE_ROWS" = "लैंडस्केप में कॉलम";
+"PORTRAIT_COLUMNS" = "पोर्ट्रेट में कॉलम";
+"LANDSCAPE_COLUMNS" = "लैंडस्केप में कॉलम";
 "RESUME_LAST_OPENED_CHAPTER" = "अंतिम बार खोले गए अध्याय को पढ़ना जारी रखें";
 "CONTINUE_READING_ON_RESELECT" = "पढ़ना जारी रखने के लिए इतिहास टैब पर फिर टैप करें";
 "DOWNLOADED_CHAPTER_BADGES" = "डाउनलोड किए गए अध्यायों के बैज";

@@ -415,7 +415,7 @@
 "PROCESSING_ENTRIES" = "اندراجات پر کارروائی ہو رہی ہے…";
 "REFRESH_NO_WIFI" = "Wi-Fi سے منسلک نہیں ہے";
 "REFRESH_NO_WIFI_TEXT" = "صرف Wi-Fi پر اپ ڈیٹ کرنے کی ترتیب فعال ہے۔ اپنی لائبریری کو ریفریش کرنے کے لیے Wi-Fi سے جڑیں۔";
-"REFRESH_ANYWAYS" = "بہرحال ریفریش کریں";
+"REFRESH_ANYWAY" = "بہرحال ریفریش کریں";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "لائبریری سے ہٹائیں؟";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "اس سیریز کو لائبریری سے ہٹانے پر اس کے تمام ٹریکر روابط بھی ہٹ جائیں گے۔ کیا آپ جاری رکھنا چاہتے ہیں؟";
 "LIBRARY_REFRESH_INTERRUPTED" = "لائبریری ریفریش میں خلل پڑا";
@@ -466,7 +466,6 @@
 "MORE_BARBUTTON" = "مزید";
 "RETRY" = "دوبارہ کوشش کریں";
 "RESTART" = "دوبارہ شروع کریں";
-"NO_RESULT" = "کوئی نتیجہ نہیں";
 "UNIMPLEMENTED" = "ابھی نافذ نہیں کیا گیا";
 "NETWORK_ERROR" = "نیٹ ورک کی خرابی";
 "DECODING_ERROR" = "ضابطہ کشائی کی خرابی";
@@ -655,7 +654,6 @@
 "ABOUT" = "کے بارے میں";
 "GITHUB_REPO" = "GitHub ذخیرہ";
 "DISCORD_SERVER" = "Discord سرور";
-"SUPPPORT_DEVELOPMENT" = "ترقیاتی کام کی حمایت کریں";
 "GENERAL" = "عمومی";
 "ICLOUD_SYNC" = "iCloud مطابقت پذیری";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync ایک تجرباتی خصوصیت ہے۔ اسے فعال یا غیر فعال کرنے سے ڈیٹا ضائع ہو سکتا ہے۔";
@@ -670,8 +668,8 @@
 "STANDARD" = "معیاری";
 "COMPACT" = "کمپیکٹ";
 "CUSTOM" = "حسب ضرورت";
-"PORTRAIT_ROWS" = "عمودی حالت میں کالموں کی تعداد";
-"LANDSCAPE_ROWS" = "افقی حالت میں کالموں کی تعداد";
+"PORTRAIT_COLUMNS" = "عمودی حالت میں کالموں کی تعداد";
+"LANDSCAPE_COLUMNS" = "افقی حالت میں کالموں کی تعداد";
 "PORTRAIT" = "عمودی";
 "LANDSCAPE" = "افقی";
 "READER" = "ریڈر";
@@ -858,7 +856,7 @@
 "BACKUP_IMPORT_SUCCESS" = "بیک اپ درآمد ہو گیا";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "اس بیک اپ کو بحال کرنے کے لیے، اسے ترتیبات میں بیک اپس کے صفحے پر تلاش کریں۔";
 "IMPORT_FAIL" = "درآمد کرنے میں ناکام";
-"BACKUP_IMPORT_FAIL_TEXT" = "بیک اپ محفوظ کرنے میں ناکام۔ براہ کرم یقینی بنائیں کہ آپ کا بیک اپ مناسب فارمیٹ میں ہے۔";
+"BACKUP_IMPORT_FAIL_TEXT" = "بیک اپ درآمد کرنے میں ناکام۔ براہ کرم یقینی بنائیں کہ آپ کا بیک اپ مناسب فارمیٹ میں ہے۔";
 "SOURCE_IMPORT_FAIL_TEXT" = "ماخذ درآمد کرنے میں ناکام۔ براہ کرم یقینی بنائیں کہ آپ کی aix فائل درست ہے۔";
 "FILE_IMPORT_FAIL_TEXT" = "فائل درآمد نہیں ہو سکی۔ یقینی بنائیں کہ یہ پڑھنے کے قابل تصویری فائل یا تصاویر پر مشتمل درست CBZ یا ZIP آرکائیو ہے۔";
 "BACKUP_%@" = "بیک اپ %@";

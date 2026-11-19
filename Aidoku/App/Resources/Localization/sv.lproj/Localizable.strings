@@ -111,7 +111,6 @@
 "INCOGNITO_MODE_TEXT" = "Pausar läshistoriken om aktiverad";
 "MISSING_SOURCES_TEXT" = "Den återställda säkerhetskopian kan innehålla data från följande källor, som inte är installerade för närvarande:";
 "LOGOUT_FROM_%@" = "Logga ut från %@?";
-"SUPPPORT_DEVELOPMENT" = "Stöd utveckling";
 "CATEGORY_ADD_TEXT" = "Ange namnet på den nya kategorin som ska skapas.";
 "LOG_SERVER" = "Loggserver";
 "EDIT_CATEGORIES" = "Redigera kategorier";
@@ -202,7 +201,7 @@
 "BACKUP_IMPORT_SUCCESS" = "Säkerhetskopia importerad";
 "WEBTOON" = "Webtoon";
 "RESTORE_BACKUP_TEXT" = "All nuvarande data kommer att raderas och ersättas av data från denna säkerhetskopia.";
-"BACKUP_IMPORT_FAIL_TEXT" = "Kunde ej spara säkerhetskopia. Säkerställ att din säkerhetskopia är i korrekt format.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Kunde ej importera säkerhetskopia. Säkerställ att din säkerhetskopia är i korrekt format.";
 "TRACK_PAUSED" = "Pausad";
 "APPEARANCE_DARK" = "Mörk";
 "CH_X" = "Kap.%g";
@@ -346,7 +345,6 @@
 "INVALID_URL_TEXT" = "Källans URL är ogiltig.";
 "MORE_BARBUTTON" = "Mer";
 "RETRY" = "Försök igen";
-"NO_RESULT" = "Inget resultat";
 "UNIMPLEMENTED" = "Ej implementerad";
 "NETWORK_ERROR" = "Nätverksfel";
 "DECODING_ERROR" = "Avkodningsfel";
@@ -686,7 +684,7 @@
 "TEXT_READER_PAGED" = "Sidvis";
 "REFRESH_NO_WIFI" = "Inte ansluten till Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Inställningen ”Uppdatera endast med Wi-Fi” är aktiverad. Anslut till Wi-Fi för att uppdatera biblioteket.";
-"REFRESH_ANYWAYS" = "Uppdatera ändå";
+"REFRESH_ANYWAY" = "Uppdatera ändå";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Ta bort från biblioteket?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Om du tar bort denna serie från ditt bibliotek tas även seriens länkar till spårningstjänster bort. Är du säker på att du vill fortsätta?";
 "INCOGNITO_FILTERS_NOTICE" = "Ändrade filter sparas inte i inkognitoläget.";
@@ -699,8 +697,8 @@
 "BASIC" = "Enkel";
 "COMPACT" = "Kompakt";
 "CUSTOM" = "Anpassad";
-"PORTRAIT_ROWS" = "Kolumner i stående läge";
-"LANDSCAPE_ROWS" = "Kolumner i liggande läge";
+"PORTRAIT_COLUMNS" = "Kolumner i stående läge";
+"LANDSCAPE_COLUMNS" = "Kolumner i liggande läge";
 "RESUME_LAST_OPENED_CHAPTER" = "Fortsätt senast öppnade kapitel";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Stäng av dubbeltryckszoom";
 "PAGE_OFFSET" = "Sidförskjutning";

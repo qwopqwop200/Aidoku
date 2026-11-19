@@ -92,7 +92,6 @@
 "ABOUT" = "Sobre";
 "GITHUB_REPO" = "Repositório GitHub";
 "DISCORD_SERVER" = "Servidor do Discord";
-"SUPPPORT_DEVELOPMENT" = "Apoiar o desenvolvimento";
 "GENERAL" = "Geral";
 "ICLOUD_SYNC" = "Sincronizar com iCloud";
 "APPEARANCE" = "Aparência";
@@ -121,7 +120,7 @@
 "BACKUP_IMPORT_SUCCESS" = "Backup importado";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Para restaurar este backup, localize-o na página de backups nas configurações.";
 "IMPORT_FAIL" = "Falha na importação";
-"BACKUP_IMPORT_FAIL_TEXT" = "Falha ao salvar o backup. Certifique-se de que seu backup esteja no formato adequado.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Falha ao importar o backup. Certifique-se de que seu backup esteja no formato adequado.";
 "EXPORT" = "Exportar";
 "RESTORE" = "Restaurar";
 "ADVANCED" = "Avançado";
@@ -458,7 +457,6 @@
 "RESET_SETTINGS_CONFIRM_%@" = "Tem certeza de que deseja redefinir todas as configurações de %@?";
 "CANCEL_CONFIRM" = "Tem certeza de que deseja cancelar?";
 "CANCEL_CONFIRM_TEXT" = "Suas mudanças serão descartadas.";
-"NO_RESULT" = "Sem resultados";
 "UNIMPLEMENTED" = "Não implementado";
 "IMPORT_SOURCE" = "Importar Fonte";
 "MORE_BARBUTTON" = "Mais";
@@ -563,7 +561,7 @@
 "CATEGORY_SEARCH" = "Buscar na categoria";
 "REFRESH_NO_WIFI" = "Não conectado ao Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "A opção \"Apenas atualizar via Wi-Fi\" está ativa, a biblioteca não pode ser atualizada enquanto não se conectar a uma Wi-Fi.";
-"REFRESH_ANYWAYS" = "Atualizar de qualquer forma";
+"REFRESH_ANYWAY" = "Atualizar de qualquer forma";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Remover da biblioteca?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Remover esta série da biblioteca também removerá todos os vínculos com serviços de acompanhamento. Deseja continuar?";
 "INCOGNITO_FILTERS_NOTICE" = "Filtros modificados não persistem no modo anônimo.";
@@ -885,8 +883,8 @@
 "ARTIST_NAME" = "Nome do artista";
 "INVALID_KEY" = "Chave inválida";
 "LAYOUT" = "Disposição";
-"PORTRAIT_ROWS" = "Colunas na vertical";
-"LANDSCAPE_ROWS" = "Colunas na horizontal";
+"PORTRAIT_COLUMNS" = "Colunas na vertical";
+"LANDSCAPE_COLUMNS" = "Colunas na horizontal";
 "RESUME_LAST_OPENED_CHAPTER" = "Retomar o último capítulo aberto";
 "CONTINUE_READING_ON_RESELECT" = "Tocar novamente em Histórico para retomar a leitura";
 "DOWNLOADED_CHAPTER_BADGES" = "Indicadores de capítulos baixados";

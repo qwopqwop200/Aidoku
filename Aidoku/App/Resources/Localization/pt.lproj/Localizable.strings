@@ -82,7 +82,6 @@
 "ABOUT" = "Sobre";
 "GITHUB_REPO" = "Repositório GitHub";
 "DISCORD_SERVER" = "Servidor do Discord";
-"SUPPPORT_DEVELOPMENT" = "Apoiar Desenvolvimento";
 "INCOGNITO_MODE" = "Modo Incógnito";
 "READER" = "Leitor";
 "BACKUPS" = "Backups";
@@ -93,7 +92,7 @@
 "RESTORE_BACKUP" = "Restaurar este backup?";
 "RESTORE_BACKUP_TEXT" = "Todos os dados atuais serão removidos e substituídos pelos dados deste backup.";
 "IMPORT_FAIL" = "A importação falhou";
-"BACKUP_IMPORT_FAIL_TEXT" = "Falha ao guardar o backup. Certifique-se de que o seu backup está no formato correto.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Falha ao importar o backup. Certifique-se de que o seu backup está no formato correto.";
 "EXPORT" = "Exportar";
 "RESTORE" = "Restaurar";
 "RESET_TEXT" = "Esta ação é irreversível. Todos os dados, definições e caches serão limpos e repostos.";
@@ -466,7 +465,7 @@
 "REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "A remover %i elementos da categoria %@";
 "REFRESHING_LIBRARY" = "A atualizar a biblioteca…";
 "PROCESSING_ENTRIES" = "A processar entradas…";
-"REFRESH_ANYWAYS" = "Atualizar mesmo assim";
+"REFRESH_ANYWAY" = "Atualizar mesmo assim";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Remover da biblioteca?";
 "CATEGORY" = "Categoria";
 "UNCATEGORIZED" = "Sem categoria";
@@ -489,7 +488,6 @@
 "RANGE_TO" = "Até";
 "SOURCE_SETTINGS" = "Configurações de fontes";
 "RESET_SETTINGS_CONFIRM_%@" = "Tem a certeza de que pretende repor todas as definições de %@?";
-"NO_RESULT" = "Sem resultado";
 "DECODING_ERROR" = "Erro de decodificação";
 "BUILT_IN_SOURCES" = "Fontes integradas";
 "NO_EXTERNAL_SOURCES_INFO" = "Configure listas de fontes no separador Configurações para instalar fontes externas.";
@@ -884,8 +882,8 @@
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "A sincronização com iCloud é uma funcionalidade experimental. Ativá-la ou desativá-la pode causar perda de dados.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "A sincronização com iCloud só está disponível quando a aplicação é instalada através do TestFlight.";
 "LAYOUT" = "Disposição";
-"PORTRAIT_ROWS" = "Colunas na vertical";
-"LANDSCAPE_ROWS" = "Colunas na horizontal";
+"PORTRAIT_COLUMNS" = "Colunas na vertical";
+"LANDSCAPE_COLUMNS" = "Colunas na horizontal";
 "RESUME_LAST_OPENED_CHAPTER" = "Retomar o último capítulo aberto";
 "CONTINUE_READING_ON_RESELECT" = "Tocar novamente em Histórico para retomar a leitura";
 "DOWNLOADED_CHAPTER_BADGES" = "Indicadores de capítulos descarregados";

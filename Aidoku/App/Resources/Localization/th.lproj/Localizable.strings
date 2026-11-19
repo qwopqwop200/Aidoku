@@ -91,7 +91,6 @@
 "AUTH_TO_ENABLE" = "ยืนยันตัวตนเพื่อเปิดใช้งาน";
 "AUTH_TO_DISABLE" = "ยืนยันตัวตนเพื่อปิดใช้งาน";
 "ABOUT" = "เกี่ยวกับ";
-"SUPPPORT_DEVELOPMENT" = "สนับสนุนผู้พัฒนา";
 "GENERAL" = "ทั่วไป";
 "ICLOUD_SYNC" = "ซิงค์ iCloud";
 "INCOGNITO_MODE" = "โหมดไม่ระบุตัวตน";
@@ -287,7 +286,7 @@
 "DISPLAY_LOGS" = "แสดงล็อก";
 "ADVANCED" = "ขั้นสูง";
 "RESET_TEXT" = "การกระทำนี้ไม่สามารถกู้กลับได้ ข้อมูลทุกอย่าง การตั้งค่า และ แคชจะถูกลบออกและรีเซ็ต";
-"BACKUP_IMPORT_FAIL_TEXT" = "เกิดการผิดพลาดในการบันทึกไฟล์สำรองข้อมูล กรุณาตรวจสอบว่าไฟล์อยู่ในรูปแบบที่ถูกต้อง";
+"BACKUP_IMPORT_FAIL_TEXT" = "นำเข้าไฟล์สำรองข้อมูลไม่สำเร็จ กรุณาตรวจสอบว่าไฟล์อยู่ในรูปแบบที่ถูกต้อง";
 "CLEAR_NETWORK_CACHE" = "ล้างแคชเครือข่าย";
 "CATEGORY_NAME" = "ชื่อหมวดหมู่";
 "DEFAULT_READING_MODE" = "โหมดเริ่มต้นในการอ่าน";
@@ -398,7 +397,6 @@
 "INVALID_URL_TEXT" = "URL จากแหล่งข้อมูลนี้ไม่ถูกต้อง";
 "MORE_BARBUTTON" = "เพิ่มเติม";
 "RETRY" = "ลองอีกครั้ง";
-"NO_RESULT" = "ไม่มีผลลัพธ์";
 "UNIMPLEMENTED" = "ยังไม่ได้ดำเนินการ";
 "NETWORK_ERROR" = "เครือข่ายขัดข้อง";
 "DECODING_ERROR" = "การถอดรหัสผิดพลาด";
@@ -635,7 +633,7 @@
 "CATEGORY_SEARCH" = "หาในหมวดหมู่";
 "REFRESH_NO_WIFI" = "ไม่ได้เชื่อมต่อ Wi-Fi";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "ลบออกจากคลัง?";
-"REFRESH_ANYWAYS" = "รีเฟรชต่อไป";
+"REFRESH_ANYWAY" = "รีเฟรชต่อไป";
 "LIBRARY_REFRESH_INTERRUPTED" = "รีเฟรชคลังถูกขัดจังหวะ";
 "RESTART" = "เริ่มต้นใหม่";
 "HTML_ERROR" = "HTML ขัดข้อง";
@@ -906,8 +904,8 @@
 "STANDARD" = "มาตรฐาน";
 "COMPACT" = "กะทัดรัด";
 "CUSTOM" = "กำหนดเอง";
-"PORTRAIT_ROWS" = "จำนวนคอลัมน์ในแนวตั้ง";
-"LANDSCAPE_ROWS" = "จำนวนคอลัมน์ในแนวนอน";
+"PORTRAIT_COLUMNS" = "จำนวนคอลัมน์ในแนวตั้ง";
+"LANDSCAPE_COLUMNS" = "จำนวนคอลัมน์ในแนวนอน";
 "RESUME_LAST_OPENED_CHAPTER" = "อ่านต่อจากตอนที่เปิดล่าสุด";
 "CONTINUE_READING_ON_RESELECT" = "แตะแท็บประวัติอีกครั้งเพื่ออ่านต่อ";
 "PIN_TITLES" = "ปักหมุดชื่อมังงะ";

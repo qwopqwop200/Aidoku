@@ -102,7 +102,6 @@
 "SETTINGS" = "Pengaturan";
 "AUTH_TO_ENABLE" = "Otentikasi untuk mengaktifkan.";
 "ABOUT" = "Tentang";
-"SUPPPORT_DEVELOPMENT" = "Dukung Pengembangan";
 "GENERAL" = "Umum";
 "ICLOUD_SYNC" = "Sinkronisasi iCloud";
 "INCOGNITO_MODE" = "Mode Penyamaran";
@@ -137,7 +136,7 @@
 "RESTORE_BACKUP_TEXT" = "Semua data saat ini akan dihapus dan diganti dengan data dari cadangan ini.";
 "BACKUP_IMPORT_SUCCESS" = "Cadangan Diimpor";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Untuk memulihkan cadangan ini, temukan di halaman cadangan di pengaturan.";
-"BACKUP_IMPORT_FAIL_TEXT" = "Gagal menyimpan cadangan. Harap pastikan bahwa cadangan Anda dalam format yang benar.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Gagal mengimpor cadangan. Harap pastikan bahwa cadangan Anda dalam format yang benar.";
 "LOGS" = "Log";
 "LOGGING" = "Pencatatan";
 "LOG_SERVER" = "Server Log";
@@ -306,7 +305,6 @@
 "INVALID_URL_TEXT" = "URL untuk sumber ini tidak valid.";
 "MORE_BARBUTTON" = "Lainnya";
 "RETRY" = "Coba lagi";
-"NO_RESULT" = "Tidak ada hasil";
 "UNIMPLEMENTED" = "Belum diimplementasikan";
 "NETWORK_ERROR" = "Kesalahan Jaringan";
 "DECODING_ERROR" = "Kesalahan Dekoding";
@@ -686,7 +684,7 @@
 "TRACKER_LOGOUT_INFO" = "Keluar akan menghapus info pelacakan yang tertaut dari pelacak ini untuk semua seri.";
 "REFRESH_NO_WIFI" = "Tidak Terhubung ke Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Pengaturan \"Hanya Perbarui di Wi-Fi\" diaktifkan, sehingga perpustakaan tidak dapat disegarkan hingga koneksi Wi-Fi tersedia.";
-"REFRESH_ANYWAYS" = "Tetap Segarkan";
+"REFRESH_ANYWAY" = "Tetap Segarkan";
 "API_KEY" = "Kunci API";
 "OIDC" = "OIDC";
 "BASIC_LOGIN" = "Login Dasar";
@@ -706,8 +704,8 @@
 "STANDARD" = "Standar";
 "COMPACT" = "Ringkas";
 "CUSTOM" = "Kustom";
-"PORTRAIT_ROWS" = "Kolom dalam Orientasi Potret";
-"LANDSCAPE_ROWS" = "Kolom dalam Orientasi Lanskap";
+"PORTRAIT_COLUMNS" = "Kolom dalam Orientasi Potret";
+"LANDSCAPE_COLUMNS" = "Kolom dalam Orientasi Lanskap";
 "SYNC_WITH_TRACKER_INFO_1" = "Menurut pelacak, 1 bab sudah dibaca. Apakah Anda ingin menandai bab ini sebagai sudah dibaca?";
 "CONTINUOUS_WITH_GAPS" = "Berkelanjutan dengan Celah";
 "CATEGORY_SEARCH" = "Temukan dalam Kategori";

@@ -325,7 +325,7 @@
 "PROCESSING_ENTRIES" = "Inachakata Maingizo…";
 "REFRESH_NO_WIFI" = "Haijaunganishwa kwa Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Mpangilio wa kusasisha kupitia Wi-Fi pekee umewashwa. Unganisha kwenye Wi-Fi ili uonyeshe upya maktaba yako.";
-"REFRESH_ANYWAYS" = "Onyesha Upya Hata Hivyo";
+"REFRESH_ANYWAY" = "Onyesha Upya Hata Hivyo";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Ungependa kuondoa kwenye Maktaba?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Kuondoa mfululizo huu kwenye maktaba yako pia kutaondoa viungo vyake vyote vya ufuatiliaji. Je, una uhakika unataka kuendelea?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Uonyeshaji upya wa Maktaba Umekatizwa";
@@ -403,7 +403,6 @@
 "MORE_BARBUTTON" = "Zaidi";
 "RETRY" = "Jaribu tena";
 "RESTART" = "Anzisha upya";
-"NO_RESULT" = "Hakuna Matokeo";
 "UNIMPLEMENTED" = "Haijatekelezwa";
 "NETWORK_ERROR" = "Hitilafu ya Mtandao";
 "DECODING_ERROR" = "Hitilafu ya Kusimbua";
@@ -639,7 +638,6 @@
 "ABOUT" = "Kuhusu";
 "GITHUB_REPO" = "Hifadhi ya GitHub";
 "DISCORD_SERVER" = "Seva ya Discord";
-"SUPPPORT_DEVELOPMENT" = "Saidia Maendeleo";
 "GENERAL" = "Jumla";
 "ICLOUD_SYNC" = "Usawazishaji wa iCloud";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Usawazishaji wa iCloud ni kipengele cha majaribio. Kuiwezesha au kuizima kunaweza kusababisha upotezaji wa data.";
@@ -654,8 +652,8 @@
 "STANDARD" = "Kawaida";
 "COMPACT" = "Iliyobanana";
 "CUSTOM" = "Maalum";
-"PORTRAIT_ROWS" = "Safu Wima katika Mkao Wima";
-"LANDSCAPE_ROWS" = "Safu Wima katika Mkao Mlalo";
+"PORTRAIT_COLUMNS" = "Safu Wima katika Mkao Wima";
+"LANDSCAPE_COLUMNS" = "Safu Wima katika Mkao Mlalo";
 "PORTRAIT" = "Wima";
 "LANDSCAPE" = "Mlalo";
 "READER" = "Kisomaji";
@@ -842,7 +840,7 @@
 "BACKUP_IMPORT_SUCCESS" = "Hifadhi Rudufu Imeingizwa";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Ili kurejesha hifadhi rudufu hii, itafute kwenye ukurasa wa Hifadhi rudufu katika mipangilio.";
 "IMPORT_FAIL" = "Imeshindwa Kuingiza";
-"BACKUP_IMPORT_FAIL_TEXT" = "Imeshindwa kuhifadhi hifadhi rudufu. Tafadhali hakikisha kuwa hifadhi rudufu yako iko katika umbizo sahihi.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza hifadhi rudufu. Tafadhali hakikisha kuwa hifadhi rudufu yako iko katika umbizo sahihi.";
 "SOURCE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza chanzo. Tafadhali hakikisha kuwa faili yako ya aix ni halali.";
 "FILE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza faili. Hakikisha ni faili ya picha inayoweza kusomwa au faili halali ya CBZ au ZIP yenye picha.";
 "BACKUP_%@" = "Hifadhi Rudufu %@";

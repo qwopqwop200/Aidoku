@@ -91,7 +91,6 @@
 "ABOUT" = "Acerca de";
 "GITHUB_REPO" = "Repositorio de GitHub";
 "DISCORD_SERVER" = "Servidor de Discord";
-"SUPPPORT_DEVELOPMENT" = "Apoya el desarrollo";
 "GENERAL" = "General";
 "ICLOUD_SYNC" = "Sincronización con iCloud";
 "APPEARANCE" = "Apariencia";
@@ -120,7 +119,7 @@
 "BACKUP_IMPORT_SUCCESS" = "Copia de seguridad importada";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Para restaurar esta copia de seguridad, búscala en la página de copias de seguridad en la configuración.";
 "IMPORT_FAIL" = "Importación fallida";
-"BACKUP_IMPORT_FAIL_TEXT" = "No se pudo guardar la copia de seguridad. Revisa que la copia de seguridad esté en el formato adecuado.";
+"BACKUP_IMPORT_FAIL_TEXT" = "No se pudo importar la copia de seguridad. Revisa que la copia de seguridad esté en el formato adecuado.";
 "EXPORT" = "Exportar";
 "RESTORE" = "Restaurar";
 "ADVANCED" = "Avanzado";
@@ -453,7 +452,6 @@
 "OPEN_WEBSITE" = "Abrir sitio web";
 "SOURCE_SETTINGS" = "Configuración de fuente";
 "INVALID_URL" = "URL no válida";
-"NO_RESULT" = "Sin resultados";
 "NETWORK_ERROR" = "Error de red";
 "DECODING_ERROR" = "Error de decodificación";
 "UNKNOWN_ERROR" = "Error desconocido";
@@ -688,7 +686,7 @@
 "TRACKER_LOGOUT_INFO" = "Al cerrar sesión se eliminará la información vinculada a este servicio de seguimiento para todas las series.";
 "REFRESH_NO_WIFI" = "No conectado a la Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "La opción \"Solo actualizar con Wi-Fi\" está activada, por lo que la biblioteca no se puede actualizar hasta que haya una conexión Wi-Fi disponible.";
-"REFRESH_ANYWAYS" = "Actualizar de todos modos";
+"REFRESH_ANYWAY" = "Actualizar de todos modos";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "¿Eliminar de la biblioteca?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Si eliminas esta serie de tu biblioteca, también se eliminarán sus vínculos con los servicios de seguimiento. ¿Seguro que quieres continuar?";
 "INCOGNITO_FILTERS_NOTICE" = "Los filtros modificados no se conservan en el modo incógnito.";
@@ -701,8 +699,8 @@
 "STANDARD" = "Estándar";
 "COMPACT" = "Compacto";
 "CUSTOM" = "Personalizado";
-"PORTRAIT_ROWS" = "Columnas en orientación vertical";
-"LANDSCAPE_ROWS" = "Columnas en orientación horizontal";
+"PORTRAIT_COLUMNS" = "Columnas en orientación vertical";
+"LANDSCAPE_COLUMNS" = "Columnas en orientación horizontal";
 "RESUME_LAST_OPENED_CHAPTER" = "Continuar último capítulo abierto";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Desactivar zoom con doble toque";
 "PAGE_OFFSET" = "Desplazamiento de página";

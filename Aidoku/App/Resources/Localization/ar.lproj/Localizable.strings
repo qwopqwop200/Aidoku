@@ -94,7 +94,6 @@
 "ABOUT" = "عن التطبيق";
 "GITHUB_REPO" = "مستودع GitHub";
 "DISCORD_SERVER" = "خادم Discord";
-"SUPPPORT_DEVELOPMENT" = "ادعم التطوير";
 "GENERAL" = "عام";
 "ICLOUD_SYNC" = "مزامنة iCloud";
 "APPEARANCE" = "المظهر";
@@ -122,7 +121,7 @@
 "BACKUP_IMPORT_SUCCESS" = "تم استيراد النسخة الاحتياطية بنجاح";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "لاستعادة هذه النسخة الاحتياطية، ابحث عنها في صفحة النسخ الاحتياطية في الإعدادات.";
 "IMPORT_FAIL" = "فشل الاستيراد";
-"BACKUP_IMPORT_FAIL_TEXT" = "فشل حفظ النسخة الاحتياطية. يرجى التأكد من أن نسختك الاحتياطية بالتنسيق الصحيح.";
+"BACKUP_IMPORT_FAIL_TEXT" = "فشل استيراد النسخة الاحتياطية. يرجى التأكد من أن نسختك الاحتياطية بالتنسيق الصحيح.";
 "EXPORT" = "تصدير";
 "RESTORE" = "استعادة";
 "ADVANCED" = "متقدم";
@@ -371,7 +370,6 @@
 "INVALID_URL_TEXT" = "الرابط الخاص بهذا المصدر غير صالح.";
 "MORE_BARBUTTON" = "المزيد";
 "RETRY" = "إعادة المحاولة";
-"NO_RESULT" = "لا توجد نتائج";
 "UNIMPLEMENTED" = "لم يتم تنفيذه";
 "NETWORK_ERROR" = "خطأ في الشبكة";
 "DECODING_ERROR" = "خطأ في فك الترميز";
@@ -664,7 +662,7 @@
 "PROCESSING_ENTRIES" = "جارٍ معالجة الإدخالات...";
 "REFRESH_NO_WIFI" = "غير متصل بشبكة Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "تم تمكين الإعداد للتحديث عبر Wi-Fi فقط. اتصل بشبكة Wi-Fi لتحديث مكتبتك.";
-"REFRESH_ANYWAYS" = "تحديث على أي حال";
+"REFRESH_ANYWAY" = "تحديث على أي حال";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "هل تريد الإزالة من المكتبة؟";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "ستؤدي إزالة هذه السلسلة من مكتبتك أيضًا إلى إزالة جميع روابطها بخدمات التتبع. هل أنت متأكد أنك تريد المتابعة؟";
 "LIBRARY_REFRESH_INTERRUPTED" = "تمت مقاطعة تحديث المكتبة";
@@ -830,8 +828,8 @@
 "STANDARD" = "قياسي";
 "COMPACT" = "مدمج";
 "CUSTOM" = "مخصص";
-"PORTRAIT_ROWS" = "عدد الأعمدة في الوضع العمودي";
-"LANDSCAPE_ROWS" = "عدد الأعمدة في الوضع الأفقي";
+"PORTRAIT_COLUMNS" = "عدد الأعمدة في الوضع العمودي";
+"LANDSCAPE_COLUMNS" = "عدد الأعمدة في الوضع الأفقي";
 "RESUME_LAST_OPENED_CHAPTER" = "استئناف الفصل الأخير الذي تم فتحه";
 "CONTINUE_READING_ON_RESELECT" = "اضغط على تبويب السجل مجددًا لاستئناف القراءة";
 "DOWNLOADED_CHAPTER_BADGES" = "شارات الفصول المنزّلة";

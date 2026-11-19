@@ -52,7 +52,6 @@
 "ABOUT" = "Über";
 "GITHUB_REPO" = "GitHub-Repository";
 "DISCORD_SERVER" = "Discord-Server";
-"SUPPPORT_DEVELOPMENT" = "Entwicklung unterstützen";
 "GENERAL" = "Allgemein";
 "ICLOUD_SYNC" = "iCloud-Synchronisierung";
 "INCOGNITO_MODE" = "Inkognito-Modus";
@@ -182,7 +181,7 @@
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Um dieses Backup wiederherzustellen, suche es auf der Seite Backups in den Einstellungen.";
 "RESTORE_BACKUP_TEXT" = "Alle aktuellen Daten werden gelöscht und durch die Daten dieses Backups ersetzt.";
 "LOGGING" = "Protokollierung";
-"BACKUP_IMPORT_FAIL_TEXT" = "Das Backup konnte nicht gespeichert werden. Bitte stelle sicher, dass es das richtige Format hat.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Das Backup konnte nicht importiert werden. Bitte stelle sicher, dass es das richtige Format hat.";
 "EXPORT" = "Exportieren";
 "LOG_SERVER" = "Protokollserver";
 "RESTORE" = "Wiederherstellen";
@@ -376,7 +375,6 @@
 "NETWORK_ERROR" = "Netzwerkfehler";
 "DISCARD_CHANGES" = "Änderungen verwerfen";
 "INVALID_URL_TEXT" = "Die URL für die Quelle ist ungültig.";
-"NO_RESULT" = "Kein Ergebnis";
 "UNIMPLEMENTED" = "Nicht implementiert";
 "RETRY" = "Erneut versuchen";
 "UNKNOWN_ERROR" = "Unbekannter Fehler";
@@ -733,7 +731,7 @@
 "CATEGORY_SEARCH" = "In der Kategorie suchen";
 "REFRESH_NO_WIFI" = "Nicht mit WLAN verbunden";
 "REFRESH_NO_WIFI_TEXT" = "Die Einstellung „Nur mit WLAN aktualisieren“ ist aktiviert. Verbinde dich mit einem WLAN, um deine Bibliothek zu aktualisieren.";
-"REFRESH_ANYWAYS" = "Trotzdem aktualisieren";
+"REFRESH_ANYWAY" = "Trotzdem aktualisieren";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Aus Bibliothek entfernen?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Wenn du diese Serie aus deiner Bibliothek entfernst, werden auch ihre Verknüpfungen mit Trackern entfernt. Möchtest du fortfahren?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Aktualisierung der Bibliothek unterbrochen";
@@ -856,8 +854,8 @@
 "STANDARD" = "Standard";
 "COMPACT" = "Kompakt";
 "CUSTOM" = "Benutzerdefiniert";
-"PORTRAIT_ROWS" = "Spalten im Hochformat";
-"LANDSCAPE_ROWS" = "Spalten im Querformat";
+"PORTRAIT_COLUMNS" = "Spalten im Hochformat";
+"LANDSCAPE_COLUMNS" = "Spalten im Querformat";
 "RESUME_LAST_OPENED_CHAPTER" = "Zuletzt geöffnetes Kapitel fortsetzen";
 "CONTINUE_READING_ON_RESELECT" = "Erneut auf „Verlauf“ tippen, um weiterzulesen";
 "DOWNLOADED_CHAPTER_BADGES" = "Markierungen für heruntergeladene Kapitel";
