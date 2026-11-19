@@ -59,7 +59,7 @@
 "MORE" = "المزيد";
 "SOURCE_ORDER" = "ترتيب الفصول في المصدر";
 "MISSING_SOURCE" = "المصدر مفقود";
-"MISSING_SOURCE_TEXT" = "يبدو أن المصدر الأصلي لهذه المانجا مفقود. يرجى إعادة تنزيله أو إزالة هذا العنوان من مكتبتك.";
+"MISSING_SOURCE_TEXT" = "تعذر العثور على المصدر الأصلي لهذه المانجا. يرجى إعادة تثبيت المصدر أو إزالة هذا العنوان من مكتبتك.";
 "LINK_COPIED" = "تم نسخ الرابط";
 "LINK_COPIED_TEXT" = "تم نسخ الرابط إلى الحافظة.";
 // Reader
@@ -93,10 +93,10 @@
 "SETTINGS" = "الإعدادات";
 "ABOUT" = "عن التطبيق";
 "GITHUB_REPO" = "مستودع GitHub";
-"DISCORD_SERVER" = "خادم الديسكورد";
+"DISCORD_SERVER" = "خادم Discord";
 "SUPPPORT_DEVELOPMENT" = "ادعم التطوير";
 "GENERAL" = "عام";
-"ICLOUD_SYNC" = "مزامنة آيكلاود";
+"ICLOUD_SYNC" = "مزامنة iCloud";
 "APPEARANCE" = "المظهر";
 "APPEARANCE_LIGHT" = "فاتح";
 "APPEARANCE_DARK" = "داكن";
@@ -110,17 +110,17 @@
 "SOURCE_LIST_ADDED" = "تم إضافة قائمة المصادر";
 "SOURCE_LIST_ADDED_TEXT" = "يمكنك الآن تصفح المصادر الخارجية من تبويب تصفح.";
 "DOWNSAMPLE_IMAGES" = "تقليل دقة الصور";
-"BACKUPS" = "النسخ الإحتياطية";
+"BACKUPS" = "النسخ الاحتياطية";
 "BACKUP_NAME" = "اسم النسخة الاحتياطية";
-"RENAME_BACKUP" = "إعادة تسمية النسخة الإحتياطية";
+"RENAME_BACKUP" = "إعادة تسمية النسخة الاحتياطية";
 "RENAME_BACKUP_TEXT" = "اكتب الاسم الجديد للنسخة الاحتياطية";
 "CORRUPTED_BACKUP" = "نسخة احتياطية فاسدة";
 "CORRUPTED_BACKUP_TEXT" = "يبدو أن هذه النسخة الاحتياطية بها بيانات مهيأة بشكل خاطئ. إعادة التسمية غير ممكنة.";
 "BACKUP_INFO" = "اضغط مطولا على النسخة الاحتياطية لتصديرها, أو اسحب إلى اليمين لحذفها.";
-"RESTORE_BACKUP" = "استعادة هذه النسخة الإحتياطية؟";
+"RESTORE_BACKUP" = "استعادة هذه النسخة الاحتياطية؟";
 "RESTORE_BACKUP_TEXT" = "ستتم إزالة جميع البيانات الحالية واستبدالها ببيانات هذه النسخة الاحتياطية.";
 "BACKUP_IMPORT_SUCCESS" = "تم استيراد النسخة الاحتياطية بنجاح";
-"BACKUP_IMPORT_SUCCESS_TEXT" = "لاستعادة هذه النسخة الاحتياطية، ابحث عنها في صفحة النسخ الإحتياطية في الإعدادات.";
+"BACKUP_IMPORT_SUCCESS_TEXT" = "لاستعادة هذه النسخة الاحتياطية، ابحث عنها في صفحة النسخ الاحتياطية في الإعدادات.";
 "IMPORT_FAIL" = "فشل الاستيراد";
 "BACKUP_IMPORT_FAIL_TEXT" = "فشل حفظ النسخة الاحتياطية. يرجى التأكد من أن نسختك الاحتياطية بالتنسيق الصحيح.";
 "EXPORT" = "تصدير";
@@ -130,20 +130,20 @@
 "CLEAR_NETWORK_CACHE" = "مسح ذاكرة التخزين المؤقت للشبكة";
 "CLEAR_NETWORK_CACHE_TEXT" = "هذا الإجراء لا رجعة فيه. سيتم مسح طلبات الشبكة المخزنة مؤقتًا والصور.";
 "CLEAR_READ_HISTORY" = "مسح سجل القراءة";
-"CLEAR_READ_HISTORY_TEXT" = "هذا الإجراء لا رجعة فيه. سيتم مسح كل تاريخ القراءة.";
+"CLEAR_READ_HISTORY_TEXT" = "هذا الإجراء لا رجعة فيه. سيتم مسح سجل القراءة بالكامل.";
 "SHARE" = "مشاركة";
 "LOADING_ELLIPSIS" = "جاري التحميل…";
 "REMOVE" = "إزالة";
 
 // Downloads
-"DOWNLOAD" = "تحميل";
+"DOWNLOAD" = "تنزيل";
 "NEXT_UNREAD" = "غير المقروء التالي";
-"NEXT_%i_UNREAD" = "%i غير مقروءة التالية";
+"NEXT_%i_UNREAD" = "الـ%i غير المقروءة التالية";
 "DOWNLOADED" = "تم التنزيل";
 "CLEAR" = "مسح";
 "CANCEL_DOWNLOAD" = "إلغاء التنزيل";
-"REMOVE_ALL_DOWNLOADS" = "حذف جميع التحميلات";
-"REMOVE_DOWNLOAD" = "حذف التحميل";
+"REMOVE_ALL_DOWNLOADS" = "إزالة جميع التنزيلات";
+"REMOVE_DOWNLOAD" = "إزالة التنزيل";
 "REMOVE_DOWNLOADS" = "حذف التنزيلات";
 
 // Categories
@@ -171,7 +171,7 @@
 "EDIT_CATEGORIES" = "تحرير الفئات";
 "INCOGNITO_MODE_TEXT" = "يوقف تسجيل سجل القراءة مؤقتًا عند تفعيله";
 "DESELECT_ALL" = "إلغاء تحديد الكل";
-"REMOVE_CHAPTER_HISTORY_TEXT" = "سيؤدي هذا إلى إزالة تاريخ القراءة لهذا الفصل. هل أنت متأكد من أنك تريد المتابعة؟";
+"REMOVE_CHAPTER_HISTORY_TEXT" = "سيؤدي هذا إلى إزالة سجل القراءة لهذا الفصل. هل أنت متأكد من أنك تريد المتابعة؟";
 "DOWNLOAD_QUEUE" = "قائمة انتظار التنزيلات";
 "CHAPTERS" = "فصول";
 "VOL_X" = "المجلد %g";
@@ -190,20 +190,20 @@
 "%@_AGO" = "منذ %@";
 "PAGE_X" = "الصفحة %i";
 "REMOVE_ALL_MANGA_HISTORY" = "حذف سجل القراءة بالكامل لهذه المانجا";
-"AUTH_FOR_HISTORY" = "قم بالمصادقة لعرض تاريخ القراءة.";
+"AUTH_FOR_HISTORY" = "قم بالمصادقة لعرض سجل القراءة.";
 "HISTORY_LOCKED" = "سجل القراءة مقفل.";
 "AUTH_TO_ENABLE" = "قم بالمصادقة للتمكين.";
 "AUTH_TO_DISABLE" = "قم بالمصادقة للتعطيل.";
 "LIBRARY_UPDATING" = "تحديث المكتبة";
 "UPDATE_INTERVAL" = "الفاصل الزمني للتحديث";
 "SKIP_TITLES" = "تخطي العناوين";
-"ONLY_UPDATE_ON_WIFI" = "التحديث فقط من خلال شبكة الواي فاي";
+"ONLY_UPDATE_ON_WIFI" = "التحديث عبر Wi-Fi فقط";
 "EXCLUDED_CATEGORIES" = "الفئات المستثناة";
 "REFRESH_METADATA" = "تحديث البيانات الوصفية";
 "NEVER" = "أبداً";
 "DAILY" = "يومياً";
 "EVERY_2_DAYS" = "كل يومين";
-"EVERY_12_HOURS" = "كل ١٢ ساعة";
+"EVERY_12_HOURS" = "كل 12 ساعة";
 "WEEKLY" = "أسبوعياً";
 "WITH_UNREAD_CHAPTERS" = "مع فصول غير مقروءة";
 "WITH_COMPLETED_STATUS" = "مع الحالة \"مكتمل\"";
@@ -254,7 +254,7 @@
 "TRACK_READING" = "قيد القراءة";
 "TRACK_PLANNING" = "مخطط لقراءته";
 "TRACKERS" = "المتتبعات";
-"ONESHOT" = "ون شوت / عدد فردي";
+"ONESHOT" = "قصة قصيرة (ون شوت)";
 "STATUS_NOT_PUBLISHED" = "لم تنشر بعد";
 "MANGA" = "مانجا";
 "MANHWA" = "مانهوا";
@@ -268,7 +268,7 @@
 "CLEAR_TRACKED_MANGA_TEXT" = "هذا الإجراء لا رجعة فيه. ستتم إزالة جميع روابط خدمات التتبع المضافة إلى المانجا.";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "هل أنت متأكد أنك تريد حذف جميع التنزيلات؟";
 "CACHE_SIZE_%@" = "حجم ذاكرة التخزين المؤقت: %@";
-"SUPPORT_VIA_KOFI" = "الدعم عبر كوفاي";
+"SUPPORT_VIA_KOFI" = "الدعم عبر Ko-Fi";
 "SORT_UNREAD_CHAPTERS" = "فصول غير مقروءة";
 "RELOAD" = "إعادة تحميل";
 "%i_OF_%i" = "%i من %i";
@@ -292,7 +292,7 @@
 "FAILED_CHAPTER_LOAD_INFO" = "قد لا تكون متصلًا بالإنترنت أو قد يكون المصدر يواجه بعض المشاكل.";
 "%i_PAGES_LEFT" = "الصفحات المتبقية: %i";
 "ONE_PAGE_LEFT" = "صفحة واحدة متبقية";
-"SORT_LAST_UPDATED" = "آخر التحديثات";
+"SORT_LAST_UPDATED" = "آخر تحديث";
 "SORT_TOTAL_CHAPTERS" = "إجمالي الفصول";
 "WEBTOON" = "ويبتون";
 "SYNC_LOCAL_HISTORY" = "مزامنة سجل القراءة المحلي";
@@ -333,8 +333,8 @@
 "ONLY_DOWNLOAD_ON_WIFI" = "التنزيل عبر Wi-Fi فقط";
 "READER_BG_COLOR" = "لون الخلفية";
 "READER_BG_COLOR_SYSTEM" = "النظام";
-"READER_BG_COLOR_WHITE" = "ابيض";
-"READER_BG_COLOR_BLACK" = "اسود";
+"READER_BG_COLOR_WHITE" = "أبيض";
+"READER_BG_COLOR_BLACK" = "أسود";
 "SCANLATOR" = "فريق الترجمة";
 "BACKUP_ERROR_TEXT" = "حدث خطأ أثناء الاستعادة: %@. قد تكون النسخة الاحتياطية غير صالحة.";
 "BACKUP_ERROR" = "خطأ في استعادة النسخة الاحتياطية";
@@ -420,7 +420,7 @@
 
 "TRANSLATION_NO_TEXT" = "لم يتم التعرف على أي نص. جرب نموذج OCR آخر أو صورة أكثر وضوحًا.";
 
-"TRANSLATION_WORKING" = "التعرف والترجمة...";
+"TRANSLATION_WORKING" = "جارٍ التعرف والترجمة…";
 
 "TRANSLATION_OCR_WORKING" = "جارٍ التعرف على النص محليًا على الجهاز…";
 
@@ -446,7 +446,7 @@
 
 "TRANSLATION_SOURCE" = "لغة المصدر";
 
-"TRANSLATION_AUTO" = "كشف تلقائيا";
+"TRANSLATION_AUTO" = "الكشف تلقائيًا";
 
 "TRANSLATION_OCR_HELP" = "يتطلب PP-OCRv6 نظام iOS 18 أو أحدث. النموذج الافتراضي لتحديد مواضع النص والتعرف عليه هو Manga v0.3. يمكن أيضًا اختيار نماذج OCR أخرى.";
 
@@ -571,7 +571,7 @@
 
 "TRANSLATION_CHAPTER_TITLE_FILTER" = "لغات عنوان الفصل";
 
-"TRANSLATION_PAGE_SOURCE" = "لغة مصدر الصفحة";
+"TRANSLATION_PAGE_SOURCE" = "لغة النص الأصلي للصفحة";
 
 "TRANSLATION_TITLE_FILTER_HELP" = "يكتشف لغة كل عنوان تلقائيًا ويترجم العناوين باللغات المحددة فقط. يزيل خيار جميع اللغات المكتشفة قيد اللغة. لا تؤثر إعدادات لغة الصفحات أو أنواع العناوين الأخرى في هذا الاختيار.";
 
@@ -626,7 +626,7 @@
 
 "TRANSLATION_REASONING_MAX" = "الحد الأقصى";
 
-"TRANSLATION_MANGA_TAGS" = "ترجمة وسوم المانغا";
+"TRANSLATION_MANGA_TAGS" = "ترجمة وسوم المانجا";
 "TRANSLATION_TAG_FILTER" = "لغات الوسوم الأصلية";
 
 // Completed app localization
@@ -637,7 +637,7 @@
 "PAUSED" = "متوقف مؤقتًا";
 "CANCEL_ALL_DOWNLOADS" = "إلغاء كافة التنزيلات";
 "DOWNLOADS" = "التنزيلات";
-"DOWNLOAD_INCOMPLETE" = "تحميل غير مكتمل";
+"DOWNLOAD_INCOMPLETE" = "تنزيل غير مكتمل";
 "VIEW_FILES" = "عرض الملفات";
 "COMPRESS_DOWNLOADS" = "ضغط التنزيلات";
 "PARALLEL_DOWNLOADS" = "التنزيلات الموازية";
@@ -674,7 +674,7 @@
 "FILTER_GROUPS" = "مجموعات التصفية";
 "CREATE_FILTER_GROUP" = "إنشاء مجموعة تصفية";
 "EDIT_FILTER_GROUP" = "تحرير مجموعة التصفية";
-"CLEAR_FILTERS" = "مسح المرشحات";
+"CLEAR_FILTERS" = "مسح عوامل التصفية";
 "SHOW_UNCATEGORIZED_CATEGORY" = "عرض فئة غير مصنف";
 "DISABLE" = "تعطيل";
 "ENABLE" = "تمكين";
@@ -713,18 +713,18 @@
 "CREATE_NEW_SERIES_INFO" = "سيتم إنشاء سلسلة جديدة في الصفحة التالية، أو يمكنك تحديد سلسلة موجودة لإضافة هذا الملف إليها.";
 "ADD_TO_OTHER_SERIES_INFO" = "سيتم إضافة الملف إلى السلسلة المحددة.";
 "%i_PAGES" = "عدد الصفحات: %i";
-"1_PAGE" = "1 صفحة";
+"1_PAGE" = "صفحة واحدة";
 "CBZ_NAME" = "أرشيف ZIP للقصص المصورة";
 "ZIP_NAME" = "أرشيف مضغوط";
 "EPUB_NAME" = "EPUB";
-"KOMGA" = "كومجا";
+"KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "خادم الوسائط المستضاف ذاتيًا";
 "KOMGA_INFO" = "Komga هو خادم وسائط مستضاف ذاتيًا للقصص المصورة والمانجا. ستحتاج إلى إعداد خادم Komga وتشغيله حتى تتمكن من استخدام هذا المصدر.";
-"KOMGA_SETUP" = "إعداد كومجا";
-"DEMO_KOMGA_SERVER" = "خادم كومجا التجريبي";
+"KOMGA_SETUP" = "إعداد Komga";
+"DEMO_KOMGA_SERVER" = "خادم Komga التجريبي";
 "DEMO_KOMGA_SERVER_INFO" = "يمكنك تسجيل الدخول إلى خادم Komga التجريبي باستخدام البريد الإلكتروني `demo@komga.org` وكلمة المرور `komga-demo`.";
 "SOURCE_NAME" = "اسم المصدر";
-"SOURCE_NAME_INFO" = "الاسم الذي سيظهره المصدر في علامة تبويب التصفح.";
+"SOURCE_NAME_INFO" = "الاسم الذي يظهر لهذا المصدر في علامة تبويب التصفح.";
 "SOURCE_NAME_UNIQUE_ERROR" = "الرجاء اختيار اسم مصدر فريد.";
 "SERVER_URL" = "عنوان URL للخادم";
 "SERVER_URL_INFO" = "عنوان URL الأساسي للخادم الذي سيتم الاتصال به.";
@@ -740,8 +740,8 @@
 "DISPLAY_VOLUME" = "المجلد";
 "USE_CHAPTERS" = "استخدام الفصول";
 "USE_CHAPTERS_TEXT" = "تعامل مع الكتب كفصول بدلاً من المجلدات";
-"%@_BOOKS" = "%@ كتاب";
-"1_BOOK" = "1 كتاب";
+"%@_BOOKS" = "عدد الكتب: %@";
+"1_BOOK" = "كتاب واحد";
 "ON_DECK" = "للقراءة التالية";
 "KEEP_READING" = "استمر في القراءة";
 "RECENTLY_ADDED_BOOKS" = "الكتب المضافة حديثا";
@@ -773,7 +773,7 @@
 "KAVITA_INFO" = "Kavita هو خادم وسائط مستضاف ذاتيًا للقصص المصورة والمانجا. ستحتاج إلى إعداد خادم Kavita وتشغيله حتى تتمكن من استخدام هذا المصدر.";
 "KAVITA_SETUP" = "إعداد Kavita";
 "DEMO_KAVITA_SERVER" = "خادم تجريبي Kavita";
-"DEMO_KAVITA_SERVER_INFO" = "يمكنك تسجيل الدخول إلى خادم Kavita التجريبي باستخدام اسم المستخدم \"demouser\" وكلمة المرور \"Demouser64\".";
+"DEMO_KAVITA_SERVER_INFO" = "يمكنك تسجيل الدخول إلى خادم Kavita التجريبي باستخدام اسم المستخدم `demouser` وكلمة المرور `Demouser64`.";
 "MORE_IN_%@" = "المزيد في %@";
 "SORT_CHAPTER_ADDED" = "تاريخ إضافة الفصل";
 "SORT_TIME_TO_READ" = "الوقت المقدر للقراءة";
@@ -791,7 +791,7 @@
 "API_KEY_LOGIN_INFO" = "سيؤدي توفير مفتاح API لتسجيل الدخول يدويًا إلى تجاوز طرق تسجيل الدخول الأخرى. يمكنك تركه فارغًا لاستخدام طرق تسجيل الدخول الأخرى.";
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "خادم قارئ المانجا";
-"SUWAYOMI_INFO" = "Suwayomi هو خادم قارئ مانغا مستضاف ذاتيًا يقوم بتشغيل الامتدادات المصممة لـ Mihon (Tachiyomi). ستحتاج إلى إعداد خادم Suwayomi وتشغيله حتى تتمكن من استخدام هذا المصدر.";
+"SUWAYOMI_INFO" = "Suwayomi هو خادم قارئ مانجا مستضاف ذاتيًا يقوم بتشغيل الامتدادات المصممة لـ Mihon (Tachiyomi). ستحتاج إلى إعداد خادم Suwayomi وتشغيله حتى تتمكن من استخدام هذا المصدر.";
 "SUWAYOMI_SETUP" = "إعداد Suwayomi";
 "STATUS_LICENSED" = "مرخصة";
 "STATUS_PUBLISHING_FINISHED" = "انتهى النشر";
@@ -807,7 +807,7 @@
 "RESET_COVER" = "إعادة تعيين الغلاف";
 "NO_HISTORY" = "لا يوجد سجل قراءة";
 "NO_HISTORY_TEXT" = "سيظهر سجل القراءة هنا.";
-"RECENTLY_SEARCHED" = "بحثت مؤخرا";
+"RECENTLY_SEARCHED" = "عمليات البحث الأخيرة";
 "NO_RECENT_SEARCHES" = "لا توجد عمليات بحث حديثة";
 "NO_RECENT_SEARCHES_TEXT" = "ستظهر عمليات البحث الأخيرة هنا.";
 "SOURCES" = "مصادر المحتوى";
@@ -824,7 +824,7 @@
 "REFRESH_LOGIN" = "تحديث تسجيل الدخول";
 "LOGIN_METHOD" = "طريقة تسجيل الدخول";
 "BASIC" = "الأساسية";
-"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "تعد iCloud Sync ميزة تجريبية. قد يؤدي تمكينه أو تعطيله إلى فقدان البيانات.";
+"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "مزامنة iCloud ميزة تجريبية. قد يؤدي تمكينها أو تعطيلها إلى فقدان البيانات.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync متاح فقط عند التثبيت من خلال TestFlight.";
 "LAYOUT" = "التخطيط";
 "STANDARD" = "قياسي";
@@ -962,16 +962,16 @@
 "MONTHLY" = "شهريا";
 "GET_RECOMMENDED_DICTIONARIES" = "احصل على القواميس الموصى بها";
 "RECOMMENDED_DICTIONARIES" = "القواميس الموصى بها";
-"RECOMMENDED_DICTIONARIES_NOTE" = "القواميس الموجودة أدناه كلها باللغة اليابانية والإنجليزية. بالنسبة للغات الأخرى، يمكنك التحقق من قائمة قواميس ويكاموس.";
+"RECOMMENDED_DICTIONARIES_NOTE" = "جميع القواميس أدناه قواميس يابانية–إنجليزية. للغات الأخرى، راجع قائمة قواميس Wiktionary.";
 "RESTORE_MISSING_SOURCES" = "استعادة المصادر المفقودة؟";
 "RESTORE_MISSING_SOURCES_TEXT" = "هل ترغب في البحث عن المصادر المفقودة وتثبيتها؟";
 "INSTALL_SOURCES" = "تثبيت المصادر";
 "INSTALLING_SOURCES" = "جارٍ تثبيت المصادر...";
 "SOURCE_IMPORT_FAIL_TEXT" = "فشل استيراد المصدر. يرجى التأكد من أن ملف aix الخاص بك صالح.";
 "FILE_IMPORT_FAIL_TEXT" = "فشل استيراد الملف. يرجى التأكد من أنه ملف صورة قابل للقراءة أو أرشيف CBZ أو ZIP صالح يحتوي على صور.";
-"BACKUP_%@" = "النسخ الاحتياطي %@";
+"BACKUP_%@" = "نسخة احتياطية %@";
 "CREATE_BACKUP" = "إنشاء نسخة احتياطية";
-"IMPORT_BACKUP" = "استيراد النسخ الاحتياطي";
+"IMPORT_BACKUP" = "استيراد نسخة احتياطية";
 "LIBRARY_ENTRIES" = "إدخالات مكتبة المانجا";
 "SENSITIVE_SETTINGS" = "الإعدادات الحساسة";
 "NAME" = "الاسم";
@@ -990,7 +990,7 @@
 "TRACKING" = "تتبع";
 "TRACK_COMPLETED" = "مكتمل";
 "SET_TRACK_CHAPTER_OFFSET" = "تعيين إزاحة الفصل";
-"TRACK_CHAPTER_OFFSET_TEXT" = "اضبط تحديثات فصول المتعقب التلقائية لهذا العنوان عندما تختلف أرقام فصول المصدر عن أرقام فصول المتتبع.";
+"TRACK_CHAPTER_OFFSET_TEXT" = "اضبط تحديثات الفصول التلقائية في المتتبع لهذا العنوان عندما تختلف أرقام فصول المصدر عن أرقام فصول المتتبع.";
 "TITLE_DISPLAY_MODE" = "وضع عرض العنوان";
 "OEL" = "OEL";
 "COMIC" = "قصص مصورة";
@@ -1025,19 +1025,19 @@
 "MIGRATE_%i_OF_%i" = "الترحيل (%i/%i)";
 "SHOW_ENTRY" = "عرض الإدخال";
 "SOURCE_BREAKING_CHANGE" = "تغيير غير متوافق في المصدر";
-"SOURCE_BREAKING_CHANGE_TEXT" = "تعرض هذا المصدر لتغيير جذري ويتطلب الترحيل للاحتفاظ بمكتبتك وتاريخك.";
+"SOURCE_BREAKING_CHANGE_TEXT" = "تعرض هذا المصدر لتغيير جذري ويتطلب الترحيل للاحتفاظ بمكتبتك وسجل القراءة.";
 "ALL_CHAPTERS_LOCKED" = "جميع الفصول مغلقة";
 "AUTO_SCROLL" = "التمرير التلقائي";
 "AUTO_SCROLL_SPEED" = "سرعة التمرير التلقائي";
 "AUTO_SCROLL_POSITION" = "موضع زر التمرير التلقائي";
 "POSITION_LEFT" = "اليسار";
 "POSITION_RIGHT" = "اليمين";
-"%@_TRACKER_LOGIN_NEEDED" = "%@ مطلوب تسجيل الدخول";
+"%@_TRACKER_LOGIN_NEEDED" = "مطلوب تسجيل الدخول إلى %@";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "انتهت صلاحية رمز %@ الخاص بك، لذا سيتوقف المتتبع المرتبط عن العمل حتى تقوم بإعادة تسجيل الدخول في الإعدادات.";
-"FOCUS_ITEM_LEFT" = "تركيز العنصر على اليسار";
+"FOCUS_ITEM_LEFT" = "التركيز على العنصر إلى اليسار";
 "FOCUS_ITEM_RIGHT" = "التركيز على العنصر إلى اليمين";
 "FOCUS_ITEM_ABOVE" = "التركيز على العنصر أعلاه";
-"FOCUS_ITEM_BELOW" = "التركيز على البند أدناه";
+"FOCUS_ITEM_BELOW" = "التركيز على العنصر أدناه";
 "FOCUS_ITEM_NEXT" = "التركيز على العنصر التالي";
 "FOCUS_ITEM_PREV" = "التركيز على العنصر السابق";
 "OPEN_FOCUS_ITEM" = "فتح العنصر الذي تم التركيز عليه";

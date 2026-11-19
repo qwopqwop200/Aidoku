@@ -4,7 +4,7 @@
 "INSTALLED" = "מותקן";
 "EXTERNAL" = "חיצוני";
 "BUTTON_UPDATE" = "עדכן";
-"DOWNLOADED" = "הורד";
+"DOWNLOADED" = "הורדו";
 "DOWNLOAD_QUEUE" = "תור הורדה";
 "LANGUAGE" = "שפה";
 "NSFW" = "תוכן בוטה";
@@ -42,7 +42,7 @@
 "CATEGORY_ADD" = "הוסף קטגוריה";
 "CATEGORY_ADD_TEXT" = "נא להכניס את הכותרת של הקטגוריה החדשה.";
 "DEFAULT_CATEGORY" = "קטגוריית ברירת-מחדל";
-"ALWAYS_ASK" = "תמיד תשאל";
+"ALWAYS_ASK" = "שאל תמיד";
 "BROWSE_NO_SOURCES" = "אין מקורות";
 "ADDING_SOURCES_GUIDE_BUTTON" = "מדריך הוספת מקורות";
 "UPDATES" = "עדכונים";
@@ -51,10 +51,10 @@
 
 // Manga
 "UNTITLED" = "ללא כותרת";
-"STATUS_HIATUS" = "הפסקה";
+"STATUS_HIATUS" = "בהפסקה";
 "SUGGESTIVE" = "רמיזות מיניות";
 "MISSING_SOURCE" = "מקור חסר";
-"MISSING_SOURCE_TEXT" = "המקור המקורי של מנגה זו אינו זמין. יש להוריד מחדש את המקור או להסיר את המנגה מהספרייה.";
+"MISSING_SOURCE_TEXT" = "לא ניתן למצוא את המקור המקורי של מנגה זו. יש להתקין מחדש את המקור או להסיר את הכותר מהספרייה.";
 "SELECT_CHAPTERS" = "בחר פרקים";
 "CHAPTER_X" = "פרק %g";
 "VOL_X" = "כרך %g";
@@ -77,13 +77,13 @@
 "RTL" = "ימין לשמאל";
 "VERTICAL" = "אנכי";
 "VERTICAL_SCROLL" = "גלילה אנכית";
-"EXPERIMENTAL" = "נסיוני";
+"EXPERIMENTAL" = "ניסיוני";
 "INFINITE_VERTICAL_SCROLL" = "גלילה אנכית אינסופית";
 "SAVE_TO_PHOTOS" = "שמור לתמונות";
 
 // History
 "HISTORY" = "היסטוריה";
-"%@_AGO" = "מלפני %@";
+"%@_AGO" = "לפני %@";
 "PAGE_X" = "עמוד %i";
 "REMOVE_ALL_MANGA_HISTORY" = "מחק את כל היסטוריית הקריאה של מנגה זו";
 "VIEW_HISTORY" = "ראה היסטוריה";
@@ -122,7 +122,7 @@
 // Library
 "LIBRARY" = "ספרייה";
 "REMOVE_DOWNLOADS_CONFIRM" = "האם למחוק את כל ההורדות המסומנות?";
-"BUTTON_ERROR" = "תקלה";
+"BUTTON_ERROR" = "שגיאה";
 "UNINSTALL" = "הסר התקנה";
 
 // Source
@@ -162,10 +162,10 @@
 "SOURCE_ORDER" = "סדר הפרקים במקור";
 "UPDATE_INTERVAL" = "מרווח בין עדכונים";
 "OPEN_READER_VIEW" = "פתח תצוגת קורא";
-"LIBRARY_UPDATING" = "ספריה מתעדכנת";
+"LIBRARY_UPDATING" = "עדכון ספרייה";
 "RESTORE_BACKUP" = "לשחזר מגיבוי זה?";
 "SOURCE_LISTS" = "רשימות מקורות";
-"SOURCE_LIST_ADDED" = "רשימת מקורות הוספה";
+"SOURCE_LIST_ADDED" = "רשימת המקורות נוספה";
 "RENAME_BACKUP" = "שנה שם גיבוי";
 "RENAME_BACKUP_TEXT" = "הזן שם חדש לגיבוי שלך";
 "CORRUPTED_BACKUP" = "גיבוי פגום";
@@ -179,11 +179,11 @@
 "COVER" = "כריכה";
 "PIN_UNREAD" = "לא נקרא";
 "SKIP_TITLES" = "דלג על כותרים";
-"REFRESH_METADATA" = "רענן מחדש את מטא הנתונים";
+"REFRESH_METADATA" = "רענן מטא-נתונים";
 "NEVER" = "אף פעם";
-"SOURCE_LIST_URL" = "כתובת אתר של רשימת המקורות";
+"SOURCE_LIST_URL" = "כתובת URL של רשימת המקורות";
 "SOURCE_LIST_ADD" = "הוסף רשימת מקורות";
-"SOURCE_LIST_ADD_TEXT" = "הכנס את כתובת האתר של רשימת המקורות";
+"SOURCE_LIST_ADD_TEXT" = "הזן את כתובת ה-URL של רשימת המקורות";
 "SOURCE_LIST_ADD_FAIL" = "הוספת רשימת המקורות נכשלה";
 "LOCK_HISTORY_TAB" = "נעל את כרטיסיית ההיסטוריה";
 "BACKUPS" = "גיבויים";
@@ -209,9 +209,9 @@
 "PAGE_X_OF_X" = "עמוד %i מתוך %i";
 "VIEW_LIBRARY" = "צפה בספרייה";
 "CATEGORY_EMPTY" = "הקטגוריה ריקה";
-"AUTH_TO_OPEN" = "אמת לפתיחה.";
+"AUTH_TO_OPEN" = "הזדהה על מנת לפתוח.";
 "LOCKED_CATEGORIES" = "קטגוריות נעולות";
-"AUTH_FOR_LIBRARY" = "אימות כדי להציג את הספרייה.";
+"AUTH_FOR_LIBRARY" = "הזדהה על מנת לראות את הספרייה.";
 "LOCK_LIBRARY" = "לנעול את הספרייה";
 "SET_AS_WIDE_PAGE" = "הגדר כעמוד רחב";
 "AUTOMATIC" = "אוטומטי";
@@ -231,7 +231,7 @@
 "TRACK_READING" = "קורא";
 "TRACK_PLANNING" = "מתכנן לקרוא";
 "TRACK_DROPPED" = "הפסיק לקרוא";
-"MANGA" = "מאנגה";
+"MANGA" = "מנגה";
 "MANHWA" = "מנהווה";
 "MANHUA" = "מנהואה";
 "LIGHT_NOVEL" = "רומן קל";
@@ -250,7 +250,7 @@
 "SORT_LAST_UPDATED" = "עודכן לאחרונה";
 "SORT_TOTAL_CHAPTERS" = "סך הכל פרקים";
 "FAILED_CHAPTER_LOAD_INFO" = "יכול להיות שאתה לא מחובר לאינטרנט או שהמקור נתקל בבעיות.";
-"WEBTOON" = "קומיקס אינטרנט";
+"WEBTOON" = "וובטון";
 "PINNED" = "מוצמד";
 "UPCOMING" = "בא בקרוב";
 "SELECT" = "בחר";
@@ -268,7 +268,7 @@
 "DEFAULT_READING_MODE" = "מצב קריאה ברירת מחדל";
 "ONLY_UPDATE_ON_WIFI" = "עדכן רק בחיבור ל-Wi-Fi";
 "EXCLUDED_CATEGORIES" = "קטגוריות שלא נכללות";
-"SOURCE_LIST_ADD_FAIL_TEXT" = "כתובת האתר של רשימת המקורות שסופקה אינה עובדת או כבר נוספה.";
+"SOURCE_LIST_ADD_FAIL_TEXT" = "כתובת ה-URL של רשימת המקורות שסופקה אינה תקינה או שכבר נוספה.";
 "SOURCE_LIST_ADDED_TEXT" = "כעת תוכל לעיין במקורות חיצוניים בלשונית העיון.";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "כדי לשחזר לגיבוי זה, מצא אותו בדף הגיבויים בהגדרות.";
 "BACKUP_IMPORT_FAIL_TEXT" = "שמירת הגיבוי נכשלה. אנא ודא שהגיבוי שלך הוא בפורמט המתאים.";
@@ -287,17 +287,17 @@
 "UPLOAD_DATE" = "תאריך העלאה";
 "IS_TRACKING" = "מעקב";
 "EVERY_12_HOURS" = "כל 12 שעות";
-"DAILY" = "יום-יומי";
+"DAILY" = "מדי יום";
 "EVERY_2_DAYS" = "כל 2 ימים";
 "WEEKLY" = "כל שבוע";
 "WITH_UNREAD_CHAPTERS" = "עם פרקים שלא נקראו";
 "WITH_COMPLETED_STATUS" = "בסטטוס הושלם";
 "THAT_HAVENT_BEEN_READ" = "ללא פרקים שסומנו כנקראו";
-"LOGOUT_FROM_%@" = "להתנתק מ %@?";
+"LOGOUT_FROM_%@" = "להתנתק מ-%@?";
 "CLEAR_TRACKED_MANGA_TEXT" = "פעולה זו אינה הפיכה. כל הקישורים לשירותי מעקב שנוספו למנגה יוסרו.";
 "DONE" = "סיום";
 "INVALID" = "לא תקין";
-"PAUSE" = "הפסק";
+"PAUSE" = "השהה";
 "RESUME" = "המשך";
 "COPY" = "העתק";
 "WARNING" = "אזהרה";
@@ -305,7 +305,7 @@
 
 "TRANSLATION_TITLE" = "OCR ותרגום";
 
-"TRANSLATION_TRANSLATE" = "תרגם דפים גלויים";
+"TRANSLATION_TRANSLATE" = "תרגם עמודים גלויים";
 
 "TRANSLATION_RECOGNIZE" = "זיהוי טקסט (לא מקוון)";
 
@@ -313,7 +313,7 @@
 
 "TRANSLATION_TEXT" = "טקסט מזוהה ומתורגם";
 
-"TRANSLATION_NO_IMAGE" = "המתן לטעינת דף תמונה ולאחר מכן נסה שוב.";
+"TRANSLATION_NO_IMAGE" = "המתן לטעינת עמוד תמונה ולאחר מכן נסה שוב.";
 
 "TRANSLATION_NO_TEXT" = "לא זוהה טקסט. נסה מודל OCR אחר או תמונה ברורה יותר.";
 
@@ -402,11 +402,11 @@
 
 "TRANSLATION_PROVIDER" = "ספק תרגום";
 
-"TRANSLATION_BASE_URL" = "כתובת האתר של השרת";
+"TRANSLATION_BASE_URL" = "כתובת השרת";
 
 "TRANSLATION_API_FORMAT" = "פורמט API";
 
-"TRANSLATION_CUSTOM_HELP" = "הזן כתובת URL בסיסית של HTTPS או נקודת קצה מלאה של API ומודל שנתמך על ידי השרת שלך. לכל כתובת אתר של שרת יש מפתח שמור משלה; שינוי כתובת האתר מנקה כל מפתח שאתה מזין. Responses ו-Chat Completions משתמשות בפלט JSON מובנה.";
+"TRANSLATION_CUSTOM_HELP" = "הזן כתובת URL בסיסית מסוג HTTPS או נקודת קצה מלאה של API, ומודל שהשרת שלך תומך בו. לכל כתובת URL של שרת יש מפתח שמור משלה; שינוי כתובת ה-URL מנקה כל מפתח שאתה מזין. Responses ו-Chat Completions משתמשים בפלט JSON מובנה.";
 
 "TRANSLATION_AUTOMATIC" = "תרגום אוטומטי";
 
@@ -491,7 +491,7 @@
 
 "TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "מעריך את צבע הטקסט המקורי ללא מודל נוסף. משתמש בצבע ברירת המחדל כשההערכה אינה ודאית או כשהניגודיות נמוכה מדי.";
 
-"TRANSLATION_LLM_SFX" = "סינון LLM SFX (כל השפות)";
+"TRANSLATION_LLM_SFX" = "סינון אפקטים קוליים באמצעות LLM (כל השפות)";
 
 "TRANSLATION_LLM_SFX_HELP" = "מסווג אפקטים קוליים באותה בקשת תרגום ומשאיר אותם ללא שינוי. כשמצורפת תמונת עמוד, הבינה המלאכותית מדלגת גם על מקטעי OCR לא ברורים, אלא אם התמונה מראה שמדובר בטקסט בעל משמעות. דיאלוג, קריינות, כותרות וקרדיטים נשארים מיועדים לתרגום. הסיווג פחות אמין ללא תמונת עמוד.";
 
@@ -607,7 +607,7 @@
 "REMOVE_LOCAL_SOURCE_TEXT" = "פעולה זו תסיר את כל הקבצים המקומיים המיובאים.";
 "MISSING_SOURCE_LIST" = "רשימת מקורות חסרה";
 "MISSING_SOURCE_LIST_INFO" = "מקור חיצוני זה אינו זמין באף רשימות מקורות מוגדרות. המשמעות היא שהוא לא יקבל עדכונים ועלול להישבר בעתיד.";
-"BASE_URL" = "כתובת האתר הבסיסית";
+"BASE_URL" = "כתובת URL בסיסית";
 "SEE_ALL" = "ראה הכל";
 "HOME" = "בית";
 "FILTERS" = "מסננים";
@@ -677,22 +677,22 @@
 "CBZ_NAME" = "ארכיון ZIP של קומיקס";
 "ZIP_NAME" = "ארכיון ZIP";
 "EPUB_NAME" = "EPUB";
-"KOMGA" = "קומגה";
+"KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "שרת מדיה באירוח עצמי";
 "KOMGA_INFO" = "Komga הוא שרת מדיה לקומיקס ולמנגה באירוח עצמי. כדי להשתמש במקור זה, יש להגדיר שרת Komga ולוודא שהוא פועל.";
-"KOMGA_SETUP" = "הגדרת קומגה";
-"DEMO_KOMGA_SERVER" = "שרת הדגמה של קומגה";
+"KOMGA_SETUP" = "הגדרת Komga";
+"DEMO_KOMGA_SERVER" = "שרת הדגמה של Komga";
 "DEMO_KOMGA_SERVER_INFO" = "אתה יכול להיכנס לשרת ההדגמה של Komga באמצעות האימייל `demo@komga.org` והסיסמה `komga-demo`.";
 "SOURCE_NAME" = "שם המקור";
-"SOURCE_NAME_INFO" = "השם שהמקור יציג בלשונית עיון.";
+"SOURCE_NAME_INFO" = "השם שיוצג עבור מקור זה בלשונית עיון.";
 "SOURCE_NAME_UNIQUE_ERROR" = "אנא בחר שם מקור ייחודי.";
-"SERVER_URL" = "כתובת האתר של השרת";
-"SERVER_URL_INFO" = "כתובת האתר הבסיסית של שרת שאליו יש להתחבר.";
+"SERVER_URL" = "כתובת השרת";
+"SERVER_URL_INFO" = "כתובת ה-URL הבסיסית של השרת שאליו יש להתחבר.";
 "SERVER_URL_UNIQUE_ERROR" = "מקור שהוגדר עם אותו שרת כבר קיים.";
 "MIRRORS" = "שרתי מראה";
 "MIRRORS_INFO" = "כתובות URL נוספות שכדאי לנסות להשתמש בהן ככתובת URL בסיסית אם הראשית לא מצליחה להתחבר.";
 "SERVER_ERROR" = "שגיאת שרת";
-"SERVER_ERROR_CONNECTION" = "לא ניתן להתחבר לשרת הנתון. ודא שמופע שרת פועל ושכתובת האתר הוזנה כהלכה.";
+"SERVER_ERROR_CONNECTION" = "לא ניתן להתחבר לשרת שצוין. ודא שהשרת פועל ושכתובת ה-URL הוזנה כהלכה.";
 "SERVER_ERROR_AUTHENTICATION" = "ההתחברות נכשלה. יש לוודא שפרטי ההתחברות הוזנו נכון.";
 "OTHER_SETTINGS" = "הגדרות אחרות";
 "DISPLAY_DEFAULT" = "ברירת מחדל";
@@ -701,7 +701,7 @@
 "USE_CHAPTERS" = "השתמש בפרקים";
 "USE_CHAPTERS_TEXT" = "התייחסו לספרים כאל פרקים במקום ככרכים";
 "%@_BOOKS" = "%@ ספרים";
-"1_BOOK" = "1 ספר";
+"1_BOOK" = "ספר אחד";
 "ON_DECK" = "לקריאה הבאה";
 "KEEP_READING" = "המשיכו לקרוא";
 "RECENTLY_ADDED_BOOKS" = "ספרים שנוספו לאחרונה";
@@ -831,7 +831,7 @@
 "DAYS" = "ימים";
 "CHAPTER_PLURAL" = "פרקים";
 "CHAPTER_SINGULAR" = "פרק";
-"PAGE_PLURAL" = "דפים";
+"PAGE_PLURAL" = "עמודים";
 "PAGE_SINGULAR" = "עמוד";
 "SERIES_PLURAL" = "סדרות";
 "SERIES_SINGULAR" = "סדרה";
@@ -876,15 +876,15 @@
 "TEXT_THEME_PAPER" = "נייר";
 "TEXT_THEME_GRAY" = "אפור";
 "DICTIONARY_LOOKUP" = "חיפוש במילון";
-"DICTIONARY_SETTINGS_TEXT" = "אפשר חיפוש מילון כדי לאפשר עיבוד OCR בתמונות עמוד לחיפוש מילים בכל מילוני יומיטן מיובאים.";
+"DICTIONARY_SETTINGS_TEXT" = "הפעל חיפוש במילון כדי לאפשר עיבוד OCR בתמונות העמודים לחיפוש מילים בכל מילוני Yomitan שיובאו.";
 "DICTIONARIES" = "מילונים";
 "ABOUT_DICTIONARIES" = "על מילונים";
-"ABOUT_DICTIONARIES_TEXT" = "ניתן לייבא מילוני יומיטן מקבצי zip. אתה יכול להפעיל או להשבית מילונים, וניתן לסדר אותם מחדש על ידי גרירה.";
+"ABOUT_DICTIONARIES_TEXT" = "ניתן לייבא מילוני Yomitan מקבצי zip. ניתן להפעיל או להשבית מילונים, ולסדר אותם מחדש על ידי גרירה.";
 "LOOKUP_GESTURE" = "תנועת חיפוש";
 "SINGLE_TAP" = "הקשה אחת";
 "LONG_PRESS" = "לחיצה ארוכה";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "הקשה על תחילת מילה תפעיל את החלון הקופץ. פעולה זו משביתה הקשה כפולה כדי להתקרב כאשר היא מופעלת.";
-"LOOKUP_GESTURE_LONG_PRESS_INFO" = "לחיצה ממושכת על תחילתה של מילה תדגיש אותה, ושחרור יפעיל את החלון הקופץ. פעולה זו משביתה את הפעולות המהירות של הדף כאשר היא מופעלת.";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "לחיצה ממושכת על תחילתה של מילה תדגיש אותה, ושחרור יפעיל את החלון הקופץ. כאשר אפשרות זו מופעלת, הפעולות המהירות של העמוד מושבתות.";
 "LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "לא ניתן לשנות עקב תנועת חיפוש: הקשה אחת.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "לא ניתן לשנות עקב תנועת חיפוש: לחיצה ארוכה.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "שכבת טקסט OCR";
@@ -906,7 +906,7 @@
 "KANJI_DICTIONARIES" = "מילוני קאנג'י";
 "IMPORTING_DICTIONARY" = "מייבא מילון...";
 "IMPORT_ERROR" = "שגיאת ייבוא";
-"REVISION" = "עדכון";
+"REVISION" = "מהדורה";
 "URL" = "כתובת אתר";
 "ATTRIBUTION" = "ייחוס";
 "SOURCE_LANGUAGE" = "שפת המקור";
@@ -937,7 +937,7 @@
 "MONTHLY" = "חודשי";
 "GET_RECOMMENDED_DICTIONARIES" = "קבל מילונים מומלצים";
 "RECOMMENDED_DICTIONARIES" = "מילונים מומלצים";
-"RECOMMENDED_DICTIONARIES_NOTE" = "המילונים למטה הם כולם בשפה היפנית-אנגלית. עבור שפות אחרות, אתה יכול לבדוק את רשימת מילוני ויקימילון.";
+"RECOMMENDED_DICTIONARIES_NOTE" = "כל המילונים שלהלן הם מילונים יפנית–אנגלית. לשפות אחרות, עיין ברשימת מילוני Wiktionary.";
 "RESTORE_MISSING_SOURCES" = "לשחזר מקורות חסרים?";
 "RESTORE_MISSING_SOURCES_TEXT" = "האם תרצה לחפש ולהתקין מקורות חסרים?";
 "INSTALL_SOURCES" = "התקן מקורות";
@@ -970,7 +970,7 @@
 "PAGED" = "תצוגה לפי עמודים";
 "PAGE_OFFSET" = "היסט עמוד";
 "SPLIT_WIDE_IMAGES" = "פיצול תמונות רחבות";
-"REVERSE_SPLIT_ORDER" = "הפוך את סדר הדפים המפוצלים";
+"REVERSE_SPLIT_ORDER" = "הפוך את סדר העמודים המפוצלים";
 "MULTI_LANGUAGE" = "ריבוי שפות";
 "TRACKING" = "מעקב";
 "STATUS" = "סטטוס";
@@ -997,7 +997,7 @@
 "ENHANCED_TRACKERS_INFO" = "שירותי מעקב משופרים יכולים לקשר אוטומטית לפריטים שנוספו לספרייה ממקורות נתמכים ולסנכרן את היסטוריית הקריאה בשני הכיוונים.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "השבתת המעקב עבור מקור תסיר את קישורי המעקב של אותו מקור. הפעלתו תקשר אוטומטית את פריטי הספרייה השייכים לאותו מקור.";
 "TRACKER_LOGOUT_INFO" = "התנתקות תסיר את פרטי המעקב המקושרים לשירות זה עבור כל הסדרות.";
-"SET_AS_SINGLE_PAGE" = "הגדר כעמוד בודד";
+"SET_AS_SINGLE_PAGE" = "הגדר כעמוד יחיד";
 "UNSET_AS_SINGLE_PAGE" = "בטל הגדרה כעמוד יחיד";
 "RELOAD_FAILED" = "טעינה מחדש נכשלה";
 "RELOAD_FAILED_TEXT" = "הטעינה מחדש של התמונה נכשלה. אנא נסה שוב.";
@@ -1005,7 +1005,7 @@
 "CONTINUOUS_WITH_GAPS" = "מתמשך עם פערים";
 "MARK_DUPLICATE_CHAPTERS" = "סמן פרקים כפולים כנקראו";
 "MOST_CHAPTERS_SLOWER" = "מספר הפרקים הגדול ביותר (איטי יותר)";
-"MIGRATE_CONFIRM_TEXT" = "היסטוריית הקריאה של הערכים המקוריים תוסר בעת הגירה למקור אחר.";
+"MIGRATE_CONFIRM_TEXT" = "היסטוריית הקריאה של הערכים המקוריים תוסר בעת העברה למקור אחר.";
 "MIGRATE_WITH_HISTORY" = "העבר ושמור היסטוריה";
 "SELECT_PINNED_SOURCES" = "בחר מקורות מוצמדים";
 "SEARCH_MANUALLY" = "חפש באופן ידני";
@@ -1026,7 +1026,7 @@
 "POSITION_LEFT" = "שמאל";
 "POSITION_RIGHT" = "ימין";
 "BOTH" = "שניהם";
-"%@_TRACKER_LOGIN_NEEDED" = "נדרשת התחברות %@";
+"%@_TRACKER_LOGIN_NEEDED" = "נדרשת התחברות ל-%@";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "פג תוקפו של אסימון ה-%@ שלך, אז המעקב המשויך יפסיק לעבוד עד שתיכנס מחדש בהגדרות.";
 "BACKUP_ERROR" = "שגיאת שחזור גיבוי";
 "BACKUP_ERROR_TEXT" = "אירעה שגיאה במהלך השחזור: %@. ייתכן שהגיבוי אינו תקין.";
@@ -1069,7 +1069,7 @@
 
 // Shared image retention
 "SAVE_SHARED_IMAGES" = "שמור תמונות משותפות בקבצים מקומיים";
-"SAVE_SHARED_IMAGES_HELP" = "כאשר כבוי, תמונות משותפות נפתחות באופן זמני ונמחקות כאשר הן סגורות. היסטוריית הקריאה ומטמוני OCR/תרגום אינם נשמרים.";
+"SAVE_SHARED_IMAGES_HELP" = "כאשר האפשרות כבויה, תמונות משותפות נפתחות באופן זמני ונמחקות בעת סגירתן. היסטוריית הקריאה ומטמוני OCR/תרגום אינם נשמרים.";
 
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "תרגום רשימות סינון גדולות (מעל 100 אפשרויות)";
 

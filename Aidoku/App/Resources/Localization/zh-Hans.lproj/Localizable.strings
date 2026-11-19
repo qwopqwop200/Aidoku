@@ -24,7 +24,7 @@
 "REMOVE_DOWNLOAD" = "移除下载";
 "REMOVE_ALL_DOWNLOADS" = "移除所有下载";
 "REMOVE_DOWNLOADS" = "移除所选下载";
-"REMOVE_DOWNLOADS_CONFIRM" = "删除所有选定下载？";
+"REMOVE_DOWNLOADS_CONFIRM" = "移除所有选定的下载？";
 
 // Library
 "LIBRARY" = "书架";
@@ -171,7 +171,7 @@
 "EVERY_2_DAYS" = "每 2 天";
 "WEEKLY" = "每周";
 "WITH_UNREAD_CHAPTERS" = "有未读章节";
-"WITH_COMPLETED_STATUS" = "完结状态";
+"WITH_COMPLETED_STATUS" = "状态为已完结";
 "THAT_HAVENT_BEEN_READ" = "没有章节标记为已读的作品";
 "SOURCE_LISTS" = "图源列表";
 "SOURCE_LIST_ADDED" = "已添加图源列表";
@@ -188,7 +188,7 @@
 "RENAME_BACKUP" = "重命名备份";
 "RENAME_BACKUP_TEXT" = "为备份输入新名称";
 "CORRUPTED_BACKUP" = "备份已损坏";
-"CORRUPTED_BACKUP_TEXT" = "该备份有配置错误的数据。无法重新命名。";
+"CORRUPTED_BACKUP_TEXT" = "该备份的数据似乎配置有误，无法重命名。";
 "BACKUP_INFO" = "长按备份以导出它，或向左滑动以删除。";
 "MISSING_SOURCES" = "图源缺失";
 "RESTORE_MISSING_SOURCES" = "恢复缺失图源？";
@@ -210,7 +210,7 @@
 "EXPORT_LOGS" = "导出日志";
 "DISPLAY_LOGS" = "显示日志";
 "ADVANCED" = "高级";
-"RESET_TEXT" = "此操作无法撤销。所有数据，设置和缓存将被清除和重置。";
+"RESET_TEXT" = "此操作无法撤销。所有数据、设置和缓存将被清除和重置。";
 "CLEAR_NETWORK_CACHE" = "清除网络缓存";
 "CLEAR_NETWORK_CACHE_TEXT" = "此操作不可逆。缓存的网络请求和图片将被清除。";
 "CLEAR_READ_HISTORY" = "清除阅读历史";
@@ -272,7 +272,7 @@
 "STATUS_COLON_%@" = "状态：%@";
 "CLEAR_TRACKED_MANGA" = "清除所有追踪关联";
 "CLEAR_TRACKED_MANGA_TEXT" = "此操作无法撤销。将移除所有漫画与追踪器的关联信息。";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "你确定要删除所有下载吗？";
+"REMOVE_ALL_DOWNLOADS_CONFIRM" = "你确定要移除所有下载吗？";
 "CACHE_SIZE_%@" = "缓存大小：%@";
 "SUPPORT_VIA_KOFI" = "通过 Ko-Fi 支持";
 "VOLUMES" = "卷数";
@@ -351,7 +351,7 @@
 "NO_UPDATES" = "没有更新";
 "%lld_PLUS_MORE" = "另有 %lld 章";
 "DELETE_DOWNLOAD_AFTER_READING" = "阅读后删除下载";
-"SKIPPING_CHAPTERS" = "跳过 %i 个章节，可能是来源缺少这些章节或已被筛选掉";
+"SKIPPING_CHAPTERS" = "跳过 %i 个章节，可能是图源缺少这些章节或已被筛选掉";
 "SCANLATOR" = "汉化组";
 "NO_SCANLATOR" = "无汉化组";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "此操作无法撤销。将删除不在书架中的作品的所有阅读历史。";
@@ -362,8 +362,8 @@
 "READER_ORIENTATION" = "方向";
 "FOLLOW_DEVICE" = "跟随设备";
 "MARK_DUPLICATE_CHAPTERS" = "标记重复章节为已读";
-"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "从分类%@删除项目";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "正在将 %i 部作品从分类“%@”中移除";
+"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "正在将项目从分类“%@”中移除";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "正在将 %i 个项目从分类“%@”中移除";
 "DONE" = "完成";
 "INVALID" = "无效";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "使用加号按钮添加图源。";
@@ -486,8 +486,8 @@
 "SOURCE_BREAKING_CHANGE_TEXT" = "此图源发生了不兼容变更，需要迁移才能保留书架和阅读历史。";
 "LOCAL_FILES_INFO" = "本地图源允许你在 Aidoku 中直接导入文件并管理自己的阅读库。";
 "LOCAL_FILES_TAGLINE" = "读取本地文件";
-"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "从书架删除项目";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "从书架删除 %i 项目";
+"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "正在从书架移除项目";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "正在从书架移除 %i 个项目";
 "DISPLAY_VOLUME" = "卷";
 "DISPLAY_DEFAULT" = "默认";
 "DISPLAY_CHAPTER" = "章节";
@@ -654,14 +654,14 @@
 "REFRESH_LOGIN" = "刷新登录";
 "LEGACY_SOURCE_LIST" = "旧版图源列表";
 "LEGACY_SOURCE_LIST_WARNING" = "警告：旧版图源列表";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "您当前已配置旧版图源列表。此格式已过时，将在 Aidoku 的未来版本中停止支持。虽然目前仍可正常使用，但建议您寻找替代方案，并在「设置」>「图源列表」中进行配置。";
+"LEGACY_SOURCE_LIST_WARNING_INFO" = "您当前已配置旧版图源列表。此格式已过时，将在 Aidoku 的未来版本中停止支持。虽然目前仍可正常使用，但建议您寻找替代列表，并在“设置”>“图源列表”中进行配置。";
 "HIDE_BARS_ON_SWIPE" = "滑动时隐藏栏";
 "IMPORT_BACKUP" = "导入备份";
 "SYNC_WITH_TRACKER" = "与追踪器同步";
 "SYNC_WITH_TRACKER_INFO_%i" = "追踪器检测到 %i 个章节已阅读。您要将这些章节标记为已读吗？";
 "UNAVAILABLE_TRACKER_ITEM" = "追踪项目不可用";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "此关联项所使用的追踪器已无法使用。请移除此关联项，或重新登录对应的追踪器。";
-"FILTER_SEPARATOR" = ",";
+"FILTER_SEPARATOR" = "、";
 "EDIT" = "编辑";
 "UNCATEGORIZED" = "未分类";
 "FILTER_GROUPS" = "筛选组";
@@ -699,7 +699,7 @@
 "REFRESH_ANYWAYS" = "强制刷新";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "从书架移除？";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "从书架中移除此作品也会移除此作品与追踪器的关联。确定要继续吗？";
-"INCOGNITO_FILTERS_NOTICE" = "修改后的过滤器在无痕模式下不会保留。";
+"INCOGNITO_FILTERS_NOTICE" = "修改后的筛选条件在无痕模式下不会保留。";
 "API_KEY" = "API 密钥";
 "OIDC" = "OIDC";
 "BASIC_LOGIN" = "基础登录";
@@ -757,8 +757,8 @@
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "“查询手势”已设为“长按”，因此无法更改。";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "OCR 文字叠加层";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "激活查询时，在图像区域显示文本框。这有助于判断哪些文本已被 OCR 正确识别。";
-"DICTIONARY_OVERLAY_PADDING" = "覆盖层内边距";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "覆盖层字号";
+"DICTIONARY_OVERLAY_PADDING" = "叠加层内边距";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "叠加层字号";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "限制 OCR 语言";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "启用后，仅对标记为所选语言的章节进行 OCR 识别。建议仅选择已导入对应词典的语言。";
 "DICTIONARY_OCR_LANGUAGES" = "OCR 语言";
@@ -966,7 +966,7 @@
 
 "HTTPS_BYPASS_INVALID_URL" = "输入不带用户名或密码的 HTTPS URL。";
 
-"HTTPS_BYPASS_TEST_RESULT" = "收到 HTTP %d · 应用了 TLS 分段";
+"HTTPS_BYPASS_TEST_RESULT" = "收到 HTTP %d · 已应用 TLS 分段";
 
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "收到 HTTP %d · 未确认 TLS 分段";
 
@@ -1054,7 +1054,7 @@
 "POSITION_RIGHT" = "右";
 "UPLOAD_FILE" = "导入文件";
 "MIGRATE_CHAPTER_HISTORY" = "迁移章节历史";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "迁移旧版本留下的未链接到本地数据库中的章节的阅读历史记录。这通常在更新后自动发生。如果未完成，您可以在此处再次运行。";
+"MIGRATE_CHAPTER_HISTORY_TEXT" = "迁移旧版本遗留的、未与本地数据库中章节关联的阅读历史。此操作通常会在更新后自动完成；如未完成，可在此处重新运行。";
 
 // Local image import
 "IMPORT_PHOTO" = "导入照片";
@@ -1134,7 +1134,7 @@
 // Download page counts and single-series totals.
 "PAGES_%i_OF_%i" = "%i / %i 页";
 "1_SERIES" = "1 部作品";
-"SKIPPING_ONE_CHAPTER" = "跳过 1 个章节，可能是来源缺少该章节或已被筛选掉";
+"SKIPPING_ONE_CHAPTER" = "跳过 1 个章节，可能是图源缺少该章节或已被筛选掉";
 "BACKUP_CREATE_ERROR_TEXT" = "无法创建备份。请重试。";
 "YES" = "是";
 "NO" = "否";
@@ -1168,7 +1168,7 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "仅当前显示的页面";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "此应用不支持来源 %@ 的版本 %d。请安装受支持的版本。";
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "此应用不支持图源 %@ 的版本 %d。请安装受支持的版本。";
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 

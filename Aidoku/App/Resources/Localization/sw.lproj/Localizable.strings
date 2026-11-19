@@ -4,13 +4,13 @@
 "CONTINUE" = "Endelea";
 "CANCEL" = "Ghairi";
 "OK" = "Sawa";
-"DONE" = "Imekamilika";
+"DONE" = "Nimemaliza";
 "UNKNOWN" = "Haijulikani";
 "UNAVAILABLE" = "Haupatikani";
 "INVALID" = "Si halali";
 "RESET" = "Weka Upya";
-"DELETE" = "Ondoa";
-"REMOVE" = "Toa";
+"DELETE" = "Futa";
+"REMOVE" = "Ondoa";
 "RENAME" = "Badilisha Jina";
 "CLEAR" = "Futa";
 "PAUSE" = "Sitisha";
@@ -37,9 +37,9 @@
 
 "TRANSLATION_NO_TEXT" = "Hakuna maandishi yaliyotambuliwa. Jaribu modeli nyingine ya OCR au picha iliyo wazi zaidi.";
 
-"TRANSLATION_WORKING" = "Inatambua na kutafsiri...";
+"TRANSLATION_WORKING" = "Inatambua na kutafsiri…";
 
-"TRANSLATION_OCR_WORKING" = "Inatambua maandishi kwenye kifaa...";
+"TRANSLATION_OCR_WORKING" = "Inatambua maandishi kwenye kifaa…";
 
 "TRANSLATION_HELP" = "Aikoni ya tafsiri huwasha au kuzima tafsiri. Kurasa zinazoonekana huandaliwa kwanza, kisha kurasa zilizo karibu. Maandalizi hufuata nafasi yako ya kusoma. Matokeo ya OCR, tafsiri na mpangilio wa maandishi yaliyohifadhiwa yanaweza kutumiwa tena baada ya kufungua kisomaji au kuanzisha programu upya. Picha zilizoshirikiwa zinazofunguliwa kwa muda hazihifadhi akiba hii. Kuondoka kwenye kisomaji kunaghairi kazi ambayo haijakamilika.";
 
@@ -59,7 +59,7 @@
 
 "TRANSLATION_LANGUAGE" = "Lugha";
 
-"TRANSLATION_TARGET" = "Tafsiri Kwa";
+"TRANSLATION_TARGET" = "Tafsiri Kwenda";
 
 "TRANSLATION_SOURCE" = "Lugha Chanzo";
 
@@ -92,7 +92,7 @@
 "TRANSLATION_CONFIDENCE" = "Uhakika wa chini wa utambuzi wa maandishi ya OCR";
 "TRANSLATION_OCR_CONFIDENCE_HELP" = "Kizingiti cha pikseli huchagua pikseli za maandishi. Uhakika wa ugunduzi huchuja maeneo ya maandishi. Uhakika wa utambuzi huchuja maandishi yaliyosomwa kutoka kila eneo. Thamani za chini hukubali matokeo mengi zaidi yasiyo na uhakika.";
 "TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Ukubwa wa chini wa ugunduzi wa OCR";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Urefu wa chini wa upande mfupi wa maeneo yanayoweza kuwa na maandishi, ukipimwa kwa pikseli za ramani ya ugunduzi. Chaguo-msingi: 3 px. Thamani za chini zinaweza kugundua maandishi madogo zaidi, lakini pia kujumuisha kelele zaidi za picha.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Urefu wa chini wa upande mfupi wa maeneo yanayoweza kuwa na maandishi, ukipimwa kwa pikseli za ramani ya ugunduzi. Chaguomsingi: 3 px. Thamani za chini zinaweza kugundua maandishi madogo zaidi, lakini pia kujumuisha kelele zaidi za picha.";
 
 "TRANSLATION_SURFACE" = "Rangi ya Mandharinyuma";
 
@@ -134,7 +134,7 @@
 
 "TRANSLATION_TEST" = "Jaribu Muunganisho wa API";
 
-"TRANSLATION_TEST_RUNNING" = "Inajaribu Muunganisho...";
+"TRANSLATION_TEST_RUNNING" = "Inajaribu Muunganisho…";
 
 "TRANSLATION_TEST_SUCCESS" = "Muunganisho Umefaulu";
 
@@ -174,7 +174,7 @@
 
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d imepokelewa · Mgawanyiko wa TLS haujathibitishwa";
 
-"HTTPS_BYPASS_TEST_FAILED" = "Haikuweza kuunganisha kupitia HTTPS bypass.";
+"HTTPS_BYPASS_TEST_FAILED" = "Imeshindwa kuunganisha kupitia njia ya kukwepa uzuiaji wa HTTPS.";
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tafsiri imeshindwa. Maandishi yaliyotambuliwa kwa OCR yanaonyeshwa. Angalia mipangilio na muunganisho wako.";
 
@@ -188,7 +188,7 @@
 
 "TRANSLATION_CHAPTER_TITLE_FILTER" = "Lugha za Kichwa cha Sura";
 
-"TRANSLATION_PAGE_SOURCE" = "Lugha Chanzo cha Ukurasa";
+"TRANSLATION_PAGE_SOURCE" = "Lugha Asilia ya Ukurasa";
 
 "TRANSLATION_TITLE_FILTER_HELP" = "Tambua lugha asilia ya kila kichwa kiotomatiki na utafsiri lugha ulizochagua pekee. Lugha Zote Zilizogunduliwa huondoa kizuizi cha lugha. Mipangilio ya lugha asilia ya kurasa na vichwa vingine haiathiri uteuzi huu.";
 
@@ -252,8 +252,8 @@
 "EDIT" = "Hariri";
 "COPY" = "Nakili";
 "DOWNLOAD" = "Pakua";
-"NEXT_UNREAD" = "Inayofuata ambayo haijasomwa";
-"NEXT_%i_UNREAD" = "%i zinazofuata ambazo hazijasomwa";
+"NEXT_UNREAD" = "Sura Inayofuata Ambayo Haijasomwa";
+"NEXT_%i_UNREAD" = "Sura %i Zinazofuata Ambazo Hazijasomwa";
 "DOWNLOADED" = "Imepakuliwa";
 "DOWNLOADING" = "Inapakua";
 "DOWNLOAD_QUEUE" = "Foleni ya Kupakua";
@@ -266,7 +266,7 @@
 "NO_WIFI_ALERT_TITLE" = "Hakuna Wi-Fi";
 "NO_WIFI_ALERT_MESSAGE" = "Unahitaji kuunganishwa kwenye Wi-Fi ili kupakua maudhui haya. Tafadhali unganisha kwenye Wi-Fi na ujaribu tena.";
 "DOWNLOAD_ANYWAY_MESSAGE" = "Kwa sasa hauko kwenye Wi-Fi. Pakua hata hivyo?";
-"PROCESSING_QUEUE" = "Inachakata Foleni...";
+"PROCESSING_QUEUE" = "Inachakata Foleni…";
 "DOWNLOADING_PAUSED" = "Upakuaji Umesitishwa";
 "PAUSED" = "Imesitishwa";
 "CANCEL_ALL_DOWNLOADS" = "Ghairi Vipakuliwa Vyote";
@@ -282,7 +282,7 @@
 "VIEW_FILES" = "Tazama Faili";
 "COMPRESS_DOWNLOADS" = "Finya Vipakuliwa";
 "PARALLEL_DOWNLOADS" = "Upakuaji Sambamba";
-"BACKGROUND_DOWNLOADING" = "Upakuaji wa Mandharinyuma";
+"BACKGROUND_DOWNLOADING" = "Upakuaji Chinichini";
 "METADATA_DETECTED" = "Metadata ya Zamani Imegunduliwa";
 "METADATA_DETECTED_TEXT" = "Metadata ya JSON ya zamani itahamishwa hadi faili za ComicInfo.xml.";
 "LIBRARY" = "Maktaba";
@@ -301,7 +301,7 @@
 "SORT_LAST_OPENED" = "Ilifunguliwa Mwisho";
 "SORT_LAST_READ" = "Iliyosomwa Mwisho";
 "SORT_LATEST_CHAPTER" = "Sura ya Hivi Punde";
-"SORT_DATE_ADDED" = "Tarehe Iliyoongezwa";
+"SORT_DATE_ADDED" = "Tarehe ya Kuongezwa";
 "AND_MORE" = "na vitu zaidi";
 "NOT_%@" = "Sio %@";
 "FILTER_SEPARATOR" = ", ";
@@ -318,14 +318,14 @@
 "LAYOUT_GRID" = "Gridi";
 "LAYOUT_LIST" = "Orodha";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Inaondoa Kipengee kwenye Maktaba";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Kuondoa Vipengee vya %i kutoka kwa Maktaba";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Inaondoa Vipengee %i kwenye Maktaba";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Inaondoa Kipengee kutoka kwa Kategoria %@";
 "REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Inaondoa Vipengee %i kutoka kwa Kategoria %@";
-"REFRESHING_LIBRARY" = "Inaonyesha upya maktaba yako ya manga...";
-"PROCESSING_ENTRIES" = "Inachakata Maingizo...";
+"REFRESHING_LIBRARY" = "Inaonyesha Upya Maktaba…";
+"PROCESSING_ENTRIES" = "Inachakata Maingizo…";
 "REFRESH_NO_WIFI" = "Haijaunganishwa kwa Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Mpangilio wa kusasisha kupitia Wi-Fi pekee umewashwa. Unganisha kwenye Wi-Fi ili uonyeshe upya maktaba yako.";
-"REFRESH_ANYWAYS" = "Onyesha upya Hata hivyo";
+"REFRESH_ANYWAYS" = "Onyesha Upya Hata Hivyo";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Ungependa kuondoa kwenye Maktaba?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Kuondoa mfululizo huu kwenye maktaba yako pia kutaondoa viungo vyake vyote vya ufuatiliaji. Je, una uhakika unataka kuendelea?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Uonyeshaji upya wa Maktaba Umekatizwa";
@@ -334,7 +334,7 @@
 "NONE" = "Hakuna";
 "CATEGORIES" = "Kategoria";
 "CATEGORY" = "Kategoria";
-"UNCATEGORIZED" = "Isiyowekwa katika kundi";
+"UNCATEGORIZED" = "Bila Kategoria";
 "EDIT_CATEGORIES" = "Hariri Kategoria";
 "CATEGORY_ADD" = "Ongeza Kategoria";
 "CATEGORY_ADD_TEXT" = "Ingiza jina la kategoria mpya ya kuunda.";
@@ -351,7 +351,7 @@
 "CREATE_FILTER_GROUP" = "Unda Kikundi cha Kichujio";
 "EDIT_FILTER_GROUP" = "Badilisha Kikundi cha Kichujio";
 "CLEAR_FILTERS" = "Futa Vichujio";
-"SHOW_UNCATEGORIZED_CATEGORY" = "Onyesha Kategoria Isiyoainishwa";
+"SHOW_UNCATEGORIZED_CATEGORY" = "Onyesha Kategoria ya “Bila Kategoria”";
 "BROWSE" = "Vinjari";
 "BROWSE_NO_SOURCES" = "Hakuna Vyanzo";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "Ongeza chanzo na kitufe cha kuongeza.";
@@ -372,11 +372,11 @@
 "CONTENT_RATING" = "Ukadiriaji wa Maudhui";
 "SAFE" = "Salama";
 "CONTAINS_NSFW" = "Ina NSFW";
-"PRIMARILY_NSFW" = "Kimsingi, NSFW";
+"PRIMARILY_NSFW" = "Hasa NSFW";
 "REMOVE_LOCAL_SOURCE" = "Uondoe Chanzo cha Ndani?";
-"REMOVE_LOCAL_SOURCE_TEXT" = "Hii itaondoa faili zote za ndani zilizoletwa.";
-"MISSING_SOURCE_LIST" = "Orodha ya Chanzo haipo";
-"MISSING_SOURCE_LIST_INFO" = "Chanzo hiki cha nje hakipatikani kwenye orodha zozote za chanzo zilizosanidiwa. Hii ina maana kwamba haitapokea masasisho na huenda ikavunjika katika siku zijazo.";
+"REMOVE_LOCAL_SOURCE_TEXT" = "Hii itaondoa faili zote za ndani zilizoingizwa.";
+"MISSING_SOURCE_LIST" = "Orodha ya Vyanzo Haipo";
+"MISSING_SOURCE_LIST_INFO" = "Chanzo hiki cha nje hakipatikani kwenye orodha zozote za vyanzo zilizosanidiwa. Hii ina maana kwamba hakitapokea masasisho na huenda kikaacha kufanya kazi katika siku zijazo.";
 "SOURCE_INFO" = "Maelezo ya Chanzo";
 "LANGUAGE" = "Lugha";
 "LANGUAGES" = "Lugha";
@@ -413,7 +413,7 @@
 "SOURCE_CRASHED" = "Chanzo Kimeanguka";
 "ADD_SOURCE" = "Ongeza Chanzo";
 "IMPORT_SOURCE" = "Ingiza Chanzo";
-"BUILT_IN_SOURCES" = "Vyanzo Vilivyojengwa";
+"BUILT_IN_SOURCES" = "Vyanzo Vilivyojengewa Ndani";
 "EXTERNAL_SOURCES" = "Vyanzo vya Nje";
 "NO_RESULTS" = "Hakuna matokeo";
 "NO_EXTERNAL_SOURCES" = "Hakuna Vyanzo vya Nje";
@@ -452,15 +452,15 @@
 "CREATE_NEW_SERIES_INFO" = "Mfululizo mpya utaundwa kwenye ukurasa unaofuata, au unaweza kuchagua mfululizo uliopo ili kuongeza faili hii.";
 "ADD_TO_OTHER_SERIES_INFO" = "Faili itaongezwa kwenye mfululizo uliochaguliwa.";
 "%i_PAGES" = "Kurasa %i";
-"1_PAGE" = "ukurasa 1";
+"1_PAGE" = "Ukurasa 1";
 "CBZ_NAME" = "Faili ya ZIP ya Vitabu vya Katuni";
 "ZIP_NAME" = "Faili ya ZIP";
 "EPUB_NAME" = "EPUB";
 "KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "Seva ya midia unayopangisha mwenyewe";
 "KOMGA_INFO" = "Komga ni seva ya midia ya katuni na manga unayopangisha mwenyewe. Unahitaji kusanidi na kuendesha seva ya Komga ili kutumia chanzo hiki.";
-"KOMGA_SETUP" = "Mpangilio wa Komga";
-"DEMO_KOMGA_SERVER" = "Seva ya Demo Komga";
+"KOMGA_SETUP" = "Usanidi wa Komga";
+"DEMO_KOMGA_SERVER" = "Seva ya Onyesho ya Komga";
 "DEMO_KOMGA_SERVER_INFO" = "Unaweza kuingia kwenye seva ya onyesho ya Komga kwa kutumia barua pepe `demo@komga.org` na nenosiri `komga-demo`.";
 "SOURCE_NAME" = "Jina la Chanzo";
 "SOURCE_NAME_INFO" = "Jina ambalo chanzo litaonyeshwa kwenye kichupo cha kuvinjari.";
@@ -480,7 +480,7 @@
 "USE_CHAPTERS" = "Tumia Sura";
 "USE_CHAPTERS_TEXT" = "Chukua vitabu kama sura badala ya juzuu";
 "%@_BOOKS" = "Vitabu %@";
-"1_BOOK" = "1 Kitabu";
+"1_BOOK" = "Kitabu 1";
 "ON_DECK" = "Vya kusoma baadaye";
 "KEEP_READING" = "Endelea Kusoma";
 "RECENTLY_ADDED_BOOKS" = "Vitabu Vilivyoongezwa Hivi Karibuni";
@@ -492,8 +492,8 @@
 "ARTIST" = "Msanii";
 "SORT" = "Panga";
 "SORT_NAME" = "Jina";
-"SORT_DATE_UPDATED" = "Tarehe Ilisasishwa";
-"SORT_DATE_READ" = "Tarehe Iliyosomwa";
+"SORT_DATE_UPDATED" = "Tarehe ya Kusasishwa";
+"SORT_DATE_READ" = "Tarehe ya Kusoma";
 "SORT_RELEASE_DATE" = "Tarehe ya Kutolewa";
 "SORT_FOLDER_NAME" = "Jina la folda";
 "SORT_BOOKS_COUNT" = "Hesabu ya Vitabu";
@@ -510,7 +510,7 @@
 "KAVITA" = "Kavita";
 "KAVITA_TAGLINE" = "Maktaba ya dijiti unayopangisha mwenyewe";
 "KAVITA_INFO" = "Kavita ni seva ya midia ya katuni na manga unayopangisha mwenyewe. Unahitaji kusanidi na kuendesha seva ya Kavita ili kutumia chanzo hiki.";
-"KAVITA_SETUP" = "Mpangilio wa Kavita";
+"KAVITA_SETUP" = "Usanidi wa Kavita";
 "DEMO_KAVITA_SERVER" = "Seva ya Onyesho ya Kavita";
 "DEMO_KAVITA_SERVER_INFO" = "Unaweza kuingia kwenye seva ya onyesho ya Kavita kwa kutumia jina la mtumiaji `demouser` na nenosiri `Demouser64`.";
 "MORE_IN_%@" = "Zaidi katika %@";
@@ -529,9 +529,9 @@
 "BASIC_LOGIN" = "Kuingia kwa Msingi";
 "API_KEY_LOGIN_INFO" = "Kutoa mwenyewe ufunguo wa API kwa kuingia kutabatilisha njia zingine za kuingia. Unaweza kuiacha wazi ili kutumia njia zingine za kuingia.";
 "SUWAYOMI" = "Suwayomi";
-"SUWAYOMI_TAGLINE" = "Seva ya msomaji wa Manga";
+"SUWAYOMI_TAGLINE" = "Seva ya kusoma manga";
 "SUWAYOMI_INFO" = "Suwayomi ni seva ya kusoma manga unayopangisha mwenyewe, inayoendesha viendelezi vilivyoundwa kwa Mihon (Tachiyomi). Unahitaji kusanidi na kuendesha seva ya Suwayomi ili kutumia chanzo hiki.";
-"SUWAYOMI_SETUP" = "Mpangilio wa Suwayomi";
+"SUWAYOMI_SETUP" = "Usanidi wa Suwayomi";
 "STATUS_LICENSED" = "Imepewa leseni";
 "STATUS_PUBLISHING_FINISHED" = "Uchapishaji Umekamilika";
 "AUTHOR_NAME" = "Jina la mwandishi";
@@ -547,7 +547,7 @@
 "MORE" = "zaidi";
 "SOURCE_ORDER" = "Mpangilio wa Chanzo";
 "MISSING_SOURCE" = "Chanzo Kimekosekana";
-"MISSING_SOURCE_TEXT" = "Chanzo asili cha manga hii kinaonekana kukosekana. Tafadhali pakua chanzo hicho tena au uondoe manga hii kwenye maktaba yako.";
+"MISSING_SOURCE_TEXT" = "Chanzo asili cha manga hii hakikupatikana. Tafadhali sakinisha upya chanzo hicho au uondoe manga hii kwenye maktaba yako.";
 "SELECT_CHAPTERS" = "Chagua Sura";
 "SELECT_ALL" = "Chagua Zote";
 "DESELECT_ALL" = "Ondoa Uteuzi Wote";
@@ -562,7 +562,7 @@
 "CHAPTER" = "Sura";
 "CHAPTERS" = "Sura";
 "VOLUME_X" = "Juzuu %g";
-"CHAPTER_X" = "Sura ya %g";
+"CHAPTER_X" = "Sura %g";
 "VOL_X" = "Juz.%g";
 "CH_X" = "Sura %g";
 "VOL_SPACE_X" = "Juz. %g";
@@ -576,15 +576,15 @@
 "MARK" = "Weka alama";
 "MARK_ALL" = "Weka Alama kwa Zote";
 "MARK_PREVIOUS" = "Weka Alama kwa Sura Zote Zilizotangulia";
-"MARK_READ" = "Weka alama kama Imesomwa";
-"MARK_UNREAD" = "Weka alama kuwa haijasomwa";
+"MARK_READ" = "Weka Alama Kuwa Imesomwa";
+"MARK_UNREAD" = "Weka Alama Kuwa Haijasomwa";
 "PREVIOUS_COLON" = "Iliyotangulia:";
 "NEXT_COLON" = "Inayofuata:";
 "FINISHED_COLON" = "Imekamilika:";
 "CURRENT_COLON" = "Ya sasa:";
 "NO_NEXT_CHAPTER" = "Hakuna sura inayofuata";
 "NO_PREVIOUS_CHAPTER" = "Hakuna sura iliyotangulia";
-"SKIPPING_CHAPTERS" = "Kuruka sura za %i, ama chanzo kinazikosa au zimechujwa";
+"SKIPPING_CHAPTERS" = "Inaruka sura %i, kwa sababu chanzo hakina sura hizo au zimechujwa";
 "READER_SETTINGS" = "Mipangilio ya Kisomaji";
 "READING_MODE" = "Hali ya Kusoma";
 "DEFAULT" = "Chaguomsingi";
@@ -601,7 +601,7 @@
 "RESET_COVER" = "Weka Upya Jalada";
 "HISTORY" = "Historia";
 "%@_AGO" = "%@ iliyopita";
-"PAGE_X" = "Ukurasa wa %i";
+"PAGE_X" = "Ukurasa %i";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Hii itaondoa historia ya sura hii. Je, una uhakika ungependa kuendelea?";
 "REMOVE_ALL_MANGA_HISTORY" = "Ondoa Historia Yote ya Manga Hii";
 "HISTORY_LOCKED" = "Historia imefungwa.";
@@ -617,10 +617,10 @@
 "RECENTLY_SEARCHED" = "Iliyotafutwa Hivi Karibuni";
 "NO_RECENT_SEARCHES" = "Hakuna Utafutaji wa Hivi Majuzi";
 "NO_RECENT_SEARCHES_TEXT" = "Utafutaji wako wa hivi majuzi utaonekana hapa.";
-"SOURCES" = "Vyanzo vya maudhui";
+"SOURCES" = "Vyanzo";
 "LOGIN" = "Ingia";
-"LOGOUT" = "Toka nje";
-"LOGOUT_FROM_%@" = "Ondoka kwenye %@?";
+"LOGOUT" = "Toka";
+"LOGOUT_FROM_%@" = "Ungependa kutoka kwenye %@?";
 "LOGOUT_CONFIRM" = "Je, una uhakika unataka kutoka?";
 "USERNAME" = "Jina la mtumiaji";
 "EMAIL" = "Barua pepe";
@@ -646,7 +646,7 @@
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "Usawazishaji wa iCloud unapatikana tu unaposakinishwa kupitia TestFlight.";
 "INCOGNITO_MODE" = "Hali fiche";
 "INCOGNITO_MODE_TEXT" = "Husitisha kurekodi historia ya usomaji inapowashwa";
-"APPEARANCE" = "Muonekano";
+"APPEARANCE" = "Mwonekano";
 "APPEARANCE_LIGHT" = "Mwanga";
 "APPEARANCE_DARK" = "Giza";
 "USE_SYSTEM_APPEARANCE" = "Tumia Mwonekano wa Mfumo";
@@ -665,13 +665,13 @@
 "UNREAD_CHAPTER_BADGES" = "Beji za Sura ambazo hazijasomwa";
 "DOWNLOADED_CHAPTER_BADGES" = "Beji za Sura Zilizopakuliwa";
 "PIN_TITLES" = "Bandika majina ya manga";
-"PIN_DISABLED" = "Ubandikaji umezimwa";
+"PIN_DISABLED" = "Imezimwa";
 "PIN_UNREAD" = "Haijasomwa";
 "PIN_UPDATED_CHAPTERS" = "Sura Zilizosasishwa";
 "LIBRARY_UPDATING" = "Kusasisha Maktaba";
 "UPDATE_INTERVAL" = "Muda Kati ya Masasisho";
 "SKIP_TITLES" = "Ruka Majina";
-"ONLY_UPDATE_ON_WIFI" = "Sasisho kwenye Wi-Fi Pekee";
+"ONLY_UPDATE_ON_WIFI" = "Sasisha kwenye Wi-Fi Pekee";
 "ONLY_DOWNLOAD_ON_WIFI" = "Pakua kwenye Wi-Fi pekee";
 "EXCLUDED_CATEGORIES" = "Kategoria Zilizotengwa";
 "REFRESH_METADATA" = "Onyesha upya Metadata";
@@ -685,15 +685,15 @@
 "X_SERIES_HAVE_NEW_CHAPTERS" = "Mifululizo %d ina sura mpya";
 "DELETE_DOWNLOAD_AFTER_READING" = "Futa Kilichopakuliwa Baada ya Kusoma";
 "NEVER" = "Kamwe";
-"EVERY_6_HOURS" = "Kila masaa 6";
-"EVERY_12_HOURS" = "Kila masaa 12";
+"EVERY_6_HOURS" = "Kila saa 6";
+"EVERY_12_HOURS" = "Kila saa 12";
 "DAILY" = "Kila siku";
 "EVERY_2_DAYS" = "Kila siku 2";
 "WEEKLY" = "Kila wiki";
 "WITH_UNREAD_CHAPTERS" = "Na sura ambazo hazijasomwa";
 "WITH_COMPLETED_STATUS" = "Na hali iliyokamilishwa";
 "THAT_HAVENT_BEEN_READ" = "Bila sura zilizowekwa alama kuwa zimesomwa";
-"NO_RESULTS_FOR_%@" = "Hakuna Matokeo ya \"%@\"";
+"NO_RESULTS_FOR_%@" = "Hakuna Matokeo ya “%@”";
 "NO_RESULTS_TEXT" = "Angalia tahajia au ujaribu utafutaji mpya.";
 "LEARN_MORE" = "Jifunze zaidi…";
 "INSIGHTS" = "Takwimu za Usomaji";
@@ -715,25 +715,25 @@
 "ALL_TIME" = "Muda wote";
 "THIS_MONTH" = "Mwezi Huu";
 "THIS_YEAR" = "Mwaka Huu";
-"SOURCE_LISTS" = "Orodha za Chanzo";
-"SOURCE_LIST_ADDED" = "Orodha ya Chanzo Imeongezwa";
+"SOURCE_LISTS" = "Orodha za Vyanzo";
+"SOURCE_LIST_ADDED" = "Orodha ya Vyanzo Imeongezwa";
 "SOURCE_LIST_ADDED_TEXT" = "Sasa unaweza kuvinjari vyanzo vya nje katika kichupo cha Vinjari.";
-"SOURCE_LIST_URL" = "URL ya Orodha ya Chanzo";
-"SOURCE_LIST_ADD" = "Ongeza Orodha ya Chanzo";
-"SOURCE_LIST_ADD_TEXT" = "Weka URL ya orodha ya chanzo";
-"SOURCE_LIST_ADD_FAIL" = "Imeshindwa Kuongeza Orodha ya Chanzo";
-"SOURCE_LIST_ADD_FAIL_TEXT" = "URL ya orodha ya chanzo iliyotolewa si sahihi au tayari imeongezwa.";
-"UNAVAILABLE_SOURCE_LISTS" = "Orodha za Vyanzo Visivyopatikana";
+"SOURCE_LIST_URL" = "URL ya Orodha ya Vyanzo";
+"SOURCE_LIST_ADD" = "Ongeza Orodha ya Vyanzo";
+"SOURCE_LIST_ADD_TEXT" = "Weka URL ya orodha ya vyanzo";
+"SOURCE_LIST_ADD_FAIL" = "Imeshindwa Kuongeza Orodha ya Vyanzo";
+"SOURCE_LIST_ADD_FAIL_TEXT" = "URL ya orodha ya vyanzo iliyotolewa si sahihi au tayari imeongezwa.";
+"UNAVAILABLE_SOURCE_LISTS" = "Orodha za Vyanzo Zisizopatikana";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Hitilafu ilitokea wakati wa kuleta orodha za vyanzo hapo juu.";
 "COPY_URL" = "Nakili URL";
 "LEGACY_SOURCE_LIST" = "Orodha ya Vyanzo ya Muundo wa Zamani";
 "LEGACY_SOURCE_LIST_WARNING" = "Onyo: Orodha ya Vyanzo ya Muundo wa Zamani";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "Kwa sasa una orodha ya vyanzo ya muundo wa zamani iliyosanidiwa. Umbizo hili limepitwa na wakati na litaacha kufanya kazi katika toleo la baadaye la Aidoku. Ingawa bado itafanya kazi kwa sasa, inashauriwa utafute mbadala na uisanidi katika Mipangilio > Orodha za Chanzo.";
+"LEGACY_SOURCE_LIST_WARNING_INFO" = "Kwa sasa una orodha ya vyanzo ya muundo wa zamani iliyosanidiwa. Umbizo hili limepitwa na wakati na litaacha kufanya kazi katika toleo la baadaye la Aidoku. Ingawa bado itafanya kazi kwa sasa, inashauriwa utafute mbadala na uisanidi katika Mipangilio > Orodha za Vyanzo.";
 "LOCK_HISTORY_TAB" = "Funga Kichupo cha Historia";
 "DOWNSAMPLE_IMAGES" = "Punguza Azimio la Picha";
 "CROP_BORDERS" = "Kata Kingo";
 "DISABLE_QUICK_ACTIONS" = "Zima Vitendo vya Haraka";
-"DISABLE_DOUBLE_TAP_ZOOM" = "Lemaza Kuza kwa Gonga Mara Mbili";
+"DISABLE_DOUBLE_TAP_ZOOM" = "Zima Kukuza kwa Kugonga Mara Mbili";
 "LIVE_TEXT" = "Maandishi kwenye Picha (Live Text)";
 "HIDE_BARS_ON_SWIPE" = "Ficha Pau Unapotelezesha";
 "READER_BG_COLOR" = "Rangi ya Mandharinyuma";
@@ -762,10 +762,10 @@
 "TEXT_THEME_PAPER" = "Karatasi";
 "TEXT_THEME_GRAY" = "Kijivu";
 "DICTIONARY_LOOKUP" = "Utafutaji wa Kamusi";
-"DICTIONARY_SETTINGS_TEXT" = "Washa Utafutaji wa Kamusi ili kuruhusu uchakataji wa OCR kwenye picha za ukurasa ili kutafuta maneno katika kamusi zozote za Yomitan zilizoletwa.";
+"DICTIONARY_SETTINGS_TEXT" = "Washa Utafutaji wa Kamusi ili kuruhusu uchakataji wa OCR kwenye picha za ukurasa ili kutafuta maneno katika kamusi zozote za Yomitan zilizoingizwa.";
 "DICTIONARIES" = "Kamusi";
 "ABOUT_DICTIONARIES" = "Kuhusu Kamusi";
-"ABOUT_DICTIONARIES_TEXT" = "Kamusi za Yomitan zinaweza kuletwa kutoka kwa faili za zip. Unaweza kuwezesha au kuzima kamusi, na zinaweza kupangwa upya kwa kuburuta.";
+"ABOUT_DICTIONARIES_TEXT" = "Kamusi za Yomitan zinaweza kuingizwa kutoka kwa faili za zip. Unaweza kuwezesha au kuzima kamusi, na zinaweza kupangwa upya kwa kuburuta.";
 "LOOKUP_GESTURE" = "Ishara ya Kutafuta";
 "SINGLE_TAP" = "Gonga Moja";
 "LONG_PRESS" = "Bonyeza kwa Muda Mrefu";
@@ -790,7 +790,7 @@
 "FREQUENCY_DICTIONARIES" = "Kamusi za Marudio ya Maneno";
 "PITCH_DICTIONARIES" = "Kamusi za Lafudhi ya Toni";
 "KANJI_DICTIONARIES" = "Kamusi za Kanji";
-"IMPORTING_DICTIONARY" = "Inaleta Kamusi...";
+"IMPORTING_DICTIONARY" = "Inaingiza Kamusi…";
 "IMPORT_ERROR" = "Hitilafu ya Kuingiza";
 "REVISION" = "Marekebisho";
 "URL" = "URL";
@@ -799,7 +799,7 @@
 "TARGET_LANGUAGE" = "Lugha Lengwa";
 "TERM_COUNT" = "Idadi ya maneno ya kamusi";
 "TERM_META_COUNT" = "Idadi ya maingizo ya metadata ya maneno";
-"KANJI_COUNT" = "Hesabu ya Kanji";
+"KANJI_COUNT" = "Idadi ya Kanji";
 "KANJI_META_COUNT" = "Idadi ya maingizo ya metadata ya kanji";
 "TAG_COUNT" = "Idadi ya Lebo";
 "MEDIA_COUNT" = "Idadi ya Faili za Midia";
@@ -808,7 +808,7 @@
 "REMOVE_DICTIONARY" = "Ondoa Kamusi";
 "REMOVE_WORD" = "Ondoa Neno";
 "VOCABULARY" = "Msamiati";
-"1_WORD" = "neno 1";
+"1_WORD" = "Neno 1";
 "%i_WORDS" = "Maneno %i";
 "NO_VOCABULARY" = "Hakuna Msamiati";
 "NO_VOCABULARY_TEXT" = "Msamiati uliohifadhiwa utaonekana hapa.";
@@ -826,43 +826,43 @@
 "RECOMMENDED_DICTIONARIES_NOTE" = "Kamusi zilizo hapa chini zote ni lugha ya Kijapani-Kiingereza. Kwa lugha zingine, unaweza kuangalia orodha ya kamusi za Wiktionary.";
 "BACKUPS" = "Hifadhi rudufu";
 "BACKUP_NAME" = "Jina la Hifadhi Rudufu";
-"RENAME_BACKUP" = "Badilisha Jina la Hifadhi Nakala";
-"RENAME_BACKUP_TEXT" = "Weka jina jipya la kuhifadhi nakala yako";
-"CORRUPTED_BACKUP" = "Hifadhi Nakala Iliyoharibika";
+"RENAME_BACKUP" = "Badilisha Jina la Hifadhi Rudufu";
+"RENAME_BACKUP_TEXT" = "Weka jina jipya la hifadhi rudufu yako";
+"CORRUPTED_BACKUP" = "Hifadhi Rudufu Iliyoharibika";
 "CORRUPTED_BACKUP_TEXT" = "Hifadhi rudufu hii inaonekana kuwa na data iliyosanidiwa vibaya. Kubadilisha jina hakuwezekani.";
-"BACKUP_INFO" = "Bonyeza kwa muda mrefu nakala rudufu ili kuisafirisha, au telezesha kidole kushoto ili kuifuta.";
+"BACKUP_INFO" = "Bonyeza kwa muda mrefu hifadhi rudufu ili kuihamisha, au telezesha kidole kushoto ili kuifuta.";
 "MISSING_SOURCES" = "Vyanzo Vilivyokosekana";
 "MISSING_SOURCES_TEXT" = "Hifadhi rudufu iliyorejeshwa inaweza kuwa na data kutoka kwa vyanzo vifuatavyo, ambavyo hazijasakinishwa kwa sasa:";
 "RESTORE_MISSING_SOURCES" = "Ungependa kurejesha Vyanzo Vilivyokosekana?";
 "RESTORE_MISSING_SOURCES_TEXT" = "Je, ungependa kutafuta na kusakinisha vyanzo vinavyokosekana?";
 "INSTALL_SOURCES" = "Sakinisha Vyanzo";
-"INSTALLING_SOURCES" = "Inasakinisha vyanzo...";
-"RESTORE_BACKUP" = "Ungependa kurejesha kwenye nakala hii?";
-"RESTORE_BACKUP_TEXT" = "Data yote ya sasa itaondolewa na nafasi yake kuchukuliwa na data kutoka kwa nakala hii.";
-"BACKUP_IMPORT_SUCCESS" = "Hifadhi Nakala Imeingizwa";
+"INSTALLING_SOURCES" = "Inasakinisha vyanzo…";
+"RESTORE_BACKUP" = "Ungependa kurejesha hifadhi rudufu hii?";
+"RESTORE_BACKUP_TEXT" = "Data yote ya sasa itaondolewa na nafasi yake kuchukuliwa na data kutoka kwa hifadhi rudufu hii.";
+"BACKUP_IMPORT_SUCCESS" = "Hifadhi Rudufu Imeingizwa";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Ili kurejesha hifadhi rudufu hii, itafute kwenye ukurasa wa Hifadhi rudufu katika mipangilio.";
 "IMPORT_FAIL" = "Imeshindwa Kuingiza";
-"BACKUP_IMPORT_FAIL_TEXT" = "Imeshindwa kuhifadhi nakala. Tafadhali hakikisha kuwa nakala yako iko katika umbizo sahihi.";
-"SOURCE_IMPORT_FAIL_TEXT" = "Imeshindwa kuleta chanzo. Tafadhali hakikisha kuwa faili yako ya aix ni halali.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Imeshindwa kuhifadhi hifadhi rudufu. Tafadhali hakikisha kuwa hifadhi rudufu yako iko katika umbizo sahihi.";
+"SOURCE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza chanzo. Tafadhali hakikisha kuwa faili yako ya aix ni halali.";
 "FILE_IMPORT_FAIL_TEXT" = "Imeshindwa kuingiza faili. Hakikisha ni faili ya picha inayoweza kusomwa au faili halali ya CBZ au ZIP yenye picha.";
-"BACKUP_%@" = "Hifadhi nakala ya %@";
+"BACKUP_%@" = "Hifadhi Rudufu %@";
 "EXPORT" = "Hamisha";
 "RESTORE" = "Rejesha";
-"CREATE_BACKUP" = "Unda Hifadhi Nakala";
-"IMPORT_BACKUP" = "Ingiza Hifadhi Nakala";
-"LIBRARY_ENTRIES" = "Maingizo ya maktaba ya Manga";
+"CREATE_BACKUP" = "Unda Hifadhi Rudufu";
+"IMPORT_BACKUP" = "Ingiza Hifadhi Rudufu";
+"LIBRARY_ENTRIES" = "Maingizo ya Maktaba";
 "SENSITIVE_SETTINGS" = "Mipangilio Nyeti";
 "NAME" = "Jina";
 "DATE" = "Tarehe";
-"BACKUP_INFO_TITLE" = "Maelezo ya Hifadhi nakala";
-"AUTOMATIC_BACKUPS" = "Hifadhi Nakala za Kiotomatiki";
-"BACKUP_INTERVAL" = "Muda Kati ya Nakala Rudufu";
+"BACKUP_INFO_TITLE" = "Maelezo ya Hifadhi Rudufu";
+"AUTOMATIC_BACKUPS" = "Hifadhi Rudufu za Kiotomatiki";
+"BACKUP_INTERVAL" = "Muda Kati ya Hifadhi Rudufu";
 "AUTO" = "Otomatiki";
-"LAST_BACKED_UP_%@" = "Ilihifadhi nakala kiotomatiki mwisho: %@";
+"LAST_BACKED_UP_%@" = "Hifadhi rudufu ya kiotomatiki ya mwisho: %@";
 "READING_SESSIONS" = "Vipindi vya Kusoma";
 "LOGS" = "Kumbukumbu";
 "LOGGING" = "Kurekodi Kumbukumbu";
-"LOG_SERVER" = "Seva ya logi";
+"LOG_SERVER" = "Seva ya Kumbukumbu";
 "EXPORT_LOGS" = "Hamisha Kumbukumbu";
 "DISPLAY_LOGS" = "Onyesha Kumbukumbu";
 "ADVANCED" = "Mipangilio ya kina";
@@ -870,7 +870,7 @@
 "CLEAR_NETWORK_CACHE" = "Futa Akiba ya Mtandao";
 "CLEAR_NETWORK_CACHE_TEXT" = "Kitendo hiki hakiwezi kutenduliwa. Maombi na picha za mtandao zilizoakibishwa zitafutwa.";
 "CLEAR_READ_HISTORY" = "Futa Historia ya Kusoma";
-"CLEAR_READ_HISTORY_TEXT" = "Kitendo hiki hakiwezi kutenduliwa. Historia yote iliyosomwa itaondolewa.";
+"CLEAR_READ_HISTORY_TEXT" = "Kitendo hiki hakiwezi kutenduliwa. Historia yote ya kusoma itaondolewa.";
 "CLEAR_EXCLUDING_LIBRARY" = "Futa Historia ya Manga Zisizo kwenye Maktaba";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Kitendo hiki hakiwezi kutenduliwa. Historia yote ya kusoma manga ambazo haziko kwenye maktaba itaondolewa.";
 "RESET_SETTINGS" = "Weka upya Mipangilio";
@@ -908,7 +908,7 @@
 "TRACK_PLANNING" = "Ninapanga Kusoma";
 "TRACK_COMPLETED" = "Imekamilika";
 "TRACK_PAUSED" = "Imesitishwa";
-"TRACK_DROPPED" = "Umeacha kusoma";
+"TRACK_DROPPED" = "Imeachwa";
 "TRACK_REREADING" = "Kusoma upya";
 "STARTED" = "Tarehe ya Kuanza Kusoma";
 "FINISHED" = "Tarehe ya Kumaliza Kusoma";
@@ -929,7 +929,7 @@
 "STATUS_COLON_%@" = "Hali: %@";
 "TYPE_COLON_%@" = "Aina: %@";
 "VIEW_ON_WEBSITE" = "Tazama kwenye Tovuti";
-"CLEAR_TRACKED_MANGA" = "Ondoa Viungo Vyote vya Ufuatiliaji wa Manga";
+"CLEAR_TRACKED_MANGA" = "Ondoa Viungo Vyote vya Vifuatiliaji";
 "CLEAR_TRACKED_MANGA_TEXT" = "Kitendo hiki hakiwezi kutenduliwa. Viungo vyote kati ya manga na vifuatiliaji vitaondolewa.";
 "SEARCH_OPTIONS" = "Chaguzi za Utafutaji";
 "SHOW_NSFW_RESULTS" = "Onyesha Matokeo ya NSFW";
@@ -946,8 +946,8 @@
 "ENHANCED_TRACKERS_INFO" = "Vifuatiliaji vilivyoboreshwa vinaweza kuunganisha kiotomatiki kwa vipengee vilivyoongezwa kwenye maktaba yako kutoka kwa vyanzo vinavyotumika, kufuatilia historia ya usomaji wa njia mbili.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Kuzima ufuatiliaji wa chanzo kutaondoa viungo vyote vya ufuatiliaji vya chanzo hicho. Kuwasha kutaunganisha kiotomatiki vipengee vyote vya chanzo hicho vilivyo kwenye maktaba yako.";
 "TRACKER_LOGOUT_INFO" = "Kuondoka kutaondoa maelezo ya ufuatiliaji yaliyounganishwa kutoka kwa kifuatiliaji hiki kwa mfululizo wote.";
-"CACHE_SIZE_%@" = "Saizi ya akiba: %@";
-"SUPPORT_VIA_KOFI" = "Usaidizi kupitia Ko-Fi";
+"CACHE_SIZE_%@" = "Ukubwa wa akiba: %@";
+"SUPPORT_VIA_KOFI" = "Saidia kupitia Ko-Fi";
 "SORT_UNREAD_CHAPTERS" = "Sura Zisizosomwa";
 "SET_AS_SINGLE_PAGE" = "Weka kama Ukurasa Mmoja";
 "UNSET_AS_SINGLE_PAGE" = "Ondoa Mpangilio wa Ukurasa Mmoja";
@@ -971,7 +971,7 @@
 "SELECT" = "Chagua";
 "ADD" = "Ongeza";
 "SKIP_DUPLICATE_CHAPTERS" = "Ruka Sura Nakala";
-"MARK_DUPLICATE_CHAPTERS" = "Weka alama kwa Sura Nakala kama Zimesomwa";
+"MARK_DUPLICATE_CHAPTERS" = "Weka Alama Kuwa Sura Nakala Zimesomwa";
 "MIGRATE_SOURCES" = "Hamisha Vyanzo";
 "SYNC_LOCAL_HISTORY" = "Sawazisha Historia ya Ndani";
 "MIGRATE" = "Hamisha";
@@ -982,7 +982,7 @@
 "NOT_FOUND" = "Haijapatikana";
 "MOST_CHAPTERS_SLOWER" = "Sura nyingi zaidi (polepole)";
 "FIRST_ALTERNATIVE" = "Mbadala wa Kwanza";
-"MIGRATE_%i_ITEMS?" = "Ungependa kuhamisha vipengee vya %i?";
+"MIGRATE_%i_ITEMS?" = "Ungependa kuhamisha vipengee %i?";
 "MIGRATE_ONE_ITEM?" = "Ungependa kuhamisha kipengee 1?";
 "MIGRATE_CONFIRM_TEXT" = "Historia ya kusoma kwa maingizo asili itaondolewa wakati wa kuhamia chanzo tofauti.";
 "MIGRATE_WITH_HISTORY" = "Hamisha na Uhifadhi Historia";
@@ -1002,7 +1002,7 @@
 "PILLARBOX_AMOUNT" = "Upana wa pambizo za pembeni";
 "PILLARBOX_ORIENTATION" = "Mkao wa Skrini kwa Pambizo za Pembeni";
 "PILLARBOX_ORIENTATION_INFO" = "Chagua mikao ya skrini ambayo pambizo za pembeni zitaonyeshwa.";
-"AUTO_SCROLL" = "Usogeza kiotomatiki";
+"AUTO_SCROLL" = "Kusogeza Kiotomatiki";
 "AUTO_SCROLL_SPEED" = "Kasi ya Kusogeza Kiotomatiki";
 "AUTO_SCROLL_POSITION" = "Nafasi ya Kitufe cha Kusogeza Kiotomatiki";
 "POSITION_LEFT" = "Kushoto";
@@ -1010,18 +1010,18 @@
 "BOTH" = "Zote mbili";
 "%@_TRACKER_LOGIN_NEEDED" = "Kuingia kwa %@ Kunahitajika";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tokeni yako ya %@ imekwisha muda, kwa hivyo kifuatiliaji husika kitaacha kufanya kazi hadi utakapoingia tena katika mipangilio.";
-"BACKUP_ERROR" = "Hitilafu ya Kurejesha Nakala";
-"BACKUP_ERROR_TEXT" = "Hitilafu ilikuwa ikitokea wakati wa kurejesha: %@. Hifadhi rudufu inaweza kuwa batili.";
+"BACKUP_ERROR" = "Hitilafu ya Kurejesha Hifadhi Rudufu";
+"BACKUP_ERROR_TEXT" = "Hitilafu imetokea wakati wa kurejesha: %@. Hifadhi rudufu inaweza kuwa batili.";
 "READER_ORIENTATION" = "Mwelekeo";
 "FOLLOW_DEVICE" = "Fuata Kifaa";
 "FOCUS_ITEM_LEFT" = "Lenga kipengee kilicho upande wa kushoto";
-"FOCUS_ITEM_RIGHT" = "Angazia kipengee kilicho kulia";
-"FOCUS_ITEM_ABOVE" = "Angazia kipengee hapo juu";
-"FOCUS_ITEM_BELOW" = "Angazia kipengee hapa chini";
+"FOCUS_ITEM_RIGHT" = "Lenga kipengee kilicho upande wa kulia";
+"FOCUS_ITEM_ABOVE" = "Lenga kipengee kilicho juu";
+"FOCUS_ITEM_BELOW" = "Lenga kipengee kilicho chini";
 "FOCUS_ITEM_NEXT" = "Lenga kipengee kinachofuata";
 "FOCUS_ITEM_PREV" = "Lenga kipengee kilichotangulia";
-"OPEN_FOCUS_ITEM" = "Fungua kipengee kilicholenga";
-"RESET_FOCUS" = "Weka upya umakini";
+"OPEN_FOCUS_ITEM" = "Fungua kipengee kilicholengwa";
+"RESET_FOCUS" = "Weka upya ulengaji";
 "TURN_PAGE_LEFT" = "Geuza ukurasa kushoto";
 "TURN_PAGE_RIGHT" = "Geuza ukurasa kulia";
 "CHAPTER_FORWARD" = "Sura Inayofuata";
@@ -1049,7 +1049,7 @@
 
 // Shared image retention
 "SAVE_SHARED_IMAGES" = "Hifadhi Picha Zilizoshirikiwa katika Faili za Ndani";
-"SAVE_SHARED_IMAGES_HELP" = "Wakati imezimwa, picha zilizoshirikiwa hufunguliwa kwa muda na hufutwa zikifungwa. Historia ya kusoma na OCR/kache za tafsiri hazijahifadhiwa.";
+"SAVE_SHARED_IMAGES_HELP" = "Wakati imezimwa, picha zilizoshirikiwa hufunguliwa kwa muda na hufutwa zikifungwa. Historia ya kusoma na akiba ya OCR/tafsiri hazihifadhiwi.";
 
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "Tafsiri Orodha Kubwa za Vichujio (Zaidi ya Chaguo 100)";
 
@@ -1141,8 +1141,8 @@
 // Download page counts and single-series totals.
 "PAGES_%i_OF_%i" = "Kurasa: %i / %i";
 "1_SERIES" = "Mfululizo 1";
-"SKIPPING_ONE_CHAPTER" = "Kuruka sura 1 kwa sababu haipo kwenye chanzo au imechujwa";
-"BACKUP_CREATE_ERROR_TEXT" = "Nakala rudufu haikuweza kuundwa. Tafadhali jaribu tena.";
+"SKIPPING_ONE_CHAPTER" = "Inaruka sura 1 kwa sababu haipo kwenye chanzo au imechujwa";
+"BACKUP_CREATE_ERROR_TEXT" = "Hifadhi rudufu haikuweza kuundwa. Tafadhali jaribu tena.";
 "YES" = "Ndiyo";
 "NO" = "Hapana";
 "CHAPTERS_%i_OF_%i" = "Sura: %i / %i";

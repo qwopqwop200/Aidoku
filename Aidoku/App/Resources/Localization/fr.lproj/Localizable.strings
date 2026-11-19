@@ -49,7 +49,7 @@
 "SOURCE_ORDER" = "Ordre de la source";
 "MISSING_SOURCE_TEXT" = "La source d’origine de ce manga semble manquer. Réinstallez-la ou retirez ce titre de votre bibliothèque.";
 "SELECT_ALL" = "Tout sélectionner";
-"LINK_COPIED" = "Lien Copié";
+"LINK_COPIED" = "Lien copié";
 "LINK_COPIED_TEXT" = "Le lien a été ajouté au presse-papier.";
 
 
@@ -58,9 +58,9 @@
 "VOLUME_X" = "Volume %g";
 "CHAPTER_X" = "Chapitre %g";
 "VOL_X" = "Vol. %g";
-"CH_X" = "Ch.%g";
+"CH_X" = "Chap.%g";
 "VOL_SPACE_X" = "Vol. %g";
-"CH_SPACE_X" = "Ch. %g";
+"CH_SPACE_X" = "Chap. %g";
 "NO_CHAPTERS" = "Aucun chapitre";
 "NO_CHAPTERS_AVAILABLE" = "Aucun chapitre disponible";
 "START_READING" = "Commencer à lire";
@@ -105,7 +105,7 @@
 "DAILY" = "Tous les jours";
 "EVERY_2_DAYS" = "Tous les deux jours";
 "WEEKLY" = "Toutes les semaines";
-"WITH_UNREAD_CHAPTERS" = "Avec les chapitres non lus";
+"WITH_UNREAD_CHAPTERS" = "Avec des chapitres non lus";
 "WITH_COMPLETED_STATUS" = "Avec le statut « terminé »";
 "THAT_HAVENT_BEEN_READ" = "Sans aucun chapitre marqué comme lu";
 "SOURCE_LISTS" = "Listes de sources";
@@ -246,7 +246,7 @@
 "LOGOUT" = "Se déconnecter";
 "LOGOUT_FROM_%@" = "Se déconnecter de %@ ?";
 "CLEAR_TRACKED_MANGA_TEXT" = "Cette action est irréversible. Tous les liens entre les mangas et les services de suivi seront supprimés.";
-"VOLUMES" = "Tomes";
+"VOLUMES" = "Volumes";
 "STATUS" = "Statut";
 "START_TRACKING" = "Commencer le suivi";
 "FINISHED" = "Date de fin";
@@ -503,7 +503,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Tous les cookies enregistrés dans la vue web affichée seront transmis à la source. Ne vous connectez pas à une source en laquelle vous n’avez pas confiance.";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "La synchronisation iCloud est une fonctionnalité expérimentale. Son activation ou sa désactivation peut entraîner une perte de données.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "La synchronisation iCloud est uniquement disponible lorsque l’application est installée via TestFlight.";
-"NO_RESULTS_FOR_%@" = "Aucun résultat pour “%@”";
+"NO_RESULTS_FOR_%@" = "Aucun résultat pour « %@ »";
 "NO_RESULTS_TEXT" = "Vérifiez l’orthographe ou essayez une nouvelle recherche.";
 "LEARN_MORE" = "En savoir plus…";
 "UNAVAILABLE_SOURCE_LISTS" = "Listes de sources indisponibles";
@@ -530,7 +530,7 @@
 "AUTO_SYNC_HISTORY" = "Synchroniser automatiquement l’historique";
 "AUTO_SYNC_HISTORY_INFO" = "Lorsqu’un chapitre et/ou un volume plus récent est indiqué comme lu par le service de suivi, l’historique local est mis à jour en conséquence.";
 "SET_AS_SINGLE_PAGE" = "Définir comme page unique";
-"RELOAD_FAILED" = "L'actualisation a échoué";
+"RELOAD_FAILED" = "Échec du rechargement";
 "RELOAD_FAILED_TEXT" = "Impossible de recharger l’image. Essayez à nouveau.";
 "ADD" = "Ajouter";
 "SOURCE_BREAKING_CHANGE" = "Modification incompatible de la source";
@@ -578,39 +578,39 @@
 "AND_MORE" = "et plus";
 "NOT_%@" = "Non %@";
 "FILTER_SEPARATOR" = ", ";
-"FILTER_HAS_UNREAD" = "Non-lu";
+"FILTER_HAS_UNREAD" = "Non lu";
 "FILTER_STARTED" = "Commencé";
 "ASCENDING" = "Ascendant";
 "DESCENDING" = "Descendant";
-"OLDEST_FIRST" = "Plus vieux d'abord";
+"OLDEST_FIRST" = "Plus ancien en premier";
 "NEWEST_FIRST" = "Plus récent en premier";
 "HIGHEST_FIRST" = "Nombre le plus élevé en premier";
 "LOWEST_FIRST" = "Nombre le plus faible en premier";
 "LAYOUT_GRID" = "Grille";
 "LAYOUT_LIST" = "Liste";
 "PROCESSING_ENTRIES" = "Traitement des entrées…";
-"EDIT_SOURCES" = "Éditer les sources";
+"EDIT_SOURCES" = "Modifier les sources";
 "CONTENT_RATING" = "Classification du contenu";
 "SAFE" = "Tous publics";
 "CONTAINS_NSFW" = "Contient du contenu pour adultes";
 "PRIMARILY_NSFW" = "Principalement du contenu pour adultes";
-"REMOVE_LOCAL_SOURCE" = "Retirer la source locale  ?";
+"REMOVE_LOCAL_SOURCE" = "Retirer la source locale ?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "Cette action retirera tous les fichiers locaux importés.";
 "DISPLAY_DEFAULT" = "Défaut";
 "SHARING_LABEL" = "Étiquette de partage";
 "LOCKED" = "Verrouillé";
 "TOGGLE_LOCK" = "Changer le verrouillage";
 "NO_HISTORY" = "Pas d'historique";
-"NO_HISTORY_TEXT" = "L'historique de lecture apparaitra ici.";
+"NO_HISTORY_TEXT" = "L'historique de lecture apparaîtra ici.";
 "RECENTLY_SEARCHED" = "Cherché récemment";
 "NO_RECENT_SEARCHES" = "Pas de recherches récentes";
-"NO_RECENT_SEARCHES_TEXT" = "Vos recherches récentes apparaitront ici.";
+"NO_RECENT_SEARCHES_TEXT" = "Vos recherches récentes apparaîtront ici.";
 "SOURCES" = "Sources";
 "DOWNLOADED_CHAPTER_BADGES" = "Badges de chapitres téléchargés";
-"BACKGROUND_REFRESH" = "Rafraichissement en arrière-plan";
+"BACKGROUND_REFRESH" = "Actualisation en arrière-plan";
 "BACKGROUND_REFRESH_TEXT" = "Lors d’une actualisation manuelle de la bibliothèque, permet de terminer la mise à jour même si l’application passe en arrière-plan.";
 "EVERY_6_HOURS" = "Toutes les 6 heures";
-"STREAKS" = "Séries";
+"STREAKS" = "Séries de lecture";
 "STATS" = "Statistiques";
 "CURRENT_STREAK" = "Série actuelle";
 "NO_CURRENT_STREAK" = "Pas de série en cours";
@@ -643,7 +643,7 @@
 "ALL_CHAPTERS_LOCKED" = "Tous les chapitres verrouillés";
 "ON_DECK" = "À lire ensuite";
 "INSIGHTS" = "Statistiques de lecture";
-"LIVE_TEXT" = "Texte live";
+"LIVE_TEXT" = "Texte en direct";
 "%@_TRACKER_LOGIN_NEEDED" = "Connexion à %@ nécessaire";
 "PARALLEL_DOWNLOADS" = "Téléchargements parallèles";
 "PILLARBOX_ORIENTATION_INFO" = "Choisissez les orientations de l’écran dans lesquelles afficher les marges latérales.";
@@ -739,7 +739,7 @@
 "SUWAYOMI_INFO" = "Suwayomi est un serveur de lecteur de manga auto-hébergé qui gère des extensions construites pour Mihon (Tachiyomi). Vous aurez besoin d'un serveur Suwayomi configuré et fonctionnel afin d'utiliser cette source.";
 "SUWAYOMI_SETUP" = "Configuration Suwayomi";
 "STATUS_LICENSED" = "Sous licence";
-"STATUS_PUBLISHING_FINISHED" = "Publication Terminée";
+"STATUS_PUBLISHING_FINISHED" = "Publication terminée";
 "AUTHOR_NAME" = "Nom de l'auteur";
 "ARTIST_NAME" = "Nom de l'artiste";
 "INVALID_KEY" = "Clé invalide";
@@ -918,7 +918,7 @@
 
 "HTTPS_BYPASS_TEST" = "Tester la connexion";
 
-"HTTPS_BYPASS_TEST_HELP" = "Teste cette adresse HTTPS via le contournement, même lorsque le commutateur est éteint. Une réponse confirme la connectivité, et non la présence d'un blocage du FAI.";
+"HTTPS_BYPASS_TEST_HELP" = "Teste cette adresse HTTPS via le contournement, même lorsque l’option est désactivée. Une réponse confirme la connectivité, et non la présence d'un blocage du FAI.";
 
 "HTTPS_BYPASS_INVALID_URL" = "Saisissez une URL HTTPS sans nom d'utilisateur ni mot de passe.";
 
@@ -930,7 +930,7 @@
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "La traduction a échoué. Le texte OCR est affiché. Vérifiez les paramètres et la connexion.";
 
-"TRANSLATION_MANGA_TITLES" = "Traduire des titres de mangas";
+"TRANSLATION_MANGA_TITLES" = "Traduire les titres des mangas";
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduire les titres des chapitres";
 
@@ -1097,7 +1097,7 @@
 "TRANSLATION_ERROR_REDIRECT" = "La redirection du point de terminaison de traduction a été refusée.";
 "TRANSLATION_ERROR_RESPONSE_SIZE" = "La réponse de traduction a dépassé la taille maximale autorisée.";
 "TRANSLATION_ERROR_HTTP" = "Le serveur de traduction a renvoyé le code HTTP %d.";
-"TRANSLATION_ERROR_HTTP_REQUEST" = "Le serveur de traduction a renvoyé le code HTTP %d (ID de requête: %@).";
+"TRANSLATION_ERROR_HTTP_REQUEST" = "Le serveur de traduction a renvoyé le code HTTP %d (ID de requête : %@).";
 "TRANSLATION_ERROR_NETWORK_CODE" = "La demande de traduction a échoué (erreur %d).";
 "TRANSLATION_ERROR_CONNECTION" = "Impossible de joindre l’API de traduction. Vérifiez votre connexion réseau, le point de terminaison de l’API et l’état du serveur, puis réessayez.";
 "TRANSLATION_ERROR_REFUSED" = "Le fournisseur de traduction a refusé la demande.";
@@ -1168,6 +1168,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ne prend en charge que les textes sources en japonais et en chinois (simplifié et traditionnel). La détection automatique et la sélection de la langue source sont également limitées à ces langues. La traduction vers le coréen ou d’autres langues cibles reste possible. Sélectionner Manga applique des seuils de détection du texte de 0.85 et 0.25 ; la taille de détection par défaut est de 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ne prend en charge que les textes sources en japonais et en chinois (simplifié et traditionnel). La détection automatique et la sélection de la langue source sont également limitées à ces langues. La traduction vers le coréen ou d’autres langues cibles reste possible. Sélectionner Manga applique des seuils de détection du texte de 0,85 et 0,25 ; la taille de détection par défaut est de 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Toutes les langues OCR prises en charge";

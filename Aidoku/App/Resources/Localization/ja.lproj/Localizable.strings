@@ -114,7 +114,7 @@
 
 // Reader
 "CHAPTER" = "章";
-"STATUS_HIATUS" = "一時休止";
+"STATUS_HIATUS" = "休載";
 "SUGGESTIVE" = "性的な表現を含む";
 "CHAPTERS" = "章";
 "NO_CHAPTERS" = "章なし";
@@ -297,10 +297,10 @@
 "RENAME_CATEGORY_FAIL_INFO" = "同じ名前の本棚は作成できません。";
 "OPTIONS" = "オプション";
 "MIGRATE" = "移行";
-"MIGRATE_%i_ITEMS?" = "%i個のアイテムを移行しますか?";
+"MIGRATE_%i_ITEMS?" = "%i個のアイテムを移行しますか？";
 "WITH_COMPLETED_STATUS" = "完結済みの漫画";
 "THAT_HAVENT_BEEN_READ" = "既読の章がない作品";
-"MISSING_SOURCES" = "ソースがありません";
+"MISSING_SOURCES" = "不足しているソース";
 "RESTORE_MISSING_SOURCES" = "不足しているソースを復元しますか？";
 "RESTORE_MISSING_SOURCES_TEXT" = "不足しているソースを検索してインストールしますか？";
 "INSTALL_SOURCES" = "ソースをインストール";
@@ -337,7 +337,7 @@
 // Manga Updates
 "MANGA_UPDATES" = "更新";
 "NO_UPDATES" = "更新なし";
-"%lld_PLUS_MORE" = "+%lld個";
+"%lld_PLUS_MORE" = "他%lld件";
 "SKIPPING_CHAPTERS" = "ソースに存在しないか、フィルターで除外されているため、%i章をスキップします";
 "NO_SCANLATOR" = "スキャンレーターなし";
 "SCANLATOR" = "スキャンレーター";
@@ -384,7 +384,7 @@
 "CREATE_NEW_SERIES_INFO" = "次のページで新しい作品を作成するか、このファイルを追加する既存の作品を選択できます。";
 "ADD_TO_OTHER_SERIES_INFO" = "このファイルは選択された作品に追加されます。";
 "%i_PAGES" = "%i ページ";
-"1_PAGE" = "１ ページ";
+"1_PAGE" = "1 ページ";
 "CBZ_NAME" = "コミック用Zipアーカイブ";
 "ZIP_NAME" = "Zip ファイル";
 "KEEP_READING" = "読み続ける";
@@ -399,7 +399,7 @@
 "PUBLISHER" = "出版社";
 "AGE_RATING" = "年齢制限";
 "RELEASE_DATE" = "リリース日";
-"SORT" = "並び替え";
+"SORT" = "並べ替え";
 "SORT_NAME" = "タイトル順";
 "SORT_DATE_UPDATED" = "更新日順";
 "SORT_DATE_READ" = "閲覧日順";
@@ -410,8 +410,8 @@
 "VOLUME_CHAPTER_INVALID_ERROR" = "同じ巻・章の設定を持つ章がすでに存在します。";
 "OTHER_SETTINGS" = "その他の設定";
 "LOGIN_BASIC_TEXT" = "入力した認証情報はソースに直接渡されます。信頼できないソースにはログインしないでください。";
-"LOGIN_WEBVIEW_WARNING" = "Web view を使ってログインしますか？";
-"LOGIN_WEBVIEW_WARNING_TEXT" = "Web view で開かれたウェブブラウザに設定されている Cookie はソースと共有されます。信用のできないソースにはログインをお控えください。";
+"LOGIN_WEBVIEW_WARNING" = "Webビューでログインしますか？";
+"LOGIN_WEBVIEW_WARNING_TEXT" = "表示されるWebビューで設定されたすべてのCookieはソースに渡されます。信頼できないソースにはログインしないでください。";
 "LOGIN" = "ログイン";
 "USERNAME" = "ユーザー名";
 "READER_ORIENTATION" = "リーダーの向き";
@@ -428,7 +428,7 @@
 "DOWNLOADED_CHAPTERS" = "ダウンロードした章";
 "TOTAL_DOWNLOADS" = "ダウンロードの合計容量";
 "%i_SERIES" = "%i作品";
-"IN_LIBRARY" = "ライブラリにある";
+"IN_LIBRARY" = "ライブラリに追加済み";
 "VIEW_SERIES" = "シリーズに移動";
 "VIEW_FILES" = "ファイルに移動";
 "COMPRESS_DOWNLOADS" = "ダウンロードを圧縮";
@@ -480,7 +480,7 @@
 "PRIMARILY_NSFW" = "主に成人向け";
 "REMOVE_LOCAL_SOURCE" = "ローカルソースを削除しますか？";
 "REMOVE_LOCAL_SOURCE_TEXT" = "これにより、インポートされたすべてのローカルファイルが削除されます。";
-"MISSING_SOURCE_LIST" = "ソースリストが見つかりません";
+"MISSING_SOURCE_LIST" = "ソースリストにありません";
 "MISSING_SOURCE_LIST_INFO" = "この外部ソースは設定されているどのソースリストにも存在しません。そのためアップデートを受信できず、将来的に動作しなくなる可能性があります。";
 "BASE_URL" = "ベースURL";
 "HOME" = "ホーム";
@@ -806,8 +806,8 @@
 "SORT_RELEASE_DATE" = "発売日順";
 "LIBRARY_REFRESH_INTERRUPTED" = "ライブラリの更新が中断されました";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "前回のライブラリ更新処理は完了前に中断されました。再開しますか？";
-"DISABLE" = "無効";
-"ENABLE" = "有効";
+"DISABLE" = "無効にする";
+"ENABLE" = "有効にする";
 "RESTART" = "再起動";
 "HTML_ERROR" = "HTMLエラー";
 "JSON_ERROR" = "JSONエラー";
@@ -976,7 +976,7 @@
 
 "HTTPS_BYPASS_INVALID_URL" = "ユーザー名やパスワードを含まないHTTPS URLを入力してください。";
 
-"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d を受信しました · TLS フラグメンテーションが適用されました";
+"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d受信・TLSフラグメンテーション適用済み";
 
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d受信・TLSフラグメンテーション未確認";
 
@@ -984,7 +984,7 @@
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻訳に失敗したため、OCRで認識した原文を表示しています。設定と接続を確認してください。";
 
-"TRANSLATION_MANGA_TITLES" = "マンガのタイトルを翻訳する";
+"TRANSLATION_MANGA_TITLES" = "漫画のタイトルを翻訳";
 
 "TRANSLATION_CHAPTER_TITLES" = "章のタイトルを翻訳";
 
@@ -998,7 +998,7 @@
 
 "TRANSLATION_TITLE_FILTER_HELP" = "各タイトルの原文言語を自動検出し、選択した言語だけを翻訳します。「検出したすべての言語」を選ぶと言語の制限を解除します。ページや他の種類のタイトルの原文言語設定は、この選択に影響しません。";
 
-"TRANSLATION_MANGA_DESCRIPTIONS" = "マンガの説明文を翻訳";
+"TRANSLATION_MANGA_DESCRIPTIONS" = "漫画の説明文を翻訳";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "漫画の説明文の原文言語";
 
@@ -1047,8 +1047,8 @@
 "TRANSLATION_SOURCE_LABELS" = "ソースのメニュー・セクション名を翻訳";
 
 // Local image import
-"IMPORT_PHOTO" = "写真を読み込む";
-"LOCAL_IMAGE_IMPORT_TEXT" = "写真や画像ファイル、またはCBZ・ZIPファイルを読み込んで読めます。";
+"IMPORT_PHOTO" = "写真をインポート";
+"LOCAL_IMAGE_IMPORT_TEXT" = "写真や画像ファイル、またはCBZ・ZIPファイルをインポートして読むことができます。";
 
 // Translated page export
 "SAVE_TRANSLATED_IMAGE" = "翻訳付き画像を保存";

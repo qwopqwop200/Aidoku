@@ -15,8 +15,8 @@
 
 // Downloads
 "DOWNLOAD" = "Unduh";
-"NEXT_UNREAD" = "Berikutnya yang belum dibaca";
-"NEXT_%i_UNREAD" = "%i berikutnya yang belum dibaca";
+"NEXT_UNREAD" = "Bab Belum Dibaca Berikutnya";
+"NEXT_%i_UNREAD" = "%i Bab Belum Dibaca Berikutnya";
 "DOWNLOAD_QUEUE" = "Antrean Unduhan";
 "CANCEL_DOWNLOAD" = "Batalkan Unduhan";
 "REMOVE_DOWNLOAD" = "Hapus Unduhan";
@@ -30,7 +30,7 @@
 "LIBRARY_EMPTY" = "Perpustakaan Kosong";
 "REMOVE_FROM_LIBRARY" = "Hapus dari Perpustakaan";
 "SORT_BY" = "Urutkan berdasarkan";
-"FILTER_BY" = "Saring Berdasarkan";
+"FILTER_BY" = "Filter Berdasarkan";
 "SORT_TITLE" = "Judul";
 "SORT_LAST_OPENED" = "Terakhir dibuka";
 "SORT_LAST_READ" = "Terakhir dibaca";
@@ -92,7 +92,7 @@
 
 // History
 "HISTORY" = "Riwayat";
-"REMOVE_CHAPTER_HISTORY_TEXT" = "Ini akan menghapus riwayat untuk bab ini. Apakah anda yakin ingin melanjutkan?";
+"REMOVE_CHAPTER_HISTORY_TEXT" = "Ini akan menghapus riwayat untuk bab ini. Apakah Anda yakin ingin melanjutkan?";
 "HISTORY_LOCKED" = "Riwayat dikunci.";
 "VIEW_MORE" = "Lihat Lebih Banyak";
 "%@_AGO" = "%@ yang lalu";
@@ -102,15 +102,15 @@
 "SETTINGS" = "Pengaturan";
 "AUTH_TO_ENABLE" = "Otentikasi untuk mengaktifkan.";
 "ABOUT" = "Tentang";
-"SUPPPORT_DEVELOPMENT" = "Dukungan Pengembangan";
+"SUPPPORT_DEVELOPMENT" = "Dukung Pengembangan";
 "GENERAL" = "Umum";
 "ICLOUD_SYNC" = "Sinkronisasi iCloud";
 "INCOGNITO_MODE" = "Mode Penyamaran";
-"INCOGNITO_MODE_TEXT" = "Jeda riwayat membaca saat diaktifkan";
+"INCOGNITO_MODE_TEXT" = "Menjeda riwayat membaca saat diaktifkan";
 "APPEARANCE" = "Tampilan";
 "APPEARANCE_LIGHT" = "Terang";
-"PORTRAIT" = "Tegak";
-"LANDSCAPE" = "Mendatar";
+"PORTRAIT" = "Potret";
+"LANDSCAPE" = "Lanskap";
 "READER" = "Pembaca";
 "OPEN_READER_VIEW" = "Buka Tampilan Pembaca";
 "UNREAD_CHAPTER_BADGES" = "Lencana Bab yang Belum Dibaca";
@@ -128,14 +128,14 @@
 "BACKUPS" = "Cadangan";
 "BACKUP_NAME" = "Nama Cadangan";
 "RENAME_BACKUP_TEXT" = "Masukkan nama baru untuk cadangan Anda";
-"CORRUPTED_BACKUP" = "Cadangan yang Rusak";
+"CORRUPTED_BACKUP" = "Cadangan Rusak";
 "CORRUPTED_BACKUP_TEXT" = "Cadangan ini tampaknya memiliki data yang dikonfigurasi dengan salah. Penggantian nama tidak mungkin dilakukan.";
 "BACKUP_INFO" = "Tekan lama pada cadangan untuk mengekspornya, atau geser ke kiri untuk menghapus.";
 "MISSING_SOURCES" = "Sumber Hilang";
 "MISSING_SOURCES_TEXT" = "Cadangan yang dipulihkan mungkin mengandung data dari sumber-sumber berikut, yang saat ini tidak terpasang:";
 "RESTORE_BACKUP" = "Pulihkan ke cadangan ini?";
 "RESTORE_BACKUP_TEXT" = "Semua data saat ini akan dihapus dan diganti dengan data dari cadangan ini.";
-"BACKUP_IMPORT_SUCCESS" = "Cadangan yang Diimpor";
+"BACKUP_IMPORT_SUCCESS" = "Cadangan Diimpor";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Untuk memulihkan cadangan ini, temukan di halaman cadangan di pengaturan.";
 "BACKUP_IMPORT_FAIL_TEXT" = "Gagal menyimpan cadangan. Harap pastikan bahwa cadangan Anda dalam format yang benar.";
 "LOGS" = "Log";
@@ -162,12 +162,12 @@
 "MANHWA" = "Manhwa";
 "LIGHT_NOVEL" = "Novel Ringan";
 "STATUS_COLON_%@" = "Status: %@";
-"CLEAR_TRACKED_MANGA" = "Hapus Semua Tautan Pelacakan Manga";
+"CLEAR_TRACKED_MANGA" = "Hapus Semua Tautan Pelacak";
 "TYPE_COLON_%@" = "Tipe: %@";
 "TRACK" = "Lacak";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "Apakah Anda yakin ingin menghapus semua unduhan?";
 "CACHE_SIZE_%@" = "Ukuran cache: %@";
-"SUPPORT_VIA_KOFI" = "Dukungan melalui Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Dukung melalui Ko-Fi";
 "ADDING_SOURCES_GUIDE_BUTTON" = "Panduan Menambahkan Sumber";
 "CLEAR" = "Bersihkan";
 "DOWNLOADED" = "Diunduh";
@@ -181,8 +181,8 @@
 "UPDATES" = "Pembaruan";
 "SELECT_CHAPTERS" = "Pilih Bab";
 "MARK_UNREAD" = "Tandai belum Dibaca";
-"MORE" = "lebih banyak";
-"MISSING_SOURCE_TEXT" = "Sumber asli manga ini tampaknya tidak tersedia. Unduh ulang sumber tersebut atau hapus manga ini dari perpustakaan Anda.";
+"MORE" = "selengkapnya";
+"MISSING_SOURCE_TEXT" = "Sumber asli manga ini tidak ditemukan. Pasang ulang sumber tersebut atau hapus judul ini dari perpustakaan Anda.";
 "MARK" = "Tandai";
 "NO_CHAPTERS_AVAILABLE" = "Tidak Ada Bab yang Tersedia";
 
@@ -222,7 +222,7 @@
 "SOURCE_LIST_URL" = "URL Daftar Sumber";
 "SOURCE_LIST_ADD_FAIL" = "Gagal Menambahkan Daftar Sumber";
 "LOCK_HISTORY_TAB" = "Kunci Tab Riwayat";
-"RENAME_BACKUP" = "Ganti nama Cadangan";
+"RENAME_BACKUP" = "Ubah Nama Cadangan";
 "IMPORT_FAIL" = "Impor Gagal";
 "EXPORT" = "Ekspor";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "URL daftar sumber yang diberikan tidak valid atau telah ditambahkan.";
@@ -232,7 +232,7 @@
 "RESET_TEXT" = "Tindakan ini tidak dapat dibatalkan. Semua data, pengaturan, dan cache akan dihapus dan disetel ulang.";
 "CLEAR_NETWORK_CACHE" = "Hapus Cache Jaringan";
 "CLEAR_READ_HISTORY" = "Hapus Riwayat Baca";
-"RESET_SETTINGS" = "Reset Pengaturan";
+"RESET_SETTINGS" = "Atur Ulang Pengaturan";
 "CATEGORY_LOCKED" = "Kategori dikunci.";
 "PAGE_X_OF_X" = "Halaman %i dari %i";
 "MULTI_LANGUAGE" = "Multi-Bahasa";
@@ -298,7 +298,7 @@
 "RANGE_FROM" = "Dari";
 "RANGE_TO" = "Sampai";
 "SOURCE_SETTINGS" = "Pengaturan Sumber";
-"RESET_SETTINGS_CONFIRM_%@" = "Apakah Anda yakin ingin mereset semua pengaturan untuk %@?";
+"RESET_SETTINGS_CONFIRM_%@" = "Apakah Anda yakin ingin mengatur ulang semua pengaturan untuk %@?";
 "CANCEL_CONFIRM" = "Apakah Anda yakin ingin membatalkan?";
 "CANCEL_CONFIRM_TEXT" = "Perubahan Anda akan dihapus.";
 "DISCARD_CHANGES" = "Batalkan Perubahan";
@@ -323,13 +323,13 @@
 "ALL_SOURCES_INSTALLED" = "Semua Sumber Telah Diinstal";
 "ALL_SOURCES_INSTALLED_INFO" = "Tidak ada sumber eksternal yang tersisa untuk diinstal.";
 "LOCAL_FILES_INFO" = "Sumber berkas lokal memungkinkan Anda mengimpor dan mengelola perpustakaan bacaan sendiri langsung di dalam Aidoku.";
-"LOCAL_FILES_SETUP" = "Pengaturan Sumber Lokal";
+"LOCAL_FILES_SETUP" = "Pengaturan Berkas Lokal";
 "LOCAL_FILES" = "Berkas Lokal";
 "LOCAL_FILES_TAGLINE" = "Membaca dari berkas lokal";
 "IMPORT" = "Impor";
 "IMPORT_FILE" = "Impor Berkas";
 "LOCAL_FILE_IMPORT" = "Impor Berkas Lokal";
-"LOCAL_FILE_IMPORT_TEXT" = "Impor file CBZ atau ZIP yang berisi gambar untuk dibaca.";
+"LOCAL_FILE_IMPORT_TEXT" = "Impor berkas CBZ atau ZIP yang berisi gambar untuk dibaca.";
 "CHAPTER_TITLE" = "Judul Bab";
 "SERIES_TITLE" = "Judul Seri";
 "DESCRIPTION" = "Deskripsi";
@@ -367,7 +367,7 @@
 "DISPLAY_CHAPTER" = "Bab";
 "DISPLAY_VOLUME" = "Volume";
 "USE_CHAPTERS" = "Gunakan Bab";
-"USE_CHAPTERS_TEXT" = "Anggap buku sebagai bab, bukan sebagai jilid";
+"USE_CHAPTERS_TEXT" = "Anggap buku sebagai bab, bukan sebagai volume";
 "ON_DECK" = "Bacaan Berikutnya";
 "KEEP_READING" = "Terus Baca";
 "RECENTLY_ADDED_BOOKS" = "Buku-buku yang Baru Ditambahkan";
@@ -376,8 +376,8 @@
 "RECENTLY_READ_BOOKS" = "Buku yang Baru Saja Dibaca";
 "ANY" = "Apa pun";
 "AUTHOR" = "Penulis";
-"ARTIST" = "Seniman";
-"SORT" = "Sortir";
+"ARTIST" = "Ilustrator";
+"SORT" = "Urutkan";
 "SORT_NAME" = "Nama";
 "SORT_DATE_UPDATED" = "Tanggal Diperbarui";
 "SORT_DATE_READ" = "Tanggal Dibaca";
@@ -402,29 +402,29 @@
 "LOCKED" = "Terkunci";
 "TOGGLE_LOCK" = "Kunci/Buka Kunci";
 "VOLUME" = "Volume";
-"CH_X" = "Bab.%g";
+"CH_X" = "Bab %g";
 "VOL_SPACE_X" = "Vol. %g";
-"CH_SPACE_X" = "Bab. %g";
+"CH_SPACE_X" = "Bab %g";
 "SKIPPING_CHAPTERS" = "Melewatkan %i bab, baik karena sumbernya tidak menyertakan bab-bab tersebut atau karena bab-bab tersebut telah disaring";
 "OPEN_WEBSITE" = "Buka Situs Web";
 "SET_COVER_IMAGE" = "Atur Gambar Sampul";
 "UPLOAD_CUSTOM_COVER" = "Pilih Sampul Kustom";
-"RESET_COVER" = "Reset Sampul";
+"RESET_COVER" = "Atur Ulang Sampul";
 "MANGA_UPDATES" = "Pembaruan";
 "NO_UPDATES" = "Tidak ada pembaruan";
-"%lld_PLUS_MORE" = "+%lld lebih";
+"%lld_PLUS_MORE" = "+%lld lainnya";
 "LOGIN" = "Masuk";
 "LOGOUT_CONFIRM" = "Apakah Anda yakin ingin keluar?";
 "USERNAME" = "Nama Pengguna";
 "EMAIL" = "Surel";
 "PASSWORD" = "Kata sandi";
-"LOGIN_FAILED" = "Masuk Gagal";
+"LOGIN_FAILED" = "Gagal Masuk";
 "LOGIN_FAILED_TEXT" = "Gagal masuk ke sumber. Pastikan kredensial Anda dimasukkan dengan benar.";
 "LOGIN_BASIC_TEXT" = "Semua kredensial yang dimasukkan akan langsung dikirimkan ke sumber. Jangan masuk ke sumber yang tidak Anda percayai.";
 "LOGIN_WEBVIEW_WARNING" = "Masuk melalui tampilan web?";
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Semua cookie yang disetel dalam tampilan web yang ditampilkan akan dikirimkan ke sumber. Jangan masuk ke sumber yang tidak Anda percayai.";
-"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync adalah fitur eksperimental. Mengaktifkan atau menonaktifkannya dapat menyebabkan kehilangan data.";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync hanya tersedia jika diinstal melalui TestFlight.";
+"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Sinkronisasi iCloud adalah fitur eksperimental. Mengaktifkan atau menonaktifkannya dapat menyebabkan kehilangan data.";
+"ICLOUD_SYNC_TEXT_SIDELOADED" = "Sinkronisasi iCloud hanya tersedia jika diinstal melalui TestFlight.";
 "ONLY_DOWNLOAD_ON_WIFI" = "Hanya unduh melalui Wi-Fi";
 "DELETE_DOWNLOAD_AFTER_READING" = "Hapus Unduhan Setelah Dibaca";
 "NO_RESULTS_FOR_%@" = "Tidak ada hasil untuk “%@”";
@@ -432,7 +432,7 @@
 "UNAVAILABLE_SOURCE_LISTS" = "Daftar Sumber yang Tidak Tersedia";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Terjadi kesalahan saat mengambil daftar sumber di atas.";
 "COPY_URL" = "Salin URL";
-"DOWNSAMPLE_IMAGES" = "Mengurangi resolusi gambar";
+"DOWNSAMPLE_IMAGES" = "Turunkan Resolusi Gambar";
 "CROP_BORDERS" = "Pangkas Tepi";
 "DISABLE_QUICK_ACTIONS" = "Nonaktifkan Aksi Cepat";
 "READER_BG_COLOR" = "Warna Latar Belakang";
@@ -508,10 +508,10 @@
 "SELECTED" = "Terpilih";
 "AVAILABLE" = "Tersedia";
 "NOT_FOUND" = "Tidak Ditemukan";
-"MOST_CHAPTERS_SLOWER" = "Bab-bab terbanyak (lebih lambat)";
+"MOST_CHAPTERS_SLOWER" = "Bab Terbanyak (lebih lambat)";
 "FIRST_ALTERNATIVE" = "Alternatif Pertama";
 "MIGRATE_%i_ITEMS?" = "Migrasikan %i item?";
-"MIGRATE_ONE_ITEM?" = "Migrasi 1 item?";
+"MIGRATE_ONE_ITEM?" = "Migrasikan 1 item?";
 "SOURCE_BREAKING_CHANGE" = "Perubahan Sumber yang Tidak Kompatibel";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Sumber ini mengalami perubahan yang tidak kompatibel dengan versi sebelumnya. Migrasi diperlukan untuk mempertahankan perpustakaan dan riwayat Anda.";
 "UPLOAD_DATE" = "Tanggal Unggah";
@@ -524,8 +524,8 @@
 "PILLARBOX_ORIENTATION" = "Orientasi Margin Samping";
 "PILLARBOX_ORIENTATION_INFO" = "Pilih orientasi layar yang akan menampilkan margin samping.";
 "BOTH" = "Keduanya";
-"%@_TRACKER_LOGIN_NEEDED" = "%@ Diperlukan Login";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Token %@ Anda telah kadaluwarsa, sehingga pelacak yang terkait akan berhenti berfungsi hingga Anda masuk kembali di pengaturan.";
+"%@_TRACKER_LOGIN_NEEDED" = "Login %@ Diperlukan";
+"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Token %@ Anda telah kedaluwarsa, sehingga pelacak yang terkait akan berhenti berfungsi hingga Anda masuk kembali di pengaturan.";
 "BACKUP_ERROR" = "Kesalahan Pemulihan Cadangan";
 "BACKUP_ERROR_TEXT" = "Terjadi kesalahan saat memulihkan: %@. Cadangan mungkin tidak valid.";
 "READER_ORIENTATION" = "Orientasi";
@@ -537,7 +537,7 @@
 "FOCUS_ITEM_NEXT" = "Fokus pada item berikutnya";
 "FOCUS_ITEM_PREV" = "Fokus pada item sebelumnya";
 "OPEN_FOCUS_ITEM" = "Buka item yang difokuskan";
-"RESET_FOCUS" = "Reset fokus";
+"RESET_FOCUS" = "Atur ulang fokus";
 "TURN_PAGE_LEFT" = "Balik halaman ke kiri";
 "TURN_PAGE_RIGHT" = "Balik halaman ke kanan";
 "CHAPTER_FORWARD" = "Bab selanjutnya";
@@ -568,12 +568,12 @@
 "FORMAT_ARCHIVE" = "Arsip";
 "LOGIN_VIA_OIDC" = "Masuk menggunakan OIDC";
 "LEARN_MORE" = "Pelajari lebih lanjut…";
-"SPLIT_WIDE_IMAGES" = "Membagi Gambar Lebar";
-"REVERSE_SPLIT_ORDER" = "Urutan Pembagian Terbalik";
+"SPLIT_WIDE_IMAGES" = "Bagi Gambar Lebar";
+"REVERSE_SPLIT_ORDER" = "Balik Urutan Pembagian";
 "TRACKING" = "Pelacakan";
-"TOGGLE_BARS" = "Tampilkan/Sembunyikan bilah pengaturan";
+"TOGGLE_BARS" = "Tampilkan/Sembunyikan bilah";
 "DOWNLOADING" = "Mengunduh";
-"PROCESSING_QUEUE" = "Memproses Antrian…";
+"PROCESSING_QUEUE" = "Memproses Antrean…";
 "DOWNLOADING_PAUSED" = "Unduhan Dijeda";
 "PAUSED" = "Dijeda";
 "CANCEL_ALL_DOWNLOADS" = "Batalkan Semua Unduhan";
@@ -719,7 +719,7 @@
 "STATUS_LICENSED" = "Berlisensi";
 "STATUS_PUBLISHING_FINISHED" = "Penerbitan Selesai";
 "AUTHOR_NAME" = "Nama penulis";
-"ARTIST_NAME" = "Nama seniman";
+"ARTIST_NAME" = "Nama ilustrator";
 "INVALID_KEY" = "Kunci Tidak Valid";
 "NEW_CHAPTER_NOTIFICATIONS" = "Notifikasi Bab Baru";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Kirim notifikasi saat perpustakaan disegarkan di latar belakang.";
@@ -730,7 +730,7 @@
 "SET_TRACK_CHAPTER_OFFSET" = "Atur Offset Bab";
 "TRACK_CHAPTER_OFFSET_TEXT" = "Sesuaikan pembaruan bab pelacak otomatis untuk judul ini ketika nomor bab sumber berbeda dari nomor bab pelacak.";
 "MIGRATE_CONFIRM_TEXT" = "Riwayat membaca untuk entri asli akan dihapus saat bermigrasi ke sumber yang berbeda.";
-"SELECT_PINNED_SOURCES" = "Pilih Sumber yang Dipin";
+"SELECT_PINNED_SOURCES" = "Pilih Sumber yang Disematkan";
 "SEARCH_MANUALLY" = "Cari Secara Manual";
 "DONT_MIGRATE" = "Jangan Migrasi";
 "SELECTED_%i_OF_%i" = "Dipilih (%i/%i)";
@@ -758,10 +758,10 @@
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Menahan pada awal kata akan menyorotnya, dan melepaskannya akan mengaktifkan popup. Ini menonaktifkan tindakan cepat halaman saat diaktifkan.";
 "LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Terkunci oleh Gerakan Pencarian: Ketuk Sekali.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Terkunci oleh Gerakan Pencarian: Tekan Lama.";
-"DICTIONARY_TEXT_OVERLAY_MODE" = "Tampilan Teks OCR";
+"DICTIONARY_TEXT_OVERLAY_MODE" = "Lapisan Teks OCR";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Menampilkan kotak teks pada wilayah gambar saat pencarian diaktifkan. Ini dapat membantu menentukan teks mana yang telah dikenali dengan benar oleh OCR.";
-"DICTIONARY_OVERLAY_PADDING" = "Padding Tampilan";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "Ukuran Teks Tampilan";
+"DICTIONARY_OVERLAY_PADDING" = "Padding Lapisan";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Ukuran Teks Lapisan";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Batasi Bahasa OCR";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Saat diaktifkan, hanya bab yang ditandai sebagai bahasa yang dipilih yang akan diproses untuk OCR. Disarankan untuk hanya memilih bahasa yang telah Anda impor kamusnya.";
 "DICTIONARY_OCR_LANGUAGES" = "Bahasa OCR";
@@ -886,7 +886,7 @@
 "TRANSLATION_CONFIDENCE" = "Keyakinan Minimum Pengenalan OCR";
 "TRANSLATION_OCR_CONFIDENCE_HELP" = "Ambang piksel memilih piksel teks. Keyakinan deteksi menyaring area teks. Keyakinan pengenalan menyaring teks yang dibaca dari setiap area. Nilai yang lebih rendah menerima lebih banyak hasil yang tidak pasti.";
 "TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Ukuran Minimum Deteksi OCR";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Panjang minimum sisi pendek calon area teks, diukur dalam piksel peta deteksi. Default: 3 px. Nilai yang lebih rendah dapat mendeteksi teks yang lebih kecil, tetapi juga lebih banyak derau.";
+"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Panjang minimum sisi pendek calon area teks, diukur dalam piksel peta deteksi. Default: 3 px. Nilai yang lebih rendah dapat mendeteksi teks yang lebih kecil, tetapi juga dapat menangkap lebih banyak derau.";
 
 "TRANSLATION_SURFACE" = "Warna Latar Belakang";
 
@@ -910,7 +910,7 @@
 
 "TRANSLATION_FIXED" = "Ukuran Huruf Tetap";
 
-"TRANSLATION_OVERLAY" = "Hamparan Terjemahan";
+"TRANSLATION_OVERLAY" = "Lapisan Terjemahan";
 
 "TRANSLATION_OVERLAY_HELP" = "Mengganti teks di atas kotak teks asli dengan tata letak yang menghindari tumpang tindih dan pemenggalan baris sesuai sistem tulisan. Perubahan tampilan menggunakan kembali hasil OCR yang sudah ada.";
 
@@ -984,7 +984,7 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Bahasa Sumber Halaman";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Secara otomatis mendeteksi bahasa sumber setiap judul dan hanya menerjemahkan bahasa yang dipilih. Semua Bahasa Terdeteksi menghilangkan batasan bahasa. Pengaturan bahasa sumber halaman dan judul lainnya tidak mempengaruhi pilihan ini.";
+"TRANSLATION_TITLE_FILTER_HELP" = "Secara otomatis mendeteksi bahasa sumber setiap judul dan hanya menerjemahkan bahasa yang dipilih. Semua Bahasa Terdeteksi menghilangkan batasan bahasa. Pengaturan bahasa sumber halaman dan judul lainnya tidak memengaruhi pilihan ini.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Terjemahkan Deskripsi Manga";
 
@@ -1042,7 +1042,7 @@
 
 // Completed app localization
 "TEXT_THEME" = "Tema";
-"TEXT_THEME_SEPIA" = "sepia";
+"TEXT_THEME_SEPIA" = "Sepia";
 "TEXT_THEME_PAPER" = "Kertas";
 "TEXT_THEME_GRAY" = "Abu-abu";
 "AUTO_SCROLL_POSITION" = "Posisi Tombol Gulir Otomatis";
@@ -1151,7 +1151,7 @@
 "TRANSLATION_SOURCE_COLORS" = "Pertahankan warna asli";
 "TRANSLATION_SOURCE_COLORS_HELP" = "Pertahankan warna teks dan latar bersama-sama.";
 "TRANSLATION_INPAINTING" = "Pemulihan latar";
-"TRANSLATION_INPAINTING_HELP" = "Hapus teks asli dengan mempertahankan latar. Gunakan kotak jika masker atau keterbacaan tidak pasti. Memerlukan warna asli.";
+"TRANSLATION_INPAINTING_HELP" = "Hapus teks asli dengan mempertahankan latar. Menggunakan kotak jika mask atau keterbacaan tidak pasti. Memerlukan warna asli.";
 
 // Translation settings section
 "TRANSLATION_FILTERING" = "Penyaringan Teks";

@@ -1,4 +1,4 @@
-"IMPORT" = "Import";
+"IMPORT" = "Importă";
 "DONE" = "Gata";
 "FILE_IMPORT_FAIL_TEXT" = "Nu s-a putut importa fișierul. Asigurați-vă că este un fișier imagine care poate fi citit sau o arhivă CBZ ori ZIP validă care conține imagini.";
 "FORMAT_IMAGE" = "Imagine";

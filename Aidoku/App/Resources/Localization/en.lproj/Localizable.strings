@@ -308,7 +308,7 @@
 "KAVITA_SETUP" = "Kavita Setup";
 "DEMO_KAVITA_SERVER" = "Demo Kavita Server";
 "DEMO_KAVITA_SERVER_INFO" = "You can log in to the demo Kavita server using the username `demouser` and password `Demouser64`.";
-"MORE_IN_%@" = "More In %@";
+"MORE_IN_%@" = "More in %@";
 "SORT_CHAPTER_ADDED" = "Date Chapter Added";
 "SORT_TIME_TO_READ" = "Time to Read";
 "SORT_AVERAGE_RATING" = "Average Rating";
@@ -385,7 +385,7 @@
 "CURRENT_COLON" = "Current:";
 "NO_NEXT_CHAPTER" = "There is no next chapter";
 "NO_PREVIOUS_CHAPTER" = "There is no previous chapter";
-"SKIPPING_CHAPTERS" = "Skipping %i chapters, either the source is missing them or they have been filtered out";
+"SKIPPING_CHAPTERS" = "Skipping %i chapters because they are missing from the source or have been filtered out";
 "READER_SETTINGS" = "Reader Settings";
 "READING_MODE" = "Reading Mode";
 "DEFAULT" = "Default";
@@ -525,7 +525,7 @@
 "SERIES_SINGULAR" = "Series";
 "HOUR_PLURAL" = "Hours";
 "HOUR_SINGULAR" = "Hour";
-"ALL_TIME" = "All-time";
+"ALL_TIME" = "All Time";
 "THIS_MONTH" = "This Month";
 "THIS_YEAR" = "This Year";
 
@@ -755,7 +755,7 @@
 "TRACK" = "Track";
 "STATUS_COLON_%@" = "Status: %@";
 "TYPE_COLON_%@" = "Type: %@";
-"VIEW_ON_WEBSITE" = "View On Website";
+"VIEW_ON_WEBSITE" = "View on Website";
 "CLEAR_TRACKED_MANGA" = "Remove All Tracker Links";
 "CLEAR_TRACKED_MANGA_TEXT" = "This action is irreversible. All tracker links added to manga will be removed.";
 "SEARCH_OPTIONS" = "Search Options";
@@ -775,7 +775,7 @@
 "TRACKER_LOGOUT_INFO" = "Logging out will remove linked tracking info from this tracker for all series.";
 
 "CACHE_SIZE_%@" = "Cache size: %@";
-"SUPPORT_VIA_KOFI" = "Support via Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Support via Ko-fi";
 "SORT_UNREAD_CHAPTERS" = "Unread Chapters";
 "SET_AS_SINGLE_PAGE" = "Set as Single Page";
 "UNSET_AS_SINGLE_PAGE" = "Unset as Single Page";
@@ -840,7 +840,7 @@
 "POSITION_RIGHT" = "Right";
 "BOTH" = "Both";
 "%@_TRACKER_LOGIN_NEEDED" = "%@ Login Needed";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Your %@ token has expired, so the associated tracker will stop working until you re-login in settings.";
+"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Your %@ token has expired, so the associated tracker will stop working until you log in again in Settings.";
 "BACKUP_ERROR" = "Backup Restore Error";
 "BACKUP_ERROR_TEXT" = "An error occurred while restoring: %@. The backup may be invalid.";
 "READER_ORIENTATION" = "Orientation";
@@ -955,7 +955,7 @@
 "HTTPS_BYPASS_INVALID_URL" = "Enter an HTTPS URL without a username or password.";
 "HTTPS_BYPASS_TEST_RESULT" = "HTTP %d received · TLS fragmentation applied";
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d received · TLS fragmentation not confirmed";
-"HTTPS_BYPASS_TEST_FAILED" = "Could not connect through HTTPS bypass.";
+"HTTPS_BYPASS_TEST_FAILED" = "Could not connect through the HTTPS bypass.";
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "Translation failed. Showing OCR text. Check your settings and connection.";
 
@@ -1096,7 +1096,7 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Changes to iCloud Sync take effect the next time you fully close and reopen Aidoku. Until then, the current sync setting remains active.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Preserve original colors";
+"TRANSLATION_SOURCE_COLORS" = "Preserve Original Colors";
 "TRANSLATION_SOURCE_COLORS_HELP" = "Keep the original text and background colors together.";
 "TRANSLATION_INPAINTING" = "Inpainting";
 "TRANSLATION_INPAINTING_HELP" = "Erase original lettering while preserving the background. Uses boxes when masks or readability are uncertain. Requires original colors.";

@@ -16,8 +16,8 @@
 
 // Downloads
 "DOWNLOAD" = "Tải";
-"NEXT_UNREAD" = "Chưa đọc tiếp theo";
-"NEXT_%i_UNREAD" = "%i chưa đọc tiếp theo";
+"NEXT_UNREAD" = "Chương chưa đọc tiếp theo";
+"NEXT_%i_UNREAD" = "%i chương chưa đọc tiếp theo";
 "DOWNLOADED" = "Đã tải về";
 "DOWNLOAD_QUEUE" = "Hàng đợi tải về";
 "CANCEL_DOWNLOAD" = "Huỷ tải về";
@@ -36,8 +36,8 @@
 "SORT_BY" = "Sắp xếp theo";
 "FILTER_BY" = "Lọc theo";
 "SORT_TITLE" = "Tiêu đề";
-"SORT_LAST_OPENED" = "Lần cuối đã xem";
-"SORT_LAST_READ" = "Lần cuối đã đọc";
+"SORT_LAST_OPENED" = "Mở lần cuối";
+"SORT_LAST_READ" = "Đọc lần cuối";
 "SORT_LATEST_CHAPTER" = "Chương mới nhất";
 "SORT_DATE_ADDED" = "Ngày thêm";
 
@@ -84,7 +84,7 @@
 "NSFW" = "18+";
 "MORE" = "xem thêm";
 "SOURCE_ORDER" = "Thứ tự nguồn";
-"MISSING_SOURCE" = "Không có nguồn";
+"MISSING_SOURCE" = "Thiếu nguồn";
 "MISSING_SOURCE_TEXT" = "Nguồn cho truyện này không có sẵn. Vui lòng xoá truyện này khỏi thư viện hoặc cài đặt lại nguồn.";
 "SELECT_CHAPTERS" = "Lựa chọn chương";
 "SELECT_ALL" = "Chọn tất cả";
@@ -136,7 +136,7 @@
 "REMOVE_ALL_MANGA_HISTORY" = "Xóa toàn bộ lịch sử của truyện này";
 "HISTORY_LOCKED" = "Lịch sử bị khoá.";
 "VIEW_HISTORY" = "Xem lịch sử đọc";
-"AUTH_FOR_HISTORY" = "Xác minh để xem lịch sử đọc.";
+"AUTH_FOR_HISTORY" = "Xác thực để xem lịch sử đọc.";
 
 // Search
 "SEARCH" = "Tìm kiếm";
@@ -144,8 +144,8 @@
 
 // Settings
 "SETTINGS" = "Cài đặt";
-"AUTH_TO_ENABLE" = "Xác minh để kích hoạt.";
-"AUTH_TO_DISABLE" = "Xác minh để huỷ kích hoạt.";
+"AUTH_TO_ENABLE" = "Xác thực để bật.";
+"AUTH_TO_DISABLE" = "Xác thực để tắt.";
 "ABOUT" = "Thông tin";
 "GITHUB_REPO" = "Mã nguồn trên GitHub";
 "DISCORD_SERVER" = "Discord";
@@ -162,7 +162,7 @@
 "LANDSCAPE" = "Ngang";
 "READER" = "Trình đọc";
 "OPEN_READER_VIEW" = "Hiển thị trình đọc";
-"UNREAD_CHAPTER_BADGES" = "Biểu tượng số chương chưa đọc";
+"UNREAD_CHAPTER_BADGES" = "Huy hiệu số chương chưa đọc";
 "PIN_UNREAD" = "Chưa đọc";
 "LIBRARY_UPDATING" = "Cập nhật Thư viện";
 "UPDATE_INTERVAL" = "Tần suất cập nhật";
@@ -186,7 +186,7 @@
 "SOURCE_LIST_ADD_TEXT" = "Nhập URL của danh sách nguồn";
 "SOURCE_LIST_ADD_FAIL" = "Không thể thêm danh sách nguồn";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "URL danh sách nguồn đã nhập không hợp lệ hoặc đã được thêm trước đó.";
-"LOCK_HISTORY_TAB" = "Khoá Lịch sử đọc";
+"LOCK_HISTORY_TAB" = "Khoá tab Lịch sử";
 "DOWNSAMPLE_IMAGES" = "Giảm độ phân giải ảnh";
 "BACKUPS" = "Sao lưu";
 "BACKUP_NAME" = "Tên bản sao lưu";
@@ -204,7 +204,7 @@
 "EXPORT" = "Xuất";
 "RESTORE" = "Khôi phục";
 "LOGS" = "Nhật ký";
-"LOGGING" = "Ghi Nhật ký";
+"LOGGING" = "Ghi nhật ký";
 "LOG_SERVER" = "Máy chủ nhật ký";
 "EXPORT_LOGS" = "Xuất nhật ký";
 "DISPLAY_LOGS" = "Hiển thị nhật ký";
@@ -221,7 +221,7 @@
 "MISSING_SOURCES_TEXT" = "Bản sao lưu đã khôi phục có thể chứa dữ liệu từ các nguồn sau hiện chưa được cài đặt:";
 "PAGE_X_OF_X" = "Trang %i/%i";
 "VIEW_LIBRARY" = "Xem Thư viện";
-"CATEGORY_EMPTY" = "Danh mục Trống";
+"CATEGORY_EMPTY" = "Danh mục trống";
 "AUTH_TO_OPEN" = "Xác thực để mở khoá.";
 "LOCKED_CATEGORIES" = "Các danh mục bị khoá";
 "AUTH_FOR_LIBRARY" = "Xác thực để mở thư viện.";
@@ -237,7 +237,7 @@
 "DOUBLE_PAGE" = "Trang đôi";
 "SET_AS_WIDE_PAGE" = "Đặt thành trang rộng";
 "MULTI_LANGUAGE" = "Đa ngôn ngữ";
-"TRACKERS" = "Trình Theo dõi";
+"TRACKERS" = "Trình theo dõi";
 "LOGOUT" = "Đăng xuất";
 "LOGOUT_FROM_%@" = "Đăng xuất khỏi %@?";
 "VOLUMES" = "Tập";
@@ -255,19 +255,19 @@
 "STATUS_NOT_PUBLISHED" = "Chưa xuất bản";
 "MANHUA" = "Manhua (Trung)";
 "TRACK" = "Theo dõi";
-"TYPE_COLON_%@" = "Thể loại: %@";
+"TYPE_COLON_%@" = "Loại: %@";
 "STATUS_COLON_%@" = "Tình trạng: %@";
 "VIEW_ON_WEBSITE" = "Xem trên website";
 "CLEAR_TRACKED_MANGA" = "Xóa tất cả liên kết theo dõi";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "Bạn có chắc muốn xóa tất cả bản tải về?";
-"CACHE_SIZE_%@" = "Dung lượng cache: %@";
+"CACHE_SIZE_%@" = "Dung lượng bộ nhớ đệm: %@";
 "SUPPORT_VIA_KOFI" = "Ủng hộ qua Ko-Fi";
 "LIGHT_NOVEL" = "Light Novel (Tiểu thuyết)";
 "SCORE" = "Điểm";
 "TRACK_REREADING" = "Đang đọc lại";
 "MANGA" = "Manga";
 "CLEAR_TRACKED_MANGA_TEXT" = "Hành động này không thể hoàn tác. Tất cả liên kết giữa truyện và trình theo dõi sẽ bị xóa.";
-"FAILED_CHAPTER_LOAD_INFO" = "Bạn đang không kết nối internet hoặc nguồn truyện đang có vấn đề.";
+"FAILED_CHAPTER_LOAD_INFO" = "Có thể bạn đang ngoại tuyến hoặc nguồn đang gặp sự cố.";
 "SELECT" = "Chọn";
 "ADD_TO_CATEGORY" = "Thêm vào danh mục";
 "RENAME_CATEGORY_INFO" = "Đặt tên cho danh mục này.";
@@ -277,7 +277,7 @@
 "CATEGORY_NAME" = "Tên danh mục";
 "SORT_UNREAD_CHAPTERS" = "Chương chưa đọc";
 "RELOAD" = "Tải lại";
-"%i_OF_%i" = "%i của %i";
+"%i_OF_%i" = "%i/%i";
 "%i_PAGES_LEFT" = "Còn lại %i trang";
 "ONE_PAGE_LEFT" = "Còn lại 1 trang";
 "FAILED_CHAPTER_LOAD" = "Tải chương thất bại";
@@ -286,12 +286,12 @@
 "PINNED" = "Đã ghim";
 "REMOVE_FROM_CATEGORY" = "Xoá khỏi danh mục";
 "%i_CHAPTERS" = "%i chương";
-"1_CHAPTER" = "1 Chương";
+"1_CHAPTER" = "1 chương";
 "UPCOMING" = "Sắp tới";
 "RENAME_CATEGORY_FAIL_INFO" = "Tên danh mục không được trùng lặp.";
-"MIGRATE_SOURCES" = "Chuyển nguồn";
+"MIGRATE_SOURCES" = "Di chuyển nguồn";
 "ADD_TO_CATEGORIES" = "Thêm vào các danh mục";
-"SORT_LAST_UPDATED" = "Lần cuối cập nhật";
+"SORT_LAST_UPDATED" = "Cập nhật lần cuối";
 "PIN" = "Ghim";
 "COVER" = "Bìa";
 "OPTIONS" = "Tùy chọn";
@@ -303,7 +303,7 @@
 "NOT_FOUND" = "Không tìm thấy";
 "DEFAULT_READING_MODE" = "Chế độ đọc mặc định";
 "BACKUP_ERROR_TEXT" = "Đã gặp lỗi khi khôi phục: %@. Bản sao lưu có thể không hợp lệ.";
-"MIGRATE" = "Chuyển đổi";
+"MIGRATE" = "Di chuyển";
 "CROP_BORDERS" = "Xoá viền";
 
 // Manga Updates
@@ -317,8 +317,8 @@
 "DOWNLOAD_ANYWAY_MESSAGE" = "Bạn hiện không sử dụng Wi-Fi. Vẫn tải về?";
 "DESTINATION" = "Đích đến";
 "MOST_CHAPTERS_SLOWER" = "Nhiều chương nhất (chậm hơn)";
-"MIGRATE_ONE_ITEM?" = "Chuyển đổi 1 mục này?";
-"MIGRATE_%i_ITEMS?" = "Chuyển đổi %i mục này?";
+"MIGRATE_ONE_ITEM?" = "Di chuyển 1 mục?";
+"MIGRATE_%i_ITEMS?" = "Di chuyển %i mục?";
 "FIRST_ALTERNATIVE" = "Nguồn thay thế đầu tiên";
 "%lld_PLUS_MORE" = "+%lld nữa";
 "READER_BG_COLOR" = "Màu nền";
@@ -365,7 +365,7 @@
 "CONTAINS_NSFW" = "Chứa nội dung người lớn";
 "SEE_ALL" = "Xem tất cả";
 "HOME" = "Trang chủ";
-"FILTERS" = "Lọc";
+"FILTERS" = "Bộ lọc";
 "APPLY" = "Áp dụng";
 "RANGE_FROM" = "Từ";
 "RANGE_TO" = "Đến";
@@ -457,7 +457,7 @@
 "ANIMATE_PAGE_TRANSITIONS" = "Hoạt ảnh chuyển trang";
 "FILE_IMPORT_FAIL_TEXT" = "Không thể nhập tệp. Vui lòng đảm bảo đó là tệp ảnh có thể đọc được hoặc tệp CBZ hay ZIP hợp lệ có chứa hình ảnh.";
 "BACKUP_%@" = "Sao lưu %@";
-"CREATE_BACKUP" = "Tạo sao lưu";
+"CREATE_BACKUP" = "Tạo bản sao lưu";
 "NAME" = "Tên";
 "DATE" = "Ngày";
 "BACKUP_INFO_TITLE" = "Thông tin sao lưu";
@@ -479,7 +479,7 @@
 "RELOAD_FAILED_TEXT" = "Không tải lại được hình ảnh. Vui lòng thử lại.";
 "ADD" = "Thêm";
 "ALL_CHAPTERS_LOCKED" = "Tất cả các chương đã bị khóa";
-"%@_TRACKER_LOGIN_NEEDED" = "%@ Cần đăng nhập";
+"%@_TRACKER_LOGIN_NEEDED" = "Cần đăng nhập %@";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Token %@ của bạn đã hết hạn, do đó trình theo dõi liên quan sẽ ngừng hoạt động cho đến khi bạn đăng nhập lại trong cài đặt.";
 "CHAPTER_FORWARD" = "Chương tiếp theo";
 "OPEN_CHAPTER_LIST" = "Mở danh sách chương";
@@ -489,7 +489,7 @@
 "SAFE" = "Nội dung thông thường";
 "DOWNLOADING" = "Đang tải";
 "PAUSED" = "Đã tạm dừng";
-"DOWNLOADS" = "Các mục Tải về";
+"DOWNLOADS" = "Bản tải về";
 "AUTO" = "Tự động";
 "SOURCES" = "Nguồn";
 "LAYOUT_GRID" = "Lưới";
@@ -512,7 +512,7 @@
 "CHAPTER_SINGULAR" = "Chương";
 "PAGE_PLURAL" = "Trang";
 "PAGE_SINGULAR" = "Trang";
-"SERIES_PLURAL" = "Các Bộ sách";
+"SERIES_PLURAL" = "Bộ sách";
 "VIEW_SERIES" = "Xem bộ sách";
 "SERIES_TITLE" = "Tên bộ sách";
 "SERIES" = "Bộ sách";
@@ -531,9 +531,9 @@
 "DOWNLOADING_PAUSED" = "Đã tạm dừng tải về";
 "CANCEL_ALL_DOWNLOADS" = "Hủy tất cả tải về";
 "VIEW_FILES" = "Xem tệp";
-"COMPRESS_DOWNLOADS" = "Nén bản tải xuống";
-"PARALLEL_DOWNLOADS" = "Tải xuống song song";
-"BACKGROUND_DOWNLOADING" = "Tải xuống trong nền";
+"COMPRESS_DOWNLOADS" = "Nén bản tải về";
+"PARALLEL_DOWNLOADS" = "Tải về song song";
+"BACKGROUND_DOWNLOADING" = "Tải về trong nền";
 "METADATA_DETECTED" = "Tìm thấy siêu dữ liệu phiên bản cũ";
 "METADATA_DETECTED_TEXT" = "Siêu dữ liệu JSON cũ sẽ được chuyển đổi sang tệp ComicInfo.xml.";
 "LIBRARY_ADD_CONTENT" = "Hãy thêm nội dung từ mục Duyệt.";
@@ -609,7 +609,7 @@
 "READING_SESSIONS" = "Phiên đọc";
 "CLEAR_SOURCE_CACHE" = "Dọn bộ nhớ đệm của nguồn";
 "CLEAR_SOURCE_CACHE_TEXT" = "Xóa cookie và dữ liệu trang web của các URL thuộc nguồn này, cùng nội dung nguồn đã lưu trong bộ nhớ đệm. Bạn có thể cần đăng nhập lại và thời gian tải có thể tạm thời lâu hơn.";
-"LIVE_TEXT" = "Nhận diện văn bản";
+"LIVE_TEXT" = "Văn bản trực tiếp";
 "LIBRARY_ADJUST_FILTERS" = "Điều chỉnh bộ lọc để xem thêm nội dung.";
 "REMOVE_FILTER" = "Gỡ bộ lọc";
 "REMOVING_%i_ITEMS_FROM_LIBRARY" = "Đang xóa %i mục khỏi Thư viện";
@@ -735,7 +735,7 @@
 
 
 
-"TRANSLATION_CLEAR_CACHE" = "Xóa bộ đệm dịch";
+"TRANSLATION_CLEAR_CACHE" = "Xóa bộ nhớ đệm dịch";
 
 "TRANSLATION_CACHE_CLEARED" = "Đã xóa bộ nhớ đệm dịch.";
 
@@ -828,7 +828,7 @@
 
 "HTTPS_BYPASS" = "Bỏ qua chặn HTTPS";
 
-"HTTPS_BYPASS_HELP" = "Sử dụng phân mảnh TLS và DNS mã hóa (Cloudflare) cho các yêu cầu đến nguồn, hình ảnh, nội dung tải xuống và trang web của nguồn mở trong ứng dụng. Áp dụng cho kết nối mới. Không vượt qua được việc chặn IP hay các hạn chế do chính trang web áp đặt.";
+"HTTPS_BYPASS_HELP" = "Sử dụng phân mảnh TLS và DNS mã hóa (Cloudflare) cho các yêu cầu đến nguồn, hình ảnh, bản tải về và trang web của nguồn mở trong ứng dụng. Áp dụng cho kết nối mới. Không vượt qua được việc chặn IP hay các hạn chế do chính trang web áp đặt.";
 
 "HTTPS_BYPASS_TEST" = "Kiểm tra kết nối";
 
@@ -844,7 +844,7 @@
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "Dịch không thành công. Văn bản nhận dạng bằng OCR đang được hiển thị. Kiểm tra cài đặt và kết nối.";
 
-"TRANSLATION_MANGA_TITLES" = "Dịch Tiêu Đề Manga";
+"TRANSLATION_MANGA_TITLES" = "Dịch tiêu đề manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Dịch tiêu đề chương";
 
@@ -856,13 +856,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Ngôn ngữ nguồn trang";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Tự động phát hiện ngôn ngữ gốc của từng tiêu đề và chỉ dịch các ngôn ngữ đã chọn. Chọn «Tất cả ngôn ngữ được phát hiện» để bỏ giới hạn ngôn ngữ. Cài đặt ngôn ngữ gốc của trang và của các loại tiêu đề khác không ảnh hưởng đến lựa chọn này.";
+"TRANSLATION_TITLE_FILTER_HELP" = "Tự động phát hiện ngôn ngữ gốc của từng tiêu đề và chỉ dịch các ngôn ngữ đã chọn. Chọn “Tất cả ngôn ngữ được phát hiện” để bỏ giới hạn ngôn ngữ. Cài đặt ngôn ngữ gốc của trang và của các loại tiêu đề khác không ảnh hưởng đến lựa chọn này.";
 
-"TRANSLATION_MANGA_DESCRIPTIONS" = "Dịch mô tả Manga";
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Dịch mô tả manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Ngôn ngữ mô tả manga";
 
-"TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ gốc và chỉ dịch các ngôn ngữ đã chọn. Chọn «Tất cả ngôn ngữ được phát hiện» để bỏ giới hạn ngôn ngữ. Bộ lọc ngôn ngữ của mỗi mục hoạt động độc lập với cài đặt ngôn ngữ của trang và các mục khác.";
+"TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ gốc và chỉ dịch các ngôn ngữ đã chọn. Chọn “Tất cả ngôn ngữ được phát hiện” để bỏ giới hạn ngôn ngữ. Bộ lọc ngôn ngữ của mỗi mục hoạt động độc lập với cài đặt ngôn ngữ của trang và các mục khác.";
 
 
 
@@ -915,10 +915,10 @@
 "TRANSLATION_SOURCE_LABELS" = "Dịch menu và tiêu đề mục của nguồn";
 
 // Completed app localization
-"DOWNLOAD_INCOMPLETE" = "Tải xuống chưa hoàn tất";
+"DOWNLOAD_INCOMPLETE" = "Tải về chưa hoàn tất";
 "CATEGORY_SEARCH" = "Tìm trong danh mục";
 "REFRESH_NO_WIFI_TEXT" = "Cài đặt chỉ cập nhật qua Wi-Fi đã được bật. Kết nối với Wi-Fi để làm mới thư viện của bạn.";
-"REFRESH_ANYWAYS" = "Dù sao cũng làm mới";
+"REFRESH_ANYWAYS" = "Vẫn làm mới";
 "LIBRARY_REFRESH_INTERRUPTED" = "Làm mới thư viện bị gián đoạn";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Lần làm mới thư viện cuối cùng đã bị gián đoạn trước khi hoàn thành. Bạn có muốn tiếp tục không?";
 "CREATE_FILTER_GROUP" = "Tạo nhóm bộ lọc";
@@ -939,9 +939,9 @@
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "Máy chủ đọc truyện tranh";
 "SUWAYOMI_INFO" = "Suwayomi là máy chủ đọc truyện tranh tự lưu trữ chạy các tiện ích mở rộng được xây dựng cho Mihon (Tachiyomi). Bạn sẽ cần thiết lập và chạy máy chủ Suwayomi để sử dụng nguồn này.";
-"SUWAYOMI_SETUP" = "Cài đặt Suwayomi";
+"SUWAYOMI_SETUP" = "Thiết lập Suwayomi";
 "STATUS_LICENSED" = "Được cấp phép";
-"STATUS_PUBLISHING_FINISHED" = "Xuất bản đã hoàn tất";
+"STATUS_PUBLISHING_FINISHED" = "Đã xuất bản xong";
 "AUTHOR_NAME" = "Tên tác giả";
 "ARTIST_NAME" = "Tên họa sĩ";
 "INVALID_KEY" = "Khóa không hợp lệ";
@@ -992,14 +992,14 @@
 "TERM_DICTIONARIES" = "Từ điển thuật ngữ";
 "FREQUENCY_DICTIONARIES" = "Từ điển tần suất từ";
 "PITCH_DICTIONARIES" = "Từ điển trọng âm cao độ";
-"KANJI_DICTIONARIES" = "Từ Điển Kanji";
+"KANJI_DICTIONARIES" = "Từ điển Kanji";
 "IMPORTING_DICTIONARY" = "Đang nhập từ điển…";
 "IMPORT_ERROR" = "Lỗi nhập";
 "REVISION" = "Phiên bản sửa đổi";
 "URL" = "URL";
 "ATTRIBUTION" = "Ghi công";
 "SOURCE_LANGUAGE" = "Ngôn ngữ nguồn";
-"TARGET_LANGUAGE" = "Ngôn ngữ mục tiêu";
+"TARGET_LANGUAGE" = "Ngôn ngữ đích";
 "TERM_COUNT" = "Số mục từ";
 "TERM_META_COUNT" = "Số mục nhập siêu dữ liệu thuật ngữ";
 "KANJI_COUNT" = "Số chữ kanji";
@@ -1071,7 +1071,7 @@
 
 // Shared image retention
 "SAVE_SHARED_IMAGES" = "Giữ ảnh được chia sẻ trong Tệp trên máy";
-"SAVE_SHARED_IMAGES_HELP" = "Khi tắt, hình ảnh được chia sẻ sẽ tạm thời mở và bị xóa khi đóng. Lịch sử đọc và bộ đệm OCR/bản dịch không được lưu.";
+"SAVE_SHARED_IMAGES_HELP" = "Khi tắt, hình ảnh được chia sẻ chỉ được mở tạm thời và bị xóa khi đóng. Lịch sử đọc và bộ nhớ đệm OCR/bản dịch không được lưu.";
 
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "Dịch danh sách bộ lọc lớn (hơn 100 tùy chọn)";
 
@@ -1080,7 +1080,7 @@
 "SETTING_MISSING_CONTENT_HANDLER" = "Không thể hiển thị cài đặt: %@";
 
 
-"DOWNLOAD_TRANSLATED" = "Tải xuống kèm bản dịch";
+"DOWNLOAD_TRANSLATED" = "Tải về kèm bản dịch";
 
 "TRANSLATION_LLM_BACKGROUND" = "Bỏ qua chữ trong nền (LLM)";
 "TRANSLATION_LLM_BACKGROUND_HELP" = "AI dịch giữ nguyên chữ trên các biển hiệu thông thường, áp phích và đồ vật trong cảnh, ngay cả khi nội dung liên quan đến cảnh đó hoặc được nhắc đến trong lời thoại. Lời thoại, lời dẫn chuyện, tiêu đề, phần ghi tên người đóng góp, văn bản quan trọng đối với cốt truyện và văn bản chưa xác định chắc chắn vai trò vẫn được dịch. Không gửi thêm yêu cầu, nhưng thời gian xử lý có thể lâu hơn. Việc phân loại kém tin cậy hơn khi không có ảnh trang.";

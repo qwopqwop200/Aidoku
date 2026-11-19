@@ -11,7 +11,7 @@
 "RENAME" = "Redenumiți";
 "CLEAR" = "Elimină";
 "LOADING_ELLIPSIS" = "Se încarcă…";
-"SHARE" = "Distribuire";
+"SHARE" = "Partajează";
 
 // Downloads
 "DOWNLOAD" = "Descarcă";
@@ -83,14 +83,14 @@
 "DOWNSAMPLE_IMAGES" = "Redu rezoluția imaginilor";
 "BACKUPS" = "Copii de rezervă";
 "BACKUP_NAME" = "Nume copie de rezervă";
-"RENAME_BACKUP" = "Redenumire Backup";
+"RENAME_BACKUP" = "Redenumiți copia de rezervă";
 "RENAME_BACKUP_TEXT" = "Introduceți un nume nou pentru copia de rezervă";
 "CORRUPTED_BACKUP" = "Copie de rezervă coruptă";
 "CORRUPTED_BACKUP_TEXT" = "Această copie de rezervă pare să aibă date configurate greșit. Redenumirea nu este posibilă.";
 "MISSING_SOURCES" = "Surse lipsă";
-"MISSING_SOURCES_TEXT" = "Copiile de rezervă restaurate pot conține date din următoarele surse, care nu sunt instalate în prezent:";
+"MISSING_SOURCES_TEXT" = "Copia de rezervă restaurată poate conține date din următoarele surse, care nu sunt instalate în prezent:";
 "RESTORE_BACKUP" = "Restaurați la această copie de rezervă?";
-"BACKUP_IMPORT_SUCCESS" = "Backup importat";
+"BACKUP_IMPORT_SUCCESS" = "Copie de rezervă importată";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Pentru a restaura această copie de rezervă, găsiți-o în pagina de copii de rezervă din setări.";
 "BACKUP_IMPORT_FAIL_TEXT" = "Nu s-a reușit salvarea copiei de rezervă. Vă rugăm să vă asigurați că copia de rezervă este în formatul corespunzător.";
 "EXPORT" = "Exportează";
@@ -121,8 +121,8 @@
 "PAGED" = "Paginat";
 "PAGE_LAYOUT" = "Dispunerea paginii";
 "DOUBLE_PAGE" = "Pagina dublă";
-"MULTI_LANGUAGE" = "Multilingvistic";
-"TRACKERS" = "Tracker";
+"MULTI_LANGUAGE" = "Multilingv";
+"TRACKERS" = "Servicii de urmărire";
 "LOGOUT" = "Deconectare";
 "STATUS" = "Status";
 "VOLUMES" = "Volume";
@@ -154,7 +154,7 @@
 "RELOAD" = "Reîncarcă";
 "%i_OF_%i" = "%i din %i";
 "%i_PAGES_LEFT" = "Pagini rămase: %i";
-"FAILED_CHAPTER_LOAD" = "Nu a reușit să încarce capitolul";
+"FAILED_CHAPTER_LOAD" = "Capitolul nu a putut fi încărcat";
 "SORT_LAST_UPDATED" = "Ultima actualizare";
 "SORT_TOTAL_CHAPTERS" = "Capitole Totale";
 "WEBTOON" = "Webtoon";
@@ -166,7 +166,7 @@
 "SELECT" = "Selectează";
 "ADD_TO_CATEGORY" = "Adaugă la categorie";
 "RENAME_CATEGORY_INFO" = "Introduceți un nou nume pentru această categorie.";
-"RENAME_CATEGORY_FAIL" = "Nu a reușit să redenumească categoria";
+"RENAME_CATEGORY_FAIL" = "Categoria nu a putut fi redenumită";
 "SKIP_DUPLICATE_CHAPTERS" = "Treceți peste capitolele duplicate";
 "RENAME_CATEGORY" = "Redenumiți categoria";
 "RENAME_CATEGORY_FAIL_INFO" = "Numele categoriilor trebuie să fie unice.";
@@ -203,7 +203,7 @@
 "VERSION" = "Versiune";
 "EXTERNAL" = "Externe";
 "BUTTON_UPDATE" = "ACTUALIZARE";
-"BUTTON_GET" = "OBȚINEȚI";
+"BUTTON_GET" = "OBȚINE";
 "UNINSTALL" = "Dezinstalați";
 
 // Source
@@ -247,7 +247,7 @@
 "NO_CHAPTERS_AVAILABLE" = "Nu există capitole disponibile";
 "START_READING" = "Începe cititul";
 "MORE" = "mai mult";
-"MISSING_SOURCE_TEXT" = "Sursa originală pare să lipsească pentru această Manga. Vă rugăm să o descărcați din nou sau să eliminați acest titlu din biblioteca dvs.";
+"MISSING_SOURCE_TEXT" = "Sursa originală a acestei manga nu a fost găsită. Reinstalați sursa sau eliminați acest titlu din biblioteca dvs.";
 "SELECT_ALL" = "Selectați toate";
 "VOL_SPACE_X" = "Vol. %g";
 "NO_CHAPTERS" = "Fără capitole";
@@ -268,7 +268,7 @@
 "VERTICAL" = "Vertical";
 "VERTICAL_SCROLL" = "Derulare verticală";
 "INFINITE_VERTICAL_SCROLL" = "Derulare verticală infinită";
-"%@_AGO" = "%@ în urmă";
+"%@_AGO" = "acum %@";
 "PAGE_X" = "Pagina %i";
 "READER_SETTINGS" = "Setări cititor";
 "RTL" = "De la dreapta la stânga";
@@ -319,7 +319,7 @@
 "DONE" = "Gata";
 "INVALID" = "Invalid";
 "PAUSE" = "Pauză";
-"RESUME" = "Continuă";
+"RESUME" = "Reia";
 "WARNING" = "Avertizare";
 "ENABLE_PERMISSION" = "Acordă permisiunea";
 "PHOTOS_ACCESS_DENIED_TEXT" = "Accesul a fost refuzat anterior. Te rugăm să permiți Aidoku acces la Fotografii pentru a salva imaginile în Galeria ta. Poți activa accesul din Setările de confidențialitate.";
@@ -350,7 +350,7 @@
 
 "TRANSLATION_KEY_REPLACE" = "Înlocuiți cheia API salvată (opțional)";
 
-"TRANSLATION_KEY" = "cheie API";
+"TRANSLATION_KEY" = "Cheie API";
 
 "TRANSLATION_KEY_SAVED" = "Cheia API salvată în Keychain";
 
@@ -481,7 +481,7 @@
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "Traducerea a eșuat. Se afișează textul recunoscut prin OCR. Verificați setările și conexiunea.";
 
-"TRANSLATION_MANGA_TITLES" = "Traduceți Titluri Manga";
+"TRANSLATION_MANGA_TITLES" = "Traduceți titlurile manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduceți titlurile capitolelor";
 
@@ -495,7 +495,7 @@
 
 "TRANSLATION_TITLE_FILTER_HELP" = "Detectează automat limba sursă a fiecărui titlu și traduce numai limbile selectate. Opțiunea Toate limbile detectate elimină restricția de limbă. Setările limbii sursă pentru pagini și alte tipuri de titluri nu afectează această selecție.";
 
-"TRANSLATION_MANGA_DESCRIPTIONS" = "Traduceți Descrieri Manga";
+"TRANSLATION_MANGA_DESCRIPTIONS" = "Traduceți descrierile manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Limbile descrierilor manga";
 
@@ -508,7 +508,7 @@
 "TRANSLATION_INCLUDE_IMAGE" = "Includeți imaginea paginii în traducere";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Trimite imaginea paginii împreună cu textul OCR pentru a oferi contextul scenei. Dacă imaginile nu sunt acceptate ca date de intrare, traducerea continuă automat doar cu text. Atașarea imaginilor poate crește consumul de date și costul API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Introducerea imaginilor nu este acceptată. Traducerea continuă fără imagini.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "Imaginile nu sunt acceptate ca date de intrare. Traducerea continuă fără imagini.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Păstrați culoarea originală a textului";
 
@@ -597,7 +597,7 @@
 "REMOVING_%i_ITEMS_FROM_LIBRARY" = "Se elimină elementele din bibliotecă (număr: %i)";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Eliminarea articolului din categoria %@";
 "REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Se elimină elementele (număr: %i) din categoria %@";
-"REFRESHING_LIBRARY" = "Se reîmprospătează biblioteca manga...";
+"REFRESHING_LIBRARY" = "Se reîmprospătează biblioteca…";
 "PROCESSING_ENTRIES" = "Se procesează intrările…";
 "REFRESH_NO_WIFI" = "Nu este conectat la Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "Setarea de actualizare numai prin Wi-Fi este activată. Conectați-vă la Wi-Fi pentru a vă reîmprospăta biblioteca.";
@@ -673,7 +673,7 @@
 "LOCAL_FILES_TAGLINE" = "Citiți din fișierele locale";
 "LOCAL_FILES_INFO" = "Sursa de fișiere locale vă permite să importați fișiere și să vă gestionați propria bibliotecă de lectură direct în Aidoku.";
 "LOCAL_FILES_SETUP" = "Configurare fișiere locale";
-"IMPORT" = "Import";
+"IMPORT" = "Importă";
 "IMPORT_FILE" = "Importați fișierul";
 "LOCAL_FILE_IMPORT" = "Import de fișiere locale";
 "LOCAL_FILE_IMPORT_TEXT" = "Importați un fișier CBZ sau ZIP care conține imagini de citit.";
@@ -714,7 +714,7 @@
 "SERVER_ERROR_AUTHENTICATION" = "Autentificarea nu a reușit. Asigurați-vă că datele de autentificare sunt introduse corect.";
 "OTHER_SETTINGS" = "Alte setări";
 "DISPLAY_DEFAULT" = "Implicit";
-"DISPLAY_CHAPTER" = "Capitolul";
+"DISPLAY_CHAPTER" = "Capitol";
 "DISPLAY_VOLUME" = "Volum";
 "USE_CHAPTERS" = "Folosiți capitole";
 "USE_CHAPTERS_TEXT" = "Tratați cărțile ca pe capitole în loc ca pe volume";
@@ -779,11 +779,11 @@
 "LINK_COPIED" = "Link copiat";
 "LINK_COPIED_TEXT" = "Linkul a fost copiat în clipboard.";
 "SCANLATOR" = "Echipă de scanare și traducere";
-"NO_SCANLATOR" = "Fără scanlator";
+"NO_SCANLATOR" = "Fără echipă de scanare și traducere";
 "LOCKED" = "Blocat";
 "TOGGLE_LOCK" = "Comutați Blocarea";
 "REFRESH_DETAILS" = "Actualizează detalii";
-"VOLUME" = "Volumul";
+"VOLUME" = "Volum";
 "SKIPPING_CHAPTERS" = "Se omit capitolele care lipsesc din sursă sau au fost excluse de filtre (număr: %i)";
 "OPEN_WEBSITE" = "Deschide site-ul web";
 "SET_COVER_IMAGE" = "Setați imaginea de copertă";
@@ -811,8 +811,8 @@
 "REFRESH_LOGIN" = "Actualizați autentificarea";
 "LOGIN_METHOD" = "Metoda de conectare";
 "BASIC" = "De bază";
-"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync este o caracteristică experimentală. Activarea sau dezactivarea acestuia poate declanșa pierderea datelor.";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync este disponibil numai atunci când este instalat prin TestFlight.";
+"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Sincronizarea iCloud este o funcție experimentală. Activarea sau dezactivarea ei poate duce la pierderea datelor.";
+"ICLOUD_SYNC_TEXT_SIDELOADED" = "Sincronizarea iCloud este disponibilă numai când aplicația este instalată prin TestFlight.";
 "LAYOUT" = "Dispunere";
 "STANDARD" = "Standard";
 "COMPACT" = "Compact";
@@ -875,7 +875,7 @@
 "READER_BG_COLOR_BLACK" = "Negru";
 "TAP_ZONES" = "Zone de atingere";
 "ZONE_LEFT_RIGHT" = "Stânga și Dreapta";
-"ZONE_L_SHAPED" = "în formă de L";
+"ZONE_L_SHAPED" = "În formă de L";
 "ZONE_KINDLE" = "Kindle";
 "ZONE_EDGE" = "Margine";
 "DISABLED" = "Dezactivat";
@@ -922,9 +922,9 @@
 "FREQUENCY_DICTIONARIES" = "Dicționare de frecvență a cuvintelor";
 "PITCH_DICTIONARIES" = "Dicționare de accent tonal";
 "KANJI_DICTIONARIES" = "Dicționare Kanji";
-"IMPORTING_DICTIONARY" = "Se importă dicționar...";
+"IMPORTING_DICTIONARY" = "Se importă dicționarul…";
 "IMPORT_ERROR" = "Eroare de import";
-"REVISION" = "Revizuire";
+"REVISION" = "Revizie";
 "URL" = "URL";
 "ATTRIBUTION" = "Atribuire";
 "SOURCE_LANGUAGE" = "Limba sursă";
@@ -965,19 +965,19 @@
 "BACKUP_%@" = "Copie de rezervă %@";
 "CREATE_BACKUP" = "Creați o copie de rezervă";
 "IMPORT_BACKUP" = "Importă o copie de rezervă";
-"LIBRARY_ENTRIES" = "Intrări din biblioteca manga";
+"LIBRARY_ENTRIES" = "Intrări din bibliotecă";
 "SENSITIVE_SETTINGS" = "Setări sensibile";
 "NAME" = "Nume";
 "DATE" = "Data";
 "BACKUP_INFO_TITLE" = "Informații despre copia de rezervă";
-"AUTOMATIC_BACKUPS" = "Backup-uri automate";
-"BACKUP_INTERVAL" = "Interval de backup";
+"AUTOMATIC_BACKUPS" = "Copii de rezervă automate";
+"BACKUP_INTERVAL" = "Intervalul copiilor de rezervă";
 "AUTO" = "Auto";
 "LAST_BACKED_UP_%@" = "Ultima copie de rezervă automată: %@";
 "READING_SESSIONS" = "Sesiuni de lectură";
 "CLEAR_EXCLUDING_LIBRARY" = "Ștergeți istoricul de citire, cu excepția bibliotecii";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Această acțiune este ireversibilă. Va fi eliminat tot istoricul de lectură pentru titlurile care nu se află în bibliotecă.";
-"CLEAR_SOURCE_CACHE" = "Ștergeți cache-ul sursă";
+"CLEAR_SOURCE_CACHE" = "Ștergeți cache-ul sursei";
 "CLEAR_SOURCE_CACHE_TEXT" = "Șterge cookie-urile și datele site-urilor pentru adresele URL ale acestei surse, împreună cu conținutul sursei stocat în cache. Este posibil să fie necesară o nouă autentificare, iar încărcarea poate dura temporar mai mult.";
 "PAGE_OFFSET" = "Decalaj de pagină";
 "SPLIT_WIDE_IMAGES" = "Divizarea imaginilor late";
@@ -988,27 +988,27 @@
 "TRACK_CHAPTER_OFFSET_TEXT" = "Ajustați actualizarea automată a progresului lecturii pentru acest titlu atunci când numerele capitolelor din sursă diferă de cele din serviciul de urmărire.";
 "TITLE_DISPLAY_MODE" = "Modul de afișare a titlului";
 "OEL" = "OEL";
-"COMIC" = "benzi desenate";
-"BOOK" = "carte";
+"COMIC" = "Bandă desenată";
+"BOOK" = "Carte";
 "SEARCH_OPTIONS" = "Opțiuni de căutare";
 "SHOW_NSFW_RESULTS" = "Afișați rezultatele NSFW";
 "UPDATE_AFTER_READING" = "Actualizați după citire";
-"UPDATE_AFTER_READING_INFO" = "După ce ați citit un capitol, actualizați trackerul pentru a se potrivi cu capitolul și/sau volumul citit în prezent.";
+"UPDATE_AFTER_READING_INFO" = "După citirea unui capitol, actualizează serviciul de urmărire pentru a corespunde capitolului și/sau volumului citit.";
 "AUTO_SYNC_HISTORY" = "Sincronizați automat istoricul";
 "AUTO_SYNC_HISTORY_INFO" = "Când serviciul de urmărire înregistrează un progres mai avansat în citirea capitolelor și/sau volumelor, actualizează istoricul local de lectură pentru a corespunde.";
-"SYNC_WITH_TRACKER" = "Sincronizare cu Tracker";
+"SYNC_WITH_TRACKER" = "Sincronizare cu serviciul de urmărire";
 "SYNC_WITH_TRACKER_INFO_%i" = "Numărul capitolelor deja citite conform serviciului de urmărire: %i. Doriți să le marcați ca citite?";
 "SYNC_WITH_TRACKER_INFO_1" = "Conform serviciului de urmărire, 1 capitol este deja citit. Doriți să îl marcați ca citit?";
 "UNAVAILABLE_TRACKER_ITEM" = "Element de urmărire indisponibil";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "Acest element de urmărire conectat este asociat cu un instrument de urmărire care nu mai este disponibil. Ar trebui fie să eliminați acest articol, fie să vă conectați din nou la trackerul asociat.";
-"ENHANCED_TRACKERS" = "Trackere îmbunătățite";
-"ENHANCED_TRACKERS_INFO" = "Instrumentele de urmărire îmbunătățite se pot conecta automat la articolele adăugate în bibliotecă din surse acceptate, urmărind istoricul citirii în două direcții.";
+"UNAVAILABLE_TRACKER_ITEM_INFO" = "Acest element de urmărire este asociat cu un serviciu de urmărire care nu mai este disponibil. Eliminați acest element sau conectați-vă din nou la serviciul de urmărire asociat.";
+"ENHANCED_TRACKERS" = "Servicii de urmărire îmbunătățite";
+"ENHANCED_TRACKERS_INFO" = "Serviciile de urmărire îmbunătățite se pot conecta automat la elementele adăugate în bibliotecă din surse acceptate, sincronizând istoricul de lectură în ambele sensuri.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Dezactivarea urmăririi pentru o sursă elimină legăturile cu serviciile de urmărire doar pentru acea sursă. Activarea leagă automat elementele din bibliotecă provenite din acea sursă.";
-"TRACKER_LOGOUT_INFO" = "Deconectarea va elimina informațiile de urmărire conectate din acest instrument de urmărire pentru toate seriile.";
+"TRACKER_LOGOUT_INFO" = "Deconectarea va elimina informațiile de urmărire legate de acest serviciu pentru toate seriile.";
 "SET_AS_SINGLE_PAGE" = "Setați ca o singură pagină";
 "UNSET_AS_SINGLE_PAGE" = "Anulează setarea ca pagină unică";
 "RELOAD_FAILED" = "Reîncărcarea a eșuat";
-"RELOAD_FAILED_TEXT" = "Nu s-a reîncărcat imaginea. Vă rugăm să încercați din nou.";
+"RELOAD_FAILED_TEXT" = "Imaginea nu a putut fi reîncărcată. Încercați din nou.";
 "CONTINUOUS_WITH_GAPS" = "Continuu, cu spații între pagini";
 "ADD" = "Adăugați";
 "MARK_DUPLICATE_CHAPTERS" = "Marcați capitolele duplicate ca citite";
@@ -1028,10 +1028,10 @@
 "AUTO_SCROLL_POSITION" = "Poziția butonului de derulare automată";
 "POSITION_LEFT" = "Stânga";
 "POSITION_RIGHT" = "Dreapta";
-"%@_TRACKER_LOGIN_NEEDED" = "%@ Conectare necesară";
+"%@_TRACKER_LOGIN_NEEDED" = "Este necesară conectarea la %@";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tokenul pentru %@ a expirat. Serviciul de urmărire asociat nu va funcționa până când vă autentificați din nou din setări.";
 "BACKUP_ERROR" = "Eroare la restaurarea copiei de rezervă";
-"BACKUP_ERROR_TEXT" = "A apărut o eroare la restaurare: %@. Backup-ul poate fi invalid.";
+"BACKUP_ERROR_TEXT" = "A apărut o eroare la restaurare: %@. Copia de rezervă poate fi nevalidă.";
 "READER_ORIENTATION" = "Orientare";
 "FOLLOW_DEVICE" = "Urmează orientarea dispozitivului";
 "FOCUS_ITEM_LEFT" = "Mută focalizarea pe elementul din stânga";
@@ -1044,8 +1044,8 @@
 "RESET_FOCUS" = "Resetați focalizarea";
 "TURN_PAGE_LEFT" = "Întoarceți pagina la stânga";
 "TURN_PAGE_RIGHT" = "Întoarceți pagina la dreapta";
-"CHAPTER_FORWARD" = "Capitolul înainte";
-"CHAPTER_BACKWARD" = "Capitolul înapoi";
+"CHAPTER_FORWARD" = "Capitolul următor";
+"CHAPTER_BACKWARD" = "Capitolul anterior";
 "OPEN_CHAPTER_LIST" = "Deschideți lista de capitole";
 "TOGGLE_BARS" = "Afișați sau ascundeți barele de instrumente";
 "CLOSE_READER" = "Închide cititorul";

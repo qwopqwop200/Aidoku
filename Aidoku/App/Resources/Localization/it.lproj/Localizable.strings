@@ -276,7 +276,7 @@
 "CLEAR_TRACKED_MANGA" = "Rimuovi tutti i collegamenti ai tracker";
 "CACHE_SIZE_%@" = "Dimensione cache: %@";
 "MANHUA" = "Manhua";
-"CLEAR_TRACKED_MANGA_TEXT" = "Questa azione è irreversibile. Verranno rimossi tutti i collegamenti dei manga ai servizi di monitoraggio.";
+"CLEAR_TRACKED_MANGA_TEXT" = "Questa azione è irreversibile. Verranno rimossi tutti i collegamenti dei manga ai tracker.";
 "REMOVE_FROM_CATEGORY" = "Rimuovi dalla categoria";
 "MIGRATE" = "Migra";
 "NOT_FOUND" = "Non trovato";
@@ -293,7 +293,7 @@
 "SELECT" = "Seleziona";
 "ADD_TO_CATEGORY" = "Aggiungi alla Categoria";
 "ADD_TO_CATEGORIES" = "Aggiungi alle Categorie";
-"RENAME_CATEGORY_INFO" = "Aggiungi un nuovo nome per questa categoria.";
+"RENAME_CATEGORY_INFO" = "Inserisci un nuovo nome per questa categoria.";
 "RENAME_CATEGORY_FAIL" = "Errore nel rinominare la Categoria";
 "SKIP_DUPLICATE_CHAPTERS" = "Salta Capitoli Duplicati";
 "RENAME_CATEGORY" = "Rinomina Categoria";
@@ -337,7 +337,7 @@
 "NO_UPDATES" = "Nessun aggiornamento";
 "DELETE_DOWNLOAD_AFTER_READING" = "Rimuovi il file scaricato a capitolo finito";
 "%lld_PLUS_MORE" = "+%lld in più";
-"SKIPPING_CHAPTERS" = "Salto %i capitoli, o mancano dalla fonte o sono stati filtrati";
+"SKIPPING_CHAPTERS" = "%i capitoli saltati: mancano nella fonte o sono stati esclusi dai filtri";
 "SCANLATOR" = "Gruppo di scanlation";
 "NO_SCANLATOR" = "Nessun gruppo di scanlation";
 "DONE" = "Fatto";
@@ -355,7 +355,7 @@
 "PHOTOS_ACCESS_DENIED_TEXT" = "L'accesso è stato precedentemente negato. Permetti ad Aidoku di accedere a Foto per salvare le immagini nel tuo Rullino. Puoi abilitare l'accesso nelle impostazioni di privacy.";
 "%@_EXPERIMENTAL" = "%@ (Sperimentale)";
 "DOWNLOADING" = "In scaricamento";
-"PROCESSING_QUEUE" = "Elaborando la coda…";
+"PROCESSING_QUEUE" = "Elaborazione della coda…";
 "DOWNLOADING_PAUSED" = "Scaricamento in pausa";
 "PAUSED" = "In Pausa";
 "CANCEL_ALL_DOWNLOADS" = "Annulla tutti i Download";
@@ -391,11 +391,11 @@
 "LAYOUT_GRID" = "Griglia";
 "LAYOUT_LIST" = "Lista";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Rimozione di un elemento dalla Raccolta";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Rimuovendo %i elementi dalla Raccolta";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Rimozione di %i elementi dalla Raccolta";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Rimozione di un elemento dalla categoria %@";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Rimuovendo %i elementi dalla Categoria %@";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Rimozione di %i elementi dalla categoria %@";
 "REFRESHING_LIBRARY" = "Aggiornamento della Raccolta…";
-"PROCESSING_ENTRIES" = "Elaboro Elementi…";
+"PROCESSING_ENTRIES" = "Elaborazione degli elementi…";
 "EDIT_SOURCES" = "Modifica Fonti";
 "CONTENT_RATING" = "Classificazione dei contenuti";
 "SAFE" = "Per tutti";
@@ -411,7 +411,7 @@
 "RANGE_FROM" = "Da";
 "RANGE_TO" = "A";
 "SOURCE_SETTINGS" = "Impostazioni Fonte";
-"RESET_SETTINGS_CONFIRM_%@" = "Sei sicuro di reimpostare tutte le impostazioni per %@?";
+"RESET_SETTINGS_CONFIRM_%@" = "Sei sicuro di voler reimpostare tutte le impostazioni per %@?";
 "CANCEL_CONFIRM" = "Sei sicuro di voler interrompere?";
 "CANCEL_CONFIRM_TEXT" = "Le tue modifiche verranno scartate.";
 "LOCAL_FILES_SETUP" = "Impostazioni File Locali";
@@ -471,7 +471,7 @@
 "CLEAR_FILTERS" = "Pulisci filtri";
 "EDIT_FILTER_GROUP" = "Modifica gruppo di filtri";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Mostra non categorizzati";
-"MARK_DUPLICATE_CHAPTERS" = "Segna i capitoli duplicati come letti";
+"MARK_DUPLICATE_CHAPTERS" = "Contrassegna i capitoli duplicati come letti";
 "DISABLE_QUICK_ACTIONS" = "Disabilita azioni rapide";
 "ANIMATE_PAGE_TRANSITIONS" = "Transizioni pagine animate";
 "INVERT_TAP_ZONES" = "Inverti le zone di tocco";
@@ -483,7 +483,7 @@
 "SAVE_SEARCH_FAIL_INFO" = "Esiste già una ricerca salvata con questo nome. Scegli un nome univoco.";
 "KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "Media server self-hosted";
-"KOMGA_INFO" = "Komga è un media server self-hosted per fumetti e manga. Per utilizzare questa risorsa, è necessario disporre di un server Komga configurato e funzionante.";
+"KOMGA_INFO" = "Komga è un media server self-hosted per fumetti e manga. Per utilizzare questa fonte, è necessario disporre di un server Komga configurato e funzionante.";
 "KOMGA_SETUP" = "Configurazione Komga";
 "DEMO_KOMGA_SERVER" = "Demo Server Komga";
 "DEMO_KOMGA_SERVER_INFO" = "È possibile accedere al server demo di Komga utilizzando l'indirizzo email `demo@komga.org` e la password `komga-demo`.";
@@ -673,7 +673,7 @@
 "TRANSLATION_INCLUDE_IMAGE" = "Includi l'immagine della pagina nella traduzione";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Invia l’immagine della pagina insieme al testo OCR per fornire il contesto della scena. Se le immagini non sono supportate, la traduzione continua automaticamente con il solo testo. Allegare immagini può aumentare il consumo di dati e il costo dell’API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "L’inserimento di immagini non è supportato. La traduzione continua senza immagini.";
+"TRANSLATION_IMAGE_UNSUPPORTED" = "L’input di immagini non è supportato. La traduzione continua senza immagini.";
 
 "TRANSLATION_SOURCE_TEXT_COLOR" = "Mantieni il colore del testo originale";
 
@@ -687,7 +687,7 @@
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Mantieni il colore dello sfondo originale";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Abbina il pannello di traduzione allo sfondo attorno al testo originale. Utilizza il pannello predefinito in caso di incertezza o illeggibilità. L'impostazione dell'opacità è ancora valida.";
+"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Abbina il pannello di traduzione allo sfondo attorno al testo originale. Utilizza il pannello predefinito in caso di incertezza o illeggibilità. L'impostazione dell'opacità rimane valida.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Personalizzato (compatibile con OpenAI)";
 
@@ -834,7 +834,7 @@
 "LOGIN_METHOD" = "Metodo di accesso";
 "BASIC" = "Di base";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "La sincronizzazione iCloud è una funzionalità sperimentale. Attivarla o disattivarla potrebbe causare la perdita di dati.";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "La sincronizzazione iCloud è disponibile solo se installata tramite TestFlight.";
+"ICLOUD_SYNC_TEXT_SIDELOADED" = "La sincronizzazione iCloud è disponibile solo se l’app è installata tramite TestFlight.";
 "LAYOUT" = "Disposizione";
 "STANDARD" = "Standard";
 "COMPACT" = "Compatto";
@@ -884,7 +884,7 @@
 "LEGACY_SOURCE_LIST_WARNING" = "Avviso: elenco delle fonti legacy";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Hai configurato un elenco di fonti in un formato precedente. Questo formato è obsoleto e smetterà di funzionare in una versione futura di Aidoku. Per ora funziona ancora, ma ti consigliamo di trovare un’alternativa e configurarla in Impostazioni > Elenchi delle fonti.";
 "DISABLE_DOUBLE_TAP_ZOOM" = "Disattiva lo zoom con doppio tocco";
-"LIVE_TEXT" = "Testo dal vivo";
+"LIVE_TEXT" = "Testo live";
 "HIDE_BARS_ON_SWIPE" = "Nascondi le barre durante lo scorrimento";
 "ZONE_LEFT_RIGHT" = "Sinistra e destra";
 "ZONE_L_SHAPED" = "A forma di L";
@@ -905,7 +905,7 @@
 "DICTIONARY_LOOKUP" = "Ricerca nel dizionario";
 "DICTIONARY_SETTINGS_TEXT" = "Abilita la ricerca nel dizionario per consentire l'elaborazione OCR sulle immagini delle pagine per cercare parole in qualsiasi dizionario Yomitan importato.";
 "DICTIONARIES" = "Dizionari";
-"ABOUT_DICTIONARIES" = "A proposito di dizionari";
+"ABOUT_DICTIONARIES" = "Informazioni sui dizionari";
 "ABOUT_DICTIONARIES_TEXT" = "I dizionari Yomitan possono essere importati da file zip. Puoi abilitare o disabilitare i dizionari e possono essere riordinati trascinandoli.";
 "LOOKUP_GESTURE" = "Gesto di ricerca";
 "SINGLE_TAP" = "Tocco singolo";
@@ -986,11 +986,11 @@
 "CLEAR_SOURCE_CACHE" = "Svuota la cache della fonte";
 "CLEAR_SOURCE_CACHE_TEXT" = "Elimina i cookie e i dati dei siti web associati agli URL di questa fonte, insieme ai contenuti della fonte memorizzati nella cache. Potrebbe essere necessario accedere nuovamente e il caricamento potrebbe richiedere temporaneamente più tempo.";
 "PAGE_OFFSET" = "Scostamento pagina";
-"REVERSE_SPLIT_ORDER" = "Invertire l'ordine delle pagine divise";
-"TRACKING" = "Monitoraggio";
+"REVERSE_SPLIT_ORDER" = "Inverti l'ordine delle pagine divise";
+"TRACKING" = "Tracciamento";
 "TRACK_COMPLETED" = "Completato";
 "SET_TRACK_CHAPTER_OFFSET" = "Imposta l'offset del capitolo";
-"TRACK_CHAPTER_OFFSET_TEXT" = "Regola gli aggiornamenti automatici dei capitoli del tracker per questo titolo quando i numeri dei capitoli di origine differiscono dai numeri dei capitoli del tracker.";
+"TRACK_CHAPTER_OFFSET_TEXT" = "Regola gli aggiornamenti automatici dei capitoli del tracker per questo titolo quando i numeri dei capitoli della fonte differiscono da quelli del tracker.";
 "TITLE_DISPLAY_MODE" = "Modalità di visualizzazione del titolo";
 "OEL" = "OEL";
 "COMIC" = "Fumetto";
@@ -999,14 +999,14 @@
 "UPDATE_AFTER_READING_INFO" = "Dopo aver letto un capitolo, aggiorna il tracker in modo che corrisponda al capitolo e/o al volume attualmente letto.";
 "AUTO_SYNC_HISTORY" = "Sincronizza automaticamente la cronologia";
 "AUTO_SYNC_HISTORY_INFO" = "Quando il tracker indica un capitolo o volume già letto più avanzato rispetto alla cronologia locale, aggiorna la cronologia locale per riflettere quei progressi.";
-"SYNC_WITH_TRACKER" = "Sincronizza con Tracker";
-"SYNC_WITH_TRACKER_INFO_%i" = "Secondo il servizio di monitoraggio, %i capitoli sono già stati letti. Vuoi contrassegnarli come letti?";
-"SYNC_WITH_TRACKER_INFO_1" = "Secondo il servizio di monitoraggio, 1 capitolo è già stato letto. Vuoi contrassegnarlo come letto?";
+"SYNC_WITH_TRACKER" = "Sincronizza con il tracker";
+"SYNC_WITH_TRACKER_INFO_%i" = "Secondo il tracker, %i capitoli sono già stati letti. Vuoi contrassegnarli come letti?";
+"SYNC_WITH_TRACKER_INFO_1" = "Secondo il tracker, 1 capitolo è già stato letto. Vuoi contrassegnarlo come letto?";
 "UNAVAILABLE_TRACKER_ITEM" = "Elemento del tracker non disponibile";
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "Questo elemento del tracker collegato è associato a un tracker che non è più disponibile. Dovresti rimuovere questo elemento o accedere nuovamente al tracker associato.";
 "ENHANCED_TRACKERS" = "Tracker migliorati";
 "ENHANCED_TRACKERS_INFO" = "I tracker migliorati possono collegarsi automaticamente ai titoli aggiunti alla Raccolta dalle fonti supportate e sincronizzare la cronologia di lettura in entrambe le direzioni.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "Disattivando il monitoraggio per una fonte vengono rimossi tutti i collegamenti ai tracker di quella fonte. Attivandolo, vengono collegati automaticamente i titoli di quella fonte presenti nella Raccolta.";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "Disattivando il tracciamento per una fonte vengono rimossi tutti i collegamenti ai tracker di quella fonte. Attivandolo, vengono collegati automaticamente i titoli di quella fonte presenti nella Raccolta.";
 "TRACKER_LOGOUT_INFO" = "La disconnessione rimuoverà le informazioni di tracciamento collegate da questo tracker per tutte le serie.";
 "SET_AS_SINGLE_PAGE" = "Imposta come pagina singola";
 "UNSET_AS_SINGLE_PAGE" = "Annulla visualizzazione a pagina singola";
@@ -1131,7 +1131,7 @@
 // Download page counts and single-series totals.
 "PAGES_%i_OF_%i" = "Pagine: %i / %i";
 "1_SERIES" = "1 serie";
-"SKIPPING_ONE_CHAPTER" = "Salto 1 capitolo perché manca dalla fonte o è stato filtrato";
+"SKIPPING_ONE_CHAPTER" = "1 capitolo saltato perché manca nella fonte o è stato escluso dai filtri";
 "BACKUP_CREATE_ERROR_TEXT" = "Impossibile creare il backup. Riprova.";
 "YES" = "Sì";
 "NO" = "No";
@@ -1167,6 +1167,6 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 supporta solo testi di origine in giapponese e cinese (semplificato e tradizionale). Anche il rilevamento automatico e la selezione della lingua di origine sono limitati a queste lingue. È comunque possibile tradurre in coreano o in altre lingue di destinazione. Selezionando Manga, vengono applicate soglie di rilevamento del testo pari a 0.85 e 0.25; la dimensione di rilevamento predefinita è di 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 supporta solo testi di origine in giapponese e cinese (semplificato e tradizionale). Anche il rilevamento automatico e la selezione della lingua di origine sono limitati a queste lingue. È comunque possibile tradurre in coreano o in altre lingue di destinazione. Selezionando Manga, vengono applicate soglie di rilevamento del testo pari a 0,85 e 0,25; la dimensione di rilevamento predefinita è di 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Tutte le lingue OCR supportate";

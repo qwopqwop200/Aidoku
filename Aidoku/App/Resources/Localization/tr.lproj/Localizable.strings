@@ -37,7 +37,7 @@
 // Categories
 "ALL" = "Hepsi";
 "NO_CHAPTERS_AVAILABLE" = "Bölüm bulunamadı";
-"START_READING" = "Başla";
+"START_READING" = "Okumaya Başla";
 "READ" = "Okunmuş";
 "PREVIOUS_COLON" = "Önceki:";
 "NEXT_COLON" = "Sonraki:";
@@ -57,7 +57,7 @@
 "CATEGORIES" = "Kategoriler";
 "EDIT_CATEGORIES" = "Kategorileri Düzenle";
 "CATEGORY_ADD" = "Kategori Ekle";
-"CATEGORY_ADD_TEXT" = "Oluşturulacak Kategorinin Adını Girin.";
+"CATEGORY_ADD_TEXT" = "Oluşturulacak yeni kategorinin adını girin.";
 "ALWAYS_ASK" = "Her zaman sor";
 
 // Browse
@@ -67,8 +67,8 @@
 "UPDATES" = "Güncellemeler";
 "INSTALLED" = "Yüklenenler";
 "EXTERNAL" = "Harici";
-"BUTTON_UPDATE" = "Güncelle";
-"BUTTON_ERROR" = "Hata";
+"BUTTON_UPDATE" = "GÜNCELLE";
+"BUTTON_ERROR" = "HATA";
 "UNINSTALL" = "Kaldır";
 
 // Source
@@ -86,7 +86,7 @@
 "STATUS_COMPLETED" = "Tamamlanmış";
 "MORE" = "daha fazla";
 "SOURCE_ORDER" = "Kaynak Sırası";
-"SELECT_CHAPTERS" = "Bölüm Seç";
+"SELECT_CHAPTERS" = "Bölümleri Seç";
 "SELECT_ALL" = "Hepsini Seç";
 "DESELECT_ALL" = "Seçimleri Temizle";
 
@@ -94,7 +94,7 @@
 "CHAPTER" = "Bölüm";
 "CHAPTERS" = "Bölümler";
 "NO_CHAPTERS" = "Bölüm bulunamadı";
-"CONTINUE_READING" = "Devam Et";
+"CONTINUE_READING" = "Okumaya Devam Et";
 "UNREAD" = "Okunmamış";
 "MARK" = "İşaretle";
 "MARK_ALL" = "Hepsini işaretle";
@@ -137,7 +137,7 @@
 "SUGGESTIVE" = "Cinsel İmalı";
 "NSFW" = "Yetişkin İçerik";
 "MISSING_SOURCE" = "Eksik Kaynak";
-"MISSING_SOURCE_TEXT" = "Bu manganın özgün kaynağı bulunamıyor. Lütfen kaynağı yeniden indirin veya bu mangayı kütüphanenizden kaldırın.";
+"MISSING_SOURCE_TEXT" = "Bu manganın özgün kaynağı bulunamadı. Lütfen kaynağı yeniden yükleyin veya bu seriyi kütüphanenizden kaldırın.";
 "VOLUME_X" = "Cilt %g";
 "VOL_X" = "Cilt %g";
 "CH_X" = "Böl.%g";
@@ -158,11 +158,11 @@
 "APPEARANCE" = "Görünüm";
 "APPEARANCE_LIGHT" = "Açık";
 "APPEARANCE_DARK" = "Koyu";
-"USE_SYSTEM_APPEARANCE" = "Sistem Görünüşünü Kullan";
-"PORTRAIT" = "Portre";
+"USE_SYSTEM_APPEARANCE" = "Sistem Görünümünü Kullan";
+"PORTRAIT" = "Dikey";
 "LANDSCAPE" = "Yatay";
 "READER" = "Okuyucu";
-"OPEN_READER_VIEW" = "Okuyucu Görünüşünü Aç";
+"OPEN_READER_VIEW" = "Okuyucu Görünümünü Aç";
 "PIN_UNREAD" = "Okunmamış";
 "LIBRARY_UPDATING" = "Kütüphane Güncellemesi";
 "UPDATE_INTERVAL" = "Güncelleme Sıklığı";
@@ -171,9 +171,9 @@
 "EXCLUDED_CATEGORIES" = "Dışlanmış Kategoriler";
 "REFRESH_METADATA" = "Meta Verileri Yenile";
 "NEVER" = "Asla";
-"EVERY_12_HOURS" = "Her 12 saat";
+"EVERY_12_HOURS" = "12 saatte bir";
 "DAILY" = "Günlük";
-"EVERY_2_DAYS" = "Her 2 gün";
+"EVERY_2_DAYS" = "2 günde bir";
 "WEEKLY" = "Haftalık";
 "WITH_UNREAD_CHAPTERS" = "Okunmamış Bölümü Olanlar";
 "WITH_COMPLETED_STATUS" = "Tamamlanmış Olanlar";
@@ -185,7 +185,7 @@
 "SOURCE_LIST_ADD_TEXT" = "Kaynak Listesi URL'sini gir";
 "SOURCE_LIST_ADD_FAIL" = "Kaynak Listesi Eklenemedi";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "Belirtilen kaynak listesi URL'si geçersiz veya zaten eklenmiş.";
-"LOCK_HISTORY_TAB" = "Geçmiş Sayfasını Kilitle";
+"LOCK_HISTORY_TAB" = "Geçmiş Sekmesini Kilitle";
 "DOWNSAMPLE_IMAGES" = "Görsel Çözünürlüğünü Azalt";
 "BACKUPS" = "Yedekler";
 "BACKUP_NAME" = "Yedek İsmi";
@@ -195,12 +195,12 @@
 "BACKUP_INFO" = "Dışa aktarmak için yedeğe basılı tutun ya da silmek için sola kaydırın.";
 "MISSING_SOURCES" = "Eksik Kaynaklar";
 "MISSING_SOURCES_TEXT" = "Geri yüklenen yedek, şu anda yüklü olmayan aşağıdaki kaynaklardan veriler içerebilir:";
-"RESTORE_BACKUP" = "Bu yedeğe geri yükle?";
+"RESTORE_BACKUP" = "Bu yedek geri yüklensin mi?";
 "RESTORE_BACKUP_TEXT" = "Mevcut tüm veriler silinecek ve bu yedekteki verilerle değiştirilecek.";
 "BACKUP_IMPORT_SUCCESS" = "Yedek İçe Aktarıldı";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Bu yedeği geri yüklemek için, yedeği ayarlarda yedek sayfasında bul.";
 "IMPORT_FAIL" = "İçe Aktarma Başarısız Oldu";
-"BACKUP_IMPORT_FAIL_TEXT" = "Yedek Kaydedilemedi. Lütfen yedeğinizin doğru biçimde olduğundan emin olun.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Yedek kaydedilemedi. Lütfen yedeğinizin doğru biçimde olduğundan emin olun.";
 "EXPORT" = "Dışa Aktar";
 "RESTORE" = "Geri Yükle";
 "LOGS" = "Sistem Günlüğü";
@@ -217,7 +217,7 @@
 "UNREAD_CHAPTER_BADGES" = "Okunmamış Bölüm Rozetleri";
 "FAILED_CHAPTER_LOAD_INFO" = "Çevrimdışı olabilirsiniz ya da kaynakta sorun yaşanıyor olabilir.";
 "SORT_UNREAD_CHAPTERS" = "Okunmamış Bölümler";
-"SORT_TOTAL_CHAPTERS" = "Toplam Bölümler";
+"SORT_TOTAL_CHAPTERS" = "Toplam Bölüm";
 "RESET_SETTINGS" = "Ayarları Sıfırla";
 "RESET_SETTINGS_TEXT" = "Bu işlem geri alınamaz. Bütün uygulama ve kaynak ayarları sıfırlanacak.";
 "PAGE_X_OF_X" = "%2$i sayfadan %1$i. sayfa";
@@ -237,12 +237,12 @@
 "DOUBLE_PAGE" = "Çift Sayfa";
 "MULTI_LANGUAGE" = "Çoklu Dil";
 "TRACKERS" = "Takip Hizmetleri";
-"LOGOUT_FROM_%@" = "%@'den Çıkış Yap?";
+"LOGOUT_FROM_%@" = "%@ hesabından çıkış yapılsın mı?";
 "STATUS" = "Durum";
 "VOLUMES" = "Ciltler";
 "STARTED" = "Başlangıç Tarihi";
 "START_TRACKING" = "Takibi Başlat";
-"SCORE" = "Skor";
+"SCORE" = "Puan";
 "TRACK_PAUSED" = "Ara Verildi";
 "FINISHED" = "Bitiş Tarihi";
 "TRACK_READING" = "Okunuyor";
@@ -278,10 +278,10 @@
 "REMOVE_FROM_CATEGORY" = "Kategoriden Kaldır";
 "SELECT" = "Seç";
 "ADD_TO_CATEGORIES" = "Kategorilere Ekle";
-"RENAME_CATEGORY_FAIL" = "Kategori Yeniden isimlendirilemedi";
+"RENAME_CATEGORY_FAIL" = "Kategori Yeniden Adlandırılamadı";
 "RENAME_CATEGORY" = "Kategoriyi Yeniden Adlandır";
 "CATEGORY_NAME" = "Kategori Adı";
-"SKIP_DUPLICATE_CHAPTERS" = "Tekrarlayan Bölümleri Atla";
+"SKIP_DUPLICATE_CHAPTERS" = "Yinelenen Bölümleri Atla";
 "PINNED" = "Sabitlenmiş";
 "%i_CHAPTERS" = "%i Bölüm";
 "1_CHAPTER" = "1 Bölüm";
@@ -298,8 +298,8 @@
 "AVAILABLE" = "Mevcut";
 "NOT_FOUND" = "Bulunamadı";
 "FIRST_ALTERNATIVE" = "Birinci Alternatif";
-"MIGRATE_%i_ITEMS?" = "%i Öğeyi Taşı?";
-"MIGRATE_ONE_ITEM?" = "1 Öğeyi Taşı?";
+"MIGRATE_%i_ITEMS?" = "%i öğe taşınsın mı?";
+"MIGRATE_ONE_ITEM?" = "1 öğe taşınsın mı?";
 "MIGRATE_SOURCES" = "Kaynakları Taşı";
 "UPLOAD_DATE" = "Yükleme Zamanı";
 "ALL_CHAPTERS_READ" = "Tüm Bölümler Okundu";
@@ -389,13 +389,13 @@
 "PROCESSING_ENTRIES" = "Girdiler İşleniyor…";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "Artı tuşuyla kaynak ekle.";
 "EDIT_SOURCES" = "Kaynakları düzenle";
-"TRACKING" = "Takip ediliyor";
+"TRACKING" = "Takip";
 "CLEAR_EXCLUDING_LIBRARY" = "Kütüphane hariç okuma geçmişini temizle";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Bu işlem geri alınamaz. Kütüphanede olmayan serilerin tüm okuma geçmişi silinir.";
 "OPEN_WEBSITE" = "Siteyi aç";
 "READER_ORIENTATION" = "Ekran Yönü";
 "FOLLOW_DEVICE" = "Cihazın Yönünü İzle";
-"MARK_DUPLICATE_CHAPTERS" = "Yinelenen bölümleri okundu olarak işaretle";
+"MARK_DUPLICATE_CHAPTERS" = "Yinelenen Bölümleri Okunmuş Olarak İşaretle";
 "BASE_URL" = "Ana URL";
 "SEE_ALL" = "Hepsini gör";
 "HOME" = "Anasayfa";
@@ -406,9 +406,9 @@
 "CANCEL_CONFIRM_TEXT" = "Değişiklikleriniz silinecek.";
 "DISCARD_CHANGES" = "Değişiklikleri At";
 "INVALID_URL" = "Geçersiz URL";
-"INVALID_URL_TEXT" = "URL bu kaynak için geçersiz.";
+"INVALID_URL_TEXT" = "Bu kaynağın URL'si geçersiz.";
 "MORE_BARBUTTON" = "Daha fazla";
-"RETRY" = "Tekrar et";
+"RETRY" = "Tekrar dene";
 "NO_RESULT" = "Sonuç yok";
 "UNIMPLEMENTED" = "Uygulanmamış";
 "NETWORK_ERROR" = "Bağlantı hatası";
@@ -417,9 +417,9 @@
 "ADD_SOURCE" = "Kaynak ekle";
 "IMPORT_SOURCE" = "Kaynağı İçe Aktar";
 "BUILT_IN_SOURCES" = "Dahili kaynaklar";
-"EXTERNAL_SOURCES" = "Dış kaynaklar";
+"EXTERNAL_SOURCES" = "Harici kaynaklar";
 "NO_RESULTS" = "Sonuç bulunamadı";
-"NO_EXTERNAL_SOURCES" = "Dış kaynak bulunamadı";
+"NO_EXTERNAL_SOURCES" = "Harici kaynak bulunamadı";
 "NO_EXTERNAL_SOURCES_INFO" = "Harici kaynakları yüklemek için ayarlar sekmesinde kaynak listelerini yapılandırın.";
 "NO_AVAILABLE_SOURCES" = "Mevcut kaynak yok";
 "NO_AVAILABLE_SOURCES_INFO" = "Daha fazla harici kaynak görüntülemek için filtrelerinizi ayarlayın.";
@@ -428,9 +428,9 @@
 "LOCAL_FILES" = "Yerel dosyalar";
 "LOCAL_FILES_TAGLINE" = "Yerel dosyalardan oku";
 "IMPORT" = "İçe aktar";
-"IMPORT_FILE" = "Dosyayı içeriye aktar";
-"LOCAL_FILE_IMPORT" = "Yerel dosyaları içeriye aktar";
-"LOCAL_FILE_IMPORT_TEXT" = "Görüntüleri içeren bir CBZ veya ZIP dosyasını okumak için içe aktarın.";
+"IMPORT_FILE" = "Dosya içe aktar";
+"LOCAL_FILE_IMPORT" = "Yerel dosya içe aktarma";
+"LOCAL_FILE_IMPORT_TEXT" = "Okumak için görüntü içeren bir CBZ veya ZIP dosyasını içe aktarın.";
 "%i_SERIES" = "%i seri";
 "CONTENT_RATING" = "İçerik Derecelendirmesi";
 "SAFE" = "Güvenli";
@@ -468,7 +468,7 @@
 "RECENTLY_ADDED_SERIES" = "Son Eklenen Seriler";
 "RECENTLY_UPDATED_SERIES" = "Son Güncellenen Seriler";
 "X_SERIES_HAVE_NEW_CHAPTERS" = "%d seride yeni bölüm var";
-"SERIES_PLURAL" = "Seriler";
+"SERIES_PLURAL" = "Seri";
 "SERIES_SINGULAR" = "Seri";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Bu seriyi kütüphanenizden kaldırmak, serinin takip hizmetleriyle olan tüm bağlantılarını da kaldırır. Devam etmek istediğinizden emin misiniz?";
 "UPDATE_AFTER_READING_INFO" = "Bir bölüm okunduktan sonra takip hizmetini okunan bölüm ve/veya cilt ile eşleşecek şekilde günceller.";
@@ -486,23 +486,23 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Bir kaynak için takibi kapatmak, o kaynağa ait takip bağlantılarını kaldırır. Açmak ise kütüphanenizde o kaynaktan eklenen serilerle otomatik bağlantı kurar.";
 "SHOW_NSFW_RESULTS" = "Yetişkin İçerikleri Göster";
 "CATEGORY" = "Kategori";
-"UNCATEGORIZED" = "Kategorize Edilmemiş";
+"UNCATEGORIZED" = "Kategorisiz";
 "FILTER_GROUPS" = "Filtre Grupları";
 "CREATE_FILTER_GROUP" = "Filtre Grubu Oluştur";
 "EDIT_FILTER_GROUP" = "Filtre Grubunu Düzenle";
 "CLEAR_FILTERS" = "Filtreleri Temizle";
-"SHOW_UNCATEGORIZED_CATEGORY" = "Kategorisiz Kategorisini Göster";
+"SHOW_UNCATEGORIZED_CATEGORY" = "\"Kategorisiz\" Kategorisini Göster";
 "MISSING_SOURCE_LIST" = "Eksik Kaynak Listesi";
 "AUTHOR" = "Yazar";
-"AUTHOR_NAME" = "Yazarın İsmi";
+"AUTHOR_NAME" = "Yazar adı";
 "USERNAME" = "Kullanıcı Adı";
 "EMAIL" = "E-posta";
 "PASSWORD" = "Şifre";
-"CHAPTER_PLURAL" = "Bölümler";
+"CHAPTER_PLURAL" = "Bölüm";
 "CHAPTER_SINGULAR" = "Bölüm";
-"PAGE_PLURAL" = "Sayfalar";
+"PAGE_PLURAL" = "Sayfa";
 "PAGE_SINGULAR" = "Sayfa";
-"HOUR_PLURAL" = "Saatler";
+"HOUR_PLURAL" = "Saat";
 "HOUR_SINGULAR" = "Saat";
 "ALL_TIME" = "Tüm Zamanlar";
 "THIS_MONTH" = "Bu Ay";
@@ -511,9 +511,9 @@
 "FOCUS_ITEM_RIGHT" = "Odağı sağa kaydır";
 "FOCUS_ITEM_ABOVE" = "Odağı yukarıya kaydır";
 "FOCUS_ITEM_BELOW" = "Odağı aşağıya kaydır";
-"FOCUS_ITEM_NEXT" = "Sonraki ögeye odaklan";
-"FOCUS_ITEM_PREV" = "Önceki ögeye odaklan";
-"OPEN_FOCUS_ITEM" = "Odaklanılan ögeyi aç";
+"FOCUS_ITEM_NEXT" = "Sonraki öğeye odaklan";
+"FOCUS_ITEM_PREV" = "Önceki öğeye odaklan";
+"OPEN_FOCUS_ITEM" = "Odaklanılan öğeyi aç";
 "RESET_FOCUS" = "Odağı sıfırla";
 "TURN_PAGE_LEFT" = "Sayfayı sola çevir";
 "TURN_PAGE_RIGHT" = "Sayfayı sağa çevir";
@@ -522,7 +522,7 @@
 "OPEN_CHAPTER_LIST" = "Bölüm listesini aç";
 "TOGGLE_BARS" = "Çubukların görünürlüğünü aç/kapat";
 "CLOSE_READER" = "Okuyucuyu kapat";
-"TOGGLE_PAGE_OFFSET" = "Sayfa Eşleştirmesini Kaydırmayı Aç/Kapat";
+"TOGGLE_PAGE_OFFSET" = "Sayfa kaydırmayı aç/kapat";
 "DONT_MIGRATE" = "Taşıma";
 "KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "Kişisel medya sunucusu";
@@ -553,11 +553,11 @@
 "LEGACY_SOURCE_LIST" = "Eski Kaynak Listesi";
 "LEGACY_SOURCE_LIST_WARNING" = "Uyarı: Eski Kaynak Listesi";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Şu anda yapılandırılmış eski bir kaynak listeniz var. Bu biçim güncelliğini yitirmiştir ve Aidoku'nun gelecekteki bir sürümünde çalışmayı durduracaktır. Şimdilik çalışmaya devam edecek olsa da, bir alternatif bulmanız ve bunu Ayarlar > Kaynak Listeleri altından yapılandırmanız önerilir.";
-"SOURCE_IMPORT_FAIL_TEXT" = "Kaynak içeri aktarılamadı. Lütfen .aix dosyasının geçerli olduğundan emin olun.";
+"SOURCE_IMPORT_FAIL_TEXT" = "Kaynak içe aktarılamadı. Lütfen .aix dosyanızın geçerli olduğundan emin olun.";
 "CLEAR_SOURCE_CACHE" = "Kaynak Önbelleğini Temizle";
 "CLEAR_SOURCE_CACHE_TEXT" = "Bu kaynağın adreslerine ait çerezleri ve web sitesi verilerini, önbellekteki kaynak içeriğiyle birlikte temizler. Yeniden giriş yapmanız gerekebilir ve yükleme geçici olarak daha uzun sürebilir.";
 "TRACK_CHAPTER_OFFSET_TEXT" = "Kaynak ile takip hizmetindeki bölüm numaraları farklıysa bu seri için otomatik bölüm güncellemelerini ayarlayın.";
-"MIGRATE_CONFIRM_TEXT" = "Farklı bir kaynağa taşıma yapıldığında, orijinal ögelerin okuma geçmişi kaldırılacaktır.";
+"MIGRATE_CONFIRM_TEXT" = "Farklı bir kaynağa taşıma yapıldığında, orijinal öğelerin okuma geçmişi kaldırılacaktır.";
 "SOURCE_BREAKING_CHANGE" = "Kaynakta Kritik Değişiklik";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Bu kaynakta kritik bir değişiklik oldu; kütüphanenizi ve geçmişinizi korumak için taşıma yapılması gerekiyor.";
 "LOGIN_VIA_OIDC" = "OIDC ile Giriş Yap";
@@ -580,7 +580,7 @@
 "RECENTLY_ADDED_BOOKS" = "Son Eklenen Kitaplar";
 "RECENTLY_READ_BOOKS" = "Son Okunan Kitaplar";
 "ANY" = "Herhangi biri";
-"ARTIST" = "Sanatçı";
+"ARTIST" = "Çizer";
 "SORT" = "Sırala";
 "SORT_NAME" = "Ad";
 "SORT_DATE_UPDATED" = "Güncellenme Tarihi";
@@ -597,11 +597,11 @@
 "SHARING_LABEL" = "Paylaşım Etiketi";
 "NOT_LOGGED_IN" = "Giriş yapılmadı";
 "NO_SERVER_CONFIGURED" = "Yapılandırılmış sunucu yok";
-"MORE_IN_%@" = "%@ İçinde Daha Fazla";
+"MORE_IN_%@" = "Daha Fazla: %@";
 "SORT_CHAPTER_ADDED" = "Bölüm Eklenme Tarihi";
 "SORT_TIME_TO_READ" = "Okuma Süresi";
 "SORT_AVERAGE_RATING" = "Ortalama Puan";
-"STATUS_ENDED" = "Tamamlandı";
+"STATUS_ENDED" = "Sona erdi";
 "FORMAT" = "Biçim";
 "FORMAT_IMAGE" = "Görsel";
 "FORMAT_PDF" = "PDF";
@@ -610,7 +610,7 @@
 "OIDC" = "OIDC";
 "STATUS_LICENSED" = "Lisanslı";
 "STATUS_PUBLISHING_FINISHED" = "Yayınlanma Bitti";
-"ARTIST_NAME" = "Sanatçı adı";
+"ARTIST_NAME" = "Çizer adı";
 "INVALID_KEY" = "Geçersiz Anahtar";
 "LOCKED" = "Kilitli";
 "TOGGLE_LOCK" = "Kilidi Aç/Kapat";
@@ -645,7 +645,7 @@
 "1_NEW_CHAPTER_AVAILABLE" = "Yeni bölüm mevcut";
 "X_NEW_CHAPTERS_AVAILABLE" = "%d yeni bölüm mevcut";
 "NEW_CHAPTERS_AVAILABLE" = "Yeni Bölümler Mevcut";
-"EVERY_6_HOURS" = "Her 6 saatte bir";
+"EVERY_6_HOURS" = "6 saatte bir";
 "NO_RESULTS_FOR_%@" = "“%@” için Sonuç Bulunamadı";
 "NO_RESULTS_TEXT" = "Yazımı kontrol edin veya yeni bir arama deneyin.";
 "LEARN_MORE" = "Daha fazla bilgi…";
@@ -700,8 +700,8 @@
 "FILE_IMPORT_FAIL_TEXT" = "Dosya içe aktarılamadı. Lütfen okunabilir bir görüntü dosyası veya görüntü içeren geçerli bir CBZ ya da ZIP arşivi olduğundan emin olun.";
 "BACKUP_%@" = "Yedek %@";
 "CREATE_BACKUP" = "Yedek Oluştur";
-"IMPORT_BACKUP" = "Yedeği İçeri Aktar";
-"LIBRARY_ENTRIES" = "Kütüphane Ögeleri";
+"IMPORT_BACKUP" = "Yedeği İçe Aktar";
+"LIBRARY_ENTRIES" = "Kütüphane Öğeleri";
 "SENSITIVE_SETTINGS" = "Hassas Ayarlar";
 "NAME" = "Ad";
 "DATE" = "Tarih";
@@ -711,7 +711,7 @@
 "AUTO" = "Otomatik";
 "LAST_BACKED_UP_%@" = "Son otomatik yedekleme: %@";
 "READING_SESSIONS" = "Okuma Oturumları";
-"PAGE_OFFSET" = "Sayfa Eşleştirmesini Kaydır";
+"PAGE_OFFSET" = "Sayfa Kaydırma";
 "SPLIT_WIDE_IMAGES" = "Geniş Görselleri Böl";
 "REVERSE_SPLIT_ORDER" = "Bölme Sırasını Tersine Çevir";
 "TRACK_COMPLETED" = "Tamamlandı";
@@ -733,7 +733,7 @@
 "SEARCH_MANUALLY" = "Manuel Ara";
 "SELECTED_%i_OF_%i" = "Seçilen (%i/%i)";
 "MIGRATE_%i_OF_%i" = "Taşı (%i/%i)";
-"SHOW_ENTRY" = "Ögeyi Göster";
+"SHOW_ENTRY" = "Öğeyi Göster";
 "FILTER_SEPARATOR" = ", ";
 "KAVITA" = "Kavita";
 "FORMAT_EPUB" = "EPUB";
@@ -761,7 +761,7 @@
 
 "TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Sayfa Resmini Çeviriye Ekle seçeneği etkinse işlenmiş bir sayfa görseli de yüklenebilir. Görsel girişi desteklenmiyorsa çeviri yalnızca metinle devam eder. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtar Zinciri’nde kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
 
-"TRANSLATION_KEY_REPLACE" = "Kaydedilen API anahtarını değiştirin (isteğe bağlı)";
+"TRANSLATION_KEY_REPLACE" = "Kayıtlı API anahtarını değiştir (isteğe bağlı)";
 
 "TRANSLATION_KEY" = "API anahtarı";
 
@@ -771,7 +771,7 @@
 
 "TRANSLATION_MODEL" = "Model Kimliği";
 
-"TRANSLATION_GET_KEY" = "OpenAI API Anahtarlarını açın";
+"TRANSLATION_GET_KEY" = "OpenAI API Anahtarlarını Aç";
 
 "TRANSLATION_LANGUAGE" = "Diller";
 
@@ -781,7 +781,7 @@
 
 "TRANSLATION_AUTO" = "Otomatik Olarak Algıla";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6, iOS 18 veya üstünü gerektirir. Hem metin algılama hem de metin tanıma için varsayılan model Manga v0.3’dir. Diğer OCR modelleri de seçilebilir.";
+"TRANSLATION_OCR_HELP" = "PP-OCRv6, iOS 18 veya üstünü gerektirir. Hem metin algılama hem de metin tanıma için varsayılan model Manga v0.3’tür. Diğer OCR modelleri de seçilebilir.";
 
 
 
@@ -848,7 +848,7 @@
 
 "TRANSLATION_AUTOMATIC_HELP" = "Okuyucudaki sayfaları otomatik olarak çevirir ve gösterir. Okuyucudaki çeviri düğmesi bu ayarı açar veya kapatır.";
 
-"TRANSLATION_TEST" = "API Bağlantısını Test Edin";
+"TRANSLATION_TEST" = "API Bağlantısını Test Et";
 
 "TRANSLATION_TEST_RUNNING" = "Bağlantı Test Ediliyor…";
 
@@ -866,7 +866,7 @@
 
 "TRANSLATION_CACHE_USED" = "Kullanılan Depolama";
 
-"TRANSLATION_CACHE_HELP" = "OCR sonuçlarını, sayfa çevirilerini, manga ve bölüm başlıklarının, yazar adlarının, etiketlerin, manga açıklamalarının, kaynak menülerinin ve bölüm başlıklarının çevirilerini ve metin düzenini otomatik kaydeder. Yalnızca mevcut sayfanın ve yakın sayfaların görüntüleri bellekte tutulur. Seçilen sınıra ulaşıldığında, son kullanımının üzerinden en uzun süre geçen sonuçlar silinir. Varsayılan: 1 GB. Maksimum: 100 GB. Değişiklikler otomatik uygulanır; sınır düşürüldüğünde önbellek sınıra uyana kadar sonuçlar aynı sırayla silinir.";
+"TRANSLATION_CACHE_HELP" = "OCR sonuçlarını, sayfa çevirilerini, manga ve bölüm başlıklarının, yazar adlarının, etiketlerin, manga açıklamalarının, kaynak menülerinin ve kısım başlıklarının çevirilerini ve metin düzenini otomatik kaydeder. Yalnızca mevcut sayfanın ve yakın sayfaların görüntüleri bellekte tutulur. Seçilen sınıra ulaşıldığında, son kullanımının üzerinden en uzun süre geçen sonuçlar silinir. Varsayılan: 1 GB. Maksimum: 100 GB. Değişiklikler otomatik uygulanır; sınır düşürüldüğünde önbellek sınıra uyana kadar sonuçlar aynı sırayla silinir.";
 
 "TRANSLATION_SOURCE_FILTER" = "Kaynak Dil Filtresi";
 
@@ -878,11 +878,11 @@
 
 "HTTPS_BYPASS" = "HTTPS Engelini Aşma";
 
-"HTTPS_BYPASS_HELP" = "Kaynak istekleri, görüntüler, indirmeler ve kaynak web görünümleri için TLS parçalanmasını ve şifrelenmiş DNS'yi (Cloudflare) kullanın. Yeni bağlantılar için geçerlidir. Web sitesinin uyguladığı IP engellemeleri ve kısıtlamalar aşılmaz.";
+"HTTPS_BYPASS_HELP" = "Kaynak istekleri, görüntüler, indirmeler ve kaynak web görünümleri için TLS parçalama ve şifrelenmiş DNS (Cloudflare) kullanır. Yeni bağlantılar için geçerlidir. Web sitesinin uyguladığı IP engellemeleri ve kısıtlamalar aşılmaz.";
 
 "HTTPS_BYPASS_TEST" = "Bağlantıyı Test Et";
 
-"HTTPS_BYPASS_TEST_HELP" = "Anahtar kapalı olsa bile bu HTTPS adresini bypass yoluyla test eder. Bir yanıt, bir ISP bloğunun mevcut olduğunu değil, bağlantıyı doğrular.";
+"HTTPS_BYPASS_TEST_HELP" = "Anahtar kapalı olsa bile bu HTTPS adresini engel aşma yöntemiyle test eder. Yanıt alınması bağlantının çalıştığını doğrular; bir İSS engeli olduğunu doğrulamaz.";
 
 "HTTPS_BYPASS_INVALID_URL" = "Kullanıcı adı veya şifre olmadan bir HTTPS URL'si girin.";
 
@@ -906,7 +906,7 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Sayfa Kaynak Dili";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Her başlığın kaynak dilini otomatik olarak algılayın ve yalnızca seçilen dilleri çevirin. Algılanan Tüm Diller dil kısıtlamasını kaldırır. Sayfa ve diğer başlık kaynak-dil ayarları bu seçimi etkilemez.";
+"TRANSLATION_TITLE_FILTER_HELP" = "Her başlığın kaynak dilini otomatik olarak algılar ve yalnızca seçilen dilleri çevirir. Algılanan Tüm Diller dil kısıtlamasını kaldırır. Sayfa ve diğer başlıkların kaynak dil ayarları bu seçimi etkilemez.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Manga Açıklamalarını Çevir";
 
@@ -962,7 +962,7 @@
 "TRANSLATION_MANGA_TAGS" = "Manga Etiketlerini Çevir";
 "TRANSLATION_TAG_FILTER" = "Etiket Kaynak Dilleri";
 
-"TRANSLATION_SOURCE_LABELS" = "Kaynak Menülerini ve Bölüm Başlıklarını Çevir";
+"TRANSLATION_SOURCE_LABELS" = "Kaynak Menülerini ve Kısım Başlıklarını Çevir";
 
 // Completed app localization
 "DOWNLOAD_INCOMPLETE" = "Eksik İndirme";
@@ -980,7 +980,7 @@
 "TEXT_THEME_PAPER" = "Kağıt";
 "TEXT_THEME_GRAY" = "Gri";
 "DICTIONARY_LOOKUP" = "Sözlük Arama";
-"DICTIONARY_SETTINGS_TEXT" = "İçe aktarılan Yomitan sözlüklerindeki kelimeleri aramak için sayfa görselleri üzerinde OCR işleminin yapılmasına izin vermek için Sözlük Arama'yı etkinleştirin.";
+"DICTIONARY_SETTINGS_TEXT" = "Sayfa görselleri üzerinde OCR yapılarak içe aktarılan Yomitan sözlüklerinde kelime aranabilmesi için Sözlük Arama'yı etkinleştirin.";
 "DICTIONARIES" = "Sözlükler";
 "ABOUT_DICTIONARIES" = "Sözlükler Hakkında";
 "ABOUT_DICTIONARIES_TEXT" = "Yomitan sözlükleri zip dosyalarından içe aktarılabilir. Sözlükleri etkinleştirebilir veya devre dışı bırakabilirsiniz ve sürükleyerek yeniden sıralayabilirsiniz.";
@@ -1052,7 +1052,7 @@
 "AUTO_SCROLL_POSITION" = "Otomatik Kaydırma Düğmesinin Konumu";
 "POSITION_LEFT" = "Sol";
 "POSITION_RIGHT" = "Sağ";
-"UPLOAD_FILE" = "Dosyayı içeriye aktar";
+"UPLOAD_FILE" = "Dosya içe aktar";
 "MIGRATE_CHAPTER_HISTORY" = "Bölüm Geçmişini Taşı";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Yerel veritabanındaki bölümlerle bağlantısı olmayan eski sürümlerden kalan okuma geçmişini taşıyın. Bu normalde bir güncellemeden sonra otomatik olarak gerçekleşir. Eğer bitmediyse buradan tekrar çalıştırabilirsiniz.";
 
@@ -1061,16 +1061,16 @@
 "LOCAL_IMAGE_IMPORT_TEXT" = "Okumak için fotoğrafları, görüntü dosyalarını veya CBZ ya da ZIP arşivini içe aktarın.";
 
 // Translated page export
-"SAVE_TRANSLATED_IMAGE" = "Görseli çeviriyle kaydet";
+"SAVE_TRANSLATED_IMAGE" = "Çevrilmiş Görseli Kaydet";
 "TRANSLATED_IMAGE_SAVE_FAILED" = "Çevrilmiş görsel oluşturulamadı. Çeviri tamamlandıktan sonra tekrar deneyin.";
 
 "TRANSLATION_AUTHORS" = "Yazar Adlarını Çevir";
 
 "TRANSLATION_AUTHOR_FILTER" = "Yazar Adlarının Kaynak Dilleri";
-"TRANSLATION_SOURCE_LABEL_FILTER" = "Kaynak Menü ve Bölüm Dilleri";
+"TRANSLATION_SOURCE_LABEL_FILTER" = "Kaynak Menü ve Kısım Dilleri";
 
 // Shared image retention
-"SAVE_SHARED_IMAGES" = "Paylaşılan Görselleri Yerel Dosyalarda Tutun";
+"SAVE_SHARED_IMAGES" = "Paylaşılan Görselleri Yerel Dosyalarda Tut";
 "SAVE_SHARED_IMAGES_HELP" = "Kapalıyken paylaşılan görseller geçici olarak açılır ve kapatıldığında silinir. Okuma geçmişi ve OCR/çeviri önbellekleri kaydedilmez.";
 
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "Büyük Filtre Listelerini Çevir (100’den Fazla Seçenek)";
@@ -1147,7 +1147,7 @@
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Çeviri önbelleği kaydedilemedi.";
 
-"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud eşzamanlama değişiklikleri, Aidoku tamamen kapatılıp yeniden açıldığında uygulanır. O zamana kadar mevcut ayar etkin kalır.";
+"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud Senkronizasyonu değişiklikleri, Aidoku tamamen kapatılıp yeniden açıldığında uygulanır. O zamana kadar mevcut senkronizasyon ayarı etkin kalır.";
 
 // Source-preserving inpainting
 "TRANSLATION_SOURCE_COLORS" = "Özgün renkleri koru";
@@ -1201,4 +1201,4 @@
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Desteklenen tüm OCR dilleri";
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 yalnızca Japonca ve Çince (Basitleştirilmiş ve Geleneksel) kaynak metinleri destekler. Otomatik kaynak dil algılama ve kaynak dil seçenekleri bu dillerle sınırlıdır. Koreceye veya diğer hedef dillere çeviri yapılabilir. Manga seçildiğinde algılama eşikleri 0.85 ve 0.25 olarak ayarlanır; varsayılan algılama boyutu 1120 pikseldir.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 yalnızca Japonca ve Çince (Basitleştirilmiş ve Geleneksel) kaynak metinleri destekler. Otomatik kaynak dil algılama ve kaynak dil seçenekleri bu dillerle sınırlıdır. Koreceye veya diğer hedef dillere çeviri yapılabilir. Manga seçildiğinde algılama eşikleri 0,85 ve 0,25 olarak ayarlanır; varsayılan algılama boyutu 1120 pikseldir.";
