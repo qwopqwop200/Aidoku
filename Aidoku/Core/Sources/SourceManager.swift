@@ -282,12 +282,17 @@ extension SourceManager {
         }
     }
 
+    static let maximumSourceListBytes = 32 * 1024 * 1024
+
     private func loadSourceList(url: URL) async -> SourceList? {
         guard let config = try? await SourceNetwork.shared.configuration() else { return nil }
         config.timeoutIntervalForRequest = 15
         let session = URLSession(configuration: config)
         defer { session.finishTasksAndInvalidate() }
-        guard let (data, _) = try? await session.data(from: url) else { return nil }
+        // A source list is user-supplied remote JSON; stop streaming instead of buffering any size.
+        guard let (data, _) = try? await SourceResponseBody.read(URLRequest(url: url), session: session, policy: { _ in
+            .limited(Self.maximumSourceListBytes)
+        }) else { return nil }
         let sourceList = try? JSONDecoder().decode(CodableSourceList.self, from: data)
 
         if let sourceList {

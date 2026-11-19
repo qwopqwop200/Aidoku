@@ -98,13 +98,29 @@ struct SharedImageInbox {
             let left = (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             let right = (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             return left < right
-        }.map { directory in
-            let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: directory.appendingPathComponent("manifest.json")))
-            guard !manifest.files.isEmpty, manifest.files.allSatisfy({
-                !$0.isEmpty && !$0.hasPrefix(".") && !$0.contains("/") && !$0.contains("\\")
-            }) else { throw InboxError.invalidImages }
-            return Batch(directory: directory, title: manifest.title, images: manifest.files.map { directory.appendingPathComponent($0) })
+        }.compactMap { directory in
+            // Batches are published by an atomic rename, so an unreadable one can never
+            // become valid. Discard it instead of failing (and alerting) on every launch.
+            guard (try? directory.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true else { return nil }
+            guard let batch = Self.batch(at: directory) else {
+                try? FileManager.default.removeItem(at: directory)
+                return nil
+            }
+            return batch
         }
+    }
+
+    private static func batch(at directory: URL) -> Batch? {
+        let manifestURL = directory.appendingPathComponent("manifest.json")
+        guard let size = (try? manifestURL.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, size <= 1024 * 1024,
+              let data = try? Data(contentsOf: manifestURL),
+              let manifest = try? JSONDecoder().decode(Manifest.self, from: data),
+              !manifest.files.isEmpty, manifest.files.allSatisfy({
+                  !$0.isEmpty && !$0.hasPrefix(".") && !$0.contains("/") && !$0.contains("\\")
+              }) else { return nil }
+        let images = manifest.files.map { directory.appendingPathComponent($0) }
+        guard images.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }) else { return nil }
+        return Batch(directory: directory, title: manifest.title, images: images)
     }
 
     func remove(_ batch: Batch) throws {

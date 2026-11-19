@@ -223,8 +223,29 @@ extension DownloadCache {
         Self.isSafeChapterPath(source: chapter.sourceKey, manga: chapter.mangaKey, chapter: chapter.chapterKey, root: directoryURL)
     }
 
+    /// Batch variant: verifies the manga directory's stored identities once, then checks
+    /// each chapter path without reopening every sibling archive per chapter.
+    nonisolated func safeChapters(_ chapters: [ChapterIdentifier]) -> Set<ChapterIdentifier> {
+        var mangaVerdicts: [MangaIdentifier: Bool] = [:]
+        var safe = Set<ChapterIdentifier>()
+        for chapter in chapters {
+            let manga = chapter.mangaIdentifier
+            let mangaSafe = mangaVerdicts[manga] ?? {
+                let verdict = isSafe(manga: manga)
+                mangaVerdicts[manga] = verdict
+                return verdict
+            }()
+            if mangaSafe, Self.isSafeChapterPath(source: chapter.sourceKey, manga: chapter.mangaKey, chapter: chapter.chapterKey,
+                                                 root: directoryURL, checkingStoredManga: false) {
+                safe.insert(chapter)
+            }
+        }
+        return safe
+    }
+
     nonisolated static func isSafeChapterPath(source: String, manga: String, chapter: String,
-                                             root: URL = DownloadManager.directory) -> Bool {
+                                             root: URL = DownloadManager.directory,
+                                             checkingStoredManga: Bool = true) -> Bool {
         guard root.isFileURL else { return false }
         let expectedRoot = root.deletingLastPathComponent().standardizedFileURL
             .resolvingSymlinksInPath().appendingPathComponent(root.lastPathComponent).standardizedFileURL
@@ -240,7 +261,7 @@ extension DownloadCache {
         }
         let name = chapter.directoryName
         guard !name.isEmpty, name != ".", name != ".." else { return false }
-        guard matchesStoredManga(in: directory, source: source, manga: manga) else { return false }
+        guard !checkingStoredManga || matchesStoredManga(in: directory, source: source, manga: manga) else { return false }
         return [name, name + ".cbz", Self.tmpDirectoryPrefix + name, Self.tmpDirectoryPrefix + name + ".cbz"]
             .allSatisfy {
                 let target = directory.appendingPathComponent($0).standardizedFileURL

@@ -9,7 +9,13 @@ import Foundation
 
 extension String: SettingsValue {}
 extension Int: SettingsValue {}
-extension Double: SettingsValue {}
+extension Double: SettingsValue {
+    /// Restored backups or plist edits can hold NaN/infinity; geometry built from them traps in UIKit.
+    static func deserialize(from object: Any) -> Double? {
+        guard let value = object as? Double, value.isFinite else { return nil }
+        return value
+    }
+}
 extension Data: SettingsValue {}
 
 extension Bool: SettingsValue {
@@ -50,7 +56,7 @@ extension RawRepresentable where Self: SettingsValue, RawValue: SettingsValue {
 
 extension Date: SettingsValue {
     static func deserialize(from object: Any) -> Self? {
-        guard let interval = object as? TimeInterval else { return nil }
+        guard let interval = object as? TimeInterval, interval.isFinite else { return nil }
         return Date(timeIntervalSince1970: interval)
     }
 

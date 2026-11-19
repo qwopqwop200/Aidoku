@@ -303,15 +303,23 @@ extension ReaderPageView {
                 usePageProcessor = true
             }
         }
-        if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
+        let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
+        let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages")
+        let downsampleWidth = UIScreen.main.bounds.width
+        if shouldCropBorders {
             processors.append(CropBordersProcessor())
         }
-        if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
-            processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
+        if shouldDownsample {
+            processors.append(DownsampleProcessor(width: downsampleWidth))
         }
+        // Downsample while decoding when no earlier processor needs full pixels.
+        let thumbnail = shouldDownsample && !shouldCropBorders && !usePageProcessor
+            ? DownsampleProcessor.decodeThumbnail(width: downsampleWidth)
+            : nil
 
         if var archiveRequest {
             archiveRequest.processors = processors
+            archiveRequest.thumbnail = thumbnail
             return archiveRequest
         }
         var request = ImageRequest(
@@ -320,6 +328,7 @@ extension ReaderPageView {
             options: source?.key.hasPrefix(TemporarySharedImageSession.sourcePrefix) == true ? [.disableDiskCache, .disableMemoryCache] : [],
             userInfo: [.processesKey: usePageProcessor]
         )
+        request.thumbnail = thumbnail
         if let localIdentity = await ReaderImageContentIdentity.localFileRequestIdentity(url) {
             request.imageID = localIdentity
         } else if !usePageProcessor {
@@ -362,7 +371,8 @@ extension ReaderPageView {
         let loading = imagePipeline.loadImage(
             with: request,
             progress: { [weak self] _, completed, total in
-                guard let self, self.imageLoadGeneration == issued else { return }
+                // Responses without Content-Length report a zero total.
+                guard let self, self.imageLoadGeneration == issued, total > 0 else { return }
                 self.progressView.setProgress(value: Float(completed) / Float(total), withAnimation: false)
             },
             completion: { _ in }
@@ -651,6 +661,8 @@ extension ReaderPageView {
         }
         if !isTranslationPreload { NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: imageView) }
         if let gifData, !isTranslationPreload {
+            // Gifu buffers 50 full-resolution frames by default (hundreds of MB per page).
+            imageView.setFrameBufferSize(GIFImageNode.readerFrameBufferSize)
             imageView.animate(withGIFData: gifData)
         }
         if !isTranslationPreload {

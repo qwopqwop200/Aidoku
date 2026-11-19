@@ -165,15 +165,16 @@ extension LocalFileManager {
         )
     }
 
+    /// Compressed preview pages above this size are skipped rather than inflated into memory.
+    static let maxPreviewEntryBytes = 64 * 1024 * 1024
+    /// Page description sidecars are plain text; larger entries are ignored.
+    static let maxDescriptionEntryBytes = 1024 * 1024
+    /// Imported photos above this pixel count are downsampled before full-size rendering.
+    static let maxImportImagePixels = 48 * 1024 * 1024
+
     private static func previewImage(for entry: Entry, in archive: Archive) -> PlatformImage? {
-        var imageData = Data()
         do {
-            _ = try archive.extract(
-                entry,
-                consumer: { data in
-                    imageData.append(data)
-                }
-            )
+            let imageData = try archive.extractData(entry, limit: maxPreviewEntryBytes)
             guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
                   let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -188,6 +189,28 @@ extension LocalFileManager {
 }
 
 extension LocalFileManager {
+    /// Decodes an image for import, downsampling ones whose full-size bitmap would exceed
+    /// `maxPixels`. Rendering a 20000×20000 image at full size needs over 1.5 GB.
+    nonisolated static func loadImportImage(at url: URL, maxPixels: Int = maxImportImagePixels) -> PlatformImage? {
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, options),
+              CGImageSourceGetCount(source) > 0 else { return nil }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let width = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? 0
+        let height = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue ?? 0
+        guard width * height > Double(maxPixels) else { return PlatformImage(contentsOfFile: url.path) }
+        let scale = (Double(maxPixels) / (width * height)).squareRoot()
+        let maxSide = max(1, Int((max(width, height) * scale).rounded(.down)))
+        // The thumbnail applies EXIF orientation, matching the full-size draw below.
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxSide
+        ] as CFDictionary) else { return nil }
+        return PlatformImage(cgImage: thumbnail)
+    }
+
     // Keep selection order; process one image at a time to avoid holding every full-resolution photo in memory.
     func prepareImageImport(from urls: [URL], name: String) -> ImportFileInfo? {
         guard !urls.isEmpty else { return nil }
@@ -202,7 +225,7 @@ extension LocalFileManager {
                 let accessGranted = url.startAccessingSecurityScopedResource()
                 defer { if accessGranted { url.stopAccessingSecurityScopedResource() } }
                 try autoreleasepool {
-                    guard let image = PlatformImage(contentsOfFile: url.path) else {
+                    guard let image = Self.loadImportImage(at: url) else {
                         throw LocalFileManagerError.invalidFileType
                     }
                     // Drawing applies EXIF orientation consistently for reading and OCR.
@@ -218,7 +241,7 @@ extension LocalFileManager {
                     try archive.addEntry(with: pageName, fileURL: pageURL)
                     try FileManager.default.removeItem(at: pageURL)
                     if previews.count < 3 {
-                        let scale = min(1, 400 / max(image.size.width, image.size.height))
+                        let scale = min(1, 400 / max(image.size.width, image.size.height, 1))
                         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
                         previews.append(UIGraphicsImageRenderer(size: size, format: format).image { _ in
                             normalized.draw(in: CGRect(origin: .zero, size: size))
@@ -289,13 +312,7 @@ extension LocalFileManager {
 
         for (entry, index) in descriptionFiles where index < pages.count {
             do {
-                var descriptionData = Data()
-                _ = try archive.extract(
-                    entry,
-                    consumer: { data in
-                        descriptionData.append(data)
-                    }
-                )
+                let descriptionData = try archive.extractData(entry, limit: Self.maxDescriptionEntryBytes)
                 pages[index].hasDescription = true
                 pages[index].description = String(data: descriptionData, encoding: .utf8)
             } catch {

@@ -36,10 +36,10 @@ actor NHentaiSourceRunner: NativeSourceRunnerLifecycle {
     nonisolated private static func fetchSourceRequest(_ original: URLRequest) async throws -> (Data, URLResponse) {
         guard let url = original.url else { throw URLError(.badURL) }
         let request = await AidokuRunner.Source.modify(url: url, request: original)
-        let (data, response) = try await SourceNetwork.shared.data(for: request)
+        let (data, response) = try await NativeSourceNetwork.limitedData(for: request)
         try Task.checkCancellation()
         if let http = response as? HTTPURLResponse, CloudflareHandler.shared.shouldHandle(response: http, data: data) {
-            return try await CloudflareHandler.shared.handle(request: request)
+            return try await CloudflareHandler.shared.handle(request: request, fetch: { try await NativeSourceNetwork.limitedData(for: $0) })
         }
         return (data, response)
     }

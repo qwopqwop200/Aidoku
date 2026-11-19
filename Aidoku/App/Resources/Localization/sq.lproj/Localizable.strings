@@ -1124,6 +1124,6 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Burimi %@ versioni %d nuk mbështetet nga ky aplikacion. Instaloni një version të mbështetur.";
 
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 mbështet vetëm tekst burimor në japonisht dhe kinezisht (të thjeshtuar dhe tradicionale). Zbulimi automatik i gjuhës burimore dhe përzgjedhja e saj kufizohen në këto gjuhë. Përkthimi në çdo gjuhë të synuar mbetet i mundur. Zgjedhja e modelit Manga vendos pragjet e zbulimit në 0,85 dhe 0,25; madhësia e paracaktuar për zbulimin është 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 lexon tekst burimor në japonisht, kinezisht (të thjeshtuar dhe tradicionale), anglisht dhe gjuhë të tjera me alfabet latin, por jo koreanisht, cirilik ose vietnamisht. Zbulimi automatik i gjuhës burimore dhe përzgjedhja e saj kufizohen në këto gjuhë. Përkthimi në çdo gjuhë të synuar mbetet i mundur. Zgjedhja e modelit Manga vendos pragjet e zbulimit në 0,85 dhe 0,25; madhësia e paracaktuar për zbulimin është 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Të gjitha gjuhët e mbështetura nga OCR";

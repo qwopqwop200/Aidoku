@@ -452,6 +452,10 @@ extension ReaderWebtoonPageNode {
             userInfo: [.processesKey: usePageProcessor]
         )
 
+        // Downsample while decoding when no earlier processor needs full pixels.
+        request.thumbnail = shouldDownsample && !shouldCropBorders && !usePageProcessor
+            ? DownsampleProcessor.decodeThumbnail(width: width)
+            : nil
         if archiveRequest != nil {
             request.processors = processors
             if source?.key.hasPrefix(TemporarySharedImageSession.sourcePrefix) == true { request.options.insert(.disableMemoryCache) }
@@ -477,7 +481,8 @@ extension ReaderWebtoonPageNode {
         let imageTask = imagePipeline.loadImage(
             with: request,
             progress: { [weak progressView] _, completed, total in
-                guard let progressView else { return }
+                // Responses without Content-Length report a zero total.
+                guard let progressView, total > 0 else { return }
                 Task { @MainActor in
                     progressView.setProgress(value: Float(completed) / Float(total), withAnimation: false)
                 }

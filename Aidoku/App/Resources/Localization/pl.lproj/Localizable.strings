@@ -1116,6 +1116,6 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Źródło %@ w wersji %d nie jest obsługiwane przez tę aplikację. Zainstaluj obsługiwaną wersję.";
 
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 obsługuje tylko tekst źródłowy w języku japońskim i chińskim (uproszczonym i tradycyjnym). Automatyczne wykrywanie języka źródłowego oraz wybór języka źródłowego są ograniczone do tych języków. Nadal można tłumaczyć na dowolny język docelowy. Wybranie modelu Manga ustawia progi detektora na 0,85 i 0,25; domyślny rozmiar obrazu do wykrywania tekstu wynosi 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 odczytuje tekst źródłowy w języku japońskim, chińskim (uproszczonym i tradycyjnym), angielskim i innych językach zapisywanych alfabetem łacińskim, ale nie koreański, cyrylicę ani wietnamski. Automatyczne wykrywanie języka źródłowego oraz wybór języka źródłowego są ograniczone do tych języków. Nadal można tłumaczyć na dowolny język docelowy. Wybranie modelu Manga ustawia progi detektora na 0,85 i 0,25; domyślny rozmiar obrazu do wykrywania tekstu wynosi 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Wszystkie obsługiwane języki OCR";

@@ -6,18 +6,22 @@ import Foundation
 enum NativeSourceNetwork {
     typealias Fetch = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
+    /// Native ports fetch HTML, JSON and short image probes. A hostile or misconfigured
+    /// server must not make one request buffer an unbounded body in memory.
+    static let maximumBodyBytes = 64 * 1024 * 1024
+
     static func fetch(sourceKey: String) -> Fetch {
         { original in
             try Task.checkCancellation()
             guard let url = original.url else { throw URLError(.badURL) }
             let request = await AidokuRunner.Source.modify(url: url, request: original)
             try Task.checkCancellation()
-            let (data, response) = try await SourceNetwork.shared.data(for: request)
+            let (data, response) = try await limitedData(for: request)
             try Task.checkCancellation()
             if let http = response as? HTTPURLResponse,
                CloudflareHandler.shared.shouldHandle(response: http, data: data) {
                 do {
-                    return try await CloudflareHandler.shared.handle(request: request)
+                    return try await CloudflareHandler.shared.handle(request: request, fetch: { try await limitedData(for: $0) })
                 } catch let error as CloudflareHandler.HandleError {
                     // Keep the blocked HTTP response available to the adapter, as
                     // the source transport did before the native migration.
@@ -27,6 +31,16 @@ enum NativeSourceNetwork {
                 }
             }
             return (data, response)
+        }
+    }
+
+    /// Streams through the shared source session and stops once the body exceeds `maximum`.
+    static func limitedData(for request: URLRequest, maximum: Int = maximumBodyBytes) async throws -> (Data, URLResponse) {
+        let session = try await SourceNetwork.shared.session()
+        do {
+            return try await SourceResponseBody.read(request, session: session) { _ in .limited(maximum) }
+        } catch is SourceResponseBody.TooLarge {
+            throw URLError(.dataLengthExceedsMaximum)
         }
     }
 }

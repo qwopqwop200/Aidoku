@@ -244,13 +244,22 @@ enum SpoilerPlusImageCodec {
     static func unscramble(_ image: AidokuRunner.PlatformImage, key: String) throws -> AidokuRunner.PlatformImage {
         let order = try order(key)
         guard let source = image.cgImage else { throw URLError(.cannotDecodeContentData) }
+        // Bound the second full-page bitmap like the other native codecs (32 MP, 128 MB at 8-bit RGBA).
+        let (pixelCount, overflow) = source.width.multipliedReportingOverflow(by: source.height)
+        guard !overflow, pixelCount > 0, pixelCount <= 32 * 1024 * 1024 else { throw URLError(.cannotDecodeContentData) }
+        try Task.checkCancellation()
         let side = Int(Double(order.count).squareRoot())
         let width = CGFloat(source.width); let height = CGFloat(source.height)
         let unitWidth = width / CGFloat(side); let unitHeight = height / CGFloat(side)
         let format = UIGraphicsImageRendererFormat(); format.scale = 1
+        // .automatic may choose a 16-bit-per-channel extended-range buffer on wide-color devices,
+        // doubling the page allocation for sRGB manga scans.
+        format.preferredRange = .standard
         let bitmap = UIImage(cgImage: source)
-        return UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format).image { renderer in
+        var cancelled = false
+        let result = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format).image { renderer in
             for (index, position) in order.enumerated() {
+                if Task.isCancelled { cancelled = true; return }
                 let sourceX = CGFloat(position % side) * unitWidth
                 let sourceY = CGFloat(position / side) * unitHeight
                 let destinationX = CGFloat(index % side) * unitWidth
@@ -263,5 +272,7 @@ enum SpoilerPlusImageCodec {
                 renderer.cgContext.restoreGState()
             }
         }
+        if cancelled { throw CancellationError() }
+        return result
     }
 }

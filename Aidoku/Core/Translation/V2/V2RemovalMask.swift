@@ -25,23 +25,40 @@ enum V2RemovalMask {
     static func build(_ page: V2Page, blocks: [V2Block], layout: [V2LayoutRegion]) -> [UInt8] {
         let width = page.width, height = page.height
         guard width > 0, height > 0 else { return [] }
-        guard let rgba = rgbaBytes(page.image) else { return [UInt8](repeating: 0, count: width * height) }
+        // Pages beyond the shared raster limit would need a multi-GB RGBA copy here; nothing is erased.
+        guard width * height <= maximumPagePixels, let rgba = rgbaBytes(page.image) else {
+            return [UInt8](repeating: 0, count: width * height)
+        }
         return build(rgba: rgba, width: width, height: height, blocks: blocks, layout: layout)
     }
+
+    /// Largest page (pixels) converted to RGBA for the mask (same as `V2PageRaster`'s 16384 x 16384).
+    static let maximumPagePixels = 16_384 * 16_384
 
     /// Same as `build(_:blocks:layout:)` for callers that already hold the page as
     /// RGBA8 (row-major, 4 bytes per pixel, alpha ignored).
     static func build(rgba: [UInt8], width: Int, height: Int, blocks: [V2Block], layout: [V2LayoutRegion]) -> [UInt8] {
+        guard width > 0, height > 0 else { return [] }
         var mask = [UInt8](repeating: 0, count: width * height)
-        guard width > 0, height > 0, rgba.count >= width * height * 4 else { return mask }
+        guard rgba.count >= width * height * 4 else { return mask }
         let targets = blocks.filter { $0.role != .background }
         guard !targets.isEmpty else { return mask }
+        let geometries = targets.map { geometry($0, width: width, height: height) }
         var results = [BlockMask?](repeating: nil, count: targets.count)
+        // Peak memory is about `bytesPerFramePixel` per frame pixel of every block in flight, so
+        // only small blocks share the pool; large ones run one at a time afterwards.
+        let threads = max(1, ProcessInfo.processInfo.activeProcessorCount)
+        let small = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) <= concurrentBlockPixels / threads }
+        let large = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) > concurrentBlockPixels / threads }
         rgba.withUnsafeBufferPointer { pixels in
             results.withUnsafeMutableBufferPointer { out in
                 let base = out.baseAddress!
-                DispatchQueue.concurrentPerform(iterations: targets.count) { index in
-                    base[index] = segment(targets[index], pixels: pixels, width: width, height: height)
+                DispatchQueue.concurrentPerform(iterations: small.count) { k in
+                    let index = small[k]
+                    base[index] = geometries[index].flatMap { segment($0, pixels: pixels, width: width, height: height) }
+                }
+                for index in large {
+                    base[index] = geometries[index].flatMap { segment($0, pixels: pixels, width: width, height: height) }
                 }
             }
         }
@@ -56,10 +73,32 @@ enum V2RemovalMask {
         return mask
     }
 
+    /// Conservative peak bytes per frame pixel of `segment` (about 36 float planes across the
+    /// feature groups, 39 float feature columns and the Int index lists).
+    static let bytesPerFramePixel = 384
+    /// Frame pixels of all blocks segmented concurrently (about 1.1 GB at `bytesPerFramePixel`).
+    static let concurrentBlockPixels = 3_000_000
+    /// Larger frames skip the classifier and erase their line polygons (dilated by
+    /// `outputDilation`) instead of risking a multi-GB allocation.
+    static let maximumBlockPixels = 3_000_000
+    /// Polygon coordinates beyond this magnitude are treated as invalid (no page is that large).
+    static let maximumCoordinate: CGFloat = 1_000_000
+
     // MARK: - Per block
 
     struct Frame: Equatable {
         var x: Int, y: Int, width: Int, height: Int
+        var pixels: Int { width * height }
+    }
+
+    /// Per-block sizes derived from the line polygons; `frame` is the padded page crop.
+    struct Geometry {
+        let polygons: [[CGPoint]]
+        let thickness: Double
+        let roiRadius: Int
+        let scales: [Int]
+        let blurHalf: Int
+        let frame: Frame
     }
 
     struct BlockMask {
@@ -70,15 +109,20 @@ enum V2RemovalMask {
     static func linePolygons(_ block: V2Block) -> [[CGPoint]] {
         var polygons = block.lines.map { line -> [CGPoint] in
             line.polygon.count >= 3 ? line.polygon : corners(line.bounds)
-        }.filter { polygon in polygon.allSatisfy { $0.x.isFinite && $0.y.isFinite } && area(polygon) > 0 }
+        }.filter { polygon in polygon.allSatisfy(isUsable) && area(polygon) > 0 }
         if polygons.isEmpty {
             let fallback = block.polygon.count >= 3 ? block.polygon : corners(block.bounds)
-            if fallback.allSatisfy({ $0.x.isFinite && $0.y.isFinite }), area(fallback) > 0 { polygons = [fallback] }
+            if fallback.allSatisfy(isUsable), area(fallback) > 0 { polygons = [fallback] }
         }
         return polygons
     }
 
-    static func segment(_ block: V2Block, pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int) -> BlockMask? {
+    /// Finite and small enough that frame and raster arithmetic cannot overflow `Int`.
+    static func isUsable(_ point: CGPoint) -> Bool {
+        point.x.isFinite && point.y.isFinite && abs(point.x) <= maximumCoordinate && abs(point.y) <= maximumCoordinate
+    }
+
+    static func geometry(_ block: V2Block, width: Int, height: Int) -> Geometry? {
         let polygons = linePolygons(block)
         guard !polygons.isEmpty else { return nil }
         let thickness = min(maximumThickness, max(1, median(polygons.map(minimumRectSide))))
@@ -94,7 +138,20 @@ enum V2RemovalMask {
         let x0 = max(0, Int(floor(minX)) - pad), y0 = max(0, Int(floor(minY)) - pad)
         let x1 = min(width, Int(ceil(maxX)) + pad + 1), y1 = min(height, Int(ceil(maxY)) + pad + 1)
         guard x1 > x0, y1 > y0 else { return nil }
-        let frame = Frame(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
+        return Geometry(polygons: polygons, thickness: thickness, roiRadius: roiRadius, scales: scales,
+                        blurHalf: blurHalf, frame: Frame(x: x0, y: y0, width: x1 - x0, height: y1 - y0))
+    }
+
+    static func segment(_ block: V2Block, pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int) -> BlockMask? {
+        geometry(block, width: width, height: height).flatMap { segment($0, pixels: pixels, width: width, height: height) }
+    }
+
+    static func segment(_ geometry: Geometry, pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int) -> BlockMask? {
+        let frame = geometry.frame
+        guard frame.pixels <= maximumBlockPixels else { return polygonMask(geometry.polygons, width: width, height: height) }
+        let polygons = geometry.polygons, thickness = geometry.thickness, roiRadius = geometry.roiRadius
+        let scales = geometry.scales, blurHalf = geometry.blurHalf
+        let x0 = frame.x, y0 = frame.y
         let w = frame.width, h = frame.height, n = w * h
         let space = Workspace(width: w, height: h)
 
@@ -319,6 +376,50 @@ enum V2RemovalMask {
             count = n
         }
         return BlockMask(frame: frame, mask: mask)
+    }
+
+    /// Fallback for frames above `maximumBlockPixels`: the line polygons dilated by
+    /// `outputDilation`, on a tight frame, using about 6 bytes per frame pixel.
+    static func polygonMask(_ polygons: [[CGPoint]], width: Int, height: Int) -> BlockMask? {
+        let pad = outputDilation + 1
+        var minX = CGFloat.infinity, minY = CGFloat.infinity, maxX = -CGFloat.infinity, maxY = -CGFloat.infinity
+        for point in polygons.joined() {
+            minX = min(minX, point.x); minY = min(minY, point.y); maxX = max(maxX, point.x); maxY = max(maxY, point.y)
+        }
+        let x0 = max(0, Int(floor(minX)) - pad), y0 = max(0, Int(floor(minY)) - pad)
+        let x1 = min(width, Int(ceil(maxX)) + pad + 1), y1 = min(height, Int(ceil(maxY)) + pad + 1)
+        guard x1 > x0, y1 > y0 else { return nil }
+        let w = x1 - x0, h = y1 - y0, n = w * h
+        let plane = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        defer { plane.deallocate() }
+        plane.update(repeating: 0, count: n)
+        for polygon in polygons {
+            fill(polygon.map { CGPoint(x: $0.x - CGFloat(x0), y: $0.y - CGFloat(y0)) }, into: plane, width: w, height: h)
+        }
+        var mask = [UInt8](unsafeUninitializedCapacity: n) { buffer, count in
+            for i in 0..<n { buffer[i] = plane[i] > 0 ? 1 : 0 }
+            count = n
+        }
+        dilate(&mask, width: w, height: h, radius: outputDilation)
+        return BlockMask(frame: Frame(x: x0, y: y0, width: w, height: h), mask: mask)
+    }
+
+    /// Square (2r+1) binary dilation of a 0/1 byte plane (samples outside the frame ignored).
+    static func dilate(_ mask: inout [UInt8], width w: Int, height h: Int, radius r: Int) {
+        guard r > 0, w > 0, h > 0 else { return }
+        var horizontal = [UInt8](repeating: 0, count: w * h)
+        for y in 0..<h {
+            let row = y * w
+            for x in 0..<w where mask[row + x] != 0 {
+                for xx in max(0, x - r)...min(w - 1, x + r) { horizontal[row + xx] = 1 }
+            }
+        }
+        for i in 0..<(w * h) { mask[i] = 0 }
+        for y in 0..<h {
+            for x in 0..<w where horizontal[y * w + x] != 0 {
+                for yy in max(0, y - r)...min(h - 1, y + r) { mask[yy * w + x] = 1 }
+            }
+        }
     }
 
     /// Blocks smaller than this run their feature groups serially.

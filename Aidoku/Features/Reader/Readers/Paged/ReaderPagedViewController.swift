@@ -1206,7 +1206,8 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
                     saveSplitPosition(for: key, page: actualPage, offset: splitIndex(for: currentPage, actualPageIndex: actualPage))
                 }
                 if usesDoublePages {
-                    delegate?.setCurrentPages(actualPage...min(actualPage + 1, viewModel.pages.count))
+                    // A stale programmatic page can exceed this chapter's count; never form an inverted range.
+                    delegate?.setCurrentPages(actualPage...max(actualPage, min(actualPage + 1, viewModel.pages.count)))
                 } else {
                     delegate?.setCurrentPage(actualPage, position: nil)
                 }

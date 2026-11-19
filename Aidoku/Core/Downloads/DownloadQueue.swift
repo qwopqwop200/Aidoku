@@ -179,6 +179,11 @@ actor DownloadQueue {
         // cleanup, never published into a directory the old operation can erase.
         while let cancellation = cancelAllTask { await cancellation.value }
         var downloads: [Download] = []
+        // Verify stored identities once for the whole batch; a per-chapter check
+        // reopens every downloaded sibling archive (quadratic for "download all").
+        let safeChapters = cache.safeChapters(chapters.map {
+            ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: $0.key)
+        })
         for chapter in chapters {
             let identifier = ChapterIdentifier(
                 sourceKey: manga.sourceKey,
@@ -194,7 +199,7 @@ actor DownloadQueue {
 
             // The worker rejects invalid identifiers, but queue preparation runs
             // first. Never touch their derived paths while recording queue state.
-            if cache.isSafe(chapter: identifier) {
+            if safeChapters.contains(identifier) {
                 let tmpDirectory = cache.tmpDirectory(for: identifier)
                 tmpDirectory.removeItem() // remove a previous failed download
                 tmpDirectory.createDirectory()

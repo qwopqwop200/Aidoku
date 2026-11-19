@@ -286,6 +286,9 @@ extension V2StyleEstimator {
         result.ringBackground = channelMedian(crop.crop.rgb, mask: crop.crop.ring)
         // exterior: ring plus same-cluster 4-connected regions reachable from ring pixels
         floodExterior(&crop.crop)
+        // Line polygons covering the whole crop leave no exterior: every exterior distance would be
+        // Int32.max and `measureCluster` would allocate a 2^31-entry histogram.
+        guard crop.crop.exterior.contains(true) else { return nil }
         let labels = Labels(width: crop.crop.width, height: crop.crop.height)
         crop.crop.exteriorDistance2 = squaredDistance(to: crop.crop.exterior, width: crop.crop.width, height: crop.crop.height)
         result.clusters = (0..<k).map { j in
@@ -347,8 +350,12 @@ extension V2StyleEstimator {
         let W = image.width, H = image.height
         let m = max(6, 0.5 * font)
         let box = block.bounds
-        let x0 = max(0, Int(Double(box.minX) - m)), y0 = max(0, Int(Double(box.minY) - m))
-        let x1 = min(W, Int((Double(box.maxX) + m).rounded(.up))), y1 = min(H, Int((Double(box.maxY) + m).rounded(.up)))
+        guard !box.isNull, box.minX.isFinite, box.minY.isFinite, box.maxX.isFinite, box.maxY.isFinite, m.isFinite
+        else { return nil }
+        // Clamp in floating point first: Int(_:) traps on values outside Int's range.
+        func pixel(_ value: Double, _ limit: Int) -> Int { Int(min(Double(limit), max(0, value))) }
+        let x0 = pixel(Double(box.minX) - m, W), y0 = pixel(Double(box.minY) - m, H)
+        let x1 = pixel((Double(box.maxX) + m).rounded(.up), W), y1 = pixel((Double(box.maxY) + m).rounded(.up), H)
         guard x1 - x0 >= 4, y1 - y0 >= 4 else { return nil }
         var s = min(1, (Double(maximumPixels) / Double((x1 - x0) * (y1 - y0))).squareRoot())
         var w = x1 - x0, h = y1 - y0
@@ -607,7 +614,10 @@ extension V2StyleEstimator {
         crop.exteriorDistance2.withUnsafeBufferPointer { dist in
             for i in members { maximumDistance = max(maximumDistance, dist[i]) }
         }
-        var histogram = [Int](repeating: 0, count: Int(maximumDistance) + 1)
+        // Squared distances can reach w^2 + h^2 on long thin crops; a histogram that large would be
+        // a huge allocation, so such clusters take the same median from their sorted distances.
+        let useHistogram = maximumDistance <= maximumDistanceHistogram
+        var histogram = [Int](repeating: 0, count: useHistogram ? Int(maximumDistance) + 1 : 1)
         // Channel histograms of all members and of the core members (medians are order-free).
         var all = [Int](repeating: 0, count: 768), core = all
         withPointers(crop, &histogram, &all, &core) { own, dist, rgb, a, e, histogram, all, core in
@@ -622,7 +632,7 @@ extension V2StyleEstimator {
                 let r = Int(rgb[i * 3]), g = 256 + Int(rgb[i * 3 + 1]), b = 512 + Int(rgb[i * 3 + 2])
                 all[r] += 1; all[g] += 1; all[b] += 1
                 if isCore { coreCount += 1; core[r] += 1; core[g] += 1; core[b] += 1 }
-                histogram[Int(dist[i])] += 1
+                if useHistogram { histogram[Int(dist[i])] += 1 }
                 // shell: pixels within Euclidean distance 2 outside the mask
                 for offset in shellOffsets where p[offset.padded] == 0 {
                     p[offset.padded] = marked
@@ -642,7 +652,12 @@ extension V2StyleEstimator {
         c.core = (0..<3).map { ch in histogramMedian(Array(source[(256 * ch)..<(256 * ch + 256)]), count: total) }
         c.coreCount = total
         c.strokeWidth = 2 * Double(count) / Double(max(1, perimeter)) / s
-        c.exteriorDistance = squaredHistogramMedian(histogram, count: count) / s
+        if useHistogram {
+            c.exteriorDistance = squaredHistogramMedian(histogram, count: count) / s
+        } else {
+            let sorted = members.map { Double(crop.exteriorDistance2[$0]).squareRoot() }.sorted()
+            c.exteriorDistance = (count % 2 == 1 ? sorted[count / 2] : (sorted[count / 2 - 1] + sorted[count / 2]) / 2) / s
+        }
         c.neighbourPurity = Double(neighbours.max() ?? 0) / Double(max(1, shell))
         c.neighbours = neighbours.map { Double($0) / Double(max(1, shell)) }
         c.shellExterior = Double(shellExterior) / Double(max(1, shell))
@@ -674,6 +689,9 @@ extension V2StyleEstimator {
             }
         }
     }
+
+    /// Largest squared exterior distance counted with a histogram in `measureCluster`.
+    static let maximumDistanceHistogram: Int32 = 1 << 16
 
     static func ringBins(font: Double, scale s: Double) -> Int { min(40, max(12, Int((0.3 * font * s).rounded(.up)))) }
 

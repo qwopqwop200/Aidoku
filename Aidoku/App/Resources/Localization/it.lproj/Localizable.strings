@@ -1113,6 +1113,6 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "La fonte %@ versione %d non è supportata da questa app. Installa una versione supportata.";
 
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 supporta solo testi di origine in giapponese e cinese (semplificato e tradizionale). Anche il rilevamento automatico e la selezione della lingua di origine sono limitati a queste lingue. È comunque possibile tradurre in qualsiasi lingua di destinazione. Selezionando Manga, vengono applicate soglie di rilevamento del testo pari a 0,85 e 0,25; la dimensione di rilevamento predefinita è di 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 legge testi di origine in giapponese, cinese (semplificato e tradizionale), inglese e altre lingue in alfabeto latino, ma non coreano, cirillico o vietnamita. Anche il rilevamento automatico e la selezione della lingua di origine sono limitati a queste lingue. È comunque possibile tradurre in qualsiasi lingua di destinazione. Selezionando Manga, vengono applicate soglie di rilevamento del testo pari a 0,85 e 0,25; la dimensione di rilevamento predefinita è di 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Tutte le lingue OCR supportate";

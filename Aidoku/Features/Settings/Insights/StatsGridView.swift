@@ -40,7 +40,8 @@ struct StatsGridView: View {
     }
     private var selectedChartData: MonthData {
         if let selectedChartYear {
-            return chartData.first(where: { $0.year == selectedChartYear })!.data
+            // The insights data can reload while an old year stays selected.
+            return chartData.first(where: { $0.year == selectedChartYear })?.data ?? .init()
         } else {
             // combine all chart data
             var total: MonthData = .init()

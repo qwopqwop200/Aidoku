@@ -248,8 +248,10 @@ extension DownloadManager {
     /// Remove downloads for specified chapters.
     func delete(chapters: [ChapterIdentifier]) async {
         await queue.cancelDownloads(for: chapters)
+        // One identity scan per manga; per-chapter checks reopened every sibling archive.
+        let safeChapters = cache.safeChapters(chapters)
         for chapter in chapters {
-            guard cache.isSafe(chapter: chapter) else { continue }
+            guard safeChapters.contains(chapter) else { continue }
             let directory = cache.directory(for: chapter)
             let archiveURL = directory.appendingPathExtension("cbz")
             let tmpDirectory = cache.tmpDirectory(for: chapter)

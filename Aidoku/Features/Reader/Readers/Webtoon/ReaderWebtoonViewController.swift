@@ -1023,11 +1023,14 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
             offset += layout.getHeightFor(section: chapterIndex, range: 0..<1)
         }
 
+        // A section holding only separators must not form an inverted range.
+        let firstContent = hasStartInfo ? 1 : 0
+        let endContent = max(firstContent, currentPages.count - (hasEndInfo ? 1 : 0))
         let height = max(
             0,
             layout.getHeightFor(
                 section: chapterIndex,
-                range: (hasStartInfo ? 1 : 0)..<currentPages.count - (hasEndInfo ? 1 : 0)
+                range: firstContent..<endContent
             ) - collectionNode.bounds.height
         )
 
@@ -1051,8 +1054,11 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
         let handoff = viewModel.takePendingPreload(for: chapter)
         chapterGeneration = UUID()
         finishChapterInsertionWaiters(allowed: false)
-        loadingNext = false
-        loadingPrevious = false
+        // `chapters` is replaced now but `pages` (and the collection) only after
+        // the page list loads. Block infinite loads until both describe the same
+        // sections, or an insert would pair the new chapter with stale pages.
+        loadingNext = true
+        loadingPrevious = true
         isAnimatingScroll = false
         isSliding = false
         let issued = chapterGeneration
@@ -1061,6 +1067,12 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
         chapters = [chapter]
 
         Task {
+            defer {
+                if issued == chapterGeneration {
+                    loadingNext = false
+                    loadingPrevious = false
+                }
+            }
             guard issued == chapterGeneration, !Task.isCancelled else { return }
             await viewModel.loadPages(chapter: chapter, handoff: handoff)
             guard issued == chapterGeneration, !Task.isCancelled else { return }

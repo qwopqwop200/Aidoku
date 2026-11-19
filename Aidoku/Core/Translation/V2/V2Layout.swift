@@ -168,12 +168,16 @@ enum V2Layout {
                     let shaped = line(string)
                     var characters: [String] = []
                     var offsets: [CGFloat] = [0]
-                    var index = string.startIndex
+                    // Running UTF-16 location (re-measuring from the start is quadratic in long words).
+                    // Per-index caret queries are linear in the line too, so very long words read all
+                    // leading-edge carets in one pass and query only indices it does not report.
+                    let carets = string.utf16.count > Self.longWord ? Self.leadingCarets(shaped, length: string.utf16.count) : []
+                    var location = 0
                     for character in string {
                         characters.append(String(character))
-                        index = string.index(after: index)
-                        let location = string.utf16.distance(from: string.utf16.startIndex, to: index)
-                        offsets.append(CTLineGetOffsetForStringIndex(shaped, location, nil))
+                        location += character.utf16.count
+                        let caret = location < carets.count ? carets[location] : nil
+                        offsets.append(caret ?? CTLineGetOffsetForStringIndex(shaped, location, nil))
                     }
                     count += characters.count
                     let width = CGFloat(CTLineGetTypographicBounds(shaped, nil, nil, nil))
@@ -182,6 +186,18 @@ enum V2Layout {
                 }
             }
             characterCount = count
+        }
+
+        /// Words longer than this (UTF-16 units) take their caret offsets from one enumeration.
+        static let longWord = 256
+
+        /// First leading-edge caret offset reported for each UTF-16 index of `line`.
+        static func leadingCarets(_ line: CTLine, length: Int) -> [CGFloat?] {
+            var carets = [CGFloat?](repeating: nil, count: length + 1)
+            CTLineEnumerateCaretOffsets(line) { offset, index, leadingEdge, _ in
+                if leadingEdge, index >= 0, index < carets.count, carets[index] == nil { carets[index] = offset }
+            }
+            return carets
         }
 
         /// Greedy word wrap at `limit` reference units: breaks only at spaces unless a

@@ -57,7 +57,11 @@ struct MetadataTranslationTaskWindowTests {
         let lines = (0..<1000).map { "A distant traveler begins story number \($0)." }
         let long = String(repeating: "A traveler crosses the quiet valley. ", count: 400)
         let original = (lines + ["", "  ", "A failing story.", long]).joined(separator: "\n")
-        let expectedLong = MangaDescriptionTranslation.chunks(long).map { "번역[" + $0 + "]" }.joined()
+        // Production restores each chunk's source edge whitespace outside the (trimmed) reply,
+        // so a chunk ending in " " yields "번역[… ] ". See TitleTranslationKind.formattedTranslation.
+        let expectedLong = MangaDescriptionTranslation.chunks(long).map {
+            TitleTranslationKind.description.formattedTranslation("번역[" + $0 + "]", original: $0)
+        }.joined()
         let expected = (lines.map { "번역[" + $0 + "]" } + ["", "  ", "A failing story.", expectedLong]).joined(separator: "\n")
         #expect(await MangaDescriptionTranslation.translate(original, settings: fixture.settings,
             service: service, diskCache: fixture.disk) == expected)

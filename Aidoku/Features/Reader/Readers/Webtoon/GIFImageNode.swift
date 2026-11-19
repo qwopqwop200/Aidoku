@@ -10,6 +10,10 @@ import Gifu
 import VisionKit
 
 class GIFImageNode: ASControlNode {
+    /// Gifu's default keeps 50 decoded full-resolution frames per animation.
+    /// Reader pages can retain several GIFs, so trade a little CPU for memory.
+    static let readerFrameBufferSize = 8
+
     var imageView: GIFImageView?
     var animatedData: Data?
     var storedInteractions: [UIInteraction] = []
@@ -89,6 +93,7 @@ class GIFImageNode: ASControlNode {
             return false
         }
         if let animatedData, image != nil {
+            imageView.setFrameBufferSize(Self.readerFrameBufferSize)
             imageView.animate(withGIFData: animatedData)
             installedAnimationGeneration = reuseGeneration
             self.animatedData = nil

@@ -295,6 +295,10 @@ actor TranslationProviderRequestLimiter {
 
 actor TranslationService {
     private static let maximumStructuredOutputRetries = 5
+    /// Split repair already spent the parent's attempt. Five retries for every
+    /// leaf let a persistently malformed provider turn one 64-segment batch
+    /// into ~450 serial calls (minutes of backoff); descendants retry once.
+    static let splitDescendantMaximumRetries = 1
     private static let structuredOutputRetryDelaysNanoseconds: [UInt64] = [
         300_000_000,
         500_000_000,
@@ -678,6 +682,7 @@ actor TranslationService {
         providerRequestLimiter: TranslationProviderRequestLimiter?,
         priority: TranslationRequestPriority,
         allowsParallelSplit: Bool = true,
+        maximumRetries: Int = maximumStructuredOutputRetries,
         onPartial: RemoteTranslationPartialHandler? = nil,
         persistenceAdmission: (@Sendable () async throws -> Void)? = nil
     ) async throws -> RemoteTranslationBatchResult {
@@ -772,7 +777,7 @@ actor TranslationService {
                                 group.addTask {
                                     let value = try await requestProvider(client: client, request: part, configuration: configuration,
                                         providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
-                                        onPartial: onPartial)
+                                        maximumRetries: splitDescendantMaximumRetries, onPartial: onPartial)
                                     return (index, value.translations)
                                 }
                             }
@@ -785,7 +790,7 @@ actor TranslationService {
                         for part in parts {
                             let value = try await requestProvider(client: client, request: part, configuration: configuration,
                                 providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
-                                        onPartial: onPartial)
+                                maximumRetries: splitDescendantMaximumRetries, onPartial: onPartial)
                             values.append(contentsOf: value.translations)
                         }
                         recovered = values
@@ -795,7 +800,7 @@ actor TranslationService {
                 let willRetry =
                     allowsFormatRepair &&
                     isRepairable &&
-                    attempt <= maximumStructuredOutputRetries
+                    attempt <= min(maximumRetries, maximumStructuredOutputRetries)
                 TranslationPerformanceDiagnostics.providerAttemptFailed(
                     attempt: attempt,
                     reason:

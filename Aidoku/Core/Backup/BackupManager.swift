@@ -153,21 +153,21 @@ actor BackupManager {
                 nil
             }
             let history: [BackupHistory]? = if options.history {
-                CoreDataManager.shared.getHistory(context: context).map {
+                Self.mapInBatches(HistoryObject.fetchRequest(), context: context) {
                     BackupHistory(historyObject: $0)
                 }
             } else {
                 nil
             }
             let manga: [BackupManga]? = if options.libraryEntries {
-                CoreDataManager.shared.getManga(context: context).map {
+                Self.mapInBatches(MangaObject.fetchRequest(), context: context) {
                     BackupManga(mangaObject: $0)
                 }
             } else {
                 nil
             }
             let chapters: [BackupChapter]? = if options.chapters {
-                CoreDataManager.shared.getChapters(context: context).map {
+                Self.mapInBatches(ChapterObject.fetchRequest(), context: context) {
                     BackupChapter(chapterObject: $0)
                 }
             } else {
@@ -181,7 +181,7 @@ actor BackupManager {
                 nil
             }
             let sessionItems: [BackupReadingSession]? = if options.readingSessions {
-                CoreDataManager.shared.getSessions(context: context).compactMap(BackupReadingSession.init)
+                Self.mapInBatches(ReadingSessionObject.fetchRequest(), context: context, BackupReadingSession.init)
             } else {
                 nil
             }
@@ -191,7 +191,7 @@ actor BackupManager {
                 nil
             }
             let updateItems: [BackupUpdate]? = if options.updates {
-                CoreDataManager.shared.getUpdates(context: context).compactMap(BackupUpdate.init)
+                Self.mapInBatches(MangaUpdateObject.fetchRequest(), context: context, BackupUpdate.init)
             } else {
                 nil
             }
@@ -227,6 +227,33 @@ actor BackupManager {
                 version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
             )
         }
+    }
+
+    /// Large libraries can hold hundreds of thousands of chapter rows. Converting a
+    /// fully materialized fetch kept every managed object and its row snapshot alive
+    /// alongside the encoded backup. Fault each converted batch back out instead.
+    nonisolated static func mapInBatches<T: NSManagedObject, R>(
+        _ request: NSFetchRequest<T>,
+        context: NSManagedObjectContext,
+        batchSize: Int = 1_000,
+        _ transform: (T) -> R?
+    ) -> [R] {
+        request.fetchBatchSize = batchSize
+        guard let objects = try? context.fetch(request) else { return [] }
+        var result: [R] = []
+        result.reserveCapacity(objects.count)
+        for start in stride(from: 0, to: objects.count, by: batchSize) {
+            autoreleasepool {
+                let batch = objects[start..<min(start + batchSize, objects.count)]
+                for object in batch {
+                    if let value = transform(object) { result.append(value) }
+                }
+                for object in batch where !object.hasChanges {
+                    context.refresh(object, mergeChanges: false)
+                }
+            }
+        }
+        return result
     }
 
     private nonisolated func exportSettings(includeSensitive: Bool, sourceKeys: [String]) -> [String: JSONAnyValue] {

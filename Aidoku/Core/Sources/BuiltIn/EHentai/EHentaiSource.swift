@@ -297,7 +297,9 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
         let mpv = try firstDoc.flatMap { try EHentaiParser.mpv($0) }
         let showkey = mpv == nil ? try firstDoc.flatMap { try EHentaiParser.showkey($0) } ?? "" : ""
         let mpvGID = components.path.split(separator: "/").dropLast().last.map(String.init) ?? ""
-        return viewers.enumerated().map { index, viewer in
+        return viewers.enumerated().compactMap { index, viewer -> AidokuRunner.Page? in
+            // Viewer links come from remote HTML; URLComponents can emit strings URL(string:) rejects.
+            guard let viewerURL = URL(string: viewer) else { return nil }
             var context: AidokuRunner.PageContext = ["viewer_url": viewer]
             if let mpv {
                 context["mode"] = "mpv"; context["mpvkey"] = mpv.key; context["gid"] = mpvGID; context["page"] = String(index + 1)
@@ -308,7 +310,7 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
                     context["imgkey"] = parsed.imgkey; context["gid"] = parsed.gid; context["page"] = String(parsed.page)
                 }
             }
-            return AidokuRunner.Page(content: .url(url: URL(string: viewer)!, context: context))
+            return AidokuRunner.Page(content: .url(url: viewerURL, context: context))
         }
     }
 

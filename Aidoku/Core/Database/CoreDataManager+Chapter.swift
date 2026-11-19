@@ -208,6 +208,13 @@ extension CoreDataManager {
         scanlators: [String]?,
         context: NSManagedObjectContext
     ) -> Int {
+        // An empty saved filter means "all scanlators", matching unreadCount.
+        // `scanlator IN {}` would otherwise count zero read chapters.
+        let scanlators: [String]? = if scanlators?.isEmpty ?? true {
+            nil
+        } else {
+            scanlators
+        }
         let request = ChapterObject.fetchRequest()
         if let scanlators, let lang {
             request.predicate = NSPredicate(

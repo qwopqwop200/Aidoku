@@ -181,15 +181,24 @@ actor DownloadTask: Identifiable {
 }
 
 extension DownloadTask {
+    // Iterate rather than recurse: each chapter previously nested another async
+    // frame (next -> download -> finish -> next), retaining every finished chapter's
+    // page lists until the whole queue drained.
     private func next() async {
-        guard running, !Task.isCancelled else { return }
+        while await advance() {}
+    }
+
+    /// Processes the head of the queue. Returns true when the caller should continue
+    /// with the next entry, false when this worker stops (drained, paused, cancelled).
+    private func advance() async -> Bool {
+        guard running, !Task.isCancelled else { return false }
 
         // done with all downloads
         if downloads.isEmpty {
             running = false
             retired = true
             await delegate?.taskFinished(task: self)
-            return
+            return false
         }
 
         // Reject malformed identifiers before any file lookup, failure marker,
@@ -197,13 +206,13 @@ extension DownloadTask {
         while let download = downloads.first, !cache.isSafe(chapter: download.chapterIdentifier) {
             downloads.removeFirst()
             await delegate?.downloadFailed(download: download)
-            guard running, !Task.isCancelled else { return }
+            guard running, !Task.isCancelled else { return false }
         }
         guard !downloads.isEmpty else {
             running = false
             retired = true
             await delegate?.taskFinished(task: self)
-            return
+            return false
         }
 
         // attempt to download first chapter in the queue
@@ -211,30 +220,30 @@ extension DownloadTask {
             let download = downloads.first,
             let source = await sourceLookup(download.chapterIdentifier.sourceKey)
         {
-            guard running, !Task.isCancelled else { return }
+            guard running, !Task.isCancelled else { return false }
             // if chapter already downloaded, skip
             let directory = cache.directory(for: download.chapterIdentifier)
             guard !directory.exists && !directory.appendingPathExtension("cbz").exists else {
                 downloads.removeFirst()
                 await delegate?.downloadFinished(download: download)
-                return await next()
+                return true
             }
 
             // download has been cancelled or failed, skip
             if download.status != .queued && download.status != .downloading && download.status != .paused {
                 downloads.removeFirst()
                 await delegate?.downloadCancelled(download: download)
-                return await next()
+                return true
             }
 
-            await self.download(from: source)
+            return await self.download(from: source)
         } else {
-            guard running, !Task.isCancelled else { return }
+            guard running, !Task.isCancelled else { return false }
             // source not found, skip this download
             let failed = downloads.removeFirst()
             markFailed(tmpDirectory: cache.tmpDirectory(for: failed.chapterIdentifier))
             await delegate?.downloadFailed(download: failed)
-            await next()
+            return true
         }
     }
 
@@ -256,8 +265,9 @@ extension DownloadTask {
     }
 
     // perform download
-    private func download(from source: AidokuRunner.Source) async {
-        guard running && !downloads.isEmpty else { return }
+    /// Returns true once the chapter reached a terminal state and the queue may advance.
+    private func download(from source: AidokuRunner.Source) async -> Bool {
+        guard running && !downloads.isEmpty else { return false }
 
         let download = downloads[0]
         let translationSettings = download.translatesImages == true ? await MainActor.run {
@@ -269,7 +279,7 @@ extension DownloadTask {
             }
             return settings
         } : nil
-        guard !Task.isCancelled, running, downloads.first == download else { return }
+        guard !Task.isCancelled, running, downloads.first == download else { return false }
         currentPage = 0
         failedPages = 0
         descriptionWriteFailed = false
@@ -288,7 +298,7 @@ extension DownloadTask {
             } else {
                 loadedPages = await Self.loadPages(download, source: source)
             }
-            guard !Task.isCancelled, running, downloads.first == download else { return }
+            guard !Task.isCancelled, running, downloads.first == download else { return false }
             pages = loadedPages
             downloads[0].total = pages.count
         }
@@ -297,7 +307,7 @@ extension DownloadTask {
         var descriptions: [(page: Page, target: URL, pageNumber: Int)] = []
 
         for (i, page) in pages.enumerated() {
-            guard !Task.isCancelled, running, downloads.first == download else { return }
+            guard !Task.isCancelled, running, downloads.first == download else { return false }
             let pageNumber = String(format: "%03d", i + 1)
             let targetPath = tmpDirectory.appendingPathComponent(pageNumber)
 
@@ -328,7 +338,7 @@ extension DownloadTask {
                         throw DownloadError.pageProcessorFailed
                     }
                 } catch {
-                    guard !Task.isCancelled, running, downloads.first == download else { return }
+                    guard !Task.isCancelled, running, downloads.first == download else { return false }
                     failedPages += 1
                     failedPageNumbers.append(i + 1)
                     LogManager.logger.error("Error writing page data: \(error)")
@@ -389,10 +399,10 @@ extension DownloadTask {
         // Metadata must finish before chapter promotion, but must not delay
         // the first image request. Descriptions use one bounded source request.
         for (page, target, pageNumber) in descriptions {
-            guard !Task.isCancelled, running, downloads.first == download else { return }
+            guard !Task.isCancelled, running, downloads.first == download else { return false }
             var description = page.description
             if description == nil { description = try? await source.getPageDescription(page: page.toNew()) }
-            guard !Task.isCancelled, running, downloads.first == download else { return }
+            guard !Task.isCancelled, running, downloads.first == download else { return false }
             if let data = description?.data(using: .utf8) {
                 do {
                     try Self.writePageDescription(data, to: target.appendingPathExtension("desc.txt"))
@@ -409,8 +419,9 @@ extension DownloadTask {
             }
         }
         if !Task.isCancelled, running, downloads.first == download, currentPage == pages.count {
-            await handleChapterDownloadFinish(download: download)
+            return await handleChapterDownloadFinish(download: download)
         }
+        return false
     }
 
     nonisolated static func writePageDescription(_ data: Data, to destination: URL) throws {
@@ -576,14 +587,14 @@ extension DownloadTask {
         warmedPages = (next.chapterIdentifier, Task { await Self.loadPages(next, source: source) })
     }
 
-    private func handleChapterDownloadFinish(download: Download) async {
+    private func handleChapterDownloadFinish(download: Download) async -> Bool {
         let tmpDirectory = cache.tmpDirectory(for: download.chapterIdentifier)
         // Overlap only lightweight next-chapter metadata with finalization.
         // Pixel downloads wait for the existing bounded queue to own the chapter.
         await warmNextChapter(after: download) {
             await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey)
         }
-        guard !Task.isCancelled, running, downloads.first == download else { return }
+        guard !Task.isCancelled, running, downloads.first == download else { return false }
 
         if pages.isEmpty || (failedPages == pages.count && download.translatesImages != true && !descriptionWriteFailed) {
             // the entire chapter failed to download, skip adding to cache and cancel
@@ -601,7 +612,7 @@ extension DownloadTask {
 
             // save metadata for failed download in downloads view
             try? await DownloadManager.shared.saveChapterMetadata(manga: download.manga, chapter: download.chapter, to: tmpDirectory)
-            guard !Task.isCancelled, running, downloads.first == download else { return }
+            guard !Task.isCancelled, running, downloads.first == download else { return false }
             markFailed(tmpDirectory: tmpDirectory)
 
             if let downloadIndex = downloads.firstIndex(where: { $0 == download }) {
@@ -645,7 +656,7 @@ extension DownloadTask {
 
                 await cache.add(chapter: download.chapterIdentifier)
             } catch {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else { return false }
                 LogManager.logger.error("Error moving temporary download directory (\(tmpDirectory)) to final location: \(error)")
                 markFailed(tmpDirectory: tmpDirectory)
                 if let index = downloads.firstIndex(of: download) {
@@ -665,7 +676,7 @@ extension DownloadTask {
         failedPages = 0
         descriptionWriteFailed = false
         failedPageNumbers = []
-        await next()
+        return true
     }
 
     // Keep the worker actor available for suspension. Cancellation interrupts ZIP

@@ -28,6 +28,9 @@ struct SettingsTrackingView: View {
 
     // empty view controller to support login view presentation
     private static var loginShimController = LoginShimViewController()
+    // The view is a struct; keep the running session alive until its callback arrives.
+    private static var loginSession: ASWebAuthenticationSession?
+    private static var loginAttempt = UUID()
 
     init() {
         self._trackers = State(initialValue: TrackerManager.trackers.filter { !($0 is EnhancedTracker) })
@@ -305,10 +308,17 @@ extension SettingsTrackingView {
 
     func login(to tracker: Tracker) async {
         if let tracker = tracker as? OAuthTracker {
-            guard let url = await tracker.getAuthenticationUrl() else { return }
+            // A newer login replaces the PKCE verifier, so an older sheet's code can no longer be exchanged.
+            Self.loginSession?.cancel()
+            let attempt = UUID()
+            Self.loginAttempt = attempt
+            guard let url = await tracker.getAuthenticationUrl(), Self.loginAttempt == attempt else { return }
             let session = ASWebAuthenticationSession(url: url, callbackURLScheme: "aidoku") { callbackURL, error in
                 if let error {
                     LogManager.logger.error("Tracker authentication error: \(error.localizedDescription)")
+                }
+                Task { @MainActor in
+                    if Self.loginAttempt == attempt { Self.loginSession = nil }
                 }
                 if let callbackURL {
                     Task { @MainActor in
@@ -333,6 +343,7 @@ extension SettingsTrackingView {
                 }
             }
             session.presentationContextProvider = Self.loginShimController
+            Self.loginSession = session
             session.start()
         }
     }

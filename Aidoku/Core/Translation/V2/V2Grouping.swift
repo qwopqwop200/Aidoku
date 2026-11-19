@@ -58,7 +58,9 @@ struct V2GrayRaster: Sendable {
         width = max(1, Int(pageSize.width * scale))
         height = max(1, Int(pageSize.height * scale))
         var pixels = [UInt8](repeating: 255, count: width * height)
-        for frame in frames {
+        for frame in frames where !frame.isNull && [frame.minX, frame.minY, frame.maxX, frame.maxY].allSatisfy({
+            $0.isFinite && abs($0) < 1e9
+        }) {
             let x0 = max(0, Int((frame.minX * scale).rounded(.down))), x1 = min(width, Int((frame.maxX * scale).rounded(.up)))
             let y0 = max(0, Int((frame.minY * scale).rounded(.down))), y1 = min(height, Int((frame.maxY * scale).rounded(.up)))
             guard x0 < x1, y0 < y1 else { continue }

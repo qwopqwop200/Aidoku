@@ -195,26 +195,37 @@ enum SoraRawImageCodec {
         guard image.imageOrientation == .up, let cgImage = image.cgImage else { return nil }
         let width = cgImage.width, height = cgImage.height
         guard let tiles = scramblePlan(width: width, height: height, seed: seed),
-              let input = rgbaPixels(cgImage) else { return nil }
-        var output = [UInt8](repeating: 0, count: input.count)
-        for tile in tiles {
-            let source = tiles[tile.source]
-            for y in 0..<tile.height {
-                for x in 0..<tile.width {
-                    let sourceX: Int, sourceY: Int
-                    switch tile.turns {
-                        case 1: (sourceX, sourceY) = (y, tile.width - 1 - x)
-                        case 2: (sourceX, sourceY) = (tile.width - 1 - x, tile.height - 1 - y)
-                        case 3: (sourceX, sourceY) = (tile.height - 1 - y, x)
-                        default: (sourceX, sourceY) = (x, y)
+              let input = rgbaPixels(cgImage),
+              // Write straight into the output bitmap; makeImage() then shares it instead of
+              // copying a second full page (previously [UInt8] -> Data -> CGImage).
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+              context.bytesPerRow == width * 4, let base = context.data else { return nil }
+        let completed = input.withUnsafeBytes { pixels -> Bool in
+            for tile in tiles {
+                // Reader page changes cancel this work; the caller then keeps the original image.
+                if Task.isCancelled { return false }
+                let source = tiles[tile.source]
+                for y in 0..<tile.height {
+                    for x in 0..<tile.width {
+                        let sourceX: Int, sourceY: Int
+                        switch tile.turns {
+                            case 1: (sourceX, sourceY) = (y, tile.width - 1 - x)
+                            case 2: (sourceX, sourceY) = (tile.width - 1 - x, tile.height - 1 - y)
+                            case 3: (sourceX, sourceY) = (tile.height - 1 - y, x)
+                            default: (sourceX, sourceY) = (x, y)
+                        }
+                        let from = ((source.y + sourceY) * width + source.x + sourceX) * 4
+                        let to = ((tile.y + y) * width + tile.x + x) * 4
+                        base.storeBytes(of: pixels.load(fromByteOffset: from, as: UInt32.self), toByteOffset: to, as: UInt32.self)
                     }
-                    let from = ((source.y + sourceY) * width + source.x + sourceX) * 4
-                    let to = ((tile.y + y) * width + tile.x + x) * 4
-                    output[to..<(to + 4)] = input[from..<(from + 4)]
                 }
             }
+            return true
         }
-        return imageFromRGBA(output, width: width, height: height, scale: image.scale)
+        guard completed, let result = context.makeImage() else { return nil }
+        return UIImage(cgImage: result, scale: image.scale, orientation: .up)
     }
 
     static func slice(_ image: PlatformImage, slice: Int, slices: Int) -> PlatformImage? {
@@ -241,15 +252,5 @@ enum SoraRawImageCodec {
             return true
         }
         return success ? bytes : nil
-    }
-
-    private static func imageFromRGBA(_ bytes: [UInt8], width: Int, height: Int, scale: CGFloat) -> PlatformImage? {
-        guard let provider = CGDataProvider(data: Data(bytes) as CFData),
-              let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
-                                  space: CGColorSpaceCreateDeviceRGB(),
-                                  bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
-                                    .union(.byteOrder32Big), provider: provider, decode: nil,
-                                  shouldInterpolate: false, intent: .defaultIntent) else { return nil }
-        return UIImage(cgImage: image, scale: scale, orientation: .up)
     }
 }

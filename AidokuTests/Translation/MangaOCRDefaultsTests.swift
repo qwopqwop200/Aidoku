@@ -18,7 +18,10 @@ struct MangaOCRDefaultsTests {
         #expect(settings.ocr.detectorPostprocessConfiguration == .manga)
         #expect(settings.sourceLanguage == "auto")
         #expect(settings.targetLanguage == "ko")
-        #expect(settings.supportedOCRSourceLanguageCodes == ["ja", "zh", "zh-Hant"])
+        // The manga dictionary spells CJK and Latin-script text (no Hangul, Cyrillic or Vietnamese).
+        #expect(settings.supportedOCRSourceLanguageCodes == AutomaticSourceLanguageDetector.supportedLanguageCodes.subtracting(["vi"]))
+        #expect(settings.supportedOCRSourceLanguageCodes.isSuperset(of: ["ja", "zh", "zh-Hant", "en", "fr", "de", "es"]))
+        #expect(!settings.supportedOCRSourceLanguageCodes.contains("ko"))
         let profile = NativeCoreMLOCRModelProfile.profile(for: settings.modelTier)
         #expect(NativeCoreMLDetector.modelResourceName == profile.detectorResourceName)
         #expect(NativeCoreMLRecognizer.modelResourceName == profile.recognizerResourceName)
@@ -31,18 +34,21 @@ struct MangaOCRDefaultsTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         var settings = ReaderTranslationSettings(defaults: defaults)
         settings.modelTier = .medium
-        settings.sourceLanguage = "en"
-        settings.translationSourceLanguages = ["en", "ja", "zh-Hans", "zh-Hant"]
+        settings.sourceLanguage = "vi"
+        settings.translationSourceLanguages = ["en", "ja", "vi", "zh-Hans", "zh-Hant"]
         settings.mangaTitleSourceLanguages = ["en", "fr"]
         settings.modelTier = .manga
         #expect(settings.sourceLanguage == "auto")
-        #expect(settings.translationSourceLanguages == ["ja", "zh", "zh-Hant"])
+        #expect(settings.translationSourceLanguages == ["en", "ja", "zh", "zh-Hant"])
         #expect(settings.mangaTitleSourceLanguages == ["en", "fr"])
         #expect(settings.ocr.detectorMaximumSide == 1_120)
         #expect(settings.ocr.detectorPixelThreshold == 0.85)
         #expect(settings.ocr.detectorConfidenceThreshold == 0.25)
-        settings.sourceLanguage = "en"
+        settings.sourceLanguage = "vi"
         #expect(throws: RemoteTranslationError.self) { try settings.validate() }
+        settings.sourceLanguage = "en"
+        settings.normalizeOCRSourceLanguages()
+        #expect(settings.sourceLanguage == "en")
     }
 
     @Test func mangaRestrictsOCRSourceWithoutRestrictingTargetsOrMetadata() throws {
@@ -54,7 +60,7 @@ struct MangaOCRDefaultsTests {
                       "This is an English sentence about today's weather.", "안녕하세요", "Привет мир", "日本語 한국어"]
         let regions = inputs.enumerated().map { ReaderTranslationRegion(id: String($0.offset), rect: .zero, source: $0.element) }
         let admitted = ReaderTranslationLanguageFilter.apply(regions, settings: settings)
-        #expect(admitted.map(\.id) == ["0", "1", "2", "3"])
+        #expect(admitted.map(\.id) == ["0", "1", "2", "3", "4"])
         var englishTarget = settings
         englishTarget.targetLanguage = "en"
         #expect(ReaderTranslationLanguageFilter.apply(regions, settings: englishTarget).map(\.id) == ["0", "1", "2", "3"])

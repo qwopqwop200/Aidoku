@@ -40,7 +40,11 @@ actor ReaderTranslationV2Service {
     private let diskCache: ReaderTranslationDiskCache?
     private var models: V2Models?
     private var loading: Task<V2Models, Error>?
+    private var loadID: UInt64 = 0
     private var modelGeneration: UInt64 = 0
+    /// The last released set while a running page still holds it. Reused instead of
+    /// loading a second copy next to it (release happens under memory pressure).
+    private weak var retiredModels: V2Models?
     /// Non-LLM compute admission: S1-S4 (before the provider call) and the back
     /// work have separate slots. The back slot brackets the overlapped S8/S6/S7
     /// (which run during the provider call) and, separately, the S9/S10 tail; it
@@ -53,6 +57,7 @@ actor ReaderTranslationV2Service {
     /// to disk (temporary sessions), so scrolling back reuses them.
     private var memory = V2PageMemoryCache()
     private let availableMemory: @Sendable () -> UInt64
+    private let memoryProfile: V2PerformanceProfile
 
     private final class Flight {
         let task: Task<PageOutput, Error>
@@ -77,10 +82,12 @@ actor ReaderTranslationV2Service {
         },
         diskCache: ReaderTranslationDiskCache? = .shared,
         observesMemoryWarnings: Bool = true,
-        frontSlots: Int = 2, backSlots: Int = 2,
-        availableMemory: @escaping @Sendable () -> UInt64 = { ProcessMemory.available() }
+        frontSlots: Int = V2PerformanceProfile.current.frontSlots, backSlots: Int = V2PerformanceProfile.current.backSlots,
+        availableMemory: @escaping @Sendable () -> UInt64 = { ProcessMemory.available() },
+        memoryProfile: V2PerformanceProfile = .current
     ) {
         self.availableMemory = availableMemory
+        self.memoryProfile = memoryProfile
         self.frontSlots = V2ComputeSlots(count: frontSlots)
         self.backSlots = V2ComputeSlots(count: backSlots)
         self.loadModels = loadModels
@@ -108,20 +115,30 @@ actor ReaderTranslationV2Service {
     /// Loads every V2 model once per session (lazily, off the cooperative pool).
     func residentModels() async throws -> V2Models {
         if let models { return models }
+        if let retiredModels {
+            models = retiredModels
+            return retiredModels
+        }
+        // A load that was running when the set was released is still joined: it cannot be
+        // stopped, and starting another would hold two model sets at once.
         if let loading { return try await loading.value }
         let generation = modelGeneration
         let loader = loadModels
         let task = Task.detached(priority: .userInitiated) { try loader() }
         loading = task
+        loadID &+= 1
+        let id = loadID
         do {
             let loaded = try await task.value
-            if modelGeneration == generation {
+            if loadID == id { loading = nil }
+            if modelGeneration == generation, models == nil {
                 models = loaded
-                loading = nil
+            } else if models == nil {
+                retiredModels = loaded
             }
             return loaded
         } catch {
-            if modelGeneration == generation { loading = nil }
+            if loadID == id { loading = nil }
             throw error
         }
     }
@@ -130,11 +147,12 @@ actor ReaderTranslationV2Service {
     func prewarm() async { _ = try? await residentModels() }
 
     /// Memory pressure: drop the resident set. Pages already running keep their
-    /// own reference until they finish; the next page reloads lazily.
+    /// own reference until they finish (a page starting meanwhile reuses it); the
+    /// next page after that reloads lazily.
     func releaseModels() {
         modelGeneration &+= 1
+        if let models { retiredModels = models }
         models = nil
-        loading = nil
     }
 
     /// Drops the in-memory page bitmaps (memory pressure; settings reset).
@@ -187,7 +205,8 @@ actor ReaderTranslationV2Service {
     }
 
     private func remember(_ image: CGImage, for key: String) {
-        memory.insert(image, for: key, limit: V2PageMemoryCache.byteLimit(available: availableMemory(), current: memory.bytes))
+        let limit = V2PageMemoryCache.byteLimit(available: availableMemory(), current: memory.bytes, profile: memoryProfile)
+        memory.insert(image, for: key, limit: limit)
     }
 
     /// Translates one upright page and returns the fully rendered page bitmap.
@@ -376,9 +395,10 @@ actor ReaderTranslationV2Service {
     }
 }
 
-/// Bounded LRU of finished V2 page bitmaps. The budget follows the legacy
+/// Bounded LRU of finished V2 page bitmaps. The normal budget follows the legacy
 /// translated-bitmap memory budget: at least 32 MB, otherwise a quarter of
-/// the headroom above the image-work reserve, at most 192 MB.
+/// the headroom above the image-work reserve, at most 192 MB
+/// (`V2PerformanceProfile` relaxes it in developer builds).
 struct V2PageMemoryCache {
     static let minimumBytes = 32 * 1_024 * 1_024
     static let maximumBytes = 192 * 1_024 * 1_024
@@ -388,10 +408,12 @@ struct V2PageMemoryCache {
     private(set) var bytes = 0
     var count: Int { entries.count }
 
-    static func byteLimit(available: UInt64, current: Int) -> Int {
-        let spare = available > TranslationImageWorkBudget.minimumHeadroom ? available - TranslationImageWorkBudget.minimumHeadroom : 0
-        let allowance = min(UInt64(maximumBytes), spare / 4 + UInt64(max(0, current)) / 4)
-        return max(minimumBytes, Int(allowance))
+    static func byteLimit(available: UInt64, current: Int, profile: V2PerformanceProfile = .normal) -> Int {
+        let reserve = profile.minimumHeadroom
+        let spare = available > reserve ? available - reserve : 0
+        let divisor = UInt64(max(1, profile.pageCacheSpareDivisor))
+        let allowance = min(UInt64(profile.pageCacheMaximumBytes), spare / divisor + UInt64(max(0, current)) / divisor)
+        return max(profile.pageCacheMinimumBytes, Int(allowance))
     }
 
     static func cost(_ image: CGImage) -> Int { image.bytesPerRow * image.height }
@@ -543,4 +565,109 @@ final class V2TranslationFailureBox: @unchecked Sendable {
     private var stored: Error?
     var error: Error? { lock.withLock { stored } }
     func store(_ error: Error) { lock.withLock { if stored == nil { stored = error } } }
+}
+
+
+/// Build-time V2 performance profile. Builds compiled with the
+/// `AIDOKU_DEVELOPER_PERFORMANCE` condition (`Aidoku/Aidoku.xcconfig`) relax the
+/// memory caps that make V2 refuse, wait or evict, and raise page compute,
+/// look-ahead and provider concurrency, scaled by physical memory and cores.
+/// Every other build (and any test host) uses `normal`, today's values.
+/// Live admission still compares against `ProcessMemory.available()`; the
+/// developer headroom never drops below `safetyMargin`, and memory warnings
+/// still release the models and the page cache.
+struct V2PerformanceProfile: Equatable, Sendable {
+    /// Image admission: required headroom = max(minimum, decoded * multiplier + reserve).
+    var minimumHeadroom: UInt64
+    var decodeWorkingMultiplier: UInt64
+    var decodeReserve: UInt64
+    /// Finished-page LRU: max(minimum, min(maximum, spare / divisor)).
+    var pageCacheMinimumBytes: Int
+    var pageCacheMaximumBytes: Int
+    var pageCacheSpareDivisor: Int
+    /// V2 compute slots before (S1-S4) and after (S6-S10) the provider call.
+    var frontSlots: Int
+    var backSlots: Int
+    /// Pages added to the reader's automatic look-ahead count.
+    var lookaheadExtraPages: Int
+    /// Upper bound on concurrent V2 provider (LLM) requests.
+    var providerConcurrencyCap: Int
+
+    private static let mib: UInt64 = 1_024 * 1_024
+    private static let gib: UInt64 = 1_024 * mib
+    /// Headroom the developer profile never spends.
+    static let safetyMargin: UInt64 = 512 * mib
+
+    static let normal = Self(
+        minimumHeadroom: 1_280 * mib, decodeWorkingMultiplier: 3, decodeReserve: 512 * mib,
+        pageCacheMinimumBytes: 32 * Int(mib), pageCacheMaximumBytes: 192 * Int(mib), pageCacheSpareDivisor: 4,
+        frontSlots: 2, backSlots: 2, lookaheadExtraPages: 0, providerConcurrencyCap: 3)
+
+    static var isDeveloperBuild: Bool {
+#if AIDOKU_DEVELOPER_PERFORMANCE
+        true
+#else
+        false
+#endif
+    }
+
+    /// The profile of this process (fixed at first use).
+    static let current: Self = {
+        let environment = ProcessInfo.processInfo.environment
+        let testHost = environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+        return resolve(developer: isDeveloperBuild && !testHost, physicalMemory: ProcessInfo.processInfo.physicalMemory,
+                       processorCount: ProcessInfo.processInfo.activeProcessorCount)
+    }()
+
+    /// Pure: the profile for a build flag, physical memory and core count.
+    /// Device classes use the physical memory iOS reports (a "6 GB" iPhone
+    /// reports about 5.5 GiB); below that class the developer build stays normal.
+    static func resolve(developer: Bool, physicalMemory: UInt64, processorCount: Int) -> Self {
+        guard developer else { return normal }
+        var profile: Self
+        if physicalMemory >= 11 * gib {
+            profile = Self(
+                minimumHeadroom: 640 * mib, decodeWorkingMultiplier: 3, decodeReserve: 256 * mib,
+                pageCacheMinimumBytes: 96 * Int(mib), pageCacheMaximumBytes: 768 * Int(mib), pageCacheSpareDivisor: 2,
+                frontSlots: 4, backSlots: 4, lookaheadExtraPages: 3, providerConcurrencyCap: 8)
+        } else if physicalMemory >= 7 * gib {
+            profile = Self(
+                minimumHeadroom: 768 * mib, decodeWorkingMultiplier: 3, decodeReserve: 320 * mib,
+                pageCacheMinimumBytes: 64 * Int(mib), pageCacheMaximumBytes: 512 * Int(mib), pageCacheSpareDivisor: 3,
+                frontSlots: 3, backSlots: 4, lookaheadExtraPages: 2, providerConcurrencyCap: 6)
+        } else if physicalMemory >= 5 * gib {
+            profile = Self(
+                minimumHeadroom: 896 * mib, decodeWorkingMultiplier: 3, decodeReserve: 384 * mib,
+                pageCacheMinimumBytes: 64 * Int(mib), pageCacheMaximumBytes: 320 * Int(mib), pageCacheSpareDivisor: 3,
+                frontSlots: 3, backSlots: 3, lookaheadExtraPages: 1, providerConcurrencyCap: 4)
+        } else {
+            return normal
+        }
+        // Safety clamps: never below the normal values for concurrency, never
+        // more compute slots than half the cores, headroom above the margin and
+        // the page cache within a sixteenth of physical memory.
+        let slotCeiling = max(normal.frontSlots, max(1, processorCount) / 2)
+        profile.frontSlots = max(normal.frontSlots, min(profile.frontSlots, slotCeiling))
+        profile.backSlots = max(normal.backSlots, min(profile.backSlots, slotCeiling))
+        profile.minimumHeadroom = max(safetyMargin, profile.minimumHeadroom)
+        profile.decodeReserve = max(safetyMargin / 2, profile.decodeReserve)
+        let cacheCeiling = Int(clamping: max(UInt64(normal.pageCacheMaximumBytes), physicalMemory / 16))
+        profile.pageCacheMaximumBytes = min(profile.pageCacheMaximumBytes, cacheCeiling)
+        profile.pageCacheMinimumBytes = min(profile.pageCacheMinimumBytes, profile.pageCacheMaximumBytes)
+        return profile
+    }
+
+    /// Image-work headroom for a decode of `decodedBytes` (saturating).
+    func requiredHeadroom(decodedBytes: UInt64) -> UInt64 {
+        let (working, overflow) = decodedBytes.multipliedReportingOverflow(by: decodeWorkingMultiplier)
+        let (total, additionOverflow) = working.addingReportingOverflow(decodeReserve)
+        return overflow || additionOverflow ? .max : max(minimumHeadroom, total)
+    }
+
+    /// The reader's look-ahead page count for an automatic count.
+    func lookaheadCount(automatic: Int) -> Int { automatic + lookaheadExtraPages }
+
+    /// V2 provider concurrency for the user's request-concurrency setting.
+    func providerConcurrency(setting: Int) -> Int { max(1, min(providerConcurrencyCap, setting)) }
 }

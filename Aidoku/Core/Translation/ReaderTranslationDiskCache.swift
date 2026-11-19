@@ -38,10 +38,13 @@ actor ReaderTranslationDiskCache {
 
     deinit { touchFlushTask?.cancel() }
 
-    private func recordRead(_ name: String) throws {
+    /// LRU touches are best effort: a failed flush (disk full, busy) must not
+    /// turn an already-read hit into a thrown miss, and the queue stays bounded.
+    private func recordRead(_ name: String) {
         pendingTouches.removeAll { $0 == name }
         pendingTouches.append(name)
-        if pendingTouches.count >= 32 { try flushAccesses(); return }
+        if pendingTouches.count > 256 { pendingTouches.removeFirst(pendingTouches.count - 256) }
+        if pendingTouches.count >= 32 { try? flushAccesses(); return }
         guard touchFlushTask == nil else { return }
         touchFlushTask = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: 250_000_000) } catch { return }
@@ -136,7 +139,7 @@ actor ReaderTranslationDiskCache {
         guard let unpacked = try database?.unpackedData(
             name, maximumBytes: maximumBytes, discardOversized: discardOversized
         ) else { return nil }
-        try recordRead(name)
+        recordRead(name)
         return unpacked
     }
 
@@ -186,7 +189,7 @@ actor ReaderTranslationDiskCache {
         let name = fileName(key, kind: kind)
         guard let record = try database?.regionRecord(name) else { return nil }
         if let sourceRasterClaim, record.sourceRasterClaim != sourceRasterClaim { return nil }
-        try recordRead(name)
+        recordRead(name)
         return record
     }
 
@@ -458,7 +461,10 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
 
     func optimizePageSize() throws {
         let previous = try integer("PRAGMA page_size")
-        guard previous != 1024 else { return }
+        // auto_vacuum only takes effect on an existing database through VACUUM.
+        // Without it deleted rows never shrink the file, so trim(to:) would
+        // evict every entry while the allocation stays above the limit.
+        guard try previous != 1024 || integer("PRAGMA auto_vacuum") != 1 else { return }
         try execute("PRAGMA page_size=1024")
         do {
             // SQLite rebuilds atomically and preserves every key, BLOB, policy,

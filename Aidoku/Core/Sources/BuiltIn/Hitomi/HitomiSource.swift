@@ -31,14 +31,21 @@ actor HitomiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
         let request = if let url = original.url {
             await AidokuRunner.Source.modify(url: url, request: original)
         } else { original }
-        let (data, response) = try await SourceNetwork.shared.data(for: request)
+        let (data, response) = try await limitedData(request)
         try Task.checkCancellation()
         if let http = response as? HTTPURLResponse,
            CloudflareHandler.shared.shouldHandle(response: http, data: data) {
-            do { return try await CloudflareHandler.shared.handle(request: request) }
+            do { return try await CloudflareHandler.shared.handle(request: request, fetch: { try await limitedData($0) }) }
             catch is CloudflareHandler.HandleError { return (data, response) }
         }
         return (data, response)
+    }
+
+    /// Index requests are size-checked after download; a mirror that ignores Range on the
+    /// multi-gigabyte galleries.data file must be stopped while streaming, not after buffering.
+    nonisolated private static func limitedData(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        do { return try await NativeSourceNetwork.limitedData(for: request, maximum: HitomiSearch.maximumBytes) }
+        catch let error as URLError where error.code == .dataLengthExceedsMaximum { throw HitomiSearch.Failure.resourceLimit }
     }
 
     func restart() async throws {

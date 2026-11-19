@@ -200,3 +200,56 @@ struct LocalImageImportTests {
         #expect(!FileManager.default.fileExists(atPath: directory.path))
     }
 }
+
+extension LocalImageImportTests {
+    @Test func cappedArchiveExtractionRejectsOversizedEntries() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        folder.createDirectory()
+        defer { folder.removeItem() }
+        let url = folder.appendingPathComponent("bomb.cbz")
+        let file = folder.appendingPathComponent("payload")
+        try Data(repeating: 0, count: 256 * 1024).write(to: file)
+        let archive = try Archive(url: url, accessMode: .create)
+        try archive.addEntry(with: "001.desc.txt", fileURL: file, compressionMethod: .deflate)
+        let entry = try #require(archive["001.desc.txt"])
+        #expect(throws: ArchiveEntryReadError.self) { try archive.extractData(entry, limit: 1024) }
+        #expect(try archive.extractData(entry, limit: 256 * 1024).count == 256 * 1024)
+    }
+
+    @Test func comicInfoIgnoresAppleDoubleAndSuffixLookalikes() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        folder.createDirectory()
+        defer { folder.removeItem() }
+        let url = folder.appendingPathComponent("chapter.cbz")
+        let archive = try Archive(url: url, accessMode: .create)
+        let file = folder.appendingPathComponent("payload")
+        let entries = [
+            ("__MACOSX/._ComicInfo.xml", "binary sidecar"),
+            ("NotComicInfo.xml", "<ComicInfo><Series>Wrong</Series></ComicInfo>"),
+            ("ComicInfo.xml", "<ComicInfo><Series>Right</Series></ComicInfo>")
+        ]
+        for (name, content) in entries {
+            try Data(content.utf8).write(to: file)
+            try archive.addEntry(with: name, fileURL: file)
+        }
+        #expect(ComicInfo.load(from: url)?.series == "Right")
+    }
+
+    @Test func hugeImportImagesAreDownsampledBeforeRendering() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 100), format: format).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 200, height: 100))
+        }
+        try #require(image.pngData()).write(to: url)
+        let full = try #require(LocalFileManager.loadImportImage(at: url, maxPixels: 200 * 100))
+        #expect(full.size == CGSize(width: 200, height: 100))
+        let reduced = try #require(LocalFileManager.loadImportImage(at: url, maxPixels: 5000))
+        let pixels = reduced.size.width * reduced.scale * reduced.size.height * reduced.scale
+        #expect(pixels <= 5000)
+        #expect(reduced.size.width > reduced.size.height)
+    }
+}

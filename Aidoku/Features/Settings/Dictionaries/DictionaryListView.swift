@@ -223,6 +223,14 @@ struct DictionaryListView: View {
     func importDictionaries(urls: [URL]) {
         Task {
             await dictionaryManager.importDictionary(from: urls)
+            // The picker hands over private copies (asCopy); a large dictionary would otherwise
+            // stay in tmp until the OS purges it.
+            let temporary = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path + "/"
+            Task.detached(priority: .utility) {
+                for url in urls where url.resolvingSymlinksInPath().path.hasPrefix(temporary) {
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
         }
     }
 }

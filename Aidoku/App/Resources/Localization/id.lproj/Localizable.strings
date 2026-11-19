@@ -1143,6 +1143,6 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sumber %@ versi %d tidak didukung oleh aplikasi ini. Pasang versi yang didukung.";
 
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 hanya mendukung teks sumber dalam bahasa Jepang dan bahasa Tionghoa (aksara sederhana dan tradisional). Deteksi otomatis bahasa sumber dan pilihan bahasa sumber juga terbatas pada bahasa-bahasa tersebut. Anda tetap dapat menerjemahkan ke bahasa tujuan apa pun. Memilih Manga menerapkan ambang deteksi 0.85 dan 0.25; ukuran deteksi bawaannya adalah 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 membaca teks sumber dalam bahasa Jepang, bahasa Tionghoa (aksara sederhana dan tradisional), bahasa Inggris, dan bahasa lain beraksara Latin, tetapi tidak bahasa Korea, aksara Sirilik, atau bahasa Vietnam. Deteksi otomatis bahasa sumber dan pilihan bahasa sumber juga terbatas pada bahasa-bahasa tersebut. Anda tetap dapat menerjemahkan ke bahasa tujuan apa pun. Memilih Manga menerapkan ambang deteksi 0.85 dan 0.25; ukuran deteksi bawaannya adalah 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Semua bahasa OCR yang didukung";

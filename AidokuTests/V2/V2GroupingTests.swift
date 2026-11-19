@@ -80,4 +80,22 @@ struct V2GroupingTests {
         #expect(V2Grouping.joinedText(["HELLO", "WORLD"]) == "HELLO WORLD")
         #expect(V2Grouping.joinedText([]) == "")
     }
+
+    /// Finite but overflowing coordinates give a NaN axis; grouping must fall back, not trap.
+    @Test func overflowingPolygonDoesNotTrapGrouping() {
+        let huge = CGFloat.greatestFiniteMagnitude
+        let line = V2Line(polygon: [CGPoint(x: 0, y: 0), CGPoint(x: huge, y: 0), CGPoint(x: huge, y: 10), CGPoint(x: 0, y: 10)],
+                          bounds: CGRect(x: 0, y: 0, width: huge, height: 10), vertical: false, detectionScore: 0.9,
+                          text: "x", confidence: 0.9)
+        let blocks = V2Grouping.group([line], layout: [], pageSize: CGSize(width: 1000, height: 1400))
+        #expect(blocks.count == 1)
+    }
+
+    /// Non-finite layout frames are skipped when painting the pixel-free panel raster.
+    @Test func nonFiniteFrameIsSkippedInPanelRaster() {
+        let frames = [CGRect(x: CGFloat.nan, y: 0, width: 10, height: 10), CGRect(x: 0, y: 0, width: 1e300, height: 10),
+                      CGRect(x: 10, y: 10, width: 100, height: 100)]
+        let raster = V2GrayRaster(frames: frames, pageSize: CGSize(width: 1000, height: 1400))
+        #expect(raster?.pixels.contains(0) == true)
+    }
 }

@@ -76,7 +76,9 @@ enum NativeDictionaryMedia {
             naturalSize = natural
             let dimensions = geometry(node, naturalSize: natural, font: font, availableWidth: availableWidth)
             vector.size = dimensions.size
-            let format = UIGraphicsImageRendererFormat(); format.scale = min(3, UIScreen.main.scale); format.preferredRange = .standard
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = NativeDictionaryImageAttachment.renderScale(for: dimensions.size)
+            format.preferredRange = .standard
             image = UIGraphicsImageRenderer(size: dimensions.size, format: format).image { renderer in
                 vector.caLayerTree.render(in: renderer.cgContext)
             }
@@ -117,7 +119,7 @@ enum NativeDictionaryMedia {
         if (5...8).contains(orientation) { natural = CGSize(width: natural.height, height: natural.width) }
         guard natural.width.isFinite, natural.height.isFinite, natural.width > 0, natural.height > 0 else { return nil }
         let dimensions = geometry(node, naturalSize: natural, font: font, availableWidth: availableWidth)
-        let scale = min(3, UIScreen.main.scale)
+        let scale = NativeDictionaryImageAttachment.renderScale(for: dimensions.size)
         let fit = min(1, dimensions.size.width * scale / natural.width, dimensions.size.height * scale / natural.height)
         let maximumPixels = max(1, ceil(max(natural.width, natural.height) * fit))
         let options: [CFString: Any] = [
@@ -156,6 +158,22 @@ final class NativeDictionaryImageAttachment: NSTextAttachment {
     // releases it with the attachment. Resolved colors cover custom dynamic color providers too.
     private var rendered: (key: RenderKey, image: UIImage)?
 
+    /// Backing-store pixel budget for one media render (32 MB at 4 bytes per pixel).
+    nonisolated static let maximumRenderPixels: CGFloat = 8_388_608
+
+    static func renderScale(for size: CGSize) -> CGFloat {
+        renderScale(for: size, screenScale: UIScreen.main.scale)
+    }
+
+    /// Lowers only the render scale, never the layout size: a 4096-pt-tall image at 3x
+    /// would otherwise need a ~50 MB bitmap per attachment.
+    nonisolated static func renderScale(for size: CGSize, screenScale: CGFloat) -> CGFloat {
+        let scale = min(3, max(1, screenScale))
+        let area = size.width * size.height
+        guard area.isFinite, area > 0 else { return scale }
+        return max(0.25, min(scale, (maximumRenderPixels / area).squareRoot()))
+    }
+
     init(image: UIImage, tint: UIColor?, pixelated: Bool, title: String,
          borderWidth: CGFloat = 0, borderColor: UIColor = .label, cornerRadius: CGFloat = 0, background: UIColor? = nil) {
         original = image; self.tint = tint; self.pixelated = pixelated; self.title = title
@@ -167,7 +185,7 @@ final class NativeDictionaryImageAttachment: NSTextAttachment {
     override func image(forBounds imageBounds: CGRect, textContainer: NSTextContainer?, characterIndex charIndex: Int) -> UIImage? {
         let size = imageBounds.size.width > 0 && imageBounds.size.height > 0 ? imageBounds.size : original.size
         let traits = UITraitCollection.current
-        let key = RenderKey(size: size, scale: min(3, UIScreen.main.scale), tint: tint?.resolvedColor(with: traits),
+        let key = RenderKey(size: size, scale: Self.renderScale(for: size), tint: tint?.resolvedColor(with: traits),
                             border: borderColor.resolvedColor(with: traits), background: background?.resolvedColor(with: traits))
         if let rendered, rendered.key == key { return rendered.image }
         let format = UIGraphicsImageRendererFormat(); format.scale = key.scale; format.preferredRange = .standard

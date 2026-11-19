@@ -151,9 +151,10 @@ struct V2ReaderPipelineTests {
             // Dialogue recall for the allowed language: every Japanese line is sent.
             let missing = Self.japaneseDialogue.indices.filter { !eligible.contains($0) }.map { Self.japaneseDialogue[$0] }
             #expect(missing.isEmpty, "\(settings.sourceLanguage) \(settings.translationSourceLanguages): \(missing)")
-            // Target-language and model-unsupported text keeps its source pixels.
+            // Target-language text keeps its source pixels; English follows the source filter.
             #expect(!eligible.contains(Self.japaneseDialogue.count))
-            #expect(!eligible.contains(Self.japaneseDialogue.count + 1))
+            let allowsEnglish = settings.sourceLanguage == "auto" && settings.translationSourceLanguages.isEmpty
+            #expect(eligible.contains(Self.japaneseDialogue.count + 1) == allowsEnglish)
         }
     }
 
@@ -369,6 +370,53 @@ struct V2ReaderPipelineAdmissionTests {
         while await cancelling.inflightCount != 0 { await Task.yield() }
         await closed.open()
         await #expect(throws: (any Error).self) { try await only.value }
+    }
+
+    /// A memory-pressure release while a page still holds the models (or while they
+    /// are loading) must not load a second set next to the first.
+    @Test func releaseWhileInUseReusesTheHeldModels() async throws {
+        let loads = V2SentIDs()
+        let gate = DispatchSemaphore(value: 0)
+        let service = ReaderTranslationV2Service(
+            loadModels: {
+                loads.append([0])
+                gate.wait()
+                return try V2Models.load(bundle: .main, detectorInstances: 1, inpainterInstances: 1)
+            },
+            translateBlocks: { blocks, _, _, _, _ in blocks }, diskCache: nil, observesMemoryWarnings: false)
+        let first = Task { try await service.residentModels() }
+        while loads.ids.isEmpty { try await Task.sleep(nanoseconds: 10_000_000) }
+        await service.releaseModels()
+        let second = Task { try await service.residentModels() }
+        try await Task.sleep(nanoseconds: 50_000_000)
+        gate.signal()
+        gate.signal() // never deadlock a (regressed) second load
+        let held = try await first.value
+        #expect(try await second.value === held)
+        await service.releaseModels()
+        #expect(await !service.hasResidentModels)
+        #expect(try await service.residentModels() === held)
+        #expect(loads.ids.count == 1)
+    }
+
+    /// A page cancelled during S5 skips the tail instead of running S6/S7/S10
+    /// without a back slot; it returns the source pixels.
+    @Test func cancelledPageSkipsTheUnadmittedTail() async throws {
+        let models = try await ReaderTranslationV2Service(diskCache: nil, observesMemoryWarnings: false).residentModels()
+        let page = V2Page(id: "cancelled", image: V2SyntheticPages.make(index: 0))
+        let gate = V2Gate()
+        let run = Task {
+            await V2Pipeline.run(page, models: models, translate: { _, blocks in
+                await gate.wait()
+                return blocks.map { var output = $0; output.translation = "번역"; return output }
+            }, hooks: V2PipelineHooks(acquireBack: { try Task.checkCancellation() }))
+        }
+        while await gate.waiters == 0 { try await Task.sleep(nanoseconds: 10_000_000) }
+        run.cancel()
+        await gate.open()
+        let result = await run.value
+        #expect(result.output === page.image)
+        #expect(result.placed.isEmpty && result.failure?.contains("cancelled") == true)
     }
 }
 

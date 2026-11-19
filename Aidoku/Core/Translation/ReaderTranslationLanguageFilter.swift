@@ -141,7 +141,7 @@ enum ReaderTranslationLanguageFilter {
     static func identity(settings: ReaderTranslationSettings) -> [String]? {
         var language = languageIdentity(settings: settings)
         if settings.usesOCRLanguagePolicy, settings.modelTier.restrictedSourceLanguageCodes != nil {
-            language = ["ocr-source-manga-v2-neutral-symbols"] + (language ?? [])
+            language = ["ocr-source-manga-v3-latin-neutral-symbols"] + (language ?? [])
         }
         if settings.filterBackgroundWithLLM { language = (language ?? []) + [TranslationHTTPCodec.backgroundPolicy] }
         if settings.filterSFXWithLLM { language = (language ?? []) + [TranslationHTTPCodec.sfxPolicy] }
@@ -158,22 +158,26 @@ enum ReaderTranslationLanguageFilter {
         return ["source-filter-v3-excluded-source-ownership", "fixed", source]
     }
 
-    /// Classify against the complete language set first. Never force Latin text
-    /// into Japanese/Chinese by constraining the classifier to the model's list.
+    /// Classify against the complete language set first. Never force text into
+    /// the model's list by constraining the classifier to it.
     static func allowsModelSource(_ text: String, tier: IPhoneOCRModelTier) -> Bool {
         if isLanguageNeutralSymbols(text) { return true }
         guard let supported = tier.restrictedSourceLanguageCodes else { return true }
         if let detected = AutomaticSourceLanguageDetector.detect(text) { return supported.contains(detected) }
-        // Short shared Han names/interjections are often unclassifiable. Retain
-        // those source owners without admitting other scripts or Latin-only text.
+        // Short shared Han names, interjections and Latin words ("OK", "Hey") are
+        // often unclassifiable. Retain scripts the recognizer can spell without
+        // admitting others (Hangul, Cyrillic); Latin-only text needs a Latin language.
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
         func cjk(_ scalar: Unicode.Scalar) -> Bool {
             (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value) ||
                 (0x3400...0x9FFF).contains(scalar.value) || (0x20000...0x323AF).contains(scalar.value)
         }
-        return letters.contains(where: cjk) && letters.allSatisfy {
-            cjk($0) || (0x41...0x5A).contains($0.value) || (0x61...0x7A).contains($0.value)
+        func latin(_ scalar: Unicode.Scalar) -> Bool {
+            (0x41...0x5A).contains(scalar.value) || (0x61...0x7A).contains(scalar.value) ||
+                (0xC0...0x24F).contains(scalar.value)
         }
+        let readsLatin = !supported.isSubset(of: ["ja", "zh", "zh-Hant"])
+        return letters.contains { cjk($0) || readsLatin && latin($0) } && letters.allSatisfy { cjk($0) || latin($0) }
     }
 
     /// Punctuation and symbols have no source language to reject. They still
@@ -203,7 +207,7 @@ enum ReaderTranslationLanguageFilter {
     }
 
     /// V2 cache identity of `allowsV2Source` (manga recognizer, shared-Han recall).
-    static let v2SourcePolicy = "v2-source-filter-v2-manga-shared-han"
+    static let v2SourcePolicy = "v2-source-filter-v3-manga-latin-shared-han"
 
     /// V2 block rule: the legacy per-text rule, plus recall for Han-only
     /// dialogue (names, short replies) that NaturalLanguage cannot split

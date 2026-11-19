@@ -60,10 +60,13 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["ja", "han"])
         settings.sourceLanguage = "zh-Hans"
         #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["zh", "han"])
-        // An unclassifiable fixed source keeps the permissive language rule, but the
-        // manga recognizer's Japanese/Chinese policy still excludes Latin text.
+        // An unclassifiable fixed source keeps the permissive language rule; the
+        // manga recognizer also reads Latin-script text.
         settings.sourceLanguage = "az"
-        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["ja", "zh", "han"])
+        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["en", "ja", "zh", "han"])
+        // Scripts the manga dictionary cannot spell stay excluded.
+        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("이미 한국어 문장입니다", tier: .manga))
+        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("Это русский текст", tier: .manga))
     }
 
     @Test func v2SourceRuleAdmitsSharedHanDialogueOnlyForHanLanguages() {
@@ -80,6 +83,32 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(!ReaderTranslationLanguageFilter.allowsV2Source("本当", settings: settings))
     }
 
+    @Test func v2SendsEnglishOnlyWhenEnglishOrAutoIsTheSource() {
+        var settings = LanguageFilterFixture().settings
+        settings.targetLanguage = "ko"
+        let english = "Wait! I told you to stay behind the line, didn't I?"
+        let blocks = [V2Block(id: 0, lines: [], bounds: CGRect(x: 0, y: 0, width: 10, height: 10), polygon: [], vertical: false,
+                              readingOrder: 0, sourceText: english)]
+        func sent(_ source: String, _ filter: [String]) -> Bool {
+            settings.sourceLanguage = source
+            settings.translationSourceLanguages = filter
+            return ReaderTranslationV2Service.eligibleForTranslation(blocks, settings: settings) == [0]
+        }
+        #expect(sent("auto", []))
+        #expect(sent("auto", ["en"]))
+        #expect(sent("auto", ["en", "ja"]))
+        #expect(sent("en", []))
+        #expect(!sent("auto", ["ja"]))
+        #expect(!sent("ja", []))
+        #expect(!sent("zh-Hans", []))
+        // Short unclassifiable Latin dialogue follows the recognizer, not a ja/zh-only rule.
+        settings.sourceLanguage = "auto"
+        settings.translationSourceLanguages = []
+        #expect(ReaderTranslationLanguageFilter.allowsV2Source("OK!", settings: settings))
+        settings.targetLanguage = "en"
+        #expect(!ReaderTranslationLanguageFilter.allowsV2Source(english, settings: settings))
+    }
+
     @Test func v2SourceRuleKeepsTheSourceFilterInTheV2CacheIdentity() {
         var settings = LanguageFilterFixture().settings
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
@@ -89,7 +118,9 @@ struct ReaderTranslationLanguageFilterTests {
         let japanese = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
         settings.translationSourceLanguages = ["ja", "zh"]
         let han = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
-        #expect(Set([all, japanese, han]).count == 3)
+        settings.translationSourceLanguages = ["en", "ja"]
+        let latin = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        #expect(Set([all, japanese, han, latin]).count == 4)
         settings.translationSourceLanguages = ["zh", "ja"]
         #expect(ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings) == han)
     }
@@ -98,12 +129,12 @@ struct ReaderTranslationLanguageFilterTests {
         let fixture = LanguageFilterFixture()
         var settings = fixture.settings
         #expect(settings.translationSourceLanguages.isEmpty)
-        // The V2 manga recognizer reads Japanese and Chinese only.
+        // The V2 manga recognizer reads CJK and Latin-script text, not Vietnamese.
         settings.translationSourceLanguages = ["zh", "ja"]
         try settings.save(defaults: fixture.defaults)
         #expect(fixture.settings.translationSourceLanguages == ["ja", "zh"])
         #expect(fixture.settings.hasSameTranslation(as: settings))
-        for invalid in [["xx"], ["ja", "ja"], ["ko"], ["ja", "en"]] {
+        for invalid in [["xx"], ["ja", "ja"], ["ko"], ["ja", "vi"]] {
             settings.translationSourceLanguages = invalid
             #expect(throws: RemoteTranslationError.self) { try settings.save(defaults: fixture.defaults) }
             #expect(fixture.settings.translationSourceLanguages == ["ja", "zh"])

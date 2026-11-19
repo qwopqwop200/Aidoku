@@ -520,6 +520,19 @@ extension AppDelegate {
 
     /// Dismisses a shown loading indicator.
     func hideLoadingIndicator() async {
+        // A dismiss issued mid-presentation is dropped by UIKit without calling its completion.
+        if loadingAlert.isBeingPresented, let coordinator = loadingAlert.transitionCoordinator {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                var resumed = false
+                let resume = { if !resumed { resumed = true; continuation.resume() } }
+                if !coordinator.animate(alongsideTransition: nil, completion: { _ in resume() }) { resume() }
+            }
+        }
+        // The alert is not shown when another controller was already presenting; nothing to wait for.
+        guard loadingAlert.presentingViewController != nil else {
+            loadingIndicator.stopAnimating()
+            return
+        }
         await withCheckedContinuation { continuation in
             loadingAlert.dismiss(animated: true) {
                 self.loadingIndicator.stopAnimating()
@@ -694,16 +707,23 @@ extension AppDelegate {
                 }
                 guard await SourceManager.shared.ensureLocalSourceForImport() else { return }
                 var lastMangaID: String?
+                var failedBatches = 0
                 for batch in batches {
-                    lastMangaID = batch.title.normalized
                     // A previous launch may have saved the chapter before removing the inbox item.
                     if await LocalFileDataManager.shared.hasChapter(series: batch.title.normalized, volume: nil, chapter: 1) {
+                        lastMangaID = batch.title.normalized
                         try inbox.remove(batch)
                         continue
                     }
+                    // Keep a batch that cannot be prepared for a later retry, but do not let it
+                    // block every newer share behind it.
                     guard let info = await LocalFileManager.shared.prepareImageImport(
                         from: batch.images, name: batch.title
-                    ) else { throw LocalFileManagerError.invalidFileType }
+                    ) else {
+                        failedBatches += 1
+                        continue
+                    }
+                    lastMangaID = batch.title.normalized
                     try await LocalFileManager.shared.uploadFile(
                         from: info.url,
                         mangaName: batch.title,
@@ -720,6 +740,11 @@ extension AppDelegate {
                     if let chapter = manga.chapters?.first {
                         presentSharedImageReader(ReaderViewController(source: source, manga: manga, chapter: chapter, startPage: 1), from: presenter)
                     }
+                }
+                if failedBatches > 0 {
+                    // Alert only when nothing opened; an alert would race the reader presentation.
+                    guard lastMangaID != nil else { throw LocalFileManagerError.invalidFileType }
+                    LogManager.logger.error("Failed to prepare \(failedBatches) shared image batch(es)")
                 }
             } catch SharedImageInbox.InboxError.unavailable {
                 // Builds without an App Group can still use the in-app image picker.

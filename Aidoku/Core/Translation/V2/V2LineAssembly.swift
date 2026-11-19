@@ -43,19 +43,25 @@ enum V2LineAssembly {
         let balloons = layout.filter {
             $0.kind == .balloon && $0.score >= parameters.balloonMinimumScore && !$0.bounds.isEmpty
         }.map(\.bounds)
+        // Items keep stable ids (input order); a merge keeps the lower id and drops the higher, so id
+        // order is the array order of the original quadratic rescan. Admissible pairs are cached and
+        // only the merged item's pairs are recomputed, so each merge is O(pairs + n) instead of O(n^2)
+        // (noisy pages reach the detector's 3,000-candidate cap). Same pairs, same (gap, i, j) choice.
         var items = lines.map { Item(line: $0, box: $0.bounds, owner: owner($0.bounds, balloons, parameters)) }
-        while true {
-            var best: (gap: CGFloat, i: Int, j: Int)?
-            for i in items.indices {
-                for j in (i + 1)..<items.count {
-                    guard let gap = joinGap(items[i].box, items[j].box, parameters),
-                          best.map({ gap < $0.gap }) ?? true,
-                          layoutAllows(items[i], items[j], balloons, parameters)
-                    else { continue }
-                    best = (gap, i, j)
-                }
+        var alive = [Bool](repeating: true, count: items.count)
+        var pairs: [Pair] = []
+        func admissible(_ i: Int, _ j: Int) -> Pair? {
+            guard let gap = joinGap(items[i].box, items[j].box, parameters),
+                  layoutAllows(items[i], items[j], balloons, parameters) else { return nil }
+            return Pair(gap: gap, i: i, j: j)
+        }
+        for i in items.indices {
+            for j in (i + 1)..<items.count {
+                if let pair = admissible(i, j) { pairs.append(pair) }
             }
-            guard let best else { break }
+        }
+        while var best = pairs.first {
+            for pair in pairs.dropFirst() where pair.precedes(best) { best = pair }
             let a = items[best.i]
             let b = items[best.j]
             let box = a.box.union(b.box)
@@ -68,9 +74,23 @@ enum V2LineAssembly {
             merged.vertical = box.height >= box.width
             merged.detectionScore = max(a.line.detectionScore, b.line.detectionScore)
             items[best.i] = Item(line: merged, box: box, owner: owner(box, balloons, parameters))
-            items.remove(at: best.j)
+            alive[best.j] = false
+            pairs.removeAll { $0.i == best.i || $0.j == best.i || $0.i == best.j || $0.j == best.j }
+            for other in items.indices where alive[other] && other != best.i {
+                let pair = other < best.i ? admissible(other, best.i) : admissible(best.i, other)
+                if let pair { pairs.append(pair) }
+            }
         }
-        return items.map(\.line)
+        return items.indices.filter { alive[$0] }.map { items[$0].line }
+    }
+
+    private struct Pair {
+        var gap: CGFloat
+        var i: Int
+        var j: Int
+
+        /// The rescan's order: smaller gap first, then lower i, then lower j.
+        func precedes(_ other: Pair) -> Bool { (gap, i, j) < (other.gap, other.i, other.j) }
     }
 
     private struct Item {

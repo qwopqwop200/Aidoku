@@ -66,4 +66,38 @@ struct SoraRawImageCodecTests {
         #expect(restored.cgImage?.width == 64)
         #expect(restored.cgImage?.height == 64)
     }
+
+    private static func gradient(width: Int, height: Int) throws -> UIImage {
+        var rgba: [UInt8] = []
+        for y in 0..<height { for x in 0..<width { rgba += [UInt8(truncatingIfNeeded: x), UInt8(truncatingIfNeeded: y), 7, 255] } }
+        let provider = try #require(CGDataProvider(data: Data(rgba) as CFData))
+        let image = try #require(CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+                                        space: CGColorSpaceCreateDeviceRGB(),
+                                        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+                                            .union(.byteOrder32Big), provider: provider,
+                                        decode: nil, shouldInterpolate: false, intent: .defaultIntent))
+        return UIImage(cgImage: image)
+    }
+
+    // Audit: a cancelled reader page must stop the per-pixel copy and fall back to the input.
+    @Test func cancelledUnscrambleStopsWithoutOutput() async throws {
+        let image = try Self.gradient(width: 64, height: 64)
+        let task = Task { () -> Bool in
+            withUnsafeCurrentTask { $0?.cancel() }
+            return SoraRawImageCodec.unscramble(image, seed: "1") == nil
+        }
+        #expect(await task.value)
+        #expect(SoraRawImageCodec.unscramble(image, seed: "1") != nil)
+    }
+
+    // Audit: SpoilerPlus renders one 8-bit page buffer, never an extended-range (16-bit) one.
+    @Test func spoilerPlusUnscrambleUsesStandardRangeBuffer() throws {
+        let mask = "spoilerplus.tv".utf8.reduce(UInt8(0), ^)
+        let key = "3,2,1,0".utf8.map { String(format: "%02x", $0 ^ mask) }.joined()
+        let output = try SpoilerPlusImageCodec.unscramble(try Self.gradient(width: 40, height: 40), key: key)
+        let cgImage = try #require(output.cgImage)
+        #expect(cgImage.bitsPerComponent == 8)
+        #expect(cgImage.width == 40)
+        #expect(cgImage.height == 40)
+    }
 }

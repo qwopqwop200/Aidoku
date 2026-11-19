@@ -192,7 +192,7 @@ actor ReaderTranslationService {
         let settings = Self.mandatoryPageSettings(settings)
         let configuration = settings.configuration
         _ = try configuration.validatedEndpoint()
-        let concurrency = max(1, min(3, settings.maximumConcurrentRequests))
+        let concurrency = V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
         await limiter.setMaximumConcurrentRequests(concurrency)
         let client = client
         return try await limiter.withPermit(priority: priority) {

@@ -1146,6 +1146,6 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Källan %@ version %d stöds inte av den här appen. Installera en version som stöds.";
 
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 stöder endast källtext på japanska och kinesiska (förenklad och traditionell). Automatisk identifiering av källspråket och val av källspråk är begränsade till dessa språk. Du kan fortfarande översätta till valfritt målspråk. När du väljer Manga används detekteringströsklarna 0.85 och 0.25; standardstorleken för textdetektering är 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 läser källtext på japanska, kinesiska (förenklad och traditionell), engelska och andra språk med latinsk skrift, men inte koreanska, kyrilliska eller vietnamesiska. Automatisk identifiering av källspråket och val av källspråk är begränsade till dessa språk. Du kan fortfarande översätta till valfritt målspråk. När du väljer Manga används detekteringströsklarna 0.85 och 0.25; standardstorleken för textdetektering är 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alla OCR-språk som stöds";

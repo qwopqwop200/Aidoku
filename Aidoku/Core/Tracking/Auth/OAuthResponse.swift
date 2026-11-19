@@ -29,8 +29,20 @@ extension OAuthResponse: Codable {
         refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken)
         accessToken = try container.decodeIfPresent(String.self, forKey: .accessToken)
         expiresIn = try container.decodeIfPresent(Int.self, forKey: .expiresIn)
-        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
-        askedForRefresh = try container.decodeIfPresent(Bool.self, forKey: .askedForRefresh) ?? false
+        createdAt = Self.decodeCreatedAt(from: container) ?? Date()
+        askedForRefresh = (try? container.decodeIfPresent(Bool.self, forKey: .askedForRefresh)) ?? false
+    }
+
+    /// Local saves store reference-date seconds, while Doorkeeper servers (Shikimori)
+    /// send Unix seconds; a string or other shape must not fail the whole login.
+    static func decodeCreatedAt(from container: KeyedDecodingContainer<CodingKeys>) -> Date? {
+        guard let seconds = try? container.decodeIfPresent(Double.self, forKey: .createdAt),
+              seconds.isFinite else { return nil }
+        // A current Unix timestamp reads ~31 years ahead as a reference-date value.
+        if seconds > Date().timeIntervalSinceReferenceDate + 86_400 {
+            return Date(timeIntervalSince1970: seconds)
+        }
+        return Date(timeIntervalSinceReferenceDate: seconds)
     }
 
     enum CodingKeys: String, CodingKey {

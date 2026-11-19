@@ -5,8 +5,11 @@ import ZIPFoundation
 enum DownloadedChapterFile {
     static func comicInfo(in url: URL) -> ComicInfo? {
         if url.pathExtension.lowercased() == "cbz" { return ComicInfo.load(from: url) }
+        let xmlURL = url.appendingPathComponent("ComicInfo.xml")
         guard url.isDirectory,
-              let data = try? Data(contentsOf: url.appendingPathComponent("ComicInfo.xml")),
+              let size = (try? xmlURL.resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
+              size <= ComicInfo.maxXMLBytes,
+              let data = try? Data(contentsOf: xmlURL),
               let xml = String(data: data, encoding: .utf8) else { return nil }
         return ComicInfo.load(xmlString: xml)
     }

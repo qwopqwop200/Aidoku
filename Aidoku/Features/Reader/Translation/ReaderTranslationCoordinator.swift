@@ -83,6 +83,10 @@ final class ReaderTranslationCoordinator {
     private let v2Pages = NSHashTable<ReaderTranslationPage>.weakObjects()
     /// V2 look-ahead consumers by the whole-page V2 cache key (pages after the viewport).
     private var v2Lookahead: [String: Task<Void, Never>] = [:]
+    /// Look-ahead keys already translated in this reading session. Without it every
+    /// synchronization re-decoded those source pages (and, when neither cache kept
+    /// the result, re-ran the whole pipeline and provider requests).
+    private var v2LookaheadFinished: Set<String> = []
     private let v2Loader: ReaderTranslationImageLoader
     private let readSettings: () -> ReaderTranslationSettings
     private let setEnabled: (Bool) -> Void
@@ -458,7 +462,7 @@ extension ReaderTranslationCoordinator {
         }
         for page in targets {
             let taskKey = key(page)
-            guard v2Lookahead[taskKey] == nil else { continue }
+            guard v2Lookahead[taskKey] == nil, !v2LookaheadFinished.contains(taskKey) else { continue }
             let splitsWidePages = owner.translationWidePageLayout(for: page) == .halves
             let direction = settings.readingDirection
             let loader = v2Loader
@@ -477,6 +481,10 @@ extension ReaderTranslationCoordinator {
                         guard let pixels else { continue }
                         _ = try await ReaderTranslationV2Service.shared.translatePage(
                             pixels, cacheKey: key(page, crop), settings: settings, priority: .prefetch)
+                    }
+                    if let self, !Task.isCancelled {
+                        if v2LookaheadFinished.count >= 256 { v2LookaheadFinished.removeAll() }
+                        v2LookaheadFinished.insert(taskKey)
                     }
                     ReaderTranslationDiagnostics.record("v2_lookahead_finished", page: page.index + 1, count: crops.count)
                 } catch {
@@ -515,6 +523,7 @@ extension ReaderTranslationCoordinator {
         guard settings.shouldProcessReaderPages else { return [] }
         let backgroundOnly = !settings.automaticallyTranslate && settings.translateInBackground
         var count = backgroundOnly || visiblePresented ? 2 : 1
+        count = V2PerformanceProfile.current.lookaheadCount(automatic: count)
         if let limit = settings.maximumPretranslatedPages { count = min(count, limit) }
         let unit = ReaderTranslationSplitGeometry.unit
         func whole(_ page: Page) -> Bool { page.translationSourceRect == nil || page.translationSourceRect == unit }
@@ -534,5 +543,6 @@ extension ReaderTranslationCoordinator {
     private func cancelV2Lookahead() {
         v2Lookahead.values.forEach { $0.cancel() }
         v2Lookahead.removeAll()
+        v2LookaheadFinished.removeAll()
     }
 }

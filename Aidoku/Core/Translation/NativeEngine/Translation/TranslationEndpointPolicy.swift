@@ -192,6 +192,7 @@ enum TranslationEndpointPolicy {
             guard let closing = authority.firstIndex(of: "]") else { return nil }
             return String(authority[...closing])
         }
-        return String(authority.split(separator: ":", maxSplits: 1)[0])
+        // ":port" alone splits into no host component; never index an empty split.
+        return authority.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init)
     }
 }

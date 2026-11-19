@@ -105,4 +105,25 @@ struct SharedImageInboxTests {
         #expect(try inbox.pendingBatches().isEmpty)
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
     }
+
+    @Test func corruptBatchIsDiscardedWithoutBlockingValidBatches() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let corrupt = root.appendingPathComponent("corrupt", isDirectory: true)
+        let missing = root.appendingPathComponent("missing", isDirectory: true)
+        let valid = root.appendingPathComponent("valid", isDirectory: true)
+        for directory in [corrupt, missing, valid] {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        try Data("{".utf8).write(to: corrupt.appendingPathComponent("manifest.json"))
+        let manifest = Data(#"{"title":"Shared","files":["00000001.image"]}"#.utf8)
+        try manifest.write(to: missing.appendingPathComponent("manifest.json"))
+        try manifest.write(to: valid.appendingPathComponent("manifest.json"))
+        try Data([1]).write(to: valid.appendingPathComponent("00000001.image"))
+        try Data([1]).write(to: root.appendingPathComponent("stray-file"))
+        let batches = try SharedImageInbox(root: root).pendingBatches()
+        #expect(batches.map(\.directory.lastPathComponent) == ["valid"])
+        #expect(!FileManager.default.fileExists(atPath: corrupt.path))
+        #expect(!FileManager.default.fileExists(atPath: missing.path))
+    }
 }

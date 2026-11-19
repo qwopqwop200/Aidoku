@@ -54,6 +54,21 @@ struct DownloadIdentityAuditTests {
         #expect(cache.tmpDirectory(for: other).exists)
     }
 
+    @Test func batchSafetyCheckMatchesPerChapterCheck() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("batch-identity-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = DownloadCache(directory: root)
+        let owner = ChapterIdentifier(sourceKey: "source", mangaKey: "manga", chapterKey: "part/one")
+        let alias = ChapterIdentifier(sourceKey: "source", mangaKey: "manga", chapterKey: "partone")
+        let plain = ChapterIdentifier(sourceKey: "source", mangaKey: "manga", chapterKey: "two")
+        let mangaAlias = ChapterIdentifier(sourceKey: "source", mangaKey: "man/ga", chapterKey: "three")
+        let invalid = ChapterIdentifier(sourceKey: "source", mangaKey: "manga", chapterKey: "..")
+        try writeMetadata(owner, to: cache.directory(for: owner))
+        let chapters = [owner, alias, plain, mangaAlias, invalid]
+        #expect(cache.safeChapters(chapters) == Set(chapters.filter { cache.isSafe(chapter: $0) }))
+        #expect(cache.safeChapters(chapters) == [owner, plain])
+    }
+
     private func writeMetadata(_ id: ChapterIdentifier, to directory: URL) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let manga = AidokuRunner.Manga(sourceKey: id.sourceKey, key: id.mangaKey, title: "Fixture")

@@ -55,6 +55,90 @@ struct V2DetectionTests {
         #expect(V2LineAssembly.assemble(fragments, layout: []).count == 1)
     }
 
+    /// The original quadratic rescan, kept as the reference for the cached-pair assembly.
+    private func referenceAssemble(_ lines: [V2Line], balloons: [CGRect]) -> [V2Line] {
+        let parameters = V2LineAssembly.Parameters.standard
+        func coverage(_ box: CGRect, _ region: CGRect) -> CGFloat {
+            guard box.width > 0, box.height > 0 else { return 0 }
+            let width = max(0, min(box.maxX, region.maxX) - max(box.minX, region.minX))
+            let height = max(0, min(box.maxY, region.maxY) - max(box.minY, region.minY))
+            return width * height / (box.width * box.height)
+        }
+        func owner(_ box: CGRect) -> Int? {
+            var best: Int?, bestCoverage: CGFloat = 0
+            for (index, balloon) in balloons.enumerated() where coverage(box, balloon) > bestCoverage {
+                bestCoverage = coverage(box, balloon)
+                best = index
+            }
+            return bestCoverage >= parameters.balloonInside ? best : nil
+        }
+        func allows(_ a: (box: CGRect, owner: Int?), _ b: (box: CGRect, owner: Int?)) -> Bool {
+            switch (a.owner, b.owner) {
+            case let (x?, y?): x == y
+            case let (x?, nil): coverage(b.box, balloons[x]) >= parameters.balloonOutside
+            case let (nil, y?): coverage(a.box, balloons[y]) >= parameters.balloonOutside
+            case (nil, nil): true
+            }
+        }
+        var items = lines.map { (line: $0, box: $0.bounds, owner: owner($0.bounds)) }
+        while true {
+            var best: (gap: CGFloat, i: Int, j: Int)?
+            for i in items.indices {
+                for j in (i + 1)..<items.count {
+                    guard let gap = V2LineAssembly.joinGap(items[i].box, items[j].box, parameters),
+                          best.map({ gap < $0.gap }) ?? true,
+                          allows((items[i].box, items[i].owner), (items[j].box, items[j].owner)) else { continue }
+                    best = (gap, i, j)
+                }
+            }
+            guard let best else { break }
+            let a = items[best.i], b = items[best.j]
+            let box = a.box.union(b.box)
+            var merged = a.line
+            merged.polygon = [
+                CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)
+            ]
+            merged.bounds = box
+            merged.vertical = box.height >= box.width
+            merged.detectionScore = max(a.line.detectionScore, b.line.detectionScore)
+            items[best.i] = (merged, box, owner(box))
+            items.remove(at: best.j)
+        }
+        return items.map(\.line)
+    }
+
+    /// Deterministic noisy page: jittered column fragments plus specks (no image pixels).
+    private func noisyFragments(count: Int, seed: UInt64) -> [V2Line] {
+        var state = seed
+        func next(_ bound: Int) -> CGFloat {
+            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            return CGFloat(Int((state >> 33) % UInt64(bound)))
+        }
+        return (0..<count).map { index in
+            if index % 3 == 0 { return line(next(1_600), next(2_400), 4 + next(12), 4 + next(12), score: 0.5) }
+            let column = CGFloat(index % 40) * 45
+            return line(column + next(4), next(2_300), 30 + next(10), 30 + next(90), score: 0.8)
+        }
+    }
+
+    @Test func cachedPairAssemblyMatchesQuadraticRescan() {
+        let balloons = [CGRect(x: 0, y: 0, width: 700, height: 900), CGRect(x: 800, y: 1_000, width: 600, height: 800)]
+        let layout = balloons.map { V2LayoutRegion(kind: .balloon, bounds: $0, score: 0.9) }
+        for seed in 1...6 as ClosedRange<UInt64> {
+            let fragments = noisyFragments(count: 160, seed: seed)
+            #expect(V2LineAssembly.assemble(fragments, layout: []) == referenceAssemble(fragments, balloons: []))
+            #expect(V2LineAssembly.assemble(fragments, layout: layout) == referenceAssemble(fragments, balloons: balloons))
+        }
+    }
+
+    /// The detector caps a page at 3,000 candidates; the old O(n^3) rescan hung on such pages.
+    @Test func assemblyOfCandidateCapPageCompletes() {
+        let fragments = noisyFragments(count: 3_000, seed: 42)
+        let lines = V2LineAssembly.assemble(fragments, layout: [])
+        #expect(!lines.isEmpty && lines.count <= fragments.count)
+    }
+
     /// Synthetic page: black Japanese lettering on white (pixels generated in code).
     static func letteredPage() -> CGImage {
         let width = 640, height = 480

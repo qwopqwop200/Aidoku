@@ -6,7 +6,8 @@ import Nuke
 /// retain compressed bytes or file URLs, never a queue of decoded page images.
 final class TranslationImageWorkBudget: Sendable {
     static let shared = TranslationImageWorkBudget()
-    static let minimumHeadroom: UInt64 = 1_280 * 1_024 * 1_024
+    /// 1.25 GB normally; lower in `AIDOKU_DEVELOPER_PERFORMANCE` builds (`V2PerformanceProfile`).
+    static var minimumHeadroom: UInt64 { V2PerformanceProfile.current.minimumHeadroom }
     private static let reclamationGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private let availableMemory: @Sendable () -> UInt64
@@ -63,9 +64,7 @@ final class TranslationImageWorkBudget: Sendable {
     }
 
     static func requiredHeadroom(decodedBytes: UInt64) -> UInt64 {
-        let (working, overflow) = decodedBytes.multipliedReportingOverflow(by: 3)
-        let (total, additionOverflow) = working.addingReportingOverflow(512 * 1_024 * 1_024)
-        return overflow || additionOverflow ? .max : max(minimumHeadroom, total)
+        V2PerformanceProfile.current.requiredHeadroom(decodedBytes: decodedBytes)
     }
 
     static func decodedBytes(in data: Data) -> UInt64 {

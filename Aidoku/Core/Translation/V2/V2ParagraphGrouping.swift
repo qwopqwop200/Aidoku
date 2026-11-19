@@ -297,7 +297,10 @@ enum V2ParagraphGrouping {
         }.sorted { $0[0] < $1[0] }
         return finalized.map { members in
             let vertical = atoms[members[0]].input.vertical
-            let direction = unit(members.reduce(CGPoint.zero) { .init(x: $0.x+atoms[$1].along.x, y: $0.y+atoms[$1].along.y) })!
+            // Opposed or non-finite axes (overflowing polygon coordinates) can sum to no direction.
+            let direction = unit(members.reduce(CGPoint.zero) { .init(x: $0.x+atoms[$1].along.x, y: $0.y+atoms[$1].along.y) })
+                .flatMap { $0.x.isFinite && $0.y.isFinite ? $0 : nil }
+                ?? (vertical ? CGPoint(x: 0, y: 1) : CGPoint(x: 1, y: 0))
             let (a, c, cross) = intervals(members.flatMap { atoms[$0].input.polygon }, direction, vertical)
             let legacyOrder = members.sorted {
                 let x = atoms[$0].box, y = atoms[$1].box

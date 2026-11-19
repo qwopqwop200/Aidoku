@@ -1147,4 +1147,4 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ kaynağının %d sürümü bu uygulama tarafından desteklenmiyor. Desteklenen bir sürüm yükleyin.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Desteklenen tüm OCR dilleri";
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 yalnızca Japonca ve Çince (Basitleştirilmiş ve Geleneksel) kaynak metinleri destekler. Otomatik kaynak dil algılama ve kaynak dil seçenekleri bu dillerle sınırlıdır. Herhangi bir hedef dile çeviri yapılabilir. Manga seçildiğinde algılama eşikleri 0,85 ve 0,25 olarak ayarlanır; varsayılan algılama boyutu 1120 pikseldir.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 Japonca, Çince (Basitleştirilmiş ve Geleneksel), İngilizce ve Latin alfabesi kullanan diğer dillerdeki kaynak metinleri okur; Korece, Kiril alfabesi ve Vietnamca metinleri okumaz. Otomatik kaynak dil algılama ve kaynak dil seçenekleri bu dillerle sınırlıdır. Herhangi bir hedef dile çeviri yapılabilir. Manga seçildiğinde algılama eşikleri 0,85 ve 0,25 olarak ayarlanır; varsayılan algılama boyutu 1120 pikseldir.";

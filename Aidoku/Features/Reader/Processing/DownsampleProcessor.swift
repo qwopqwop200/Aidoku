@@ -58,3 +58,20 @@ struct DownsampleProcessor: ImageProcessing {
         }
     }
 }
+
+extension DownsampleProcessor {
+    /// Decode-time counterpart of `init(width:)`. ImageIO then never allocates
+    /// the full-resolution bitmap (a 20 MP page is 80 MB) before this processor
+    /// shrinks it. Pixel dimensions match the processor, which stays in the chain
+    /// and only normalizes the image scale. Never upscales. Only use it when no
+    /// earlier processor (crop borders, source page processing) needs full pixels.
+    static func decodeThumbnail(width: CGFloat) -> ImageRequest.ThumbnailOptions? {
+        guard width.isFinite, width > 0 else { return nil }
+        // A finite height keeps the target bounded if ImageIO reports no size.
+        return ImageRequest.ThumbnailOptions(
+            size: CGSize(width: width, height: 1_000_000),
+            unit: .points,
+            contentMode: .aspectFit
+        )
+    }
+}

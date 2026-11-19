@@ -1144,6 +1144,6 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ weergawe %d word nie deur hierdie toepassing ondersteun nie. Installeer ’n ondersteunde weergawe.";
 
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ondersteun slegs Japannese en Chinese bronteks (vereenvoudig en tradisioneel). Outomatiese identifikasie van die brontaal en die keuse van brontale is tot hierdie tale beperk. Jy kan steeds na enige teikentaal vertaal. Wanneer jy Manga kies, word opsporingsdrempels van 0.85 en 0.25 toegepas; die verstekgrootte vir teksopsporing is 1120 px.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 lees Japannese, Chinese (vereenvoudig en tradisioneel), Engelse en ander Latynse-skrif bronteks, maar nie Koreaans, Cirillies of Viëtnamees nie. Outomatiese identifikasie van die brontaal en die keuse van brontale is tot hierdie tale beperk. Jy kan steeds na enige teikentaal vertaal. Wanneer jy Manga kies, word opsporingsdrempels van 0.85 en 0.25 toegepas; die verstekgrootte vir teksopsporing is 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle ondersteunde OCR-tale";

@@ -25,33 +25,27 @@ extension CoreDataManager {
         // Invalidate again after this context's current save/rollback block, so
         // a recovery racing the deletion cannot leave a late disk entry.
         context.perform { HistoryMetadataCache.shared.clear() }
+        // A per-manga OR predicate exceeds SQLite's expression depth (1000) and
+        // bound-variable limits for large libraries, making the batch delete fail.
+        // Select the rows in memory by identity and delete them by object ID instead.
+        let libraryKeys = Set(getLibraryManga(context: context).compactMap { $0.manga?.identifier })
         let request = HistoryObject.fetchRequest()
-
-        let pairPredicates = self.getLibraryManga(context: context).compactMap { mangaObj -> NSCompoundPredicate? in
-            guard
-                let mangaId = mangaObj.manga?.id,
-                let sourceId = mangaObj.manga?.sourceId
-            else {
-                return nil
+        request.propertiesToFetch = ["sourceId", "mangaId"]
+        request.fetchBatchSize = 500
+        guard let rows = try? context.fetch(request) else { return false }
+        let objectIds = rows.compactMap { row -> NSManagedObjectID? in
+            let key = MangaIdentifier(sourceKey: row.sourceId, mangaKey: row.mangaId)
+            return libraryKeys.contains(key) ? nil : row.objectID
+        }
+        for batch in objectIds.chunked(into: 500) {
+            do {
+                _ = try context.execute(NSBatchDeleteRequest(objectIDs: batch))
+            } catch {
+                LogManager.logger.error("CoreDataManager.clearHistoryExcludingLibrary: \(error.localizedDescription)")
+                return false
             }
-            return NSCompoundPredicate(andPredicateWithSubpredicates: [
-                NSPredicate(format: "mangaId == %@", mangaId),
-                NSPredicate(format: "sourceId == %@", sourceId)
-            ])
         }
-
-        let excludePredicate: NSPredicate
-        if pairPredicates.isEmpty {
-            // if nothing in library, don't exclude anything
-            excludePredicate = NSPredicate(value: true)
-        } else {
-            // NOT ((mangaId == a AND sourceId == b) OR (mangaId == c AND sourceId == d) OR ...)
-            let orPredicate = NSCompoundPredicate(orPredicateWithSubpredicates: pairPredicates)
-            excludePredicate = NSCompoundPredicate(notPredicateWithSubpredicate: orPredicate)
-        }
-
-        request.predicate = excludePredicate
-        return clear(request: request, context: context)
+        return true
     }
 
     /// Gets all history objects.

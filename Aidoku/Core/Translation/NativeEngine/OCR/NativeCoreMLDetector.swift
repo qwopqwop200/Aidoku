@@ -1362,7 +1362,12 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                 frame: frame, canvas: geometryCanvas, cancellationCheck: check)
             let preprocessingElapsed = Self.nowMilliseconds() - preprocessingStarted
             try check()
-            let resourceAccess = try loadResources(cancellationCheck: check)
+            // A first call loads the model under `resourceLock`; keep that blocking load off the
+            // cooperative pool (as the legacy path does) so concurrent pages cannot starve it.
+            let resourceAccess = try await Task.detached(priority: .userInitiated) { [self] in
+                try loadResources(cancellationCheck: check)
+            }.value
+            try check()
             let predictor = resourceAccess.resources.predictor
             let predictionStarted = Self.nowMilliseconds()
             let prediction: NativeCoreMLDetectionArrayPrediction

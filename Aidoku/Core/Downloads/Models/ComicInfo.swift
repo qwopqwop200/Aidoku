@@ -375,6 +375,9 @@ extension ComicInfo {
 }
 
 extension ComicInfo {
+    /// Upper bound for a ComicInfo.xml read from disk or an archive.
+    static let maxXMLBytes = 4 * 1024 * 1024
+
     static func load(from archiveURL: URL) -> ComicInfo? {
         do {
             let archive = try Archive(url: archiveURL, accessMode: .read)
@@ -387,17 +390,16 @@ extension ComicInfo {
     static func load(from archive: Archive) -> ComicInfo? {
         do {
             guard
-                let entry = archive.first(where: { $0.path.hasSuffix("ComicInfo.xml") })
+                // Skip AppleDouble sidecars (`__MACOSX/._ComicInfo.xml`) and names that only end with it.
+                let entry = archive.first(where: {
+                    $0.type == .file && $0.path.split(separator: "/").last == "ComicInfo.xml"
+                        && !$0.path.split(separator: "/").contains("__MACOSX")
+                })
             else {
                 return nil
             }
-            var data = Data()
-            _ = try archive.extract(
-                entry,
-                consumer: { readData in
-                    data.append(readData)
-                }
-            )
+            // ComicInfo is small metadata; never inflate an oversized entry into memory.
+            let data = try archive.extractData(entry, limit: maxXMLBytes)
             guard
                 let string = String(data: data, encoding: .utf8),
                 let comicInfo = ComicInfo.load(xmlString: string)

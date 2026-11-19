@@ -101,7 +101,7 @@ enum V2Pipeline {
         let pageSize = CGSize(width: page.width, height: page.height)
 
         // S1 || S2 (after one shared pixel decode).
-        let front = await timings.record(Stage.parallel) { await runFront(page, models: models) }
+        var front = await timings.record(Stage.parallel) { await runFront(page, models: models) }
         timings.stages.merge(front.stages) { $0 + $1 }
         failures += front.failures
         let layout = front.layout
@@ -126,18 +126,23 @@ enum V2Pipeline {
         }
         timings.stages[Stage.front] = milliseconds(since: started)
         hooks.frontFinished()
+        // Only S2/S3 read the detector frame and S4 the gray raster. Drop them before the
+        // provider wait: for a non-shareable page the frame is a second full-page buffer.
+        front.frame = nil
+        front.gray = nil
+        let shared = front
 
         // S5 (LLM or replay) || S8 -> S6 -> S7 on the predicted paint set.
         let candidates = blocks
         let predicted = hooks.predictTranslated?(candidates)
-        async let overlapped = runBack(page, blocks: candidates, predicted: predicted, front: front,
+        async let overlapped = runBack(page, blocks: candidates, predicted: predicted, front: shared,
                                        models: models, hooks: hooks)
         let translateStart = DispatchTime.now().uptimeNanoseconds
         do {
             blocks = try await timings.record(Stage.translate) { try await translate(page, candidates) }
         } catch { failures.append("s5: \(error)") }
         let translateMilliseconds = milliseconds(since: translateStart)
-        let back = await overlapped
+        var back = await overlapped
         timings.stages.merge(back.stages) { $0 + $1 }
         if let failure = back.failure { failures.append(failure) }
 
@@ -146,6 +151,15 @@ enum V2Pipeline {
         do { try await hooks.acquireBack() } catch {
             admitted = false
             failures.append("back: \(error)")
+        }
+        // A cancelled page (its result is discarded) skips the tail: otherwise a cancelled
+        // look-ahead, refused a back slot, would run S8/S6/S7/S10 outside back admission.
+        if Task.isCancelled {
+            if admitted { hooks.releaseBack() }
+            failures.append("cancelled")
+            timings.stages[Stage.tail] = milliseconds(since: tailStart)
+            return V2PageResult(pageID: page.id, blocks: blocks, placed: [], output: page.image, removalMask: nil,
+                                timings: timings, failure: failures.joined(separator: "; "))
         }
 
         // S8 result: reused when S5 changed nothing S8 reads.
@@ -175,7 +189,9 @@ enum V2Pipeline {
                 erased = speculative
             } else {
                 timings.stages[Stage.speculationMiss] = 1
-                let recomputed = await erase(page, paintable: paintable, layout: layout, raster: front.raster,
+                // Free the stale speculative background and mask before recomputing them.
+                back.erased = nil
+                let recomputed = await erase(page, paintable: paintable, layout: layout, raster: shared.raster,
                                              models: models)
                 timings.stages.merge(recomputed.stages) { $0 + $1 }
                 erased = recomputed
@@ -229,6 +245,11 @@ enum V2Pipeline {
         var back = Back()
         do { try await hooks.acquireBack() } catch {
             // Not admitted: the tail recomputes everything after S5.
+            back.stages[Stage.back] = milliseconds(since: start)
+            return back
+        }
+        guard !Task.isCancelled else {
+            hooks.releaseBack()
             back.stages[Stage.back] = milliseconds(since: start)
             return back
         }

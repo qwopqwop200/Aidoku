@@ -1117,5 +1117,5 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ova aplikacija ne podržava izvor %@ verzije %d. Instaliraj podržanu verziju.";
 
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 podržava samo izvorni tekst na japanskom i kineskom (pojednostavljeno i tradicionalno pismo). Automatsko određivanje i odabir izvornog jezika ograničeni su na te jezike. Prijevod na bilo koji ciljni jezik i dalje je dostupan. Odabirom modela Manga primjenjuju se pragovi otkrivanja 0,85 i 0,25; zadana veličina slike za otkrivanje je 1120 piksela.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 čita izvorni tekst na japanskom, kineskom (pojednostavljeno i tradicionalno pismo), engleskom i drugim jezicima na latinici, ali ne korejski, ćirilicu ni vijetnamski. Automatsko određivanje i odabir izvornog jezika ograničeni su na te jezike. Prijevod na bilo koji ciljni jezik i dalje je dostupan. Odabirom modela Manga primjenjuju se pragovi otkrivanja 0,85 i 0,25; zadana veličina slike za otkrivanje je 1120 piksela.";
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Svi podržani OCR jezici";
