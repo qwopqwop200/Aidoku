@@ -5,8 +5,7 @@ Usage:
 
 Runs the app's V2 pipeline (Aidoku/Core/Translation/V2, Docs/translation-v2.md)
 on Mac: S1 layout || S2 detect, S3 recognize, S4 group, S5 translate,
-S6 mask, S7 inpaint, S8 style, S9 layout, S10 paint. V2 is the only pipeline;
-`--pipeline v2` is accepted and ignored.
+S6 mask, S7 inpaint, S8 style, S9 layout, S10 paint.
 
 Modes (default: live)
   live                         S5 calls the real provider through V2Translation and

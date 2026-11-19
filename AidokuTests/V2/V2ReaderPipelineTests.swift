@@ -32,11 +32,10 @@ struct V2ReaderPipelineTests {
         // An old backup: legacy pipeline toggle, a non-manga OCR tier and thresholds.
         defaults.set(false, forKey: "Reader.translationPipelineV2")
         defaults.set("medium", forKey: ReaderTranslationSettings.keyPrefix + "modelTier")
-        let oldOCR = ReaderOCRConfiguration(modelTier: .small, confidenceThreshold: 0.9)
-        defaults.set(try JSONEncoder().encode(oldOCR), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
+        defaults.set(Data("{\"modelTier\":\"small\",\"confidenceThreshold\":0.9}".utf8),
+                     forKey: ReaderTranslationSettings.keyPrefix + "ocr")
         defaults.set(Data("{\"unexpected\":true}".utf8), forKey: ReaderTranslationSettings.keyPrefix + "overlay")
         let settings = ReaderTranslationSettings(defaults: defaults)
-        #expect(settings.ocr == ReaderOCRConfiguration())
         #expect(settings.modelTier == .manga)
         #expect(settings.overlay.visible)
         try settings.autosave(defaults: defaults, credentialStore: V2NoCredentials())

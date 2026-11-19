@@ -35,7 +35,7 @@ struct TranslationPerformanceFileLogTests {
         let context = ReaderTranslationDiagnostics.makeContext(pageKey: String(repeating: "b", count: 64), page: 60)
         await Task.detached {
             await ReaderTranslationDiagnostics.measure("test_handoff", context: context) {
-                writer.record(.readerOCR, fields: [.elapsedMilliseconds: 3])
+                writer.record(.encode, fields: [.elapsedMilliseconds: 3])
                 await Task { writer.record(.providerQueue, fields: [.elapsedMilliseconds: 4]) }.value
             }
             #expect(ReaderTranslationDiagnostics.context == nil)

@@ -19,23 +19,6 @@ final class NativeMangaNGram: @unchecked Sendable {
     private let contextValues: [Double]
     private let vocabularySize: Int
 
-    private final class Store: @unchecked Sendable {
-        static let shared = Store()
-        let lock = NSLock()
-        var models: [URL: NativeMangaNGram] = [:]
-    }
-
-    static func bundled(in bundle: Bundle) throws -> NativeMangaNGram? {
-        guard let url = bundle.url(forResource: "manga_ngram_v03", withExtension: "bin") else { return nil }
-        let store = Store.shared
-        store.lock.lock(); defer { store.lock.unlock() }
-        if let existing = store.models[url] { return existing }
-        let model = try NativeMangaNGram(data: Data(contentsOf: url, options: .mappedIfSafe))
-        if store.models.count >= 2 { store.models.removeAll() }
-        store.models[url] = model
-        return model
-    }
-
     init(data: Data) throws {
         guard data.count >= 28, data.count <= 32 * 1_048_576,
               data.prefix(8) == Data("MNG3DATA".utf8) else { throw Failure.malformedData }
@@ -83,7 +66,7 @@ final class NativeMangaNGram: @unchecked Sendable {
         self.contextKeys = contextKeys; self.contextValues = contextValues
     }
 
-    func logProbability(token: UInt64, history: [UInt64]) -> Double {
+    private func logProbability(token: UInt64, history: [UInt64]) -> Double {
         var probability = 1.0 / Double(vocabularySize)
         for order in 1...min(3, history.count + 1) {
             var packed: UInt64 = 0
@@ -97,16 +80,6 @@ final class NativeMangaNGram: @unchecked Sendable {
             probability = seen + backoff * probability
         }
         return log(max(1e-30, probability))
-    }
-
-    func score(_ text: String) -> Double {
-        var history: [UInt64] = [1, 1], result = 0.0
-        for character in text.map(String.init) + ["\u{03}"] {
-            let token = ids[character] ?? 0
-            result += logProbability(token: token, history: history)
-            history = Array((history + [token]).suffix(2))
-        }
-        return result
     }
 
     /// Only substitute uncertain, visually plausible characters. Preserve the

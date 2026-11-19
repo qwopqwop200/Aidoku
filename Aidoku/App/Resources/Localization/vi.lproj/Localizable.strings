@@ -691,16 +691,6 @@
 
 "TRANSLATION_TITLE" = "OCR & Dịch thuật";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Thay thế khóa API đã lưu (tùy chọn)";
 
 "TRANSLATION_KEY" = "Khóa API";
@@ -717,11 +707,7 @@
 
 "TRANSLATION_TARGET" = "Dịch sang";
 
-
 "TRANSLATION_AUTO" = "Tự động phát hiện";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Xóa bộ nhớ đệm dịch";
 
@@ -736,22 +722,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Mặc định của mô hình";
 
 "TRANSLATION_CONCURRENCY" = "Số yêu cầu đồng thời";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Nhà cung cấp dịch thuật";
 
@@ -809,8 +779,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Không thể kết nối qua cơ chế vượt chặn HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Dịch không thành công. Văn bản nhận dạng bằng OCR đang được hiển thị. Kiểm tra cài đặt và kết nối.";
-
 "TRANSLATION_MANGA_TITLES" = "Dịch tiêu đề manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Dịch tiêu đề chương";
@@ -823,32 +791,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Ngôn ngữ nguồn trang";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Dịch mô tả manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Ngôn ngữ mô tả manga";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Tự động phát hiện ngôn ngữ gốc và chỉ dịch các ngôn ngữ đã chọn. Chọn “Tất cả ngôn ngữ được phát hiện” để bỏ giới hạn ngôn ngữ. Bộ lọc ngôn ngữ của mỗi mục hoạt động độc lập với cài đặt ngôn ngữ của trang và các mục khác.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Gửi hình ảnh trang cùng văn bản OCR để cung cấp bối cảnh truyện. Nếu không hỗ trợ hình ảnh đầu vào, quá trình dịch sẽ tự động tiếp tục chỉ với văn bản. Việc đính kèm hình ảnh có thể làm tăng mức sử dụng dữ liệu và chi phí API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Không hỗ trợ hình ảnh đầu vào. Quá trình dịch sẽ tiếp tục mà không đính kèm hình ảnh.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Tùy chỉnh (Tương thích OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Không có";
 
@@ -1033,18 +982,11 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Không thể hiển thị cài đặt: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Tải về kèm bản dịch";
-
 
 "TRANSLATION_STATE_ON" = "Bật";
 
 "TRANSLATION_STATE_OFF" = "Tắt";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Cài đặt dịch không hợp lệ. Kiểm tra URL máy chủ, mô hình và các cài đặt khác.";
 
@@ -1094,15 +1036,12 @@
 
 "OCR_ERROR_PREDICTION" = "Nhận dạng văn bản PP-OCRv6 không thành công. Thử lại với hình ảnh hoặc mô hình OCR khác.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "Kích thước bộ nhớ đệm dịch nằm ngoài phạm vi được hỗ trợ.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Nơi lưu bộ nhớ đệm dịch không hợp lệ hoặc không khả dụng.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Không thể lưu bộ nhớ đệm dịch.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Thay đổi đồng bộ iCloud có hiệu lực khi bạn đóng hoàn toàn rồi mở lại Aidoku. Trước đó, cài đặt đồng bộ hiện tại vẫn được áp dụng.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1146,7 +1085,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ứng dụng này không hỗ trợ nguồn %@ phiên bản %d. Hãy cài đặt phiên bản được hỗ trợ.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 đọc được văn bản nguồn bằng tiếng Nhật, tiếng Trung (Giản thể và Phồn thể), tiếng Anh và các ngôn ngữ dùng chữ Latinh khác, nhưng không đọc được tiếng Hàn, chữ Kirin hay tiếng Việt. Tính năng tự động xác định ngôn ngữ nguồn và các lựa chọn ngôn ngữ nguồn cũng chỉ giới hạn ở các ngôn ngữ này. Bạn vẫn có thể dịch sang bất kỳ ngôn ngữ đích nào. Khi chọn Manga, ngưỡng phát hiện được đặt thành 0.85 và 0.25; kích thước phát hiện mặc định là 1120 px.";
 

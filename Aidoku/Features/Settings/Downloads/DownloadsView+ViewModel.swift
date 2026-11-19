@@ -45,6 +45,7 @@ extension DownloadsView.ViewModel {
 
         await performBackgroundUpdate()
         let shouldMigrate = await DownloadManager.shared.checkForOldMetadata()
+
         withAnimation(.easeInOut(duration: 0.3)) {
             isLoading = false
             showingMigrateNotice = shouldMigrate

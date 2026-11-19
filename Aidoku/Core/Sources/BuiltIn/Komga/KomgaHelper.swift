@@ -44,7 +44,7 @@ struct KomgaHelper: Sendable {
         maximum: Int = NativeSourceNetwork.maximumBodyBytes
     ) async throws(SourceError) -> Data {
         do {
-            return try await SourceResponseBody.read(request, session: session) { _ in .limited(maximum) }.0
+            return try await NativeSourceNetwork.limitedData(for: request, session: session, maximum: maximum).0
         } catch {
             throw SourceError.networkError
         }

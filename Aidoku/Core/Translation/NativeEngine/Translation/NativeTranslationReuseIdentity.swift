@@ -86,30 +86,3 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
             cacheKey.reasoningEffort == expected.cacheKey.reasoningEffort
     }
 }
-
-struct NativeTranslationReuseValue: Equatable, Sendable {
-    let identity: NativeTranslationReuseIdentity
-    let translatedText: String
-}
-
-/// Exact-match lookup used when carrying visible translations into a newly
-/// rendered OCR frame. Missing identities and semantic mismatches deliberately
-/// return no value so the normal TranslationService/cache path owns the result.
-struct NativeTranslationReuseIndex: Sendable {
-    private let valuesByIdentity:
-        [NativeTranslationReuseIdentity: NativeTranslationReuseValue]
-
-    init(values: [NativeTranslationReuseValue]) {
-        valuesByIdentity = Dictionary(
-            values.map { ($0.identity, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
-
-    func value(
-        matching identity: NativeTranslationReuseIdentity?
-    ) -> NativeTranslationReuseValue? {
-        guard let identity else { return nil }
-        return valuesByIdentity[identity]
-    }
-}

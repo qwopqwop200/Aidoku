@@ -6,9 +6,6 @@ import CryptoKit
 enum TranslationSFXEvidencePolicy {
     static let cacheVersion = "llm-sfx-v73-dialogue-typography"
     static let evidenceVersion = "sfx-source-hints-v4-complete-prediction-inspection"
-    static let maximumAnnotatedSegments = 32
-    static let maximumQueriesPerClass = 2
-    static let maximumInputQueries = 1_200
 
     /// Codable observations for the request's per-segment `sfx_evidence` field.
     /// No role, filter, text correction, or render authorization is produced here.

@@ -16,41 +16,36 @@ struct NativeTranslationEscapedLanguageCacheTests {
         Self.wrongLanguage.unicodeScalars.map { String(format: "\\u%04x", $0.value) }.joined()
     }
 
-    @Test(arguments: [false, true])
-    func escapedSourceLanguageCannotHydrateMemoryOrReopenedDiskCache(reopen: Bool) async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
+    @Test func escapedSourceLanguageCannotHydrateCache() async throws {
         let request = request()
         let key = TranslationCacheKey(configuration: Self.configuration,
             endpoint: try Self.configuration.validatedEndpoint(), request: request)
-        let original = try TranslationCache(storageRootURL: root)
-        await original.insert([.init(id: "segment-0", text: escapedAnswer())], for: key)
-        let cache = reopen ? try TranslationCache(storageRootURL: root) : original
+        let cache = TranslationCache()
+        await cache.insert([.init(id: "segment-0", text: escapedAnswer())], for: key)
         let client = EscapedLanguageAuditClient(firstAnswer: nil, validAnswer: Self.translated)
         let service = TranslationService(client: client, cache: cache)
         #expect(try await service.cachedResult(request, configuration: Self.configuration) == nil)
-        #expect(try await service.cachedTranslation(request, configuration: Self.configuration) == nil)
         let repaired = try await service.translate(request, configuration: Self.configuration)
-        #expect(repaired.singleText == Self.translated)
+        #expect(repaired.translations.first?.text == Self.translated)
         #expect(repaired.source == .network)
         #expect(await client.calls == 1)
         let cached = try await service.translate(request, configuration: Self.configuration)
-        #expect(cached.singleText == Self.translated)
+        #expect(cached.translations.first?.text == Self.translated)
         #expect(cached.source == .memoryCache)
         #expect(await client.calls == 1)
     }
 
     @Test func escapedWrongLanguageProviderAnswerRetriesBeforeBecomingCached() async throws {
         let request = request()
-        let cache = try TranslationCache(configuration: .init(diskEnabled: false))
+        let cache = TranslationCache()
         let client = EscapedLanguageAuditClient(firstAnswer: escapedAnswer(), validAnswer: Self.translated)
         let service = TranslationService(client: client, cache: cache)
         let result = try await service.translate(request, configuration: Self.configuration)
-        #expect(result.singleText == Self.translated)
+        #expect(result.translations.first?.text == Self.translated)
         #expect(result.translations.map(\.id) == ["caller"])
         #expect(await client.calls == 2)
         let cached = try await service.translate(request, configuration: Self.configuration)
-        #expect(cached.singleText == Self.translated)
+        #expect(cached.translations.first?.text == Self.translated)
         #expect(cached.source == .memoryCache)
         #expect(await client.calls == 2)
     }

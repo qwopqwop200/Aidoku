@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end metrics for a V2 pipeline run (Scripts/image-translation.swift --pipeline v2).
+"""End-to-end metrics for a V2 pipeline run (Scripts/image-translation.swift).
 
 Reads RUN/pages/*.json (blocks with lines, placed, timings) and scores one split of
 the canonical grouped-source manifest against aidoku-unified-gt-20261116.json:

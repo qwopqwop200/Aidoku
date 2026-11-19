@@ -14,11 +14,7 @@ struct AppMiscAuditRegressionTests {
         #expect(response.expired)
     }
 
-    @Test func oauthResponseKeepsLocallySavedTimestampsAndToleratesStrings() throws {
-        let saved = OAuthResponse(accessToken: "a", expiresIn: 60, createdAt: Date(timeIntervalSinceNow: -10))
-        let restored = try JSONDecoder().decode(OAuthResponse.self, from: JSONEncoder().encode(saved))
-        #expect(restored.createdAt == saved.createdAt)
-        #expect(!restored.expired)
+    @Test func oauthResponseToleratesStringFields() throws {
         let before = Date()
         let text = #"{"access_token":"a","created_at":"2026-01-01T00:00:00Z","asked_for_refresh":"no"}"#
         let lenient = try JSONDecoder().decode(OAuthResponse.self, from: Data(text.utf8))

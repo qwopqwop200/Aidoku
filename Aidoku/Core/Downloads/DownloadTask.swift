@@ -27,7 +27,6 @@ actor DownloadTask: Identifiable {
 
     private let cache: DownloadCache
     private let network: SourceNetwork
-    private let transportLimiter: TranslationProviderRequestLimiter?
     private let bulkAdmission: BulkDownloadAdmission
     private let sourceLookup: @Sendable (String) async -> AidokuRunner.Source?
     private var downloads: [Download]
@@ -60,13 +59,11 @@ actor DownloadTask: Identifiable {
     }
 
     init(id: String, cache: DownloadCache, downloads: [Download], network: SourceNetwork = .shared,
-         transportLimiter: TranslationProviderRequestLimiter? = nil,
          bulkAdmission: BulkDownloadAdmission = .shared,
          sourceLookup: @escaping @Sendable (String) async -> AidokuRunner.Source? = { await SourceManager.shared.source(for: $0) },
          delegate: DownloadTaskDelegate? = nil) {
         self.id = id
         self.network = network
-        self.transportLimiter = transportLimiter
         self.bulkAdmission = bulkAdmission
         self.sourceLookup = sourceLookup
         self.cache = cache
@@ -498,12 +495,7 @@ extension DownloadTask {
         while !Task.isCancelled {
             // Release the shared transport slot before decoding, provider waits,
             // or retry backoff; queued cancellation never starts a request.
-            let result: (Payload, URLResponse)?
-            if let transportLimiter {
-                result = try? await transportLimiter.withPermit(priority: .prefetch, fetch)
-            } else {
-                result = try? await bulkAdmission.withPermit(fetch)
-            }
+            let result = try? await bulkAdmission.withPermit(fetch)
 
             // response was okay, bail out
             if let result, self.isSuccessResponse(result.1), !Task.isCancelled {

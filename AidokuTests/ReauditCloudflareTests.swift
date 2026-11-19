@@ -4,14 +4,6 @@ import Testing
 
 @MainActor
 struct ReauditCloudflareTests {
-    private func waitUntil(_ predicate: () -> Bool) async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while !predicate() {
-            guard ContinuousClock.now < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(1))
-        }
-    }
-
     @Test func queuedOldBrowserEffectsCannotMutateTheNextGeneration() async throws {
         let owner = CloudflareBrowserOwnership()
         let first = UUID()
@@ -25,7 +17,7 @@ struct ReauditCloudflareTests {
             await withCheckedContinuation { pending = $0 }
             return owner.perform(expectedID: first) { effects.append("stale-load") }
         }
-        try await waitUntil { pending != nil }
+        try await RegressionTestWait.until { pending != nil }
         #expect(owner.end(expectedID: first) { effects.append("first-cleanup") })
         #expect(owner.begin(second))
         pending?.resume()
@@ -48,7 +40,7 @@ struct ReauditCloudflareTests {
             await withCheckedContinuation { pending = $0 }
             return owner.perform(expectedID: id) { presentations += 1 }
         }
-        try await waitUntil { pending != nil }
+        try await RegressionTestWait.until { pending != nil }
         // A second check reaches presentation while the first awaits the handler actor.
         let second = Task {
             guard owner.reservePopup(expectedID: id) else { return false }

@@ -331,19 +331,7 @@ struct ReaderTranslationSettingsView: View {
     private func testConnection() {
         let testedSettings = settings
         publishPendingChange()
-        connectionTest.start(settings: testedSettings, apiKey: "") { result in
-            // Only apply results to the same persisted configuration and credential.
-            let saved = ReaderTranslationSettings()
-            guard testedSettings.configuration == saved.configuration,
-                  testedSettings.sourceLanguage == saved.sourceLanguage,
-                  testedSettings.targetLanguage == saved.targetLanguage else { return }
-            switch result {
-            case .success:
-                ReaderTranslationAPIValidator.shared.recordSuccess(settings: testedSettings)
-            case .failure(let error):
-                ReaderTranslationAPIValidator.shared.recordFailure(error, settings: testedSettings)
-            }
-        }
+        connectionTest.start(settings: testedSettings, apiKey: "")
     }
 
     private var notices: String {

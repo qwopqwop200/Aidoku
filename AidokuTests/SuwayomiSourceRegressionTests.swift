@@ -31,4 +31,10 @@ final class SuwayomiSourceRegressionTests: XCTestCase {
         let manga = try XCTUnwrap(node.intoManga(sourceKey: "test", baseUrl: URL(string: "https://example.invalid")!))
         XCTAssertEqual(manga.status, .hiatus)
     }
+
+    func testNonfiniteSuwayomiDatesAreRejected() {
+        XCTAssertNil(Date(suwayomiTimestamp: "nan"))
+        XCTAssertNil(Date(suwayomiTimestamp: "inf"))
+        XCTAssertEqual(Date(suwayomiTimestamp: "1000"), Date(timeIntervalSince1970: 1000))
+    }
 }

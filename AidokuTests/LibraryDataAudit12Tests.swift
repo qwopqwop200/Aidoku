@@ -7,40 +7,10 @@ import Testing
 /// Production-schema SQLite store for library/history data regressions.
 @Suite(.serialized) @MainActor
 struct LibraryDataAudit12Tests {
-    private final class Store {
-        let directory: URL
-        let coordinator: NSPersistentStoreCoordinator
-        let context: NSManagedObjectContext
-
-        init() throws {
-            directory = FileManager.default.temporaryDirectory.appendingPathComponent("audit12-library-" + UUID().uuidString)
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            coordinator = NSPersistentStoreCoordinator(managedObjectModel: CoreDataManager.shared.container.managedObjectModel)
-            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil,
-                at: directory.appendingPathComponent("fixture.sqlite"))
-            context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
-            context.persistentStoreCoordinator = coordinator
-        }
-
-        func close() {
-            context.reset()
-            for store in coordinator.persistentStores { try? coordinator.remove(store) }
-            try? FileManager.default.removeItem(at: directory)
-        }
-
-        func addHistory(_ id: ChapterIdentifier, completed: Bool) {
-            let history = HistoryObject(context: context)
-            history.sourceId = id.sourceKey
-            history.mangaId = id.mangaKey
-            history.chapterId = id.chapterKey
-            history.completed = completed
-        }
-    }
-
     /// A per-manga OR predicate exceeded SQLite's expression depth for libraries
     /// over roughly 500 entries, so "clear history excluding library" failed.
     @Test func clearHistoryExcludingLibraryHandlesLargeLibraries() throws {
-        let store = try Store()
+        let store = try TemporaryCoreDataStore()
         defer { store.close() }
         let context = store.context
         let manager = CoreDataManager.shared
@@ -68,7 +38,7 @@ struct LibraryDataAudit12Tests {
     /// that as "no scanlator matches", so the "not started" library-update skip
     /// option skipped every such series even after chapters were read.
     @Test func readCountTreatsEmptyScanlatorFilterAsUnfiltered() throws {
-        let store = try Store()
+        let store = try TemporaryCoreDataStore()
         defer { store.close() }
         let context = store.context
         let manager = CoreDataManager.shared
@@ -114,7 +84,7 @@ struct LibraryDataAudit12Tests {
     /// Backups converted every row from one materialized fetch. Batched conversion
     /// must keep all rows while faulting converted objects back out.
     @Test func backupBatchedConversionKeepsEveryRowAndFaultsObjects() throws {
-        let store = try Store()
+        let store = try TemporaryCoreDataStore()
         defer { store.close() }
         let context = store.context
         for index in 0..<2_503 {
@@ -135,5 +105,15 @@ struct LibraryDataAudit12Tests {
         let registered = context.registeredObjects.compactMap { $0 as? ChapterObject }
         let allFaults = registered.allSatisfy { $0.isFault }
         #expect(allFaults)
+    }
+}
+
+private extension TemporaryCoreDataStore {
+    func addHistory(_ id: ChapterIdentifier, completed: Bool) {
+        let history = HistoryObject(context: context)
+        history.sourceId = id.sourceKey
+        history.mangaId = id.mangaKey
+        history.chapterId = id.chapterKey
+        history.completed = completed
     }
 }

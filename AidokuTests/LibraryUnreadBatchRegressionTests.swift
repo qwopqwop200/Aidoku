@@ -9,7 +9,7 @@ import Testing
 struct LibraryUnreadBatchRegressionTests {
     @Test(arguments: [false, true])
     func groupedCountsMatchScalarAcrossFiltersAndPendingChanges(twoStores: Bool) throws {
-        let fixture = try R2UnreadStore(twoStores: twoStores)
+        let fixture = try TemporaryCoreDataStore(configurations: twoStores ? ["Cloud", "Local"] : [nil])
         defer { fixture.close() }
         let context = fixture.context
         var ids: [MangaIdentifier] = []
@@ -55,7 +55,7 @@ struct LibraryUnreadBatchRegressionTests {
     }
 
     @Test func productionTwoStoreConfigurationExecutesBoundedGroupedQueries() throws {
-        let fixture = try R2UnreadStore(twoStores: true)
+        let fixture = try TemporaryCoreDataStore(configurations: ["Cloud", "Local"])
         defer { fixture.close() }
         let ids = (0..<257).map { fixture.addManga(index: $0, language: nil, scanlators: nil) }
         for id in ids {
@@ -76,7 +76,6 @@ struct LibraryUnreadBatchRegressionTests {
         }
         #expect(pending == scalar(ids, context: fixture.context))
         #expect(grouped == 0 && scalarQueries == 257)
-        print("TWO_STORE_UNREAD persistedGrouped=3 persistedScalar=0 pendingGrouped=0 pendingScalar=257 manga=257")
     }
 
     private func scalar(_ ids: [MangaIdentifier], context: NSManagedObjectContext) -> [MangaIdentifier: Int] {
@@ -89,31 +88,7 @@ struct LibraryUnreadBatchRegressionTests {
     }
 }
 
-@MainActor private final class R2UnreadStore {
-    let directory: URL
-    let coordinator: NSPersistentStoreCoordinator
-    let context: NSManagedObjectContext
-    init(twoStores: Bool = false) throws {
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent("round2-unread-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        coordinator = NSPersistentStoreCoordinator(managedObjectModel: CoreDataManager.shared.container.managedObjectModel)
-        if twoStores {
-            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: "Cloud",
-                at: directory.appendingPathComponent("cloud.sqlite"))
-            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: "Local",
-                at: directory.appendingPathComponent("local.sqlite"))
-        } else {
-            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil,
-                at: directory.appendingPathComponent("fixture.sqlite"))
-        }
-        context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
-        context.persistentStoreCoordinator = coordinator
-    }
-    func close() {
-        context.reset()
-        for store in coordinator.persistentStores { try? coordinator.remove(store) }
-        try? FileManager.default.removeItem(at: directory)
-    }
+private extension TemporaryCoreDataStore {
     func addManga(index: Int, language: String?, scanlators: [String]?) -> MangaIdentifier {
         let id = MangaIdentifier(sourceKey: "round2-unread", mangaKey: "manga-\(index)")
         let manga = MangaObject(context: context)

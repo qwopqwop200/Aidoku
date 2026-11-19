@@ -18,16 +18,10 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
     var onMine: (([String: String], UUID) async -> Bool)?
     var onTextSelected: ((SelectionData) -> Int?)?
     var onTapOutside: (() -> Void)?
-    var onSwipeDismiss: (() -> Void)?
     var onRedirect: ((String) -> [[String: Any]])?
     var onKanjiRedirect: ((String) -> [String: Any]?)?
-    var scrollViewBounces = false
     var isScrollEnabled = true
     var onContentHeightChanged: ((CGFloat) -> Void)?
-    var onScrollViewOffsetChanged: ((CGFloat) -> Void)?
-    var onScrollViewWillBeginDragging: (() -> Void)?
-    var onScrollViewDidEndDragging: (() -> Void)?
-    var onScrollViewDidEndDecelerating: (() -> Void)?
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -39,7 +33,7 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
         scroll.backgroundColor = .clear
         scroll.showsHorizontalScrollIndicator = false
         scroll.keyboardDismissMode = .onDrag
-        scroll.delegate = context.coordinator
+        scroll.bounces = false
         let stack = context.coordinator.stack
         stack.axis = .vertical
         stack.spacing = 12
@@ -103,11 +97,9 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
             coordinator.navigate(1)
         }
         view.isScrollEnabled = isScrollEnabled
-        view.bounces = scrollViewBounces
     }
 
     static func dismantleUIView(_ view: UIScrollView, coordinator: Coordinator) {
-        view.delegate = nil
         (view as? NativeDictionaryScrollView)?.onHeightChanged = nil
         (view as? NativeDictionaryScrollView)?.onAppearanceChanged = nil
         coordinator.tasks.forEach { $0.cancel() }
@@ -115,7 +107,7 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, UIScrollViewDelegate, UITextViewDelegate, UIGestureRecognizerDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         var parent: NativeDictionaryPopupView
         let stack = UIStackView()
         weak var scroll: UIScrollView?
@@ -347,7 +339,6 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
             }
             scroll?.setContentOffset(.zero, animated: false)
             scroll?.layoutIfNeeded()
-
         }
 
         private func textView(_ value: NSAttributedString) -> UITextView {
@@ -358,12 +349,11 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
             storage.addLayoutManager(manager); manager.addTextContainer(container)
             let view = UITextView(frame: .zero, textContainer: container)
             let laidOut = NSMutableAttributedString(attributedString: value)
-            var rubyReserve: CGFloat = 0
+            var rubyFontSize: CGFloat = 0
             value.enumerateAttribute(.nativeDictionaryRuby, in: NSRange(location: 0, length: value.length)) { reading, range, _ in
-                if reading != nil {
-                    rubyReserve = max(rubyReserve, ((value.attribute(.font, at: range.location, effectiveRange: nil) as? UIFont)?.pointSize ?? 15) * 0.65)
-                }
+                if reading != nil { rubyFontSize = max(rubyFontSize, (value.attribute(.font, at: range.location, effectiveRange: nil) as? UIFont)?.pointSize ?? 15) }
             }
+            let rubyReserve = rubyFontSize * 0.65
             if rubyReserve > 0 {
                 value.enumerateAttribute(.paragraphStyle, in: NSRange(location: 0, length: value.length)) { style, range, _ in
                     let paragraph = (style as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
@@ -375,11 +365,7 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
             view.attributedText = laidOut; view.delegate = self
             view.isEditable = false; view.isSelectable = true; view.isScrollEnabled = false
             view.backgroundColor = .clear; view.textContainerInset = .zero; view.textContainer.lineFragmentPadding = 0
-            var rubyFontSize: CGFloat = 0
-            value.enumerateAttribute(.nativeDictionaryRuby, in: NSRange(location: 0, length: value.length)) { reading, range, _ in
-                if reading != nil { rubyFontSize = max(rubyFontSize, (value.attribute(.font, at: range.location, effectiveRange: nil) as? UIFont)?.pointSize ?? 15) }
-            }
-            if rubyFontSize > 0 { view.textContainerInset.top = rubyFontSize * 0.65 }
+            if rubyReserve > 0 { view.textContainerInset.top = rubyReserve }
             view.adjustsFontForContentSizeCategory = true
             let tap = UITapGestureRecognizer(target: self, action: #selector(tappedText(_:)))
             tap.cancelsTouchesInView = false
@@ -466,13 +452,6 @@ struct NativeDictionaryPopupView: UIViewRepresentable {
             }
             return false
         }
-
-        func scrollViewDidScroll(_ scrollView: UIScrollView) {
-            parent.onScrollViewOffsetChanged?(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
-        }
-        func scrollViewWillBeginDragging(_ scrollView: UIScrollView) { parent.onScrollViewWillBeginDragging?() }
-        func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) { parent.onScrollViewDidEndDragging?() }
-        func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) { parent.onScrollViewDidEndDecelerating?() }
     }
 }
 
@@ -502,19 +481,6 @@ enum NativeDictionaryContent {
             offset += length
         }
         return result
-    }
-
-    static func glossary(_ content: String, dictionary: String, scale: CGFloat, stylesheet: String = "",
-                         availableWidth: CGFloat = 260) -> NSAttributedString {
-        let output = NSMutableAttributedString(string: "")
-        for block in glossaryBlocks(content, dictionary: dictionary, scale: scale, stylesheet: stylesheet, availableWidth: availableWidth) {
-            switch block {
-            case .text(let text): output.append(text)
-            case .table(let table): output.append(table.plainText)
-            case .box(let box): output.append(box.plainText)
-            }
-        }
-        return output
     }
 
     static func glossaryBlocks(_ content: String, dictionary: String, scale: CGFloat, stylesheet: String = "",
@@ -668,7 +634,7 @@ enum NativeDictionaryContent {
 
     private static func appendHTML(_ node: SwiftSoup.Node, to output: NSMutableAttributedString,
                                    attributes: [NSAttributedString.Key: Any], dictionary: String, depth: Int, stylesheet: NativeDictionaryCSS,
-                                   availableWidth: CGFloat = 260) {
+                                   availableWidth: CGFloat) {
         guard depth < 64, output.length < 250_000 else { return }
         if let text = node as? TextNode { output.append(NSAttributedString(string: text.getWholeText(), attributes: attributes)); return }
         var styled = attributes

@@ -25,15 +25,6 @@ struct SourceInvocationTests {
                runner: EchoRunner(onRequest: onRequest))
     }
 
-    @Test func explicitChapterLanguagesKeepTheRunnersSharedBuffer() async throws {
-        let input = Manga(sourceKey: "", key: "m", title: "M", chapters: (0..<8192).map { Chapter(key: String($0), language: "en") })
-        let output = try await source().getMangaUpdate(manga: input, needsDetails: true, needsChapters: false)
-        let before = try #require(input.chapters)
-        let after = try #require(output.chapters)
-        #expect(before.withUnsafeBufferPointer { lhs in after.withUnsafeBufferPointer { lhs.baseAddress == $0.baseAddress } })
-        #expect(output.sourceKey == "test.invocation")
-    }
-
     @Test func fillingMissingLanguagesPreservesExplicitLanguagesAndInput() async throws {
         let input = Manga(sourceKey: "", key: "m", title: "M", chapters: [.init(key: "first"), .init(key: "second", language: "en")])
         let single = try await source().getMangaUpdate(manga: input, needsDetails: true, needsChapters: true)

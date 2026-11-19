@@ -1212,11 +1212,8 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
 
     var translationCurrentPageIndex: Int { max(0, currentPage - 1) }
 
-    func prepareCachedTranslationForDisplay(
-        image: UIImage, page: Page,
-        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
-    ) async throws -> ReaderTranslationPreparedImage? {
-        try await translationCoordinator.prepareCachedImage(image: image, page: page, geometry: geometry)
+    func prepareCachedTranslationForDisplay(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage? {
+        try await translationCoordinator.prepareCachedImage(image: image, page: page)
     }
 
     func translationVisibilityDidChange() {

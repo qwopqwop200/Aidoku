@@ -17,13 +17,11 @@ enum V2Layout {
     static let fontName = "AidokuSerifKR-Bold"
     /// Smallest size the fit search may choose before the box is allowed to grow.
     static let floorPixels: CGFloat = 10
-    /// Tunables (defaults selected on dev; see the out-of-repo research scripts (scripts-layout)).
-    struct Options: Sendable {
-        /// Upper bound of the fit search relative to the measured source lettering size.
-        var capRatio: CGFloat = 1.2
-        /// Margin added around block bounds, relative to source px (clamped 4...24 px).
-        var marginRatio: CGFloat = 0.2
-    }
+    // Tunables (selected on dev; see the out-of-repo research scripts (scripts-layout)).
+    /// Upper bound of the fit search relative to the measured source lettering size.
+    static let capRatio: CGFloat = 1.2
+    /// Margin added around block bounds, relative to source px (clamped 4...24 px).
+    static let marginRatio: CGFloat = 0.2
     /// Line advance in em; matches the legacy renderer's Korean line height (1.18 em).
     static let lineHeightEm: CGFloat = 1.18
     /// Vertical cell advance per character, in em.
@@ -31,48 +29,27 @@ enum V2Layout {
     /// Fraction of the box width used for wrapping, leaving room for kerning drift.
     static let widthSlack: CGFloat = 0.97
 
-    struct Diagnostic: Sendable, Equatable {
-        var blockID: Int
-        /// Box the text was fitted into (after any growth).
-        var box: CGRect
-        /// Box before growth (balloon interior or margin-expanded bounds).
-        var targetBox: CGRect
-        var usedBalloon: Bool
-        var grew: Bool
-        var overflowed: Bool
-        var shrunkForOverlap: Bool
-        var overlapsPlaced: Bool
-        var sourcePixels: CGFloat
-    }
-
     // MARK: - Contract
 
     static func place(_ blocks: [V2Block], pageSize: CGSize) -> [V2PlacedText] {
-        placeWithDiagnostics(blocks, pageSize: pageSize).placed
-    }
-
-    static func placeWithDiagnostics(_ blocks: [V2Block], pageSize: CGSize, options: Options = Options())
-        -> (placed: [V2PlacedText], diagnostics: [Diagnostic]) {
         let page = CGRect(origin: .zero, size: pageSize)
-        guard page.width >= 1, page.height >= 1 else { return ([], []) }
+        guard page.width >= 1, page.height >= 1 else { return [] }
         let paintable = blocks.filter(isPaintable).sorted {
             ($0.readingOrder, $0.id) < ($1.readingOrder, $1.id)
         }
         let sourceBounds = paintable.map { $0.bounds.intersection(page) }
         var placed: [V2PlacedText] = []
-        var diagnostics: [Diagnostic] = []
         var frames: [CGRect] = []
         for (index, block) in paintable.enumerated() {
             var obstacles = frames
             for (other, rect) in sourceBounds.enumerated() where other != index && !rect.isNull {
                 obstacles.append(rect)
             }
-            let result = placeBlock(block, page: page, obstacles: obstacles, placedFrames: frames, options: options)
-            placed.append(result.0)
-            diagnostics.append(result.1)
-            frames.append(result.0.frame)
+            let result = placeBlock(block, page: page, obstacles: obstacles, placedFrames: frames)
+            placed.append(result)
+            frames.append(result.frame)
         }
-        return (placed, diagnostics)
+        return placed
     }
 
     static func isPaintable(_ block: V2Block) -> Bool {
@@ -347,34 +324,30 @@ enum V2Layout {
         return max(floorPixels, min(block.bounds.width, block.bounds.height) / 3)
     }
 
-    static func targetBox(_ block: V2Block, page: CGRect, source: CGFloat, marginRatio: CGFloat,
-                          obstacles: [CGRect]) -> (CGRect, Bool) {
+    static func targetBox(_ block: V2Block, page: CGRect, source: CGFloat, obstacles: [CGRect]) -> CGRect {
         let bounds = block.bounds.intersection(page)
         if let balloon = block.balloon?.intersection(page), !balloon.isNull,
            balloon.width >= 8, balloon.height >= 8 {
             // Interior is already inside the outline; keep a 4% breathing inset.
             let inset = min(balloon.width, balloon.height) * 0.04
-            return (balloon.insetBy(dx: inset, dy: inset), true)
+            return balloon.insetBy(dx: inset, dy: inset)
         }
         let base = bounds.isNull ? CGRect(x: page.midX, y: page.midY, width: 1, height: 1) : bounds
         let margin = min(24, max(4, source * marginRatio))
         let expanded = base.insetBy(dx: -margin, dy: -margin).intersection(page)
-        return (clipExpansion(original: base, expanded: expanded, obstacles: obstacles), false)
+        return clipExpansion(original: base, expanded: expanded, obstacles: obstacles)
     }
 
     // MARK: - Per block
 
     private static func placeBlock(_ block: V2Block, page: CGRect, obstacles: [CGRect],
-                                   placedFrames: [CGRect], options: Options) -> (V2PlacedText, Diagnostic) {
+                                   placedFrames: [CGRect]) -> V2PlacedText {
         // Bounds text from every path (live, replay, saved block caches) before shaping.
         let text = MeasuredText(V2TranslationLengthCap.capped(block.translation ?? "", sourceText: block.sourceText),
                                 font: font(size: referenceSize))
         let source = sourcePixels(block)
-        let (target, usedBalloon) = targetBox(block, page: page, source: source,
-                                                 marginRatio: options.marginRatio, obstacles: obstacles)
-        let cap = max(floorPixels, source * options.capRatio)
-        var diagnostic = Diagnostic(blockID: block.id, box: target, targetBox: target, usedBalloon: usedBalloon,
-            grew: false, overflowed: false, shrunkForOverlap: false, overlapsPlaced: false, sourcePixels: source)
+        let target = targetBox(block, page: page, source: source, obstacles: obstacles)
+        let cap = max(floorPixels, source * capRatio)
 
         func strokeInset(_ size: CGFloat) -> CGFloat { strokeWidth(for: block, fontPixels: size) }
         func fit(in box: CGRect) -> Fit? {
@@ -410,7 +383,7 @@ enum V2Layout {
                 let dy = start.height * 0.1 * CGFloat(step)
                 let expanded = start.insetBy(dx: -dx, dy: -dy).intersection(page)
                 box = clipExpansion(original: anchor, expanded: expanded, obstacles: obstacles).union(start)
-                if let found = fit(in: box) { chosen = found; diagnostic.grew = true; break }
+                if let found = fit(in: box) { chosen = found; break }
             }
         }
         let fitted: Fit
@@ -418,7 +391,6 @@ enum V2Layout {
             fitted = chosen
         } else {
             // Floor size, allowed to overflow the grown box vertically.
-            diagnostic.overflowed = true
             let inset = strokeInset(floorPixels)
             var size = floorPixels
             var candidate = horizontalFit(text, size: size, width: max(1, box.width - 2 * inset))
@@ -432,7 +404,6 @@ enum V2Layout {
             }
             fitted = candidate
         }
-        diagnostic.box = box
 
         var current = fitted
         var frame = frameFor(current, in: box, stroke: strokeInset(current.size), page: page)
@@ -445,7 +416,6 @@ enum V2Layout {
                     guard size < current.size else { break }
                     current = current.vertical ? verticalFit(text, size: size, height: box.height)
                         : horizontalFit(text, size: size, width: box.width - 2 * strokeInset(size))
-                    diagnostic.shrunkForOverlap = true
                 }
                 let stroke = strokeInset(current.size)
                 if let free = alignedFrames(current, in: box, stroke: stroke, page: page)
@@ -458,13 +428,10 @@ enum V2Layout {
             if !resolved {
                 current = fitted
                 frame = frameFor(current, in: box, stroke: strokeInset(current.size), page: page)
-                diagnostic.shrunkForOverlap = false
-                diagnostic.overlapsPlaced = true
             }
         }
-        let placed = V2PlacedText(blockID: block.id, frame: frame, fontPixels: current.size,
-                                  vertical: current.vertical, lines: current.lines)
-        return (placed, diagnostic)
+        return V2PlacedText(blockID: block.id, frame: frame, fontPixels: current.size,
+                            vertical: current.vertical, lines: current.lines)
     }
 
     /// Largest axis-aligned remainder of `box` after removing each intersecting frame

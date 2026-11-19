@@ -183,7 +183,11 @@ extension MangaUpdatesView {
                     to: Date.endOfDay()
                 ).day ?? 0
 
-                updatesDict[day, default: [:]][obj.key, default: []].append(info)
+                var updatesOfTheDay = updatesDict[day] ?? [:]
+                var newValue = updatesOfTheDay[obj.key] ?? []
+                newValue.append(info)
+                updatesOfTheDay[obj.key] = newValue
+                updatesDict[day] = updatesOfTheDay
             }
         }
         let newEntries: [UpdateSection] = updatesDict

@@ -206,8 +206,10 @@ struct LocalDeletionSaveFailureTests {
         let original = Data("archive fixture remains unchanged".utf8)
         try original.write(to: archive)
         let writer = LocalFileDataManager()
-        await writer.createManga(url: folder, id: id, title: id)
-        await writer.createChapter(mangaId: id, url: archive, id: "1", chapter: 1)
+        try await writer.commitImport(
+            folder: folder, mangaId: id, mangaTitle: id, cover: nil, description: nil,
+            archive: archive, chapterId: "1", chapterTitle: nil, volume: nil, chapter: 1, comicInfo: nil
+        )
         let failing = LocalFileDataManager(saveDeletion: { _ in throw InjectedFailure.save })
         let path: String?
         if removeWholeManga {

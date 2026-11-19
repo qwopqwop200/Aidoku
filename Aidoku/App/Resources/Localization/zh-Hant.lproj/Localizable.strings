@@ -743,16 +743,6 @@
 
 "TRANSLATION_TITLE" = "OCR 與翻譯";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "取代已儲存的 API 金鑰（可選）";
 
 "TRANSLATION_KEY" = "API 金鑰";
@@ -769,11 +759,7 @@
 
 "TRANSLATION_TARGET" = "翻譯為";
 
-
 "TRANSLATION_AUTO" = "自動偵測";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "清除翻譯快取";
 
@@ -788,22 +774,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "模型預設值";
 
 "TRANSLATION_CONCURRENCY" = "同時請求數";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "翻譯服務商";
 
@@ -861,8 +831,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "無法透過 HTTPS 封鎖繞過功能連線。";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "翻譯失敗，正在顯示 OCR 辨識的原文。請檢查設定與連線。";
-
 "TRANSLATION_MANGA_TITLES" = "翻譯漫畫標題";
 
 "TRANSLATION_CHAPTER_TITLES" = "翻譯章節標題";
@@ -875,32 +843,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "頁面原文語言";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "翻譯漫畫簡介";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "漫畫簡介原文語言";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "自動偵測原文語言，只翻譯選取的語言。選擇「所有偵測到的語言」可取消語言限制。每一項的語言篩選均獨立於頁面與其他項目的語言設定。";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "將頁面圖片與 OCR 文字一起傳送，為翻譯提供場景脈絡。如果不支援圖片輸入，將自動僅使用文字繼續翻譯。附加圖片可能增加流量與 API 費用。";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "不支援圖片輸入，將不附加圖片繼續翻譯。";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "自訂（相容 OpenAI）";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "無";
 
@@ -1031,9 +980,7 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "無法顯示設定：%@";
 
-
 "DOWNLOAD_TRANSLATED" = "下載並翻譯";
-
 
 "TRANSLATION_STATE_ON" = "開啟";
 
@@ -1064,13 +1011,10 @@
 "OCR_ERROR_IMAGE" = "無法準備用於文字辨識的圖片。";
 "OCR_ERROR_OUTPUT" = "PP-OCRv6 模型傳回了無效或不支援的輸出。";
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 文字辨識失敗。請使用其他圖片或 OCR 模型重試。";
-"TRANSLATION_ERROR_CACHE_SIZE" = "翻譯快取大小超出了支援的範圍。";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "翻譯快取儲存空間無效或無法使用。";
 "TRANSLATION_ERROR_CACHE_SAVE" = "無法儲存翻譯快取。";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud 同步的變更將在完全關閉並重新開啟 Aidoku 後生效。在此之前，目前的同步設定仍然有效。";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1114,7 +1058,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "此應用程式不支援來源 %@ 的版本 %d。請安裝支援的版本。";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 可辨識日文、中文（簡體、繁體）、英文及其他拉丁字母語言的原文，但無法辨識韓文、西里爾字母與越南文。自動偵測原文語言與手動選擇原文語言的範圍也僅限於這些語言。仍可翻譯成任意目標語言。選擇 Manga 後，偵測閾值會設為 0.85 與 0.25；預設偵測尺寸為 1120px。";
 

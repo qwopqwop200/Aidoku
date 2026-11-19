@@ -210,7 +210,8 @@ extension MangaView.ViewModel {
                     for chapterId in chapters where chapterId.mangaIdentifier == self.manga.identifier {
                         self.readingHistory[chapterId.chapterKey] = (page: -1, date: date)
                     }
-                    self.checkForAllReadMarkOpened(self.updateReadButton())
+                    self.updateReadButton()
+                    self.checkForAllReadMarkOpened()
                 }
             }
             .store(in: &cancellables)
@@ -248,7 +249,8 @@ extension MangaView.ViewModel {
                         page: item.page,
                         date: Int(Date().timeIntervalSince1970)
                     )
-                    self.checkForAllReadMarkOpened(self.updateReadButton())
+                    self.updateReadButton()
+                    self.checkForAllReadMarkOpened()
                 }
             }
             .store(in: &cancellables)
@@ -360,8 +362,9 @@ extension MangaView.ViewModel {
         }
     }
 
-    private func checkForAllReadMarkOpened(_ result: ChapterResult) {
-        if !markedOpened, result == .allRead {
+    private func checkForAllReadMarkOpened() {
+        guard !markedOpened else { return }
+        if getNextChapter() == .allRead {
             markedOpened = true
             Task {
                 await CoreDataManager.shared.setOpened(mangaId: manga.identifier)
@@ -848,8 +851,11 @@ extension MangaView.ViewModel {
         }
     }
 
-    private func sortedChapters(_ chapters: [AidokuRunner.Chapter]) -> [AidokuRunner.Chapter] {
-        switch chapterSortOption {
+    private func sortedChapters() -> [AidokuRunner.Chapter] {
+        guard let chapters = manga.chapters, !chapters.isEmpty else {
+            return []
+        }
+        return switch chapterSortOption {
             case .sourceOrder:
                 chapterSortAscending ? chapters.reversed() : chapters
             case .chapter:
@@ -868,7 +874,7 @@ extension MangaView.ViewModel {
     }
 
     private func filteredChapters() -> [AidokuRunner.Chapter] {
-        guard var chapters = manga.chapters, !chapters.isEmpty else { return [] }
+        var chapters = sortedChapters()
 
         // filter by language and scanlators
         if chapterLangFilter != nil || !chapterScanlatorFilter.isEmpty {
@@ -912,7 +918,7 @@ extension MangaView.ViewModel {
             }
         }
 
-        return sortedChapters(chapters)
+        return chapters
     }
 
     enum ChapterResult: Equatable {
@@ -941,8 +947,7 @@ extension MangaView.ViewModel {
         return .allRead
     }
 
-    @discardableResult
-    private func updateReadButton() -> ChapterResult {
+    private func updateReadButton() {
         let nextChapter = getNextChapter()
         switch nextChapter {
             case .none:
@@ -961,7 +966,6 @@ extension MangaView.ViewModel {
                 readingInProgress = readingHistory[nextChapter.id]?.date ?? 0 > 0
                 self.nextChapter = nextChapter
         }
-        return nextChapter
     }
 
     private func generateChapterFlags() -> Int {

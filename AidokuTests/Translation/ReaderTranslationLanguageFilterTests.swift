@@ -37,13 +37,12 @@ struct ReaderTranslationLanguageFilterTests {
         let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: source)
         let configuration = fixture.settings.configuration
         let canonical = request.canonicalizedForTranslationSemantics().request
-        let cache = try TranslationCache(configuration: .init(diskEnabled: false))
+        let cache = TranslationCache()
         let key = TranslationCacheKey(configuration: configuration, endpoint: try configuration.validatedEndpoint(), request: canonical)
         await cache.insert(canonical.segments.map { .init(id: $0.id, text: "「" + $0.text + "」") }, for: key)
         let client = WrongLanguageThenKoreanClient()
         let service = TranslationService(client: client, cache: cache)
         #expect(try await service.cachedResult(request, configuration: configuration) == nil)
-        #expect(try await service.cachedTranslation(request, configuration: configuration) == nil)
         let result = try await service.translate(request, configuration: configuration)
         #expect(result.translations.first?.text == "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다")
         #expect(await client.calls == 2)
@@ -141,16 +140,12 @@ struct ReaderTranslationLanguageFilterTests {
         }
     }
 
-    @Test func languageFilterDoesNotReprobeProviderOrFilterConnectionTestText() async throws {
+    @Test func languageFilterDoesNotFilterConnectionTestText() async throws {
         let fixture = LanguageFilterFixture()
         var settings = fixture.settings
         settings.translationSourceLanguages = ["ja"]
         let client = LanguageFilterClient()
-        let validator = ReaderTranslationAPIValidator(client: client, onFailure: { _ in Issue.record("Probe unexpectedly failed") })
-        try await validator.validateForActivation(settings)
-        settings.translationSourceLanguages = ["fr"]
-        validator.refresh(settings)
-        try await validator.validateForActivation(settings)
+        _ = try await ReaderTranslationConnectionTest.probe(settings, client: client)
         #expect(await client.requests.count == 1)
         #expect(await client.requests.first?.segments.first?.text == "Hello, world!")
     }
@@ -189,5 +184,14 @@ private actor WrongLanguageThenKoreanClient: RemoteTranslating {
         return .init(translations: request.segments.map {
             .init(id: $0.id, text: calls == 1 ? "「" + $0.text + "」" : "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다")
         }, source: .network, providerRequestID: nil)
+    }
+}
+
+extension ReaderTranslationSettings {
+    /// Whether two settings values produce the same translations (saved-settings round trips).
+    func hasSameTranslation(as other: Self) -> Bool {
+        includePageImage == other.includePageImage && readingDirection == other.readingDirection && configuration == other.configuration &&
+            sourceLanguage == other.sourceLanguage && targetLanguage == other.targetLanguage &&
+            ReaderTranslationLanguageFilter.identity(settings: self) == ReaderTranslationLanguageFilter.identity(settings: other)
     }
 }

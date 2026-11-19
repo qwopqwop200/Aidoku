@@ -2,34 +2,6 @@ import UIKit
 import CoreGraphics
 import Foundation
 
-enum ReaderTranslationGeometry {
-    // UIView derives bounds from frame/center arithmetic. Fractional webtoon
-    // heights can differ by a few ULPs without any actual viewport change.
-    static func sameViewport(_ lhs: CGSize, _ rhs: CGSize) -> Bool {
-        abs(lhs.width - rhs.width) < 0.000_001 && abs(lhs.height - rhs.height) < 0.000_001
-    }
-
-    static func displayRect(_ rect: CGRect, imageSize: CGSize, bounds: CGRect, aspectFit: Bool) -> CGRect {
-        guard imageSize.width > 0, imageSize.height > 0 else { return .zero }
-        var canvas = bounds
-        if aspectFit {
-            let scale = min(bounds.width / imageSize.width, bounds.height / imageSize.height)
-            canvas = CGRect(
-                x: bounds.midX - imageSize.width * scale / 2,
-                y: bounds.midY - imageSize.height * scale / 2,
-                width: imageSize.width * scale,
-                height: imageSize.height * scale
-            )
-        }
-        return CGRect(
-            x: canvas.minX + rect.minX * canvas.width,
-            y: canvas.minY + rect.minY * canvas.height,
-            width: rect.width * canvas.width,
-            height: rect.height * canvas.height
-        )
-    }
-}
-
 actor ReaderTranslationService {
     static let shared = ReaderTranslationService(warmsOCROnReaderOpen: true)
     private let client: RemoteTranslating
@@ -160,7 +132,7 @@ actor ReaderTranslationService {
     private func translationService() throws -> TranslationService {
         if let service { return service }
         // Request-level batch reuse stays in memory; the reader's durable cache stores completed pages separately.
-        let cache = try TranslationCache(configuration: .init(diskEnabled: false, maxSizeMiB: 10))
+        let cache = TranslationCache()
         let service = TranslationService(
             client: client, cache: cache,
             providerRequestLimiter: limiter
@@ -169,27 +141,18 @@ actor ReaderTranslationService {
         return service
     }
 
-    private static func mandatoryPageSettings(_ settings: ReaderTranslationSettings) -> ReaderTranslationSettings {
-        var result = settings
-        result.includePageImage = true
-        result.filterSFXWithLLM = true
-        result.filterBackgroundWithLLM = true
-        return result
-    }
-
     func clearCache() async throws {
         try await service?.purgeCache()
     }
 
     /// V2 S5: one page request through the live provider client, sharing the
-    /// reader's provider concurrency limit and mandatory page settings.
+    /// reader's provider concurrency limit. Page requests always attach the page image.
     @available(iOS 18.0, *)
     func translateV2(
         _ blocks: [V2Block], pageSize: CGSize, settings: ReaderTranslationSettings, imageJPEG: Data?,
         priority: TranslationRequestPriority = .foreground
     ) async throws -> [V2Block] {
         try Task.checkCancellation()
-        let settings = Self.mandatoryPageSettings(settings)
         let configuration = settings.configuration
         _ = try configuration.validatedEndpoint()
         let concurrency = V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
@@ -199,7 +162,7 @@ actor ReaderTranslationService {
             try await V2Translation.translate(
                 blocks, pageSize: pageSize, client: client, configuration: configuration,
                 sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,
-                imageJPEG: settings.includePageImage ? imageJPEG : nil)
+                imageJPEG: imageJPEG)
         }
     }
 }

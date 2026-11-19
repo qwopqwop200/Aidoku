@@ -14,7 +14,7 @@ jobs:
           xcodebuild -downloadPlatform iOS
       - name: Get commit SHA
         id: commitinfo
-        run: echo "sha_short=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
       - name: Build
         run: xcodebuild -scheme "Aidoku" -configuration Release archive -archivePath build/Aidoku.xcarchive -derivedDataPath build/device-fast -skipPackagePluginValidation SWIFT_COMPILATION_MODE=singlefile SWIFT_OPTIMIZATION_LEVEL=-O ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY= CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
       - name: Package ipa

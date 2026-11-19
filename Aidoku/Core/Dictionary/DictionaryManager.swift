@@ -35,12 +35,6 @@ class DictionaryManager {
     //    private(set) var collapsedDictionaries: Set<String> = []
     private(set) var isImporting = false
     private(set) var isUpdating = false
-    private var cancelOperation: (@Sendable () -> Void)?
-    private var operationID: UUID?
-
-    /// Explicit cancellation preserves completed imports; an active native import
-    /// drains before cancellation is observed at the next safe stage boundary.
-    func cancelCurrentOperation() { cancelOperation?() }
     var shouldShowError = false
     var errorMessage = ""
     var currentImport = ""
@@ -273,8 +267,6 @@ class DictionaryManager {
               let dictionariesDir = try? Self.getDictionariesDirectory() else { return }
 
         isImporting = true
-        let operationID = UUID()
-        self.operationID = operationID
 
         let worker = Task.detached {
             var imported: [String] = []
@@ -346,10 +338,6 @@ class DictionaryManager {
                 }
             }
         }
-        cancelOperation = { worker.cancel() }
-        defer {
-            if self.operationID == operationID { cancelOperation = nil; self.operationID = nil }
-        }
         await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
     }
 
@@ -357,9 +345,7 @@ class DictionaryManager {
         guard !isImporting, !isUpdating else { return }
         let dictionaries = updatableDictionaries
         isUpdating = true
-        let operationID = UUID()
-        self.operationID = operationID
-        let worker = Task.detached {
+        Task.detached {
             var failures: [String] = []
             for (dictionary, type) in dictionaries {
                 guard !Task.isCancelled else { break }
@@ -415,7 +401,6 @@ class DictionaryManager {
 
             await MainActor.run { [failures] in
                 self.isUpdating = false
-                if self.operationID == operationID { self.cancelOperation = nil; self.operationID = nil }
                 guard !Task.isCancelled else { return }
                 if failures.count < dictionaries.count {
                     AppSettings.dictionary.lastUpdate.set(Date.now)
@@ -425,14 +410,11 @@ class DictionaryManager {
                 }
             }
         }
-        cancelOperation = { worker.cancel() }
     }
 
     func downloadDictionary(indexUrl: String, type: DictionaryType, session: URLSession = .shared) async -> Bool {
         guard !isImporting, !isUpdating else { return false }
         isImporting = true
-        let operationID = UUID()
-        self.operationID = operationID
 
         let worker = Task.detached {
             var failure: String?
@@ -460,10 +442,6 @@ class DictionaryManager {
             }
 
             return failure == nil && !Task.isCancelled
-        }
-        cancelOperation = { worker.cancel() }
-        defer {
-            if self.operationID == operationID { cancelOperation = nil; self.operationID = nil }
         }
         return await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
     }

@@ -7,14 +7,6 @@ import UIKit
 @Suite(.serialized)
 @MainActor
 struct AppLifecycleSchedulingTests {
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(3)
-        while !condition() {
-            try #require(ContinuousClock.now < deadline, "Timed out waiting for lifecycle state")
-            try await Task.sleep(for: .milliseconds(1))
-        }
-    }
-
     @Test func supersededSourceCallbackCannotPublishAfterLatestChange() async throws {
         let scheduler = SettingChangeScheduler()
         var oldCallback: CheckedContinuation<Void, Never>?
@@ -22,10 +14,10 @@ struct AppLifecycleSchedulingTests {
         scheduler.schedule(delayNanoseconds: 0, operation: {
             await withCheckedContinuation { oldCallback = $0 }
         }, commit: { commits.append("obsolete") })
-        try await waitUntil { oldCallback != nil }
+        try await RegressionTestWait.until { oldCallback != nil }
         let callback = try #require(oldCallback)
         scheduler.schedule(delayNanoseconds: 0, operation: {}, commit: { commits.append("latest") })
-        try await waitUntil { !commits.isEmpty }
+        try await RegressionTestWait.until { !commits.isEmpty }
         #expect(commits == ["latest"])
         callback.resume()
         for _ in 0..<20 { await Task.yield() }
@@ -43,7 +35,7 @@ struct AppLifecycleSchedulingTests {
             }, commit: {})
             scheduledSecond = true
         })
-        try await waitUntil { scheduledSecond }
+        try await RegressionTestWait.until { scheduledSecond }
         #expect(scheduledSecond)
         scheduler.schedule(delayNanoseconds: 0, operation: {}, commit: { latestCommitted = true })
         try await Task.sleep(nanoseconds: 200_000_000)
@@ -61,7 +53,7 @@ struct AppLifecycleSchedulingTests {
         controller.clearLog()
         await controller.clearTask?.value
         await store.addEntry(level: .info, message: "after-clear")
-        try await waitUntil { text.text == "[INFO] after-clear\n" }
+        try await RegressionTestWait.until { text.text == "[INFO] after-clear\n" }
         #expect(text.text == "[INFO] after-clear\n")
         controller.viewDidDisappear(false)
         controller.clearLog()
@@ -118,7 +110,7 @@ struct AppLifecycleSchedulingTests {
         for index in 0...LogStore.maximumEntries {
             controller.enqueue(entry: .init(date: Date(), type: .default, message: "\(index)"))
         }
-        try await waitUntil { !text.text.isEmpty }
+        try await RegressionTestWait.until { !text.text.isEmpty }
         #expect(text.text.split(separator: "\n").count == 9_001)
         #expect(text.text.hasPrefix("1000\n"))
         controller.enqueue(entry: .init(date: Date(), type: .error, message: "must-disappear"))
@@ -166,7 +158,7 @@ struct AppLifecycleSchedulingTests {
         let observer = UserDefaultsBool(key: "enabled", defaultValue: true, defaults: defaults, notificationCenter: center)
         defaults.removeObject(forKey: "enabled")
         center.post(name: UserDefaults.didChangeNotification, object: defaults)
-        try await waitUntil { observer.value }
+        try await RegressionTestWait.until { observer.value }
         #expect(observer.value)
         #expect(defaults.object(forKey: "enabled") == nil)
         observer.value = false

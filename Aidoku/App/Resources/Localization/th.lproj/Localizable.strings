@@ -650,16 +650,6 @@
 
 "TRANSLATION_TITLE" = "OCR และการแปล";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "แทนที่คีย์ API ที่บันทึกไว้ (ไม่บังคับ)";
 
 "TRANSLATION_KEY" = "คีย์ API";
@@ -676,11 +666,7 @@
 
 "TRANSLATION_TARGET" = "แปลเป็น";
 
-
 "TRANSLATION_AUTO" = "ตรวจจับโดยอัตโนมัติ";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "ล้างแคชการแปล";
 
@@ -695,22 +681,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "ค่าเริ่มต้นของโมเดล";
 
 "TRANSLATION_CONCURRENCY" = "จำนวนคำขอพร้อมกัน";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "ผู้ให้บริการแปล";
 
@@ -768,8 +738,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "ไม่สามารถเชื่อมต่อผ่านการหลีกเลี่ยงการปิดกั้น HTTPS ได้";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "การแปลล้มเหลว กำลังแสดงข้อความที่อ่านได้ด้วย OCR โปรดตรวจสอบการตั้งค่าและการเชื่อมต่อ";
-
 "TRANSLATION_MANGA_TITLES" = "แปลชื่อเรื่องมังงะ";
 
 "TRANSLATION_CHAPTER_TITLES" = "แปลชื่อตอน";
@@ -782,32 +750,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "ภาษาต้นฉบับของหน้า";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "แปลคำอธิบายมังงะ";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "ภาษาของคำอธิบายมังงะ";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "ตรวจจับภาษาต้นฉบับโดยอัตโนมัติและแปลเฉพาะภาษาที่เลือก เลือก «ภาษาที่ตรวจพบทั้งหมด» เพื่อยกเลิกข้อจำกัดด้านภาษา ตัวกรองภาษาของแต่ละรายการทำงานแยกจากการตั้งค่าภาษาของหน้าและรายการอื่นๆ";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "ส่งรูปภาพหน้าพร้อมข้อความ OCR เพื่อให้ข้อมูลบริบทของฉาก หากไม่รองรับรูปภาพ ระบบจะแปลต่อโดยอัตโนมัติโดยใช้เฉพาะข้อความ การแนบรูปภาพอาจเพิ่มการใช้ข้อมูลและค่าใช้จ่าย API";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "ไม่รองรับการป้อนรูปภาพ จะดำเนินการแปลต่อโดยไม่แนบรูปภาพ";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "กำหนดเอง (เข้ากันได้กับ OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "ไม่มี";
 
@@ -1033,18 +982,11 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "ไม่สามารถแสดงการตั้งค่าได้: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "ดาวน์โหลดพร้อมคำแปล";
-
 
 "TRANSLATION_STATE_ON" = "เปิด";
 
 "TRANSLATION_STATE_OFF" = "ปิด";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "การตั้งค่าการแปลไม่ถูกต้อง ตรวจสอบ URL เซิร์ฟเวอร์ โมเดล และการตั้งค่าอื่นๆ";
 
@@ -1094,15 +1036,12 @@
 
 "OCR_ERROR_PREDICTION" = "การรู้จำข้อความด้วย PP-OCRv6 ล้มเหลว ลองอีกครั้งด้วยรูปภาพหรือโมเดล OCR อื่น";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "ขนาดแคชการแปลอยู่นอกช่วงที่รองรับ";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "ที่เก็บแคชการแปลไม่ถูกต้องหรือไม่พร้อมใช้งาน";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "ไม่สามารถบันทึกแคชการแปลได้";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "การเปลี่ยนแปลงการซิงค์ iCloud จะมีผลเมื่อปิด Aidoku อย่างสมบูรณ์แล้วเปิดใหม่ ก่อนหน้านั้นจะยังใช้การตั้งค่าซิงค์ปัจจุบัน";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1146,7 +1085,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "แอปนี้ไม่รองรับแหล่งข้อมูล %@ เวอร์ชัน %d โปรดติดตั้งเวอร์ชันที่รองรับ";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 อ่านข้อความต้นฉบับภาษาญี่ปุ่น ภาษาจีน (ตัวย่อและตัวเต็ม) ภาษาอังกฤษ และภาษาอื่นที่ใช้อักษรละตินได้ แต่อ่านภาษาเกาหลี อักษรซีริลลิก และภาษาเวียดนามไม่ได้ การระบุภาษาต้นฉบับโดยอัตโนมัติและตัวเลือกภาษาต้นฉบับก็จำกัดอยู่ที่ภาษาเหล่านี้ แต่ยังสามารถแปลเป็นภาษาปลายทางใดก็ได้ เมื่อเลือก Manga ค่าเกณฑ์การตรวจจับจะเป็น 0.85 และ 0.25 โดยขนาดการตรวจจับเริ่มต้นคือ 1120 px";
 

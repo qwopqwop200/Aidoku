@@ -102,7 +102,6 @@ struct SettingStepper: UIViewRepresentable {
         control.stepValue = step
         control.value = value.isFinite ? value : bounds.lowerBound
         control.isEnabled = isEnabled
-
     }
 
     @available(iOS 16.0, *)

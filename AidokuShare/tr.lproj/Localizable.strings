@@ -1,6 +1,5 @@
 "IMPORT" = "İçe aktarılıyor…";
 "DONE" = "Bitti";
-"FILE_IMPORT_FAIL_TEXT" = "Dosya içe aktarılamadı. Lütfen okunabilir bir görüntü dosyası veya görüntü içeren geçerli bir CBZ ya da ZIP arşivi olduğundan emin olun.";
 "FORMAT_IMAGE" = "Görsel";
 "SHARED_IMAGES_SAVED" = "Kaydedildi. Okumak için Aidoku’yu açın.";
 

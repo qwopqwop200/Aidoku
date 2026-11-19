@@ -11,21 +11,13 @@ struct MangaOCRDefaultsTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let settings = ReaderTranslationSettings(defaults: defaults)
         #expect(settings.modelTier == .manga)
-        #expect(settings.ocr == ReaderOCRConfiguration(modelTier: .manga))
-        #expect(settings.ocr.detectorMaximumSide == 1_120)
-        #expect(settings.ocr.recognizerMaximumWidth == 2_400)
-        #expect(settings.ocr.confidenceThreshold == 0.30)
-        #expect(settings.ocr.detectorPostprocessConfiguration == .manga)
         #expect(settings.sourceLanguage == "auto")
         #expect(settings.targetLanguage == "ko")
         // The manga dictionary spells CJK and Latin-script text (no Hangul, Cyrillic or Vietnamese).
         #expect(settings.supportedOCRSourceLanguageCodes == AutomaticSourceLanguageDetector.supportedLanguageCodes.subtracting(["vi"]))
         #expect(settings.supportedOCRSourceLanguageCodes.isSuperset(of: ["ja", "zh", "zh-Hant", "en", "fr", "de", "es"]))
         #expect(!settings.supportedOCRSourceLanguageCodes.contains("ko"))
-        let profile = NativeCoreMLOCRModelProfile.profile(for: settings.modelTier)
-        #expect(NativeCoreMLDetector.modelResourceName == profile.detectorResourceName)
-        #expect(NativeCoreMLRecognizer.modelResourceName == profile.recognizerResourceName)
-        #expect(NativeCoreMLRecognizer.dictionaryResourceName == profile.dictionaryResourceName)
+        #expect(NativeCoreMLDetector.modelResourceName == V2Models.detectorResourceName)
     }
 
     @Test func modelSelectionNormalizesOnlyPageSourceLanguages() throws {
@@ -41,9 +33,6 @@ struct MangaOCRDefaultsTests {
         #expect(settings.sourceLanguage == "auto")
         #expect(settings.translationSourceLanguages == ["en", "ja", "zh", "zh-Hant"])
         #expect(settings.mangaTitleSourceLanguages == ["en", "fr"])
-        #expect(settings.ocr.detectorMaximumSide == 1_120)
-        #expect(settings.ocr.detectorPixelThreshold == 0.85)
-        #expect(settings.ocr.detectorConfidenceThreshold == 0.25)
         settings.sourceLanguage = "vi"
         #expect(throws: RemoteTranslationError.self) { try settings.validate() }
         settings.sourceLanguage = "en"

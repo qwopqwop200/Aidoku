@@ -153,7 +153,6 @@ class ReaderPageView: UIView {
         if lastLayoutSize != bounds.size {
             lastLayoutSize = bounds.size
             fixImageSize()
-            NotificationCenter.default.post(name: ReaderTranslationLayoutAwaiter.geometryChanged, object: self)
         }
 
         if needsDictionaryOverlayRender {
@@ -530,21 +529,6 @@ extension ReaderPageView {
     }
 
     // match image constraints with image size
-    func translationImageGeometry(for image: UIImage) -> ReaderTranslationImageGeometry? {
-        guard image.size.width > 0, image.size.height > 0 else { return nil }
-        let fitHeight = image.size.height * (bounds.width / image.size.width) > bounds.height
-            || UIScreen.main.bounds.width > UIScreen.main.bounds.height
-        let viewport = fitHeight
-            ? CGSize(width: bounds.height * image.size.width / image.size.height, height: bounds.height)
-            : CGSize(width: bounds.width, height: bounds.width * image.size.height / image.size.width)
-        return ReaderTranslationImageGeometry(
-            viewport: viewport,
-            scale: imageView.traitCollection.displayScale,
-            aspectFit: imageView.contentMode == .scaleAspectFit,
-            dark: imageView.traitCollection.userInterfaceStyle == .dark
-        )
-    }
-
     func fixImageSize() {
         guard let size = imageView.image?.size, size.width > 0, size.height > 0 else { return }
         let height = size.height * (bounds.width / size.width)
@@ -690,13 +674,6 @@ extension ReaderPageView {
         imageView.image = nil
         currentImageRequest = nil
         progressView.isHidden = true
-    }
-
-    func cancelTranslationPreload() {
-        imageDownloadDemand.end()
-        pageLoadTask?.cancel()
-        imageTask?.cancel()
-        translationPage.cancel()
     }
 }
 

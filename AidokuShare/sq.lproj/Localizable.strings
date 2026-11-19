@@ -1,6 +1,5 @@
 "IMPORT" = "Po importohet…";
 "DONE" = "U krye";
-"FILE_IMPORT_FAIL_TEXT" = "Importimi i skedarit dështoi. Sigurohuni që të jetë një skedar imazhi i lexueshëm ose një arkiv i vlefshëm CBZ ose ZIP që përmban imazhe.";
 "FORMAT_IMAGE" = "Imazh";
 "SHARED_IMAGES_SAVED" = "Ruajtja përfundoi. Hapni Aidoku për të lexuar.";
 

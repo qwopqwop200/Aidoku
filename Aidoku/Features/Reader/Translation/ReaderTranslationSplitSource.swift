@@ -29,11 +29,6 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
         init(_ image: UIImage) { self.image = image }
     }
 
-    private final class FullSource: Sendable {
-        let key: String
-        init(image: UIImage, key: String) { self.key = key }
-    }
-
     private final class StoredSide: @unchecked Sendable {
         let digest: SHA256.Digest
         private let lock = NSLock()
@@ -43,17 +38,12 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
 
         func decodeVerified(_ data: Data) -> UIImage? {
             if let existing = lock.withLock({ decoded }) { return existing }
-            // Decoding may take time. Keep the main-thread attestation lookup independent.
             guard let image = UIImage(data: data) else { return nil }
             return lock.withLock {
                 if let decoded { return decoded }
                 decoded = image
                 return image
             }
-        }
-
-        func contains(_ image: UIImage) -> Bool {
-            lock.withLock { decoded === image }
         }
     }
 
@@ -62,13 +52,9 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
         case png(StoredSide)
     }
 
-    private let full: FullSource
-    private let crop: CGRect
     private let binding: Binding
 
-    private init(full: FullSource, crop: CGRect, binding: Binding) {
-        self.full = full
-        self.crop = crop
+    private init(binding: Binding) {
         self.binding = binding
     }
 
@@ -82,10 +68,9 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
         let rightCrop = CGRect(x: 0.5, y: 0, width: 0.5, height: 1)
         guard let left = ReaderTranslationSplitGeometry.image(image, crop: leftCrop),
               let right = ReaderTranslationSplitGeometry.image(image, crop: rightCrop) else { return nil }
-        let full = originalKey.map { FullSource(image: image, key: $0) }
         func half(_ image: UIImage, crop: CGRect) -> Half {
             Half(image: image, crop: crop,
-                 source: full.map { ReaderTranslationSplitSource(full: $0, crop: crop, binding: .inline(WeakImage(image))) })
+                 source: originalKey == nil ? nil : ReaderTranslationSplitSource(binding: .inline(WeakImage(image))))
         }
         return Sides(left: half(left, crop: leftCrop), right: half(right, crop: rightCrop), originalKey: originalKey)
     }
@@ -95,7 +80,7 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
               !Task.isCancelled, let data = image.pngData() else { return nil }
         let digest = SHA256.hash(data: data)
         return SealedPNG(data: data,
-                         source: ReaderTranslationSplitSource(full: full, crop: crop, binding: .png(StoredSide(digest: digest))),
+                         source: ReaderTranslationSplitSource(binding: .png(StoredSide(digest: digest))),
                          filenameDigest: digest.map { String(format: "%02x", $0) }.joined())
     }
 
@@ -108,13 +93,5 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
             return expected.decodeVerified(data)
         }
         return UIImage(data: data)
-    }
-
-    func matches(_ image: UIImage, originalKey: String, crop: CGRect) -> Bool {
-        guard crop == self.crop, originalKey == full.key else { return false }
-        switch binding {
-        case .inline(let expected): return expected.image === image
-        case .png(let expected): return expected.contains(image)
-        }
     }
 }

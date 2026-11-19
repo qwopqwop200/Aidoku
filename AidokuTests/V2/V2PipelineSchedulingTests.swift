@@ -12,6 +12,7 @@ struct V2PipelineSchedulingTests {
                                 space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         context.setFillColor(CGColor(red: 0.8, green: 0.7, blue: 0.6, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setBlendMode(.copy)
         context.setFillColor(CGColor(red: 0.1, green: 0.2, blue: 0.3, alpha: alpha))
         context.fill(CGRect(x: 10, y: 10, width: 30, height: 20))
         return context.makeImage()!

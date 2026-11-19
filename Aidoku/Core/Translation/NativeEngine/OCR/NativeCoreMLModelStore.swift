@@ -104,33 +104,6 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         return published
     }
 
-    /// Digest the ACTUAL published package used by MLModelAsset, not its name.
-    /// Canonical relative-path/length/content algorithm; no publication/inference.
-    /// POSIX realpath avoids Foundation /var versus /private/var alias drift.
-    func packageContentSHA256(at source:URL) throws -> String {
-        let source=source.standardizedFileURL.resolvingSymlinksInPath()
-        let files=try regularFiles(in:source)
-        guard !files.isEmpty else {throw CocoaError(.fileReadCorruptFile)}
-        guard let rootPointer=realpath(source.path,nil) else {throw CocoaError(.fileReadCorruptFile)}
-        let rootPath=String(cString:rootPointer);free(rootPointer)
-        var hash=SHA256()
-        for file in files {
-            try Task.checkCancellation()
-            guard let filePointer=realpath(file.path,nil) else {throw CocoaError(.fileReadCorruptFile)}
-            let path=String(cString:filePointer);free(filePointer)
-            guard path.hasPrefix(rootPath+"/") else {throw CocoaError(.fileReadCorruptFile)}
-            let relative=String(path.dropFirst(rootPath.count+1))
-            let size=try file.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
-            hash.update(data:Data("\(relative.utf8.count):\(relative):\(size):".utf8))
-            let handle=try FileHandle(forReadingFrom:file)
-            do {
-                while let block=try handle.read(upToCount:1_048_576),!block.isEmpty {hash.update(data:block)}
-                try handle.close()
-            } catch {try? handle.close();throw error}
-        }
-        return hash.finalize().map {String(format:"%02x",$0)}.joined()
-    }
-
     /// Run on a utility task at launch, before OCR. All production model loads
     /// use this same lock, so cleanup cannot race a bundled-model load.
     func reclaimLegacyExecutionCache() {

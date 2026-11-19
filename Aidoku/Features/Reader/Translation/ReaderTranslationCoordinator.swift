@@ -183,10 +183,6 @@ final class ReaderTranslationCoordinator {
         failureNotice = nil
     }
 
-    static func localizedFailureDescription(_ error: Error) -> String {
-        error.localizedDescription
-    }
-
     private func showFailureNotice(_ error: Error) {
         guard isVisible, let host = (owner as? UIViewController)?.viewIfLoaded,
               host.window != nil else { return }
@@ -199,7 +195,7 @@ final class ReaderTranslationCoordinator {
         label.font = .preferredFont(forTextStyle: .footnote)
         label.adjustsFontForContentSizeCategory = true
         label.numberOfLines = 3
-        label.text = NSLocalizedString("TRANSLATION_TITLE") + ": " + Self.localizedFailureDescription(error)
+        label.text = NSLocalizedString("TRANSLATION_TITLE") + ": " + error.localizedDescription
         let retry = UIButton(type: .system)
         retry.setTitle(NSLocalizedString("RETRY"), for: .normal)
         retry.accessibilityIdentifier = "reader.translation.retry"
@@ -287,7 +283,7 @@ final class ReaderTranslationCoordinator {
     }
 
     /// Chapter changes: stop page work for the old chapter.
-    func cancel(reason: String = "cancelled") {
+    func cancel() {
         v2Pages.allObjects.forEach { $0.cancelV2Work() }
         cancelV2Lookahead()
     }
@@ -303,7 +299,6 @@ final class ReaderTranslationCoordinator {
         v2Pages.removeAllObjects()
         cancelV2Lookahead()
         owner = nil
-        NotificationCenter.default.post(name: ReaderTranslationLayoutAwaiter.invalidated, object: nil)
         // The V2 models remain warm across readers. Memory pressure is the
         // resource-release boundary.
     }
@@ -383,7 +378,7 @@ final class ReaderTranslationCoordinator {
                 self?.updateV2Lookahead()
             }, onFailure: { [weak self] error in
                 guard let self else { return }
-                button.accessibilityHint = Self.localizedFailureDescription(error)
+                button.accessibilityHint = error.localizedDescription
                 showFailureNotice(error)
             })
         }
@@ -395,10 +390,7 @@ final class ReaderTranslationCoordinator {
     /// Returns a cached V2 page bitmap for the loader to attach in the same
     /// commit as the source image, so a cached page never flashes the source.
     /// A miss returns nil and the page translates once it is visible.
-    func prepareCachedImage(
-        image: UIImage, page: Page,
-        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
-    ) async throws -> ReaderTranslationPreparedImage? {
+    func prepareCachedImage(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage? {
         guard #available(iOS 18.0, *), let owner else { return nil }
         let settings = pageSettings()
         guard settings.automaticallyTranslate, settings.overlay.visible else { return nil }
@@ -420,8 +412,7 @@ final class ReaderTranslationCoordinator {
         }
         ReaderTranslationDiagnostics.record("loaded_translation_hit")
         return ReaderTranslationPreparedImage(
-            image: UIImage(cgImage: cached, scale: image.scale, orientation: .up), regions: [], settings: settings,
-            v2CacheKey: key,
+            image: UIImage(cgImage: cached, scale: image.scale, orientation: .up), settings: settings, v2CacheKey: key,
             isCurrent: { [weak self] in
                 guard let self, self.owner != nil else { return false }
                 let current = self.pageSettings()

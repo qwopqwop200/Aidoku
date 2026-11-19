@@ -30,14 +30,6 @@ struct GIFImageLifetimeTests {
         return view.subviews.lazy.compactMap { imageView(in: $0) }.first
     }
 
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(3)
-        while !condition() {
-            try #require(ContinuousClock.now < deadline, "Timed out waiting for GIF lifecycle")
-            try await Task.sleep(for: .milliseconds(1))
-        }
-    }
-
     @Test func dismantledViewReleasesFramesAndIdenticalDataAnimatesOnRemount() async throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .first(where: { $0.activationState == .foregroundActive }))
@@ -51,14 +43,14 @@ struct GIFImageLifetimeTests {
 
         for _ in 0..<2 {
             host.rootView = AnyView(GIFImage(data: data).frame(width: 32, height: 32))
-            try await waitUntil {
+            try await RegressionTestWait.until {
                 host.view.layoutIfNeeded()
                 return imageView(in: host.view)?.frameCount == 2
             }
             let native = try #require(imageView(in: host.view))
             #expect(native.isAnimatingGIF)
             host.rootView = AnyView(EmptyView())
-            try await waitUntil {
+            try await RegressionTestWait.until {
                 host.view.layoutIfNeeded()
                 return imageView(in: host.view) == nil
             }

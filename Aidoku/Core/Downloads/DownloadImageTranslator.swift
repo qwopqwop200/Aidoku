@@ -44,14 +44,9 @@ enum DownloadImageTranslator {
         }
     }
 
-    private static func translateAdmitted(_ data: Data, settings: ReaderTranslationSettings) async throws -> Data {
-        guard #available(iOS 18.0, *) else { throw ReaderTranslationImageExporter.ExportError.unavailable }
-        return try await translateV2(data, settings: settings)
-    }
-
     /// The V2 page pipeline: the rendered page needs no reader host or overlay renderer.
-    @available(iOS 18.0, *)
-    private nonisolated static func translateV2(_ data: Data, settings: ReaderTranslationSettings) async throws -> Data {
+    private nonisolated static func translateAdmitted(_ data: Data, settings: ReaderTranslationSettings) async throws -> Data {
+        guard #available(iOS 18.0, *) else { throw ReaderTranslationImageExporter.ExportError.unavailable }
         let image = try await decode(data)
         guard let pixels = image.cgImage else { throw ReaderTranslationImageExporter.ExportError.unavailable }
         let output = try await ReaderTranslationV2Service.shared.translatePage(

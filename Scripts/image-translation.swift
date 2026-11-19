@@ -24,18 +24,10 @@ func run(_ command: String, _ args: [String], environment: [String: String]? = n
 }
 
 do {
-    var args = Array(CommandLine.arguments.dropFirst())
+    let args = Array(CommandLine.arguments.dropFirst())
     if args.isEmpty || args.contains("--help") || args.contains("-h") {
         print(try read(support.appendingPathComponent("help.txt")))
         exit(0)
-    }
-    // V2 is the only pipeline; `--pipeline v2` stays accepted as a no-op alias.
-    while let flag = args.firstIndex(of: "--pipeline") {
-        guard flag + 1 < args.count, args[flag + 1] == "v2" else {
-            fputs("image-translation: only `--pipeline v2` exists (it is the default)\n", stderr)
-            exit(2)
-        }
-        args.removeSubrange(flag...(flag + 1))
     }
     guard #available(macOS 15.0, *) else { fatalError("Requires macOS 15 or newer.") }
     var v2Cache = ProcessInfo.processInfo.environment["AIDOKU_V2_CACHE"]
@@ -57,26 +49,16 @@ do {
         "Extensions/Foundation/NSLocalizedString.swift",
         "Core/Translation/NativeSimpleParagraphGrouping.swift",
         "Core/Translation/ReaderTranslationPanelOrder.swift",
-        "Core/Translation/NativeEngine/Ensemble/NativeMainEnsembleDBCapability.swift",
     ] + ["NativeTranslationFontFitSearch", "NativeCTFontHorizontalFillPainter", "NativeCTFontStrokePainter"]
-        .map { "Core/Translation/NativeEngine/Overlay/\($0).swift" } + ["NativeCoreMLDetector", "NativeCoreMLRecognizer", "BrowserOCRSourceOrientation", "NativeOCRAcceptedSource",
-         "NativeOCRDetectorSeedEvidence", "NativeOCRLocalCoordinates", "NativeCoreMLDBPostprocessor",
-         "NativeCoreMLDBProvenance", "NativeCoreMLModelStore", "NativeOCRCGImageAdapter", "NativeOCRDBChildColumnEvidence",
-         "NativeOCRFrameTypes", "NativeOCRSourceROIProbabilityEvidence", "NativeOCRDBOwnershipCandidates",
-         "NativeOCRDBRecognitionClearance", "NativeCausalRawDecodeDiagnostics", "NativeMangaNGram",
-         "NativeOCRMultilineColumnRecovery", "NativeOCRPreparationPipeline", "NativeOCRGeometryDeduplication",
-         "NativeOCRIndividualGeometryHypotheses", "NativeOCRSpatialIndex"].map { "Core/Translation/NativeEngine/OCR/\($0).swift" }
+        .map { "Core/Translation/NativeEngine/Overlay/\($0).swift" }
+      + ["NativeCoreMLDetector", "NativeCoreMLRecognizer", "BrowserOCRSourceOrientation", "NativeOCRLocalCoordinates",
+         "NativeCoreMLDBPostprocessor", "NativeCoreMLModelStore", "NativeOCRCGImageAdapter", "NativeOCRFrameTypes",
+         "NativeMangaNGram", "NativeOCRScopeGeometry"].map { "Core/Translation/NativeEngine/OCR/\($0).swift" }
       + ["RemoteTranslationClient", "TranslationHTTPCodec", "BoundedURLSessionTransport",
          "KeychainTranslationCredentialStore", "TranslationImageSupport", "TranslationModels",
          "TranslationRoleVerificationPlanner", "TranslationStreamDecoder", "TranslationBackgroundRolePolicy",
          "TranslationSFXEvidencePolicy", "TranslationEndpointPolicy"].map { "Core/Translation/NativeEngine/Translation/\($0).swift" }
-    // Small primitives extracted from larger app files: shared-load/preparation
-    // revision, OCR line and scope geometry, OCR tier/settings constants, the
-    // probability-observer value types and the process memory probe.
-      + ["NativeCoreMLSharedLoad", "NativeCoreMLOCRLine", "NativeOCRScopeGeometry"]
-        .map { "Core/Translation/NativeEngine/OCR/\($0).swift" }
-      + ["Core/Translation/NativeEngine/Ensemble/NativeMainEnsembleOCRProbabilityObserver.swift",
-         "Core/Translation/IPhoneOCRSettings.swift", "Core/Translation/ProcessMemory.swift"]
+      + ["Core/Translation/IPhoneOCRSettings.swift"]
     let closureFiles = closure.map { root.appendingPathComponent("Aidoku/" + $0) }
     let allV2 = v2Files + hostFiles + closureFiles
     var v2Hash = SHA256()

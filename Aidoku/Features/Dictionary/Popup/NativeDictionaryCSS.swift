@@ -2,12 +2,11 @@ import UIKit
 import SwiftSoup
 
 extension NSAttributedString.Key {
-    static let nativeDictionaryCSSDiagnostics = NSAttributedString.Key("AidokuDictionaryCSSDiagnostics")
     static let nativeDictionaryLanguage = NSAttributedString.Key("AidokuDictionaryLanguage")
 }
 
 /// A native cascade for text/box declarations. SwiftSoup selectors retain dictionary data-sc selectors,
-/// ancestry, classes and language; unsupported layout features remain inspectable as diagnostics.
+/// ancestry, classes and language.
 @MainActor
 struct NativeDictionaryCSS {
     struct Rule {
@@ -108,7 +107,6 @@ struct NativeDictionaryCSS {
         }
         return result
     }
-    static func declarations(_ source: String) -> [String: Any] { parseDeclarations(source).values }
     private static func parseDeclarations(_ source: String) -> (values: [String: Any], important: Set<String>) {
         var result: [String: Any] = [:], important: Set<String> = []
         for entry in source.split(separator: ";") {
@@ -279,16 +277,6 @@ struct NativeDictionaryCSS {
             if align == "super" { result[.baselineOffset] = font.pointSize * 0.4 }
             if align == "sub" { result[.baselineOffset] = -font.pointSize * 0.2 }
         }
-        let supported: Set<String> = ["font-size", "font-family", "font-weight", "font-style", "color", "background-color", "letter-spacing",
-            "text-align", "line-height", "margin-left", "margin-right", "margin-top", "margin-bottom", "text-decoration-line", "text-decoration",
-            "vertical-align", "display", "white-space", "width", "height", "padding", "border", "border-width", "border-color", "border-style", "border-radius", "background"]
-        var residual = normalized.keys.filter { !supported.contains($0) }
-        if let display = normalized["display"] as? String,
-           !["none", "inline", "block", "inline-block", "table", "table-row", "table-cell", "table-row-group", "table-header-group", "table-footer-group", "list-item"].contains(display) {
-            residual.append("display:" + display)
-        }
-        residual.sort()
-        if !residual.isEmpty { result[.nativeDictionaryCSSDiagnostics] = residual }
         return result
     }
 }

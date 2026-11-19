@@ -1547,7 +1547,6 @@ extension SettingView {
     }
 }
 
-
 /// A superseded source callback may finish despite cancellation; only the latest change may publish.
 @MainActor
 final class SettingChangeScheduler {
@@ -1575,7 +1574,6 @@ final class SettingChangeScheduler {
 
     deinit { task?.cancel() }
 }
-
 
 /// Owns the authentication + token-exchange lifetime, including cancellation-insensitive responses.
 @MainActor

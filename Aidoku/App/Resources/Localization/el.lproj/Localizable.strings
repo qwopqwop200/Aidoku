@@ -134,16 +134,6 @@
 
 "TRANSLATION_TITLE" = "OCR & Μετάφραση";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Αντικατάσταση αποθηκευμένου κλειδιού API (προαιρετικό)";
 
 "TRANSLATION_KEY" = "Κλειδί API";
@@ -160,11 +150,7 @@
 
 "TRANSLATION_TARGET" = "Μετάφραση σε";
 
-
 "TRANSLATION_AUTO" = "Αυτόματη ανίχνευση";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Εκκαθάριση προσωρινής μνήμης μετάφρασης";
 
@@ -179,22 +165,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Προεπιλογή μοντέλου";
 
 "TRANSLATION_CONCURRENCY" = "Ταυτόχρονα αιτήματα";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Πάροχος Μετάφρασης";
 
@@ -252,8 +222,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Δεν ήταν δυνατή η σύνδεση μέσω παράκαμψης HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Η μετάφραση απέτυχε. Εμφανίζεται το κείμενο OCR. Ελέγξτε τις ρυθμίσεις και τη σύνδεση.";
-
 "TRANSLATION_MANGA_TITLES" = "Μετάφραση τίτλων Manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Μετάφραση Τίτλων Κεφαλαίων";
@@ -266,32 +234,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Γλώσσα πηγής σελίδας";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Μετάφραση περιγραφών Manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Γλώσσες περιγραφής Manga";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Εντοπίζει αυτόματα τη γλώσσα προέλευσης και μεταφράζει μόνο τις επιλεγμένες γλώσσες. Η επιλογή Όλες οι γλώσσες που εντοπίστηκαν καταργεί τον περιορισμό. Το φίλτρο γλώσσας κάθε στοιχείου είναι ανεξάρτητο από τις ρυθμίσεις γλώσσας των σελίδων και των άλλων στοιχείων.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Στέλνει την εικόνα της σελίδας μαζί με το κείμενο OCR για το πλαίσιο της σκηνής. Αν δεν υποστηρίζεται η εισαγωγή εικόνων, η μετάφραση συνεχίζεται αυτόματα μόνο με κείμενο. Η επισύναψη εικόνων μπορεί να αυξήσει τη χρήση δεδομένων και το κόστος API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Η εισαγωγή εικόνων δεν υποστηρίζεται. Η μετάφραση συνεχίζεται χωρίς εικόνες.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Προσαρμοσμένος (συμβατός με OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Κανένα";
 
@@ -1027,17 +976,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Δεν είναι δυνατή η εμφάνιση της ρύθμισης: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Λήψη με μετάφραση";
-
 
 "TRANSLATION_STATE_ON" = "Ενεργό";
 "TRANSLATION_STATE_OFF" = "Ανενεργό";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Οι ρυθμίσεις μετάφρασης δεν είναι έγκυρες. Ελέγξτε τη διεύθυνση URL του διακομιστή, το μοντέλο και τις άλλες ρυθμίσεις.";
 
@@ -1087,15 +1029,12 @@
 
 "OCR_ERROR_PREDICTION" = "Η αναγνώριση κειμένου PP-OCRv6 απέτυχε. Δοκιμάστε ξανά με άλλη εικόνα ή άλλο μοντέλο OCR.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "Το μέγεθος της προσωρινής μνήμης μετάφρασης βρίσκεται εκτός του υποστηριζόμενου εύρους.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Ο χώρος αποθήκευσης της προσωρινής μνήμης μετάφρασης δεν είναι έγκυρος ή διαθέσιμος.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Δεν ήταν δυνατή η αποθήκευση της προσωρινής μνήμης μετάφρασης.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Οι αλλαγές στον συγχρονισμό iCloud εφαρμόζονται όταν κλείσετε πλήρως και ανοίξετε ξανά το Aidoku. Μέχρι τότε, παραμένει ενεργή η τρέχουσα ρύθμιση.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 

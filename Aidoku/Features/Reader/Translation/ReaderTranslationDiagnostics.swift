@@ -25,16 +25,6 @@ enum ReaderTranslationDiagnostics {
         guard let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
         return TranslationPerformanceFileWriter(directory: directory, filename: "reader-memory-events", samplesMemory: true)
     }()
-    private static let renderingProfileEnabled: Bool = {
-        guard let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return false }
-        return FileManager.default.fileExists(atPath: directory.appendingPathComponent("DisplayPerformance/run.json").path)
-    }()
-
-    static func renderingProfile(_ event: String, count: Int = 0, revision: UInt64 = 0) {
-        guard renderingProfileEnabled else { return }
-        record(event, count: count, code: Int(clamping: revision))
-    }
-
     static func record(_ event: String, page: Int = -1, count: Int = 0, code: Int = 0,
                        context explicit: Context? = nil, elapsedMilliseconds: Double? = nil, outcome: Int = 0) {
         sink?.recordReader(event, page: page, count: count, code: code, context: explicit ?? context,

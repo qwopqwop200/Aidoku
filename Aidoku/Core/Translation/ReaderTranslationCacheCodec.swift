@@ -121,8 +121,6 @@ struct ReaderTranslationRegionArchive {
         let sourceRasterClaim: ReaderTranslationSourceRasterClaim?
         // Expanded archive size used only to bound retained disk-read results.
         var decodedByteCount = 0
-        // Replaying a durable translation must not write its old bytes over a later commit.
-        var wasReadFromTranslationCache = false
     }
 
     private struct Variant: Codable {

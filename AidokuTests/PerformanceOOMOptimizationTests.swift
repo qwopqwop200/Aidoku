@@ -54,16 +54,11 @@ struct PerformanceOOMOptimizationTests {
     @Test func imageRepresentationIsNotPersistedAndInvalidatesOnReplacement() throws {
         var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: [])
         request.imageJPEG = Data([1, 2, 3])
-        request.prepareImageRepresentation()
-        #expect(request.preparedImageDataURL == "data:image/jpeg;base64,AQID")
         let encoded = try JSONEncoder().encode(request)
-        #expect(!String(decoding: encoded, as: UTF8.self).contains("preparedImageDataURL"))
         let decoded = try JSONDecoder().decode(RemoteTranslationRequest.self, from: encoded)
         #expect(decoded.imageJPEG == request.imageJPEG)
         #expect(decoded == request)
         #expect(Set([decoded, request]).count == 1)
-        request.imageJPEG = Data([4])
-        #expect(request.preparedImageDataURL == nil)
     }
 
     @Test func boundedDetectorPreservesNonAlignedHighContrastSampling() async throws {
@@ -77,8 +72,8 @@ struct PerformanceOOMOptimizationTests {
         let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytes: bytes))
         let canvas = try #require(NativeCoreMLDetectionCanvas(inputShape: [1, 3, height, 1312]))
         let expected = try await referenceDetectorInput(frame: frame, canvas: canvas)
-        let bounded = try await NativeCoreMLDetectionPreprocessor.prepare(frame: frame, canvas: canvas)
-        let actual = await bounded.values()
+        let bounded = try await NativeCoreMLDetectionPreprocessor.prepareArray(frame: frame, canvas: canvas)
+        let actual = bounded.input.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
         let error = zip(expected, actual).reduce(Float(0)) { max($0, abs($1.0 - $1.1)) }
         #expect(error < 0.001)
     }
@@ -95,14 +90,12 @@ struct PerformanceOOMOptimizationTests {
         }
         let frame = try #require(NativeOCRRGBAFrame(width: width, height: height, bytesPerRow: stride, bytes: bytes))
         let canvas = try #require(NativeCoreMLDetectionCanvas(inputShape: [1, 3, 192, 128]))
-        let dimensions = try #require(NativeCoreMLDetectionPreprocessor.resizeDimensions(sourceWidth: width,
-            sourceHeight: height, maximumSide: 192))
         let expected = try await referenceDetectorInput(frame: frame, canvas: canvas)
-        let bounded = try await NativeCoreMLDetectionPreprocessor.prepareBounded(frame: frame, canvas: canvas, dimensions: dimensions)
-        let actual = await bounded.values()
+        let bounded = try await NativeCoreMLDetectionPreprocessor.prepareArray(frame: frame, canvas: canvas)
+        #expect(bounded.resizedWidth == 128 && bounded.resizedHeight == 192)
+        let actual = bounded.input.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
         #expect(expected.count == actual.count)
         let error = zip(expected, actual).map { abs($0 - $1) }.max() ?? .infinity
-        print("BOUNDED_DETECTOR_MAX_ERROR=\(error)")
         // Core ML's device resize backend and the CPU sampler round fractional
         // coordinates differently. Use the same bound as the real-page corpus.
         #expect(error < 0.001)

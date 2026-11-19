@@ -31,12 +31,10 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
             ratio = image.size.height / image.size.width
         }
     }
-    var prepareTranslationForDisplay: ReaderTranslationImagePreparer?
     private var preparedTranslation: ReaderTranslationPreparedImage?
     // GIFImageNode consumes animatedData before its asynchronous decoder
     // has necessarily installed any frames. Keep the loader's evidence.
     private var hasLoadFailure = false
-    private var lastTranslationLayoutSize = CGSize.zero
     var text: String?
     var ratio: CGFloat?
 
@@ -171,11 +169,6 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
 
     override func layout() {
         super.layout()
-
-        if lastTranslationLayoutSize != calculatedSize {
-            lastTranslationLayoutSize = calculatedSize
-            NotificationCenter.default.post(name: ReaderTranslationLayoutAwaiter.geometryChanged, object: self)
-        }
 
         if needsDictionaryOverlayRender {
             renderDictionaryOverlaysIfNeeded()
@@ -632,21 +625,6 @@ extension ReaderWebtoonPageNode {
     }
 
     @MainActor
-    func translationImageGeometry(for image: UIImage) -> ReaderTranslationImageGeometry? {
-        guard image.size.width > 0, image.size.height > 0 else { return nil }
-        var width = calculatedSize.width
-        if width <= 0 { width = delegate?.collectionNode.bounds.width ?? 0 }
-        if pillarbox && isPillarboxOrientation() { width *= (100 - pillarboxAmount) / 100 }
-        let traits = imageNode.imageView?.traitCollection ?? delegate?.traitCollection ?? UITraitCollection.current
-        return ReaderTranslationImageGeometry(
-            viewport: CGSize(width: width, height: width * image.size.height / image.size.width),
-            scale: traits.displayScale,
-            aspectFit: false,
-            dark: traits.userInterfaceStyle == .dark
-        )
-    }
-
-    @MainActor
     @discardableResult
     private func prepareAndDisplayImage(
         _ sourceImage: UIImage?, gifData: Data? = nil
@@ -660,14 +638,7 @@ extension ReaderWebtoonPageNode {
         do {
             while true {
                 try Task.checkCancellation()
-                let prepared: ReaderTranslationPreparedImage?
-                if let prepareTranslationForDisplay {
-                    prepared = try await prepareTranslationForDisplay(sourceImage, page)
-                } else {
-                    prepared = try await delegate?.delegate?.prepareCachedTranslationForDisplay(image: sourceImage, page: page, geometry: { [weak self] in
-                        self?.translationImageGeometry(for: sourceImage)
-                    })
-                }
+                let prepared = try await delegate?.delegate?.prepareCachedTranslationForDisplay(image: sourceImage, page: page)
                 try Task.checkCancellation()
                 guard issued == pageLoadGeneration else { return false }
                 if prepared?.isCurrent() == false { continue }

@@ -12,8 +12,6 @@ struct ReaderTranslationProviderTests {
         settings.custom.baseURL = "https://"
         settings.model = ""
         settings.automaticallyTranslate = false
-        // OCR tier/threshold edits are retired: they are neither saved nor restored.
-        settings.ocr.confidenceThreshold = 0.65
         settings.overlay.opacity = 0.5
         settings.translationSourceLanguages = ["ja"]
         try settings.autosave(defaults: fixture.defaults, credentialStore: fixture.keys)
@@ -21,50 +19,10 @@ struct ReaderTranslationProviderTests {
         #expect(restored.custom == settings.custom)
         #expect(restored.configuration.instructions == RemoteTranslationConfiguration.defaultInstructions)
         #expect(!restored.automaticallyTranslate)
-        #expect(restored.ocr == ReaderOCRConfiguration())
         // Source replacement uses opaque panels even when a legacy draft saves 0.5.
         #expect(restored.overlay.opacity == 1)
         #expect(restored.translationSourceLanguages == ["ja"])
         #expect(throws: RemoteTranslationError.self) { try restored.validate() }
-    }
-
-    @Test func readerResolutionLimitsRemainIndependent() {
-        let fixture = ProviderSettingsFixture()
-        defer { fixture.cleanUp() }
-        var settings = ReaderTranslationSettings(defaults: fixture.defaults)
-        settings.ocr.detectorMaximumSide = 2_000
-        settings.ocr.recognizerMaximumWidth = 800
-        #expect(settings.ocrConfiguration.detectorMaximumSide == 1_184)
-        #expect(settings.ocrConfiguration.recognizerMaximumWidth == 800)
-        settings.ocr.detectorMaximumSide = 640
-        settings.ocr.recognizerMaximumWidth = 3_000
-        #expect(settings.ocrConfiguration.detectorMaximumSide == 640)
-        // The default manga tier caps recognition at 2400, independent of the 1184 detector cap.
-        #expect(settings.ocrConfiguration.recognizerMaximumWidth == 2_400)
-    }
-
-    @Test(arguments: [-0.05, 1.05, Double.nan, Double.infinity])
-    func invalidDetectorThresholdsCannotBeSaved(value: Double) throws {
-        let fixture = ProviderSettingsFixture()
-        defer { fixture.cleanUp() }
-        for field in [\ReaderOCRConfiguration.detectorPixelThreshold, \.detectorConfidenceThreshold] {
-            var settings = ReaderTranslationSettings(defaults: fixture.defaults)
-            settings.ocr[keyPath: field] = value
-            #expect(throws: RemoteTranslationError.self) { try settings.validate() }
-            let safe = settings.ocr.detectorPostprocessConfiguration
-            #expect((0...1).contains(safe.threshold))
-            #expect((0...1).contains(safe.boxThreshold))
-        }
-    }
-
-    @Test(arguments: [-1.0, 21.0, Double.nan, Double.infinity])
-    func invalidMinimumDetectorSizeCannotBeSaved(value: Double) {
-        let fixture = ProviderSettingsFixture()
-        defer { fixture.cleanUp() }
-        var settings = ReaderTranslationSettings(defaults: fixture.defaults)
-        settings.ocr.detectorMinimumBoxSide = value
-        #expect(throws: RemoteTranslationError.self) { try settings.validate() }
-        #expect((0...20).contains(settings.ocr.detectorPostprocessConfiguration.minimumBoxSide))
     }
 
     @Test func autosaveRetainsCredentialGenerationAndServerIsolation() throws {

@@ -67,13 +67,11 @@ private final class DataAssetResourceLoader: NSObject, AVAssetResourceLoaderDele
         }
 
         if let dataRequest = loadingRequest.dataRequest {
-            do {
-                let bytes = try videoDataRange(data, offset: dataRequest.requestedOffset,
-                    length: dataRequest.requestedLength, toEnd: dataRequest.requestsAllDataToEndOfResource)
-                dataRequest.respond(with: bytes)
-            } catch {
-                loadingRequest.finishLoading(with: error)
-                return true
+            if dataRequest.requestsAllDataToEndOfResource {
+                dataRequest.respond(with: data[dataRequest.requestedOffset...])
+            } else {
+                let range = dataRequest.requestedOffset..<(dataRequest.requestedOffset + Int64(dataRequest.requestedLength))
+                dataRequest.respond(with: data[range])
             }
         }
 
@@ -81,19 +79,6 @@ private final class DataAssetResourceLoader: NSObject, AVAssetResourceLoaderDele
 
         return true
     }
-}
-
-// AVFoundation can probe past the end of a truncated or partially loaded asset.
-// Validate offsets before conversion and return only the bytes actually present.
-func videoDataRange(_ data: Data, offset: Int64, length: Int, toEnd: Bool) throws -> Data {
-    guard offset >= 0, offset <= Int64(data.count), length >= 0 else {
-        throw URLError(.badServerResponse)
-    }
-    let available = data.count - Int(offset)
-    let count = toEnd ? available : min(length, available)
-    let start = data.index(data.startIndex, offsetBy: Int(offset))
-    let end = data.index(start, offsetBy: count)
-    return data[start..<end]
 }
 
 #endif

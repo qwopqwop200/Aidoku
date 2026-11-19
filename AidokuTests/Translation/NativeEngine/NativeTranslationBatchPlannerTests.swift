@@ -126,37 +126,24 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
     func testIdenticalFrameUsesCacheAndChangedTailKeepsHeadChunk()
         async throws
     {
-        let root = try temporaryRoot()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let cache = try TranslationCache(
-            configuration: .init(
-                memoryEnabled: true,
-                diskEnabled: false,
-                maxSizeMiB: 1
-            ),
-            storageRootURL: root
-        )
         let translator = NativeBatchPlannerCountingTranslator()
-        let service = TranslationService(client: translator, cache: cache)
-        let coordinator = LatestTranslationCoordinator(service: service)
+        let service = TranslationService(client: translator, cache: TranslationCache(maxSizeMiB: 1))
         let configuration = RemoteTranslationConfiguration.openAI(
             model: "gpt-5-mini"
         )
+        func translate(_ requests: [RemoteTranslationRequest]) async throws -> [RemoteTranslationBatchResult] {
+            try await BoundedTranslationBatchExecutor.translate(requests, configuration: configuration,
+                service: service, maximumConcurrentRequests: 16, priority: .foreground)
+        }
         let original = makePlans(count: 70)
 
-        let first = try await coordinator.translateLatestBatches(
-            original.map(\.request),
-            configuration: configuration
-        )
+        let first = try await translate(original.map(\.request))
         XCTAssertTrue(first.allSatisfy { $0.source == .network })
         var snapshot = await translator.snapshot()
         XCTAssertEqual(snapshot.calls, original.count)
         XCTAssertEqual(snapshot.maximumActive, original.count)
 
-        let identical = try await coordinator.translateLatestBatches(
-            original.map(\.request),
-            configuration: configuration
-        )
+        let identical = try await translate(original.map(\.request))
         XCTAssertTrue(identical.allSatisfy { $0.source == .memoryCache })
         snapshot = await translator.snapshot()
         XCTAssertEqual(
@@ -205,29 +192,7 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
             )
         XCTAssertEqual(changedHeadIdentities, originalHeadIdentities)
         XCTAssertNotEqual(changedTailIdentities, originalTailIdentities)
-        let reusableSegmentID = try XCTUnwrap(
-            original[reusableBatchIndex].request.segments.first?.id
-        )
-        let reusableHead = try XCTUnwrap(
-            originalHeadIdentities[reusableSegmentID]
-        )
-        let reuseIndex = NativeTranslationReuseIndex(values: [
-            NativeTranslationReuseValue(
-                identity: reusableHead,
-                translatedText: "cached-head"
-            ),
-        ])
-        XCTAssertEqual(
-            reuseIndex.value(
-                matching: changedHeadIdentities[reusableSegmentID]
-            )?.translatedText,
-            "cached-head"
-        )
-
-        let mixed = try await coordinator.translateLatestBatches(
-            changed.map(\.request),
-            configuration: configuration
-        )
+        let mixed = try await translate(changed.map(\.request))
         XCTAssertEqual(
             mixed.filter { $0.source == .network }.count,
             1
@@ -346,18 +311,5 @@ final class NativeTranslationBatchPlannerTests: XCTestCase {
             source: source,
             providerRequestID: nil
         )
-    }
-
-    private func temporaryRoot() throws -> URL {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent(
-                "aidoku-native-batch-planner-tests-\(UUID().uuidString)",
-                isDirectory: true
-            )
-        try FileManager.default.createDirectory(
-            at: root,
-            withIntermediateDirectories: false
-        )
-        return root
     }
 }

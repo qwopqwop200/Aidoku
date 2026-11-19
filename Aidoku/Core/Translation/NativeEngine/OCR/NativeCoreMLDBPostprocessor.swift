@@ -20,18 +20,6 @@ struct NativeCoreMLDetectionMap: Equatable, Sendable {
 
 @available(iOS 18.0, *)
 struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
-    static let production = NativeCoreMLDBPostprocessConfiguration(
-        threshold: 0.3,
-        boxThreshold: 0.6,
-        unclipRatio: 1.5,
-        maximumCandidates: 3_000
-    )
-    static let compact = NativeCoreMLDBPostprocessConfiguration(
-        threshold: 0.3,
-        boxThreshold: 0.6,
-        unclipRatio: 1.5,
-        maximumCandidates: 1_000
-    )
     // Manga profile: user-selected binarization 0.85; upstream box score and unclip.
     static let manga = NativeCoreMLDBPostprocessConfiguration(
         threshold: 0.85,
@@ -39,76 +27,26 @@ struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
         unclipRatio: 1.4,
         maximumCandidates: 3_000
     )
-    static let tiny = NativeCoreMLDBPostprocessConfiguration(
-        threshold: 0.2,
-        boxThreshold: 0.4,
-        unclipRatio: 1.4,
-        maximumCandidates: 3_000
-    )
-
     let threshold: Double
     let boxThreshold: Double
     let unclipRatio: Double
     let maximumCandidates: Int
-    let minimumBoxSide: Double
-    /// Components scoring in `recoveryBoxThreshold..<boxThreshold` (and not split into accepted
-    /// parts) are kept as weak boxes. Their recognition must pass the pipeline's recovery gate
-    /// (faint pencil / brush lettering); nil keeps the exact thresholded detector output.
-    let recoveryBoxThreshold: Double?
-
     init(
         threshold: Double,
         boxThreshold: Double,
         unclipRatio: Double,
-        maximumCandidates: Int,
-        minimumBoxSide: Double = 3,
-        recoveryBoxThreshold: Double? = nil
+        maximumCandidates: Int
     ) {
         precondition((0 ... 1).contains(threshold))
         precondition((0 ... 1).contains(boxThreshold))
         precondition(unclipRatio > 0 && unclipRatio.isFinite)
         precondition(maximumCandidates > 0)
-        precondition(minimumBoxSide.isFinite && minimumBoxSide >= 0)
         self.threshold = threshold
         self.boxThreshold = boxThreshold
         self.unclipRatio = unclipRatio
         self.maximumCandidates = maximumCandidates
-        self.minimumBoxSide = minimumBoxSide
-        self.recoveryBoxThreshold = recoveryBoxThreshold.map { min(max($0, 0), boxThreshold) }
     }
 
-    func withRecoveryBoxThreshold(_ value: Double?) -> Self {
-        Self(threshold: threshold, boxThreshold: boxThreshold, unclipRatio: unclipRatio,
-             maximumCandidates: maximumCandidates, minimumBoxSide: minimumBoxSide, recoveryBoxThreshold: value)
-    }
-}
-
-@available(iOS 18.0, *)
-struct NativeCoreMLDBPostprocessResult: Equatable, Sendable {
-    let boxes: [NativeCoreMLDetectionBox]
-    let candidateComponents: Int
-}
-
-/// Locates a materialized probability-map window inside the detector's full
-/// active output. Full-frame callers use the default identity geometry; dirty
-/// OCR can decode a smaller map while preserving the exact source coordinate
-/// transform used by full DB postprocessing.
-@available(iOS 18.0, *)
-struct NativeCoreMLDetectionMapGeometry: Equatable, Sendable {
-    let originX: Int
-    let originY: Int
-    let fullWidth: Int
-    let fullHeight: Int
-
-    init(originX: Int, originY: Int, fullWidth: Int, fullHeight: Int) {
-        precondition(originX >= 0 && originY >= 0)
-        precondition(fullWidth > 0 && fullHeight > 0)
-        precondition(originX < fullWidth && originY < fullHeight)
-        self.originX = originX
-        self.originY = originY
-        self.fullWidth = fullWidth
-        self.fullHeight = fullHeight
-    }
 }
 
 /// Native DBNet postprocessing for PP-OCR detector output.
@@ -118,88 +56,7 @@ struct NativeCoreMLDetectionMapGeometry: Equatable, Sendable {
 /// than the lower values embedded in the upstream inference YAML.
 @available(iOS 18.0, *)
 enum NativeCoreMLDBPostprocessor {
-    // Split a rejected weakly connected component once, with row-bounded
-    // hull storage and cancellable scans. Callers opt in for validated models.
-    private static func splitWeakBridge(
-        _ spans: [ForegroundSpan], map: NativeCoreMLDetectionMap,
-        threshold: Double, minimumBoxSide: Double, cancellationCheck: () throws -> Void
-    ) throws -> [(MinimumRectangle, Double, Int?)]? {
-        guard !spans.isEmpty else { return nil }
-        var x0 = map.width, x1 = -1, y0 = map.height, y1 = -1
-        var total = 0
-        for (index, span) in spans.enumerated() {
-            if index & 1_023 == 0 { try cancellationCheck() }
-            x0 = min(x0, span.left); x1 = max(x1, span.right)
-            y0 = min(y0, span.y); y1 = max(y1, span.y)
-            total += span.pixelCount
-        }
-        let width = x1 - x0 + 1, height = y1 - y0 + 1
-        guard Double(height) >= Double(width) * 1.15 else { return nil }
-        var diff = [Int](repeating: 0, count: width + 1)
-        for (index, span) in spans.enumerated() {
-            if index & 1_023 == 0 { try cancellationCheck() }
-            diff[span.left - x0] += 1
-            diff[span.right - x0 + 1] -= 1
-        }
-        var count = [Int](repeating: 0, count: width)
-        var n = 0
-        for i in 0..<width {
-            if i & 1_023 == 0 { try cancellationCheck() }
-            n += diff[i]; count[i] = n
-        }
-        var best: Range<Int>?, start: Int?
-        for i in 0...width {
-            if i & 1_023 == 0 { try cancellationCheck() }
-            let low = i < width && Double(count[i]) <= Double(height) * 0.12
-            if low && start == nil { start = i }
-            if !low, let begin = start {
-                let band = begin..<i
-                if begin > 0 && i < width && (best == nil || band.count > best!.count) { best = band }
-                start = nil
-            }
-        }
-        guard let band = best, Double(band.count) >= Double(width) * 0.15,
-              Double(band.count) <= Double(width) * 0.5 else { return nil }
-        let cut = (band.lowerBound + band.upperBound) / 2
-        guard (count[..<cut].max() ?? 0) >= Int(Double(height) * 0.45),
-              (count[(cut + 1)...].max() ?? 0) >= Int(Double(height) * 0.45) else { return nil }
-        var results: [(MinimumRectangle, Double, Int?)] = []
-        for side in 0..<2 {
-            try cancellationCheck()
-            var minimumX = [Int](repeating: map.width, count: height)
-            var maximumX = [Int](repeating: -1, count: height)
-            var pixels = 0
-            for (index, span) in spans.enumerated() {
-                if index & 1_023 == 0 { try cancellationCheck() }
-                let left = side == 0 ? span.left : max(span.left, x0 + cut + 1)
-                let right = side == 0 ? min(span.right, x0 + cut - 1) : span.right
-                if left <= right {
-                    let row = span.y - y0
-                    minimumX[row] = min(minimumX[row], left)
-                    maximumX[row] = max(maximumX[row], right)
-                    pixels += right - left + 1
-                }
-            }
-            var points: [CGPoint] = []
-            points.reserveCapacity(height * 2)
-            for row in 0..<height {
-                if row & 1_023 == 0 { try cancellationCheck() }
-                guard maximumX[row] >= 0 else { continue }
-                points.append(CGPoint(x: minimumX[row], y: row + y0))
-                if minimumX[row] != maximumX[row] {
-                    points.append(CGPoint(x: maximumX[row], y: row + y0))
-                }
-            }
-            try cancellationCheck()
-            guard Double(pixels) >= Double(total) * 0.25,
-                  let rect = minimumRectangle(points: points), rect.minimumSide >= minimumBoxSide else { return nil }
-            try cancellationCheck()
-            let score = try boxScore(map: map, polygon: rect.orderedBox, cancellationCheck: cancellationCheck)
-            guard score >= threshold else { return nil }
-            results.append((rect, score, side == 0 ? x0 + cut : -(x0 + cut)))
-        }
-        return results
-    }
+    private static let minimumBoxSide = 3.0
 
     /// Largest Float not above `threshold`. For every finite Float `value`,
     /// `Double(value) > threshold` is exactly `value > cutoff`: a Float above
@@ -242,28 +99,10 @@ enum NativeCoreMLDBPostprocessor {
         map: NativeCoreMLDetectionMap,
         sourceWidth: Int,
         sourceHeight: Int,
-        geometry: NativeCoreMLDetectionMapGeometry? = nil,
-        configuration: NativeCoreMLDBPostprocessConfiguration = .production,
-        allowsWeakBridgeSplit: Bool = false,
-        allowsThinFinePrintRecovery: Bool = false,
+        configuration: NativeCoreMLDBPostprocessConfiguration,
         cancellationCheck: () throws -> Void = {}
-    ) throws -> NativeCoreMLDBPostprocessResult {
-        guard sourceWidth > 0, sourceHeight > 0 else {
-            return NativeCoreMLDBPostprocessResult(
-                boxes: [],
-                candidateComponents: 0
-            )
-        }
-        let resolvedGeometry = geometry ?? NativeCoreMLDetectionMapGeometry(
-            originX: 0,
-            originY: 0,
-            fullWidth: map.width,
-            fullHeight: map.height
-        )
-        precondition(resolvedGeometry.originX + map.width
-            <= resolvedGeometry.fullWidth)
-        precondition(resolvedGeometry.originY + map.height
-            <= resolvedGeometry.fullHeight)
+    ) throws -> [NativeCoreMLDetectionBox] {
+        guard sourceWidth > 0, sourceHeight > 0 else { return [] }
         // 0 = background, 1 = unvisited foreground, 2 = visited foreground.
         // The old implementation kept equally sized `mask` and `visited`
         // arrays. A single byte of state preserves the exact threshold and
@@ -290,14 +129,6 @@ enum NativeCoreMLDBPostprocessor {
         hullCandidates.reserveCapacity(min(map.height * 2, 512))
         var boxes: [NativeCoreMLDetectionBox] = []
         var candidateComponents = 0
-        // Keep rejected thin components separate from ordinary DB output.
-        // A strong, already accepted horizontal neighbor must support them.
-        var thinCandidates: [(rectangle: MinimumRectangle, score: Double)] = []
-        let permitsThinRecovery = allowsThinFinePrintRecovery
-            && configuration.minimumBoxSide == 3
-            && Double(sourceWidth) / Double(resolvedGeometry.fullWidth) >= 1.5
-            && Double(sourceHeight) / Double(resolvedGeometry.fullHeight) >= 1.5
-
         scan: for y in 0..<map.height {
             if y & 31 == 0 { try cancellationCheck() }
             let row = y * map.width
@@ -393,161 +224,37 @@ enum NativeCoreMLDBPostprocessor {
                     emptyMinimum: map.width
                 )
                 guard let minimum = minimumRectangle(points: hullCandidates) else { continue }
-                if minimum.minimumSide < configuration.minimumBoxSide {
-                    if permitsThinRecovery, thinCandidates.count < 64, minimum.minimumSide >= 1 {
-                        let rectangleBounds = bounds(of: minimum.orderedBox)
-                        // Evidence-backed tiny horizontal labels have two or
-                        // three occupied rows, not isolated pixels or rules.
-                        let rasterBounds = bounds(of: hullCandidates)
-                        let rasterWidth = rasterBounds.width + 1
-                        let rasterHeight = rasterBounds.height + 1
-                        if (2...3).contains(rasterHeight), rasterWidth >= 7,
-                           rectangleBounds.width >= rectangleBounds.height * 2,
-                           componentPixelCount >= 8,
-                           Double(componentPixelCount) / Double(rasterWidth * rasterHeight) >= 0.65 {
-                            let score = try boxScore(map: map, polygon: minimum.orderedBox,
-                                                     cancellationCheck: cancellationCheck)
-                            if score >= max(0.45, configuration.boxThreshold) {
-                                thinCandidates.append((minimum, score))
-                            }
-                        }
-                    }
-                    continue
-                }
+                guard minimum.minimumSide >= minimumBoxSide else { continue }
                 let score = try boxScore(map: map, polygon: minimum.orderedBox, cancellationCheck: cancellationCheck)
-                let parts: [(MinimumRectangle, Double, Int?)]
-                if score >= configuration.boxThreshold {
-                    parts = [(minimum, score, nil)]
-                } else if allowsWeakBridgeSplit,
-                          boxes.count + 2 <= configuration.maximumCandidates,
-                          let split = try splitWeakBridge(
-                              queue, map: map, threshold: configuration.boxThreshold,
-                              minimumBoxSide: configuration.minimumBoxSide,
-                              cancellationCheck: cancellationCheck
-                          ) {
-                    parts = split
-                } else if let recovery = configuration.recoveryBoxThreshold, score >= recovery {
-                    parts = [(minimum, score, nil)]
-                } else {
+                guard score >= configuration.boxThreshold,
+                      boxes.count < configuration.maximumCandidates else { continue }
+                try cancellationCheck()
+                guard let expanded = minimum.expanded(
+                    unclipRatio: configuration.unclipRatio
+                ), expanded.minimumSide >= minimumBoxSide + 2
+                else {
                     continue
                 }
-                for (minimum, score, splitCell) in parts {
-                    guard boxes.count < configuration.maximumCandidates else { break }
-                    try cancellationCheck()
-                    guard let expanded = minimum.expanded(
-                        unclipRatio: configuration.unclipRatio
-                    ), expanded.minimumSide >= configuration.minimumBoxSide + 2
-                    else {
-                        continue
-                    }
-                    let polygon = expanded.orderedBox.map { point in
-                        let boundedX: CGFloat
-                        if let splitCell {
-                            boundedX = splitCell >= 0 ? min(point.x, CGFloat(splitCell)) : max(point.x, CGFloat(-splitCell))
-                        } else {
-                            boundedX = point.x
-                        }
-                        return CGPoint(
-                            x: clampedRounded(
-                                (Double(boundedX)
-                                    + Double(resolvedGeometry.originX))
-                                    * Double(sourceWidth)
-                                    / Double(resolvedGeometry.fullWidth),
-                                maximum: sourceWidth
-                            ),
-                            y: clampedRounded(
-                                (Double(point.y)
-                                    + Double(resolvedGeometry.originY))
-                                    * Double(sourceHeight)
-                                    / Double(resolvedGeometry.fullHeight),
-                                maximum: sourceHeight
-                            )
+                let polygon = expanded.orderedBox.map { point in
+                    CGPoint(
+                        x: clampedRounded(
+                            Double(point.x) * Double(sourceWidth) / Double(map.width),
+                            maximum: sourceWidth
+                        ),
+                        y: clampedRounded(
+                            Double(point.y) * Double(sourceHeight) / Double(map.height),
+                            maximum: sourceHeight
                         )
-                    }
-                    boxes.append(NativeCoreMLDetectionBox(
-                        polygon: polygon,
-                        score: score
-                    ))
-                }
-            }
-        }
-        if !thinCandidates.isEmpty {
-            // Never allow newly recovered labels to become evidence for more
-            // labels. Eight additions and 64 scored candidates bound work.
-            let occupiedBounds = boxes.map { bounds(of: $0.polygon) }
-            let supportingBounds = zip(boxes, occupiedBounds).compactMap { box, bounds -> CGRect? in
-                box.score >= 0.6 && bounds.height > 0 && bounds.width >= bounds.height * 1.7 ? bounds : nil
-            }
-            var recovered = 0
-            for candidate in thinCandidates {
-                try cancellationCheck()
-                guard recovered < 8, boxes.count < configuration.maximumCandidates else { break }
-                let candidatePolygon = sourcePolygon(
-                    candidate.rectangle.orderedBox, geometry: resolvedGeometry,
-                    sourceWidth: sourceWidth, sourceHeight: sourceHeight
-                )
-                let candidateBounds = bounds(of: candidatePolygon)
-                guard supportsThinFinePrint(candidateBounds, occupied: occupiedBounds,
-                                            neighbors: supportingBounds) else { continue }
-                guard let expanded = candidate.rectangle.expanded(unclipRatio: configuration.unclipRatio,
-                                                                  minimumShortSide: 5) else { continue }
-                let context = expanded.finePrintRecognitionContext().map {
-                    sourcePolygon($0.orderedBox, geometry: resolvedGeometry,
-                                  sourceWidth: sourceWidth, sourceHeight: sourceHeight)
+                    )
                 }
                 boxes.append(NativeCoreMLDetectionBox(
-                    polygon: sourcePolygon(expanded.orderedBox, geometry: resolvedGeometry,
-                                           sourceWidth: sourceWidth, sourceHeight: sourceHeight),
-                    score: candidate.score,
-                    recognitionPolygon: context,
-                    isThinFinePrintRecovery: true,
-                    finePrintRetryPolygons: expanded.finePrintRetryContexts().map {
-                        sourcePolygon($0.orderedBox, geometry: resolvedGeometry,
-                                      sourceWidth: sourceWidth, sourceHeight: sourceHeight)
-                    }
+                    polygon: polygon,
+                    score: score
                 ))
-                recovered += 1
             }
         }
         sortReadingOrder(&boxes)
-        return NativeCoreMLDBPostprocessResult(
-            boxes: boxes,
-            candidateComponents: candidateComponents
-        )
-    }
-
-    private static func bounds(of polygon: [CGPoint]) -> CGRect {
-        guard let first = polygon.first else { return .zero }
-        var minimumX = first.x, maximumX = first.x, minimumY = first.y, maximumY = first.y
-        for point in polygon.dropFirst() {
-            minimumX = min(minimumX, point.x); maximumX = max(maximumX, point.x)
-            minimumY = min(minimumY, point.y); maximumY = max(maximumY, point.y)
-        }
-        return CGRect(x: minimumX, y: minimumY, width: maximumX - minimumX, height: maximumY - minimumY)
-    }
-
-    private static func supportsThinFinePrint(_ candidate: CGRect, occupied: [CGRect], neighbors: [CGRect]) -> Bool {
-        let center = CGPoint(x: candidate.midX, y: candidate.midY)
-        if occupied.contains(where: { $0.contains(center) }) { return false }
-        return neighbors.contains { neighbor in
-            guard candidate.width <= neighbor.width * 2 else { return false }
-            let overlap = max(0, min(candidate.maxX, neighbor.maxX) - max(candidate.minX, neighbor.minX))
-            let gap = max(0, neighbor.minY - candidate.maxY, candidate.minY - neighbor.maxY)
-            return overlap >= min(candidate.width, neighbor.width) * 0.2 && gap <= neighbor.height * 2
-        }
-    }
-
-    private static func sourcePolygon(
-        _ polygon: [CGPoint], geometry: NativeCoreMLDetectionMapGeometry, sourceWidth: Int, sourceHeight: Int
-    ) -> [CGPoint] {
-        polygon.map { point in
-            CGPoint(
-                x: clampedRounded((Double(point.x) + Double(geometry.originX))
-                    * Double(sourceWidth) / Double(geometry.fullWidth), maximum: sourceWidth),
-                y: clampedRounded((Double(point.y) + Double(geometry.originY))
-                    * Double(sourceHeight) / Double(geometry.fullHeight), maximum: sourceHeight)
-            )
-        }
+        return boxes
     }
 
     private static func consumeForegroundSpan(
@@ -603,41 +310,15 @@ enum NativeCoreMLDBPostprocessor {
 
         var minimumSide: Double { min(width, height) }
 
-        /// Actual Core ML crops recover clipped prefixes/suffixes with two
-        /// extra map pixels at either long edge. Narrow valid 氏名 labels
-        /// regress to 民名 when padded, so their original crop stays exact.
-        func finePrintRecognitionContext() -> MinimumRectangle? {
-            guard max(width, height) / min(width, height) >= 2.5 else { return nil }
-            return withLongSidePadding(2)
-        }
-
-        /// Narrow labels keep their successful original crop. Only an empty
-        /// recognition may try these exact map-scaled, bounded contexts.
-        func finePrintRetryContexts() -> [MinimumRectangle] {
-            guard max(width, height) / min(width, height) < 2.5 else { return [] }
-            return [withLongSidePadding(2), withLongSidePadding(2.5)]
-        }
-
-        private func withLongSidePadding(_ padding: Double) -> MinimumRectangle {
-            NativeCoreMLDBPostprocessor.makeRectangle(
-                center: center,
-                width: width + (width >= height ? padding * 2 : 0),
-                height: height + (height > width ? padding * 2 : 0),
-                angle: angle
-            )
-        }
-
-        func expanded(unclipRatio: Double, minimumShortSide: Double = 0) -> MinimumRectangle? {
+        func expanded(unclipRatio: Double) -> MinimumRectangle? {
             let area = width * height
             let perimeter = 2 * (width + height)
             guard area > 0, perimeter > 0 else { return nil }
             let distance = area * unclipRatio / perimeter
-            let expandedWidth = max(width + 2 * distance, minimumShortSide)
-            let expandedHeight = max(height + 2 * distance, minimumShortSide)
             return NativeCoreMLDBPostprocessor.makeRectangle(
                 center: center,
-                width: expandedWidth,
-                height: expandedHeight,
+                width: width + 2 * distance,
+                height: height + 2 * distance,
                 angle: angle
             )
         }
@@ -781,12 +462,6 @@ enum NativeCoreMLDBPostprocessor {
 
     private static func orderQuad(_ points: [CGPoint]) -> [CGPoint] {
         precondition(points.count == 4)
-        if NativeOCRDirectionGeometry.enabled("dbquad") {
-            // Minimum-area rectangle corner zero has no text-direction meaning.
-            // Preserve the rotated shape, but normalize its untyped reading
-            // basis before RF sampling and common recognizer canonicalization.
-            return NativeOCRDirectionGeometry.readingQuad(points) ?? []
-        }
         let sorted = points.sorted {
             if abs($0.x - $1.x) > 0.000_001 { return $0.x < $1.x }
             return $0.y < $1.y
@@ -810,54 +485,6 @@ enum NativeCoreMLDBPostprocessor {
             bottomRight = sorted[2]
         }
         return [topLeft, topRight, bottomRight, bottomLeft]
-    }
-
-    /// The same integer raster as boxScore, evaluated on final source quads.
-    /// This post-correction score is distinct from the original pre-unclip score.
-    /// Caller must verify all values are finite before calling.
-    static func validatedFiniteCorrectedBoxScores(map: NativeCoreMLDetectionMap, sourceWidth: Int, sourceHeight: Int,
-                                   polygons: [[CGPoint]], cancellationCheck: () throws -> Void = {}) throws -> [Double] {
-        precondition(sourceWidth > 0 && sourceHeight > 0)
-        let stride = map.width + 1
-        let sums = try [Double](unsafeUninitializedCapacity: stride * map.height) { buffer, initialized in
-            var offset = 0
-            try map.values.withUnsafeBufferPointer { values in
-                for y in 0..<map.height {
-                    if y & 31 == 0 { try cancellationCheck() }
-                    var prefix = 0.0
-                    buffer[offset] = prefix
-                    let input = y * map.width
-                    for x in 0..<map.width {
-                        prefix += Double(values[input + x])
-                        buffer[offset + x + 1] = prefix
-                    }
-                    offset += stride
-                    initialized = offset
-                }
-            }
-        }
-        return try polygons.map { source in
-            try cancellationCheck()
-            guard source.count == 4, source.allSatisfy({ $0.x.isFinite && $0.y.isFinite &&
-                abs($0.x) < 1e9 && abs($0.y) < 1e9 }) else { return 0 }
-            let polygon = source.map { CGPoint(x: Double($0.x) * Double(map.width) / Double(sourceWidth),
-                                               y: Double($0.y) * Double(map.height) / Double(sourceHeight)) }
-            let minimumX = max(0, min(map.width-1, Int(floor(polygon.map(\.x).min()!))))
-            let maximumX = max(0, min(map.width-1, Int(ceil(polygon.map(\.x).max()!))))
-            let minimumY = max(0, min(map.height-1, Int(floor(polygon.map(\.y).min()!))))
-            let maximumY = max(0, min(map.height-1, Int(ceil(polygon.map(\.y).max()!))))
-            let raster = polygon.map { CGPoint(x: Int($0.x), y: Int($0.y)) }
-            var sum = 0.0, count = 0
-            for y in minimumY...maximumY {
-                if (y-minimumY) & 31 == 0 { try cancellationCheck() }
-                guard let span = inclusiveHorizontalSpan(y: y, polygon: raster,
-                    minimumX: minimumX, maximumX: maximumX) else { continue }
-                let i = y * stride
-                sum += sums[i+span.upperBound+1] - sums[i+span.lowerBound]
-                count += span.count
-            }
-            return count == 0 ? 0 : sum / Double(count)
-        }
     }
 
     private static func boxScore(
@@ -911,17 +538,6 @@ enum NativeCoreMLDBPostprocessor {
         }
         return count == 0 ? 0 : sum / Double(count)
     }
-
-#if DEBUG
-    /// Deterministic parity seam for the OCRCoreML test target. Release builds
-    /// keep the score implementation private to DB postprocessing.
-    static func boxScoreForTesting(
-        map: NativeCoreMLDetectionMap,
-        polygon: [CGPoint]
-    ) -> Double {
-        try! boxScore(map: map, polygon: polygon)
-    }
-#endif
 
     private static func inclusiveHorizontalSpan(
         y: Int,
@@ -993,91 +609,5 @@ enum NativeCoreMLDBPostprocessor {
                 cursor -= 1
             }
         }
-    }
-}
-
-@available(iOS 18.0, *)
-extension NativeCoreMLDBPostprocessor {
-    static let alternateCellEnvelopeEnvironmentKey = "AIDOKU_DET_ALTERNATE_CELL_ENVELOPE"
-    static let alternateCellEnvelopeEnabled =
-        ProcessInfo.processInfo.environment[alternateCellEnvelopeEnvironmentKey] == "1"
-    static let maximumAlternateCellEnvelopes = 8
-
-    /// Offer one larger crop for each of at most eight narrow detector parents.
-    /// Added area may touch, but cannot enter, another original or selected crop.
-    /// The 128-row ceiling bounds footprint comparisons on unusually dense pages.
-    static func alternateCellEnvelopes(
-        polygons: [[CGPoint]], sourceWidth: Int, sourceHeight: Int, mapWidth: Int, mapHeight: Int,
-        cancellationCheck: () throws -> Void = {}
-    ) throws -> [Int: [CGPoint]] {
-        typealias Geometry = NativeOCRGeometryDeduplication
-        typealias Point = NativeOCRIndividualGeometryHypotheses.Point
-        guard (1...128).contains(polygons.count), sourceWidth > 0, sourceHeight > 0,
-              mapWidth > 0, mapHeight > 0 else { return [:] }
-
-        let originals = polygons.map { polygon in
-            Geometry.Shape(polygon.map { Point(x: Double($0.x), y: Double($0.y)) })
-        }
-        guard originals.allSatisfy({ $0.convex && $0.area.isFinite && $0.area > 0 }) else { return [:] }
-        let pitchX = Double(sourceWidth) / Double(mapWidth)
-        let pitchY = Double(sourceHeight) / Double(mapHeight)
-        let gridScaleX = 1 / pitchX
-        let gridScaleY = 1 / pitchY
-        let margin = 1.5
-        let areaTolerance = 1e-7
-        let ranked = try originals.enumerated().compactMap { index, original -> (Int, Geometry.Shape, Double)? in
-            try cancellationCheck()
-            let grid = original.polygon.map { Point(x: $0.x * gridScaleX, y: $0.y * gridScaleY) }
-            let edges = grid.indices.map { i in
-                let next = grid[(i + 1) % grid.count]
-                return Point(x: next.x - grid[i].x, y: next.y - grid[i].y)
-            }
-            let lengths = edges.map { sqrt($0.x * $0.x + $0.y * $0.y) }
-            guard let shortest = lengths.min(), shortest > 0 else { return nil }
-            let direction = edges[0].x * edges[1].y - edges[0].y * edges[1].x > 0 ? 1.0 : -1.0
-            let normals = zip(edges, lengths).map { edge, length in
-                Point(x: direction * edge.y / length, y: -direction * edge.x / length)
-            }
-
-            let expanded = grid.indices.compactMap { i -> Point? in
-                let previous = normals[(i + grid.count - 1) % grid.count]
-                let next = normals[i]
-                let determinant = previous.x * next.y - previous.y * next.x
-                guard determinant != 0 else { return nil }
-                let dx = margin * (next.y - previous.y) / determinant
-                let dy = margin * (previous.x - next.x) / determinant
-                // Reject corners whose offset would require a bevel/spike.
-                guard hypot(dx, dy) <= 5 * margin else { return nil }
-                let x = (grid[i].x + dx) * pitchX
-                let y = (grid[i].y + dy) * pitchY
-                guard x >= 0, x <= Double(sourceWidth), y >= 0, y <= Double(sourceHeight) else { return nil }
-                return Point(x: x, y: y)
-            }
-            let shape = Geometry.Shape(expanded)
-            return shape.convex && shape.area > original.area ? (index, shape, shortest) : nil
-        }.sorted { lhs, rhs in
-            lhs.2 == rhs.2 ? lhs.0 < rhs.0 : lhs.2 < rhs.2
-        }
-
-        func overlap(_ first: Geometry.Shape, _ second: Geometry.Shape) -> Double {
-            let iou = Geometry.intersectionIoU(first, second, minimum: 0)
-            return iou * (first.area + second.area) / (1 + iou)
-        }
-
-        var selected: [(Int, Geometry.Shape)] = []
-        for (index, expanded, _) in ranked {
-            try cancellationCheck()
-            let original = originals[index]
-            guard originals.indices.allSatisfy({ peer in
-                peer == index || overlap(expanded, originals[peer]) <= overlap(original, originals[peer]) + areaTolerance
-            }), selected.allSatisfy({ peer in
-                overlap(expanded, peer.1) <= overlap(original, originals[peer.0]) + areaTolerance
-            }) else { continue }
-            selected.append((index, expanded))
-            if selected.count == maximumAlternateCellEnvelopes { break }
-        }
-        return Dictionary(uniqueKeysWithValues: selected.map { index, expanded in
-            (index, expanded.polygon.map { CGPoint(x: $0.x, y: $0.y) })
-        })
     }
 }

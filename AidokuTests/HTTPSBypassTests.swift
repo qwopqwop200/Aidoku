@@ -2,7 +2,6 @@ import Foundation
 import Network
 import Nuke
 import Testing
-import WebKit
 @testable import Aidoku
 
 @Suite(.serialized)
@@ -248,14 +247,6 @@ struct HTTPSBypassTests {
                 } else { self.read(connection) }
             }
         }
-    }
-
-    @MainActor private final class Navigation: NSObject, WKNavigationDelegate {
-        var finished = false
-        var error: Error?
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { finished = true }
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { self.error = error }
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { self.error = error }
     }
 
     private final class Flag: @unchecked Sendable {

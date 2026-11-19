@@ -494,13 +494,15 @@ extension MangaView {
                 }
             }
             if !last && !secondSection {
+                // resolve the index on tap; the captured one may be stale after the list changes
+                let previousChapters = { () -> [AidokuRunner.Chapter] in
+                    let chapters = viewModel.chapters
+                    guard let index = chapters.firstIndex(where: { $0.key == chapter.key }) else { return [] }
+                    return Array(viewModel.chapterSortAscending ? chapters[0..<index] : chapters[(index + 1)...])
+                }
                 Menu(NSLocalizedString("MARK_PREVIOUS")) {
                     Button {
-                        guard let currentIndex = viewModel.chapters.firstIndex(where: { $0.key == chapter.key }) else { return }
-                        // "previous" chapters come before the current one when sorting ascending
-                        let chapters = viewModel.chapterSortAscending
-                            ? Array(viewModel.chapters.prefix(currentIndex))
-                            : Array(viewModel.chapters.dropFirst(currentIndex + 1))
+                        let chapters = previousChapters()
                         Task {
                             await viewModel.markRead(chapters: chapters)
                         }
@@ -508,11 +510,7 @@ extension MangaView {
                         Label(NSLocalizedString("READ"), systemImage: "checkmark.circle")
                     }
                     Button {
-                        guard let currentIndex = viewModel.chapters.firstIndex(where: { $0.key == chapter.key }) else { return }
-                        // "previous" chapters come before the current one when sorting ascending
-                        let chapters = viewModel.chapterSortAscending
-                            ? Array(viewModel.chapters.prefix(currentIndex))
-                            : Array(viewModel.chapters.dropFirst(currentIndex + 1))
+                        let chapters = previousChapters()
                         Task {
                             await viewModel.markUnread(chapters: chapters)
                         }

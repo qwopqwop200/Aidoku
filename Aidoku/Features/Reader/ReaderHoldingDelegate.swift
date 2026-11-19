@@ -29,10 +29,7 @@ protocol ReaderHoldingDelegate: AnyObject {
     func setCompleted()
     func translationVisibilityDidChange()
     @MainActor
-    func prepareCachedTranslationForDisplay(
-        image: UIImage, page: Page,
-        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
-    ) async throws -> ReaderTranslationPreparedImage?
+    func prepareCachedTranslationForDisplay(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage?
 }
 
 extension ReaderHoldingDelegate {
@@ -42,10 +39,7 @@ extension ReaderHoldingDelegate {
 
     func translationVisibilityDidChange() {}
     @MainActor
-    func prepareCachedTranslationForDisplay(
-        image: UIImage, page: Page,
-        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
-    ) async throws -> ReaderTranslationPreparedImage? { nil }
+    func prepareCachedTranslationForDisplay(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage? { nil }
     func getNextChapter(after chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter? { nil }
     func getPreviousChapter(before chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter? { nil }
 }

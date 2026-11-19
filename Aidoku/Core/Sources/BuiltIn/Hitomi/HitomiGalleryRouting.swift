@@ -1,22 +1,5 @@
 import Foundation
 
-struct HitomiGalleryID: Codable, Equatable, Sendable {
-    let value: String
-
-    init(value: String) { self.value = value }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let text = try? container.decode(String.self) { value = text }
-        else { value = String(try container.decode(UInt64.self)) }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(value)
-    }
-}
-
 /// Extract the published routing data without evaluating gg.js as executable code.
 struct HitomiGGState: Sendable {
     enum Failure: Error { case malformedRouting, malformedGallery }
@@ -101,9 +84,4 @@ struct HitomiGGState: Sendable {
         }
         return nil
     }
-}
-
-enum HitomiGalleryRouting {
-    static func galleryJSON(_ body: String) throws -> Data { try HitomiGGState.galleryJSON(body) }
-    static func galleryID(url: String) -> Int64? { HitomiGGState.galleryID(url: url) }
 }

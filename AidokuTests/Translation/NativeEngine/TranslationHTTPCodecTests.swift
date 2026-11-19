@@ -373,8 +373,6 @@ struct TranslationHTTPCodecTests {
         let restored = try canonical.restoringCallerSegmentIDs(in: .init(translations: leaked, source: .diskCache, providerRequestID: nil))
         #expect(restored.translations.map(\.id) == ["ocr-1", "ocr-2"])
         #expect(restored.translations.map(\.text) == ["지금까지 깨닫지", "경로 \\ub04c"])
-        let partial = canonical.restoringCallerSegmentIDs(inPartial: [leaked[0]])
-        #expect(partial.map(\.text) == ["지금까지 깨닫지"])
     }
 
     @Test func pageImageEncodingResizesAndProducesJPEG() throws {
@@ -472,15 +470,13 @@ struct TranslationHTTPCodecTests {
 
     @Test(arguments: [false, true])
     func firstMalformedBatchSplitsImmediatelyAndRestoresCallerIDs(parallel: Bool) async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
         let client = MalformedBatchClient()
-        let service = TranslationService(client: client, cache: try TranslationCache(storageRootURL: root),
+        let service = TranslationService(client: client, cache: TranslationCache(),
             providerRequestLimiter: parallel ? TranslationProviderRequestLimiter(maximumConcurrentRequests: 2) : nil)
         var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
             segments: (0..<4).map { .init(id: "bubble-\($0)", text: "文\($0)") })
         request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
-        let result = try await service.translateLive(request, configuration: .openAI(model: "test"))
+        let result = try await service.translate(request, configuration: .openAI(model: "test"))
         #expect(result.translations.map(\.id) == request.segments.map(\.id))
         #expect(result.translations.map(\.text) == request.segments.map { "번역 " + $0.text })
         let calls = await client.sizes
@@ -496,14 +492,12 @@ struct TranslationHTTPCodecTests {
     }
 
     @Test func refusalIsNotRetriedOrSplit() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
         let client = MalformedBatchClient(refuses: true)
-        let service = TranslationService(client: client, cache: try TranslationCache(storageRootURL: root))
+        let service = TranslationService(client: client, cache: TranslationCache())
         let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
             segments: [.init(id: "a", text: "文"), .init(id: "b", text: "言葉")])
         await #expect(throws: RemoteTranslationError.refused) {
-            try await service.translateLive(request, configuration: .openAI(model: "test"))
+            try await service.translate(request, configuration: .openAI(model: "test"))
         }
         #expect(await client.sizes == [2])
     }
@@ -1129,15 +1123,13 @@ private enum TranslationWireContractChecks {
                             let regexAccepted = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
                             try check(schemaAccepted == accepted, "Schema mismatch: \(text)")
                             try check(regexAccepted == accepted, "Compact grammar mismatch: \(text)")
-                            let partial = TranslationHTTPCodec.streamedSegment(
-                                fromItemJSON: try JSONSerialization.data(withJSONObject: item), expectedSegmentIDs: ["one"],
-                                sfxSourceTexts: sfxSources, backgroundSourceTexts: backgroundSources)
-                            try check((partial != nil) == accepted, "Stream item mismatch: \(text)")
+                            var buffered: RemoteTranslatedSegment?
                             do {
                                 let final = try TranslationHTTPCodec.responseTranslations(from: response(text, proto),
                                     protocol: proto, expectedSegmentIDs: ["one"], sfxSourceTexts: sfxSources,
                                     backgroundSourceTexts: backgroundSources)
-                                try check(accepted && final.count == 1 && final.first == partial, "Final parser mismatch: \(text)")
+                                try check(accepted && final.count == 1, "Final parser mismatch: \(text)")
+                                buffered = final.first
                                 try check(final[0].text == item["text"] as? String, "Role-based source copying")
                                 try check(final[0].isSFX == (item["text_role"] as? String).map { $0 == "sfx" }, "Wrong derived SFX classification")
                                 try check(final[0].textRole?.rawValue == item["text_role"] as? String, "Lost text role")
@@ -1149,7 +1141,7 @@ private enum TranslationWireContractChecks {
                                     let final = try TranslationHTTPCodec.streamedChatTranslations(from: stream(text),
                                         expectedSegmentIDs: ["one"], sfxSourceTexts: sfxSources,
                                         backgroundSourceTexts: backgroundSources)
-                                    try check(accepted && final.first == partial, "SSE final mismatch: \(text)")
+                                    try check(accepted && final.first == buffered, "SSE final mismatch: \(text)")
                                 } catch RemoteTranslationError.invalidResponse {
                                     try check(!accepted, "SSE rejected valid classification: \(text)")
                                 }
@@ -1313,10 +1305,10 @@ private enum TranslationWireContractChecks {
             for compact in [false, true] {
                 for sourceIdentity in [identity, nil, String(repeating: "b", count: 64)] {
                     var request = base
-                    request.preparedImageDataURL = "data:image/jpeg;base64,stale"
                     let jpeg = Data([0xff, 0xd8, 1, 0xff, 0xd9])
-                    RemoteTranslationPageImage(jpeg: jpeg, sourceIdentity: sourceIdentity).apply(to: &request)
-                    try check(request.imageJPEG == jpeg && request.preparedImageDataURL == nil &&
+                    request.imageJPEG = jpeg
+                    request.roleEvidenceSourceImageIdentity = sourceIdentity
+                    try check(request.imageJPEG == jpeg &&
                         request.roleEvidenceSourceImageIdentity == sourceIdentity, "Page bytes/provenance did not move together")
                     let (payload, _) = try inspect(request, proto, compact)
                     let segment = (payload["segments"] as! [[String: Any]])[0]
@@ -1415,11 +1407,6 @@ private enum TranslationWireContractChecks {
                     let text = try orderedEnvelope(item)
                     let decoded = try TranslationHTTPCodec.responseTranslations(from: response(text, proto),
                         protocol: proto, expectedSegmentIDs: ["segment-0"])
-                    let partial = TranslationHTTPCodec.streamedSegment(
-                        fromItemJSON: try JSONSerialization.data(withJSONObject: item),
-                        expectedSegmentIDs: ["segment-0"])!
-                    let restoredPartial = canonical.restoringCallerSegmentIDs(inPartial: [partial])
-                    try check(restoredPartial.isEmpty == shouldReject, "Escaped-only partial restoration mismatch")
                     do {
                         let restored = try canonical.restoringCallerSegmentIDs(in:
                             .init(translations: decoded, source: .network, providerRequestID: nil))

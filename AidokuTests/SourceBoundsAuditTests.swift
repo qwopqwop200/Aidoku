@@ -27,7 +27,6 @@ struct KavitaPageCountBoundsTests {
         #expect(KavitaVolume.Chapter.boundedPageCount(42) == 42)
         #expect(KavitaVolume.Chapter.boundedPageCount(10_000) == 10_000)
         #expect(KavitaVolume.Chapter.boundedPageCount(Int.max) == KavitaVolume.Chapter.maximumPageCount)
-        #expect(KavitaVolume.Chapter.boundedPageCount(50, maximum: 8) == 8)
     }
 }
 

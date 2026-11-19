@@ -30,12 +30,12 @@ struct DictionaryOperationSchedulingTests {
             try await DictionaryFileOperations.boundedData(for: URLRequest(url: url), session: session, maximumBytes: 2 * 1024 * 1024)
         }
         defer { operation.cancel() }
-        try await waitUntil { DictionaryOperationURLProtocol.hasSentHeaders(url) }
+        try await RegressionTestWait.until { DictionaryOperationURLProtocol.hasSentHeaders(url) }
         // Yield after a real streamed chunk so cancellation covers body consumption.
         try await Task.sleep(for: .milliseconds(20))
         operation.cancel()
         await #expect(throws: (any Error).self) { try await operation.value }
-        try await waitUntil { DictionaryOperationURLProtocol.hasStopped(url) }
+        try await RegressionTestWait.until { DictionaryOperationURLProtocol.hasStopped(url) }
         #expect(DictionaryOperationURLProtocol.requests(url) == 1)
     }
 
@@ -47,24 +47,23 @@ struct DictionaryOperationSchedulingTests {
             _ = try await DictionaryFileOperations.boundedData(for: URLRequest(url: url), session: session, maximumBytes: 64)
         }
         #expect(DictionaryOperationURLProtocol.hasSentHeaders(url))
-        try await waitUntil { DictionaryOperationURLProtocol.hasStopped(url) }
+        try await RegressionTestWait.until { DictionaryOperationURLProtocol.hasStopped(url) }
         #expect(DictionaryOperationURLProtocol.requests(url) == 1)
     }
 
-    @Test(arguments: [false, true])
-    func downloadCancellationStopsActualTransferAndReleasesOperation(explicit: Bool) async throws {
+    @Test func downloadCancellationStopsActualTransferAndReleasesOperation() async throws {
         let manager = DictionaryManager.shared
         #expect(!manager.isImporting && !manager.isUpdating)
         let session = session()
         defer { session.invalidateAndCancel() }
         let url = URL(string: "https://dictionary-operation.invalid/hold/" + UUID().uuidString)!
         let operation = Task { await manager.downloadDictionary(indexUrl: url.absoluteString, type: .term, session: session) }
-        defer { operation.cancel(); manager.cancelCurrentOperation() }
-        try await waitUntil { DictionaryOperationURLProtocol.hasStarted(url) }
+        defer { operation.cancel() }
+        try await RegressionTestWait.until { DictionaryOperationURLProtocol.hasStarted(url) }
         #expect(manager.isImporting)
-        if explicit { manager.cancelCurrentOperation() } else { operation.cancel() }
+        operation.cancel()
         #expect(await operation.value == false)
-        try await waitUntil { DictionaryOperationURLProtocol.hasStopped(url) }
+        try await RegressionTestWait.until { DictionaryOperationURLProtocol.hasStopped(url) }
         #expect(!manager.isImporting && !manager.isUpdating)
         #expect(DictionaryOperationURLProtocol.requests(url) == 1,
                 "Cancellation during index fetch must never advance to archive transfer/import")
@@ -74,14 +73,6 @@ struct DictionaryOperationSchedulingTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [DictionaryOperationURLProtocol.self]
         return URLSession(configuration: configuration)
-    }
-
-    private func waitUntil(_ predicate: () -> Bool) async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-        while !predicate() {
-            guard ContinuousClock.now < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(5))
-        }
     }
 }
 

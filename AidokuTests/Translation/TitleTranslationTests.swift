@@ -84,10 +84,6 @@ struct TitleTranslationTests {
                 service: ReaderTranslationService(client: online), diskCache: fixture.disk) == "일본어 제목")
         }
         #expect(await online.requests.count == 6)
-        settings.ocr.detectorPixelThreshold = 0.25
-        settings.ocr.detectorConfidenceThreshold = 0.5
-        settings.ocr.confidenceThreshold = 0.8
-        settings.ocr.detectorMinimumBoxSide = 2
         let reopened = ReaderTranslationDiskCache(directory: fixture.root)
         try await reopened.synchronizeSettings(settings)
         let offline = TitleTestClient(fail: true)

@@ -118,17 +118,6 @@ enum TranslationEndpointPolicy {
         return endpoint
     }
 
-    static func requiresLocalNetworkPermission(
-        for configuration: RemoteTranslationConfiguration
-    ) -> Bool {
-        guard configuration.provider == .custom,
-              let host = try? endpoint(for: configuration).host
-        else {
-            return false
-        }
-        return isPotentialLocalNetworkHost(host)
-    }
-
     private static func hasSuffix(_ value: [String], _ suffix: [String]) -> Bool {
         guard value.count >= suffix.count else { return false }
         return value.suffix(suffix.count).elementsEqual(
@@ -140,44 +129,6 @@ enum TranslationEndpointPolicy {
     private static func isCanonicalLoopbackHost(_ host: String) -> Bool {
         host == "localhost" || host == "127.0.0.1" ||
             host == "::1" || host == "[::1]"
-    }
-
-    private static func isPotentialLocalNetworkHost(_ host: String) -> Bool {
-        let normalized = host
-            .lowercased()
-            .trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
-        if normalized == "localhost" ||
-            normalized.hasSuffix(".local") ||
-            normalized.hasSuffix(".home.arpa")
-        {
-            return true
-        }
-        if !normalized.contains(".") && !normalized.contains(":") {
-            return true
-        }
-
-        let octets = normalized.split(separator: ".", omittingEmptySubsequences: false)
-            .compactMap { Int($0) }
-        if octets.count == 4, octets.allSatisfy({ (0...255).contains($0) }) {
-            return octets[0] == 10 ||
-                octets[0] == 127 ||
-                (octets[0] == 169 && octets[1] == 254) ||
-                (octets[0] == 172 && (16...31).contains(octets[1])) ||
-                (octets[0] == 192 && octets[1] == 168)
-        }
-
-        if normalized == "::1" ||
-            normalized.hasPrefix("fc") ||
-            normalized.hasPrefix("fd")
-        {
-            return true
-        }
-        if let firstGroup = normalized.split(separator: ":").first,
-           let value = UInt16(firstGroup, radix: 16)
-        {
-            return value & 0xffc0 == 0xfe80
-        }
-        return false
     }
 
     private static func rawAuthorityHost(_ value: String) -> String? {

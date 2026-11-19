@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 @Suite(.serialized)
 @MainActor
 struct NativeDictionaryMediaEfficiencyTests {
-    @Test func largeRasterDecodesOnlyDisplayPixelsAndKeepsLayoutAndAltText() throws {
+    @Test func largeRasterDecodesOnlyDisplayPixelsAndKeepsLayout() throws {
         let data = try rasterData(width: 1600, height: 800)
         let attachment = try media(data, node: ["width": 100, "height": 50, "alt": "図の説明"])
         let image = try #require(attachment.original.cgImage)
@@ -15,7 +15,6 @@ struct NativeDictionaryMediaEfficiencyTests {
         #expect(attachment.bounds.size == CGSize(width: 100, height: 50))
         #expect(image.width <= Int(ceil(100 * scale)) && image.height <= Int(ceil(50 * scale)))
         #expect(image.width < 1600 && image.height < 800)
-        #expect(attachment.title == "図の説明")
     }
 
     @Test func intrinsicGeometryAndEXIFRotationSurviveDownsampling() throws {
@@ -52,7 +51,7 @@ struct NativeDictionaryMediaEfficiencyTests {
 
     @Test func dynamicTintBorderAndBackgroundInvalidateCachedPixels() throws {
         let attachment = NativeDictionaryImageAttachment(image: try #require(UIImage(data: rasterData(width: 10, height: 10))),
-            tint: UIColor { $0.userInterfaceStyle == .dark ? .white : .black }, pixelated: false, title: "fixture",
+            tint: UIColor { $0.userInterfaceStyle == .dark ? .white : .black }, pixelated: false,
             borderWidth: 2, borderColor: UIColor { $0.userInterfaceStyle == .dark ? .yellow : .blue },
             background: UIColor { $0.accessibilityContrast == .high ? .red : .green })
         let bounds = CGRect(x: 0, y: 0, width: 30, height: 30)

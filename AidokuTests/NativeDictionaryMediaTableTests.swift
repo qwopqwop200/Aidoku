@@ -75,13 +75,12 @@ struct NativeDictionaryMediaTableTests {
         #expect(texts.map(\.text).contains("日本語"))
     }
 
-    @Test func stylesheetAppliesClassDataSelectorsHTMLMediaAndRecordsResidualCSS() throws {
+    @Test func stylesheetAppliesClassDataSelectorsHTMLMedia() throws {
         let rendered = NativeDictionaryContent.glossary("<p class='definition' lang='ja' data-sc-kind='term'>日本語</p>",
             dictionary: "fixture", scale: 1, stylesheet: ".definition[data-sc-kind=term] { font-weight: bold; color: rgb(1, 2, 3); display: grid; gap: 4px; }")
         let font = try #require(rendered.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
         #expect(font.fontDescriptor.symbolicTraits.contains(.traitBold))
         #expect(rendered.attribute(.nativeDictionaryLanguage, at: 0, effectiveRange: nil) as? String == "ja")
-        #expect((rendered.attribute(.nativeDictionaryCSSDiagnostics, at: 0, effectiveRange: nil) as? [String])?.contains("gap") == true)
     }
     @Test func themeImportantVariablesAndHiddenRubyFollowNativeCascade() throws {
         let content = "<div style='--ink:#123456'><ruby class='hidden'>消える<rt>きえる</rt></ruby><span class='term'>語</span></div>"

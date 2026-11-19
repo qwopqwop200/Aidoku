@@ -1,11 +1,6 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 
-/// Receives validated translations of a batch while its response streams.
-/// Calls arrive in response order, each segment ID at most once per request
-/// attempt. They are provisional: the final batch result is authoritative.
-typealias RemoteTranslationPartialHandler = @Sendable ([RemoteTranslatedSegment]) -> Void
-
 protocol RemoteTranslating: Sendable {
     func prepare(configuration: RemoteTranslationConfiguration) async
 
@@ -13,25 +8,10 @@ protocol RemoteTranslating: Sendable {
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult
-
-    func translate(
-        _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        onPartial: RemoteTranslationPartialHandler?
-    ) async throws -> RemoteTranslationBatchResult
 }
 
 extension RemoteTranslating {
     func prepare(configuration: RemoteTranslationConfiguration) async {}
-
-    /// Non-streaming clients only publish their final result.
-    func translate(
-        _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        onPartial: RemoteTranslationPartialHandler?
-    ) async throws -> RemoteTranslationBatchResult {
-        try await translate(request, configuration: configuration)
-    }
 }
 
 /// Per-endpoint record of whether a custom server accepts
@@ -318,14 +298,6 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
-        try await translate(request, configuration: configuration, onPartial: nil)
-    }
-
-    func translate(
-        _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        onPartial: RemoteTranslationPartialHandler?
-    ) async throws -> RemoteTranslationBatchResult {
         try Task.checkCancellation()
         try request.validate()
         // Page-lettering classification is a single-pass decision. Do not
@@ -336,14 +308,14 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             guard request.imageJPEG != nil, request.filtersSFX == true, request.filtersBackground == true else {
                 throw RemoteTranslationError.invalidRequest("page translation requires image, SFX and background roles")
             }
-            return try await translateOnce(request, configuration: configuration, onPartial: onPartial)
+            return try await translateOnce(request, configuration: configuration)
         }
         var effectiveRequest = request
         if !rechecksImageSupport, imageSupport.status(for: configuration) == .unsupported {
             effectiveRequest.imageJPEG = nil
         }
         do {
-            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration, onPartial: onPartial)
+            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration)
             if effectiveRequest.imageJPEG != nil {
                 imageSupport.record(.supported, for: configuration)
             }
@@ -353,8 +325,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         } catch is UnsupportedImageInput {
             try Task.checkCancellation()
             imageSupport.record(.unsupported, for: configuration)
-            effectiveRequest.imageJPEG = nil // Also clears the prepared base64 data URL.
-            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration, onPartial: onPartial)
+            effectiveRequest.imageJPEG = nil
+            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration)
             let verified = try await recoveringSourceRoles(effectiveRequest, result: result, configuration: configuration)
             return try await recoveringIndependentSourceAlignment(effectiveRequest, result: verified,
                 configuration: configuration)
@@ -368,20 +340,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             try Task.checkCancellation()
             let started = ProcessInfo.processInfo.systemUptime
             do {
-                let response = try await translateUsingSupportedProtocol(focused, configuration: configuration, onPartial: nil)
+                let response = try await translateUsingSupportedProtocol(focused, configuration: configuration)
                 receipts.append(.init(request: focused, result: response))
-                let changed = TranslationRoleVerificationPlanner.merging(request: request,
-                    original: result, verifications: [.init(request: focused, result: response)]) != result
-                let event: [String: Any] = ["policy": TranslationRoleVerificationPlanner.version,
-                    "segmentIDs": focused.segments.map(\.id), "completed": true, "admittedChange": changed,
-                    "sourceImageIdentity": focused.roleEvidenceSourceImageIdentity as Any? ?? NSNull(),
-                    "providerRequestID": response.providerRequestID as Any? ?? NSNull(),
-                    "roles": response.translations.map { $0.textRole?.rawValue ?? "unmeasured" }]
-                if let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) {
-                    FileHandle.standardError.write(Data("causal_role_verification ".utf8))
-                    FileHandle.standardError.write(data)
-                    FileHandle.standardError.write(Data([10]))
-                }
             } catch is CancellationError { throw CancellationError() }
             catch {
                 // An optional recheck cannot destroy the completed primary
@@ -401,20 +361,18 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         try await TranslationHTTPCodec.recoveringIndependentSourceAlignment(request: request, result: result) { isolated in
             // Call below this recovery entry point: an independently confirmed
             // coinciding translation is accepted without recursively retrying.
-            try await self.translateUsingSupportedProtocol(isolated, configuration: configuration, onPartial: nil)
+            try await self.translateUsingSupportedProtocol(isolated, configuration: configuration)
         }
     }
 
     private func translateUsingSupportedProtocol(
         _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        onPartial: RemoteTranslationPartialHandler?
+        configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
         guard configuration.provider == .custom else {
             return try await translateOnce(
                 request,
-                configuration: configuration,
-                onPartial: onPartial
+                configuration: configuration
             )
         }
 
@@ -447,8 +405,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         do {
             let result = try await translateOnce(
                 request,
-                configuration: preferredConfiguration,
-                onPartial: onPartial
+                configuration: preferredConfiguration
             )
             await protocolPreferences.reportSuccess(
                 key: key,
@@ -479,8 +436,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             do {
                 let result = try await translateOnce(
                     request,
-                    configuration: alternateConfiguration,
-                    onPartial: onPartial
+                    configuration: alternateConfiguration
                 )
                 await protocolPreferences.reportSuccess(
                     key: key,
@@ -509,8 +465,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
 
     private func translateOnce(
         _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        onPartial: RemoteTranslationPartialHandler?
+        configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
         let segmentCount = request.segments.count
         let endpointStartedAt = ProcessInfo.processInfo.systemUptime
@@ -550,7 +505,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             // Compact-output negotiation may retry after a rejected grammar.
             // The one-call page path uses the portable schema directly.
             return try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
-                chatOptions: .standard, onPartial: onPartial).batch
+                chatOptions: .standard).batch
         }
 
         let compactKey = try Self.compactCapabilityKey(for: configuration)
@@ -561,8 +516,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         if Self.usesCompactOutput(configuration: configuration, request: request, state: compactState) {
             do {
                 let result = try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
-                                                chatOptions: Self.compactChatOptions(configuration: configuration, request: request),
-                                                onPartial: onPartial)
+                                                chatOptions: Self.compactChatOptions(configuration: configuration, request: request))
                 compactOutput.markVerified(compactKey)
                 return result.batch
             } catch let error as RemoteTranslationError {
@@ -582,7 +536,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             }
         }
         let result = try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
-                                        chatOptions: .standard, onPartial: nil)
+                                        chatOptions: .standard)
         if result.identifiesStructuredOutputServer, configuration.provider == .custom {
             compactOutput.markEligible(compactKey)
         }
@@ -624,57 +578,12 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         let identifiesStructuredOutputServer: Bool
     }
 
-    /// Streamed partial output state. URLSession delivers body bytes on its
-    /// serial delegate queue; the lock only guards against observer reuse.
-    private final class PartialStreamState: @unchecked Sendable {
-        private let lock = NSLock()
-        private var decoder = ChatCompletionStreamDecoder()
-        private var scanner = StreamedTranslationItemScanner()
-        private var published = Set<String>()
-        private var failed = false
-        private let expectedIDs: Set<String>
-        private let sfxSourceTexts: [String: String]?
-        private let backgroundSourceTexts: [String: String]?
-        private let handler: RemoteTranslationPartialHandler
-
-        init(request: RemoteTranslationRequest, handler: @escaping RemoteTranslationPartialHandler) {
-            expectedIDs = Set(request.segments.map(\.id))
-            let sources = Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) })
-            sfxSourceTexts = request.filtersSFX == true ? sources : nil
-            backgroundSourceTexts = request.filtersBackground == true ? sources : nil
-            self.handler = handler
-        }
-
-        func consume(_ data: Data) {
-            lock.lock()
-            var segments: [RemoteTranslatedSegment] = []
-            if !failed {
-                do {
-                    for delta in try decoder.consume(data) {
-                        for item in scanner.append(delta) {
-                            guard let segment = TranslationHTTPCodec.streamedSegment(
-                                fromItemJSON: item, expectedSegmentIDs: expectedIDs,
-                                sfxSourceTexts: sfxSourceTexts, backgroundSourceTexts: backgroundSourceTexts
-                            ), published.insert(segment.id).inserted else { continue }
-                            segments.append(segment)
-                        }
-                    }
-                } catch {
-                    failed = true // A non-SSE body; the final parse decides.
-                }
-            }
-            lock.unlock()
-            if !segments.isEmpty { handler(segments) }
-        }
-    }
-
     private func exchange(
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration,
         endpoint: URL,
         apiKey: String,
-        chatOptions: TranslationHTTPCodec.ChatWireOptions,
-        onPartial: RemoteTranslationPartialHandler?
+        chatOptions: TranslationHTTPCodec.ChatWireOptions
     ) async throws -> ExchangeResult {
         let segmentCount = request.segments.count
         let encodeStartedAt = ProcessInfo.processInfo.systemUptime
@@ -706,15 +615,12 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         let maximumBodyBytes = chatOptions.stream
             ? configuration.maximumResponseBytes.multipliedReportingOverflow(by: 8).partialValue
             : configuration.maximumResponseBytes
-        let partialState = chatOptions.stream ? onPartial.map { PartialStreamState(request: request, handler: $0) } : nil
-        let bodyObserver: TranslationHTTPBodyObserver? = partialState.map { state in { data in state.consume(data) } }
         let transportResponse: TranslationHTTPResponse
         do {
             transportResponse = try await transport.data(
                 for: urlRequest,
                 maximumResponseBytes: maximumBodyBytes,
-                bypassesProxy: endpoint.scheme == "http",
-                onBodyData: bodyObserver
+                bypassesProxy: endpoint.scheme == "http"
             )
         } catch is CancellationError {
             throw CancellationError()

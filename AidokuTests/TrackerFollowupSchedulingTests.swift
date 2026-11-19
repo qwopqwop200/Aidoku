@@ -98,6 +98,8 @@ struct TrackerFollowupSchedulingTests {
         let merged = PageTrackUpdate.merging(pending: [old, second], updates: [unread])
         #expect(merged == [second, unread])
         #expect(PageTrackUpdate.reconcile(pending: merged, sent: [old, second], failed: [update("one", page: 9, failures: 1)]) == [unread])
+        let retry = update("two", page: 3, failures: 1)
+        #expect(PageTrackUpdate.reconcile(pending: [second], sent: [second], failed: [retry]) == [retry])
     }
 
     private func waitUntil(_ condition: () async -> Bool) async throws {

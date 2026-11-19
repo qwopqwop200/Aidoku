@@ -326,16 +326,6 @@
 
 "TRANSLATION_TITLE" = "OCR és fordítás";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Mentett API-kulcs cseréje (opcionális)";
 
 "TRANSLATION_KEY" = "API-kulcs";
@@ -352,11 +342,7 @@
 
 "TRANSLATION_TARGET" = "Célnyelv";
 
-
 "TRANSLATION_AUTO" = "Automatikus észlelés";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Fordítási gyorsítótár törlése";
 
@@ -371,22 +357,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Modell alapértelmezése";
 
 "TRANSLATION_CONCURRENCY" = "Egyidejű kérések";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Fordításszolgáltató";
 
@@ -444,8 +414,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nem sikerült csatlakozni a HTTPS-megkerülésen keresztül.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "A fordítás nem sikerült. Az OCR-rel felismert szöveg látható. Ellenőrizze a beállításokat és a kapcsolatot.";
-
 "TRANSLATION_MANGA_TITLES" = "Mangacímek fordítása";
 
 "TRANSLATION_CHAPTER_TITLES" = "Fejezetcímek fordítása";
@@ -458,32 +426,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Oldal forrásnyelve";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Mangaleírások fordítása";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Mangaleírások nyelvei";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatikusan felismeri a forrásnyelvet, és csak a kiválasztott nyelveket fordítja le. A Minden észlelt nyelv lehetőség megszünteti a korlátozást. Minden elem nyelvi szűrője független az oldalak és a többi elem nyelvi beállításaitól.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Az oldal képét az OCR-szöveggel együtt küldi el a jelenet kontextusához. Ha a képbemenet nem támogatott, a fordítás automatikusan csak szöveggel folytatódik. A képek csatolása növelheti az adatforgalmat és az API-költséget.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "A képbemenet nem támogatott. A fordítás képek nélkül folytatódik.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Egyéni (OpenAI-kompatibilis)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Nincs gondolkodás";
 
@@ -1031,17 +980,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "A beállítás nem jeleníthető meg: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Letöltés fordítással";
-
 
 "TRANSLATION_STATE_ON" = "Bekapcsolva";
 "TRANSLATION_STATE_OFF" = "Kikapcsolva";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Érvénytelen fordítási beállítások. Ellenőrizze a szerver URL-címét, a modellt és a többi beállítást.";
 
@@ -1091,15 +1033,12 @@
 
 "OCR_ERROR_PREDICTION" = "A PP-OCRv6 szövegfelismerés sikertelen. Próbálja újra másik képpel vagy OCR-modellel.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "A fordítási gyorsítótár mérete kívül esik a támogatott tartományon.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "A fordítási gyorsítótár tárhelye érvénytelen vagy nem érhető el.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "A fordítási gyorsítótár nem menthető.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Az iCloud-szinkronizálás módosításai az Aidoku teljes bezárása és újbóli megnyitása után lépnek érvénybe. Addig a jelenlegi beállítás marad aktív.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1141,7 +1080,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "A(z) %@ forrás %d verzióját ez az alkalmazás nem támogatja. Telepítsen támogatott verziót.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "A Manga v0.3 japán, kínai (egyszerűsített és hagyományos), angol és más latin betűs forrásszöveget olvas, koreait, cirill betűset és vietnámit azonban nem. A forrásnyelv automatikus felismerése és a választható forrásnyelvek köre is ezekre a nyelvekre korlátozódik. Bármely célnyelvre továbbra is lehet fordítani. A Manga kiválasztása 0,85 és 0,25 értékre állítja az észlelési küszöbértékeket; az alapértelmezett észlelési méret 1120 px.";
 

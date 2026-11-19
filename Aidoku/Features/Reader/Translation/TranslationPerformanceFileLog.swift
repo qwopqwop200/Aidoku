@@ -10,21 +10,11 @@ enum TranslationPerformanceFileLog {
         case providerQueue = "provider_queue"
         case persistenceAdmission = "persistence_admission"
         case providerClient = "provider_client"
-        case readerImageLoad = "reader_image_load"
-        case readerOCR = "reader_ocr"
-        case readerOCRAhead = "reader_ocr_ahead"
-        case readerLayout = "reader_layout"
-        case readerSnapshot = "reader_snapshot"
-        case ocrQueue = "ocr_queue"
-        case ocrFrame = "ocr_frame"
-        case ocrDetection = "ocr_detection"
-        case ocrRecognition = "ocr_recognition"
-        case ocrPostprocess = "ocr_postprocess"
     }
 
     enum Field: String, Sendable {
         case elapsedMilliseconds = "elapsed_ms"
-        case segments, attempt, retry, reason, source, priority
+        case segments, attempt, retry, reason, source
         case sourceBytes = "source_bytes"
         case responseBytes = "response_bytes"
         case statusClass = "status_class"

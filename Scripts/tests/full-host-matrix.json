@@ -2,17 +2,10 @@
   "schemaVersion": 1,
   "commands": [
     {
-      "name": "native-host: compact and dense CTC token provenance, including emission spans and n-gram correction",
+      "name": "native-host: compact CTC first-emission decode and n-gram correction",
       "command": [
         "$PYTHON",
         "Scripts/tests/run-ctc-collapse-contract.py"
-      ]
-    },
-    {
-      "name": "native-host: exact canonical DB Float32 digest without copying on little-endian targets",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-db-float-digest-smoke.py"
       ]
     },
     {
@@ -70,27 +63,6 @@
       ]
     },
     {
-      "name": "native-host: detector seed evidence v2 preserving-union ownership rules",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-detector-seed-v2-union-independent.py"
-      ]
-    },
-    {
-      "name": "native-host: DB child-column producer to multiline column recovery geometry",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-native-multiline-column-recovery.py"
-      ]
-    },
-    {
-      "name": "native-host: Core ML recognizer execution snapshot/diagnostics contract",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-recognition-execution-contract.py"
-      ]
-    },
-    {
       "name": "native-host: NativeCoreMLDetector input padding and fill contract",
       "command": [
         "$PYTHON",
@@ -98,31 +70,10 @@
       ]
     },
     {
-      "name": "native-host: native OCR geometry deduplication ranking, provenance and deterministic ties",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-geometry-dedup-smoke.py"
-      ]
-    },
-    {
-      "name": "native-host: recognizer commit/admission, CTC tokens, cancel and stream callbacks with simulated outputs",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-recognition-observation-contract.py"
-      ]
-    },
-    {
       "name": "native-host: TranslationRoleVerificationPlanner planner/DTO synthetic checks",
       "command": [
         "$PYTHON",
         "Scripts/tests/run-role-verification-planner-smoke.py"
-      ]
-    },
-    {
-      "name": "native-host: OCR source ROI probability evidence",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-source-roi-probability-evidence-smoke.py"
       ]
     },
     {
@@ -137,20 +88,6 @@
       "command": [
         "$PYTHON",
         "Scripts/tests/run-excluded-source-preservation-smoke.py"
-      ]
-    },
-    {
-      "name": "native-host: DB child-column evidence and recognition clearance",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-native-db-child-columns.py"
-      ]
-    },
-    {
-      "name": "native-host: recognition preprocessor tensor identity for replay",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-recognition-tensor-identity-contract.py"
       ]
     }
   ],

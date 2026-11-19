@@ -25,16 +25,6 @@
 
 "TRANSLATION_TITLE" = "OCR na Tafsiri";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Badilisha ufunguo wa API uliohifadhiwa (si lazima)";
 
 "TRANSLATION_KEY" = "Ufunguo wa API";
@@ -51,11 +41,7 @@
 
 "TRANSLATION_TARGET" = "Tafsiri Kwa";
 
-
 "TRANSLATION_AUTO" = "Tambua Kiotomatiki";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Futa Akiba ya Tafsiri";
 
@@ -70,22 +56,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Chaguomsingi la Modeli";
 
 "TRANSLATION_CONCURRENCY" = "Maombi ya Wakati Mmoja";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Mtoa Tafsiri";
 
@@ -143,8 +113,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Imeshindwa kuunganisha kupitia njia ya kukwepa uzuiaji wa HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tafsiri imeshindwa. Maandishi yaliyotambuliwa kwa OCR yanaonyeshwa. Angalia mipangilio na muunganisho wako.";
-
 "TRANSLATION_MANGA_TITLES" = "Tafsiri Majina ya Manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Tafsiri Vichwa vya Sura";
@@ -157,32 +125,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Lugha Asilia ya Ukurasa";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Tafsiri Maelezo ya Manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Lugha za Maelezo ya Manga";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Gundua lugha asili kiotomatiki na utafsiri lugha ulizochagua pekee. Lugha Zote Zilizogunduliwa huondoa kizuizi. Kichujio cha lugha cha kila kipengee hakitegemei mipangilio ya lugha ya ukurasa au ya vipengee vingine.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Hutuma picha ya ukurasa pamoja na maandishi ya OCR ili kutoa muktadha wa tukio. Ikiwa picha hazitumiki kama ingizo, tafsiri itaendelea kiotomatiki kwa maandishi pekee. Kuambatisha picha kunaweza kuongeza matumizi ya data na gharama ya API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Picha hazitumiki kama ingizo. Tafsiri itaendelea bila picha.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Maalum (Inaoana na OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Hakuna";
 
@@ -1011,17 +960,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Haiwezi kuonyesha mpangilio: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Pakua pamoja na tafsiri";
-
 
 "TRANSLATION_STATE_ON" = "Imewashwa";
 "TRANSLATION_STATE_OFF" = "Imezimwa";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Mipangilio ya tafsiri si halali. Angalia URL ya seva, modeli na mipangilio mingine.";
 
@@ -1071,15 +1013,12 @@
 
 "OCR_ERROR_PREDICTION" = "Utambuzi wa maandishi wa PP-OCRv6 umeshindwa. Jaribu tena kwa picha au modeli nyingine ya OCR.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "Ukubwa wa akiba ya tafsiri uko nje ya masafa yanayotumika.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Hifadhi ya akiba ya tafsiri si halali au haipatikani.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Akiba ya tafsiri haikuweza kuhifadhiwa.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Mabadiliko ya usawazishaji wa iCloud yanaanza kutumika baada ya kufunga Aidoku kabisa na kuifungua tena. Hadi wakati huo, mpangilio wa sasa unaendelea kutumika.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1123,7 +1062,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Chanzo %@ toleo %d hakitumiki katika programu hii. Sakinisha toleo linalotumika.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 inasoma maandishi asilia ya Kijapani, Kichina (kilichorahisishwa na cha jadi), Kiingereza na lugha nyingine za herufi za Kilatini, lakini si Kikorea, Kisiriliki wala Kivietinamu. Utambuzi wa kiotomatiki wa lugha asilia na machaguo ya lugha asilia pia yamewekewa mipaka ya lugha hizi. Bado unaweza kutafsiri kwenda lugha yoyote lengwa. Kuchagua Manga huweka viwango vya kugundua maandishi kuwa 0.85 na 0.25; ukubwa chaguomsingi wa ugunduzi ni pikseli 1120.";
 

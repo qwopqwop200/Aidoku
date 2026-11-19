@@ -15,8 +15,6 @@ swift Scripts/image-translation.swift --split dev --limit 20 \
 swift Scripts/image-translation.swift --help
 ```
 
-`--pipeline v2` is still accepted and ignored.
-
 ## Modes
 
 | Mode | Stages | Provider |

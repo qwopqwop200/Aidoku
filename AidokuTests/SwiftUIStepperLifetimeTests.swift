@@ -10,13 +10,6 @@ struct SwiftUIStepperLifetimeTests {
         weak var value: UIStepper?
         init(_ value: UIStepper) { self.value = value }
     }
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(3)
-        while !condition() {
-            guard ContinuousClock.now < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(1))
-        }
-    }
     private func steppers(in view: UIView) -> [UIStepper] {
         (view as? UIStepper).map { [$0] } ?? view.subviews.flatMap { steppers(in: $0) }
     }
@@ -53,7 +46,7 @@ struct SwiftUIStepperLifetimeTests {
             controller.view.layoutIfNeeded()
             return window
         }
-        try await waitUntil {
+        try await RegressionTestWait.until {
             window?.rootViewController?.view.layoutIfNeeded()
             return window?.rootViewController.map { steppers(in: $0.view).count == 1 } == true
         }
@@ -76,7 +69,7 @@ struct SwiftUIStepperLifetimeTests {
             window?.rootViewController = nil
             window = nil
         }
-        try await waitUntil { autoreleasepool { host == nil && capture == nil } }
+        try await RegressionTestWait.until { autoreleasepool { host == nil && capture == nil } }
         #expect(host == nil)
         #expect(capture == nil)
         #expect(probes.count == 1)
@@ -105,7 +98,7 @@ struct SwiftUIStepperLifetimeTests {
                 window.rootViewController = controller
                 window.layoutIfNeeded()
             }
-            try await waitUntil {
+            try await RegressionTestWait.until {
                 window.rootViewController?.view.layoutIfNeeded()
                 return window.rootViewController.map { steppers(in: $0.view).count == 1 } == true
             }
@@ -115,7 +108,7 @@ struct SwiftUIStepperLifetimeTests {
                 native.forEach { identities.insert(ObjectIdentifier($0)) }
                 window.rootViewController = nil
             }
-            try await waitUntil { autoreleasepool { host == nil && marker == nil } }
+            try await RegressionTestWait.until { autoreleasepool { host == nil && marker == nil } }
             #expect(host == nil)
             #expect(marker == nil)
         }
@@ -137,7 +130,7 @@ struct SwiftUIStepperLifetimeTests {
                 SettingStepper(value: .constant(3.0), in: range, step: step, accessibilityLabel: "Inert")
                     .disabled(disabled))
             window.layoutIfNeeded()
-            try await waitUntil {
+            try await RegressionTestWait.until {
                 window.rootViewController?.view.layoutIfNeeded()
                 return window.rootViewController.map { steppers(in: $0.view).count == 1 } == true
             }
@@ -150,7 +143,7 @@ struct SwiftUIStepperLifetimeTests {
                 #expect(native.first?.accessibilityValue == "3")
                 window.rootViewController = nil
             }
-            try await waitUntil {
+            try await RegressionTestWait.until {
                 probes.allSatisfy { $0.value?.superview == nil && ($0.value?.allTargets.isEmpty ?? true) }
             }
         }

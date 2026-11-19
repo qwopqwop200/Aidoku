@@ -10,7 +10,6 @@ struct TranslationImageSupportTests {
     @Test func imageDigestMemoPreservesIdentityAcrossCopiesAndInvalidatesOnMutation() throws {
         var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", sourceText: "画像")
         request.imageJPEG = Data([0xff, 0xd8, 1, 2, 0xff, 0xd9])
-        request.prepareImageRepresentation()
         let originalBytes = try #require(request.imageJPEG)
         let expected = SHA256.hash(data: originalBytes).map { String(format: "%02x", $0) }.joined()
         #expect(request.imageDigest == expected)
@@ -19,14 +18,12 @@ struct TranslationImageSupportTests {
         var copied = request
         copied.imageJPEG?[2] = 3
         #expect(copied.imageDigest != expected)
-        #expect(copied.preparedImageDataURL == nil)
         #expect(request.imageJPEG == originalBytes && request.imageDigest == expected)
         #expect(canonical.imageDigest == expected)
         copied.copyImageRepresentation(from: request)
         #expect(copied.imageDigest == expected)
-        #expect(copied.preparedImageDataURL == request.preparedImageDataURL)
         copied.imageJPEG = nil
-        #expect(copied.imageDigest == nil && copied.preparedImageDataURL == nil)
+        #expect(copied.imageDigest == nil)
         let encoded = try JSONEncoder().encode(request)
         let object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         #expect(object["imageDigestMemo"] == nil && object["imageDigest"] == nil)
@@ -84,9 +81,8 @@ struct TranslationImageSupportTests {
         let client = RemoteTranslationClient(credentialStore: ImageSupportCredentials(), transport: transport, imageSupport: support)
         var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko", sourceText: "Hello")
         request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
-        request.prepareImageRepresentation()
         let first = try await client.translate(request, configuration: settings.configuration)
-        #expect(first.singleText == "안녕하세요")
+        #expect(first.translations.first?.text == "안녕하세요")
         #expect(support.status(for: settings.configuration) == .unsupported)
         let secondClient = RemoteTranslationClient(credentialStore: ImageSupportCredentials(), transport: transport,
             imageSupport: TranslationImageSupport(defaults: defaults))
@@ -138,7 +134,7 @@ struct TranslationImageSupportTests {
         var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko", sourceText: "Hello")
         request.imageJPEG = Data([1])
         let result = try await client.translate(request, configuration: settings.configuration)
-        #expect(result.singleText == "안녕하세요")
+        #expect(result.translations.first?.text == "안녕하세요")
         #expect(await transport.images == [true, true, false])
     }
 
@@ -151,7 +147,6 @@ struct TranslationImageSupportTests {
         var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko",
             segments: [.init(id: "dialogue", text: "Hello", bounds: [0.1, 0.1, 0.2, 0.2])])
         request.imageJPEG = Data([1])
-        request.prepareImageRepresentation()
         request.filtersSFX = filters & 1 != 0
         request.filtersBackground = filters & 2 != 0
         let result = try await client.translate(request, configuration: settings.configuration)

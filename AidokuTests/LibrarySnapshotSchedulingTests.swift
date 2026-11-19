@@ -14,13 +14,13 @@ struct LibrarySnapshotSchedulingTests {
         model.currentCategory = "A"
         model.manga = [Self.row("displayed")]
         let first = Task { await model.loadLibrary() }
-        try await waitUntil { gate.requests.count == 1 }
+        try await RegressionTestWait.until { gate.requests.count == 1 }
         model.currentCategory = "B"
         var entered = false
         let second = Task { entered = true; await model.loadLibrary() }
-        try await waitUntil { entered }
+        try await RegressionTestWait.until { entered }
         gate.finish(0, rows: [Self.row("obsolete-A")])
-        try await waitUntil { gate.requests.count == 2 }
+        try await RegressionTestWait.until { gate.requests.count == 2 }
         #expect(model.manga.map(\.id.mangaKey) == ["displayed"])
         #expect(gate.requests.map(\.category) == ["A", "B"])
         gate.finish(1, rows: [Self.row("current-B")])
@@ -48,7 +48,7 @@ struct LibrarySnapshotSchedulingTests {
         let controller = LibraryViewController(viewModel: model)
         let secret = Self.row("secret"), visible = Self.row("visible")
         let first = Task { await model.loadLibrary() }
-        try await waitUntil { gate.requests.count == 1 }
+        try await RegressionTestWait.until { gate.requests.count == 1 }
         gate.finish(0, rows: [secret])
         await first.value
 
@@ -58,7 +58,7 @@ struct LibrarySnapshotSchedulingTests {
         #expect(controller.dataSource.snapshot().itemIdentifiers == [secret])
         controller.lock()
         controller.optionSelected(IndexPath(item: 1, section: 1))
-        try await waitUntil { gate.requests.count == 2 }
+        try await RegressionTestWait.until { gate.requests.count == 2 }
         #expect(gate.requests[1].category == "public")
         #expect(model.manga == [secret])
         #expect(controller.dataSource.snapshot().itemIdentifiers.isEmpty)
@@ -67,7 +67,7 @@ struct LibrarySnapshotSchedulingTests {
         #expect(controller.collectionView.refreshControl == nil)
 
         gate.finish(1, rows: [visible])
-        try await waitUntil { controller.dataSource.snapshot().itemIdentifiers == [visible] }
+        try await RegressionTestWait.until { controller.dataSource.snapshot().itemIdentifiers == [visible] }
         #expect(controller.collectionView.isScrollEnabled)
     }
 
@@ -89,18 +89,18 @@ struct LibrarySnapshotSchedulingTests {
         controller.dataSource = recorder
         let visible = Self.row("public"), secret = Self.row("private")
         let first = Task { await model.loadLibrary() }
-        try await waitUntil { gate.requests.count == 1 }
+        try await RegressionTestWait.until { gate.requests.count == 1 }
         gate.finish(0, rows: [visible])
         await first.value
         controller.updateLockState()
         #expect(recorder.applied == [[visible]])
         controller.observe()
         NotificationCenter.default.post(name: .updateCategories, object: nil)
-        try await waitUntil { gate.requests.count == 2 }
+        try await RegressionTestWait.until { gate.requests.count == 2 }
         #expect(model.currentCategory == nil)
         #expect(model.locked)
         gate.finish(1, rows: [secret])
-        try await waitUntil { model.manga == [secret] && recorder.applied.last == [] }
+        try await RegressionTestWait.until { model.manga == [secret] && recorder.applied.last == [] }
         #expect(recorder.applied.allSatisfy { !$0.contains(secret) })
         controller.unlock()
         #expect(recorder.applied.last == [secret])
@@ -119,7 +119,7 @@ struct LibrarySnapshotSchedulingTests {
                 await withCheckedContinuation { approval = $0 }
             }
         }
-        try await waitUntil { approval != nil }
+        try await RegressionTestWait.until { approval != nil }
         model.currentCategory = "other"
         model.currentCategory = "first"
         controller.lock()
@@ -134,12 +134,12 @@ struct LibrarySnapshotSchedulingTests {
         let gate = LibrarySnapshotGate()
         let model = LibraryViewModel(snapshotLoader: { await gate.load($0) })
         let first = Task { await model.loadLibrary() }
-        try await waitUntil { gate.requests.count == 1 }
+        try await RegressionTestWait.until { gate.requests.count == 1 }
         var entered = 0
         let callers = (0..<100).map { _ in Task { entered += 1; await model.loadLibrary() } }
-        try await waitUntil { entered == 100 }
+        try await RegressionTestWait.until { entered == 100 }
         gate.finish(0, rows: [Self.row("old")])
-        try await waitUntil { gate.requests.count == 2 }
+        try await RegressionTestWait.until { gate.requests.count == 2 }
         gate.finish(1, rows: [Self.row("latest")])
         await first.value
         for caller in callers { await caller.value }
@@ -210,7 +210,7 @@ struct LibrarySnapshotSchedulingTests {
         let gate = LibrarySnapshotGate()
         let model = LibraryViewModel(snapshotLoader: { await gate.load($0) })
         let load = Task { await model.loadLibrary() }
-        try await waitUntil { gate.requests.count == 1 }
+        try await RegressionTestWait.until { gate.requests.count == 1 }
         await model.search(query: "match")
         gate.finish(0, rows: [Self.row("match"), Self.row("other")])
         await load.value
@@ -229,11 +229,11 @@ struct LibrarySnapshotSchedulingTests {
         model.sortMethod = .alphabetical
         model.sortAscending = false
         let first = Task { await model.loadLibrary() }
-        try await waitUntil { gate.requests.count == 1 }
+        try await RegressionTestWait.until { gate.requests.count == 1 }
         let sort = Task { await model.setSort(method: .unreadChapters, ascending: true) }
-        try await waitUntil { model.sortMethod == .unreadChapters }
+        try await RegressionTestWait.until { model.sortMethod == .unreadChapters }
         gate.finish(0, rows: [Self.row("obsolete-order")])
-        try await waitUntil { gate.requests.count == 2 }
+        try await RegressionTestWait.until { gate.requests.count == 2 }
         #expect(model.manga.isEmpty)
         #expect(gate.requests[1].sortMethod == .unreadChapters)
         #expect(gate.requests[1].sortAscending)
@@ -256,12 +256,12 @@ struct LibrarySnapshotSchedulingTests {
         let a = Self.row("A"), b = Self.row("B")
         model.manga = [a, b]
         let load = Task { await model.loadLibrary() }
-        try await waitUntil { gate.requests.count == 1 }
+        try await RegressionTestWait.until { gate.requests.count == 1 }
         if read { await model.mangaRead(mangaId: b.id) }
         else { await model.mangaOpened(mangaId: b.id) }
         #expect(model.manga.map(\.id) == [b.id, a.id])
         gate.finish(0, rows: [a, b])
-        try await waitUntil { gate.requests.count == 2 }
+        try await RegressionTestWait.until { gate.requests.count == 2 }
         #expect(model.manga.map(\.id) == [b.id, a.id])
         gate.finish(1, rows: [b, a])
         await load.value
@@ -302,7 +302,7 @@ struct LibrarySnapshotSchedulingTests {
                 await withCheckedContinuation { pending = $0 }
             }
         }
-        try await waitUntil { pending != nil }
+        try await RegressionTestWait.until { pending != nil }
         if fullRefresh {
             await model.fetchDownloadCounts(for: nil)
         } else {
@@ -348,15 +348,6 @@ struct LibrarySnapshotSchedulingTests {
     private static func row(_ key: String) -> MangaInfo {
         MangaInfo(id: .init(sourceKey: "snapshot-fixture", mangaKey: key), title: key)
     }
-
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<2_000 {
-            if condition() { return }
-            try await Task.sleep(nanoseconds: 1_000_000)
-        }
-        throw FixtureTimeout()
-    }
-    private struct FixtureTimeout: Error {}
 }
 
 @MainActor

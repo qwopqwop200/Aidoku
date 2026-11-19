@@ -6,13 +6,9 @@ import UIKit
 @MainActor
 final class ReaderTranslationPage {
     static let sourceImageReady = Notification.Name("Reader.translation.sourceImageReady")
-    struct LoadedSource {
-        let page: Page
-        let image: UIImage
-    }
     static func sourceDidLoad(_ image: UIImage, page: Page) {
         guard page.translationSourceRect == nil || page.translationSourceRect == CGRect(x: 0, y: 0, width: 1, height: 1) else { return }
-        NotificationCenter.default.post(name: sourceImageReady, object: LoadedSource(page: page, image: image))
+        NotificationCenter.default.post(name: sourceImageReady, object: nil)
     }
     static let imageChanged = Notification.Name("Reader.translation.imageChanged")
     weak var imageView: UIImageView?
@@ -56,11 +52,6 @@ final class ReaderTranslationPage {
         cancelV2Work()
     }
 
-    func showOriginal() {
-        cancel()
-        releaseOverlay()
-    }
-
     func releaseOverlay() {
         hasLoadedCachedPresentation = false
         cachedOverlay?.removeFromSuperview()
@@ -77,7 +68,7 @@ final class ReaderTranslationPage {
         isPresentingV2 && cachedOverlay?.snapshotImage != nil
     }
 
-    func exportTranslatedImage(host: UIView) async throws -> UIImage {
+    func exportTranslatedImage() throws -> UIImage {
         guard isPresentingV2, let snapshot = cachedOverlay?.snapshotImage else {
             throw ReaderTranslationImageExporter.ExportError.unavailable
         }
@@ -91,20 +82,13 @@ final class ReaderTranslationPage {
         displayLoadedV2(prepared.image, key: key, source: source, settings: prepared.settings)
     }
 
-    private func displaySnapshot(
-        _ snapshot: UIImage, source: UIImage, settings: ReaderTranslationSettings, sourceSized: Bool = false
-    ) {
+    private func displaySnapshot(_ snapshot: UIImage, settings: ReaderTranslationSettings) {
         guard let imageView else { return }
         releaseOverlay()
         let canvas = ReaderTranslationCachedPageView()
         canvas.snapshotImage = snapshot
-        canvas.sourceImage = source
-        canvas.sourceView = imageView
         canvas.frame = imageView.bounds
-        canvas.initialSize = imageView.bounds.size
-        canvas.initialStyle = imageView.traitCollection.userInterfaceStyle
-        canvas.initialScale = imageView.traitCollection.displayScale
-        if sourceSized { canvas.contentMode = imageView.contentMode }
+        canvas.contentMode = imageView.contentMode
         canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         canvas.setPresentationHidden(!settings.overlay.visible)
         canvas.accessibilityIdentifier = "reader.translation.cachedOverlay"
@@ -208,41 +192,18 @@ extension ReaderTranslationPage {
 
     private func displayV2(_ output: UIImage, source: UIImage, settings: ReaderTranslationSettings) {
         let identity = v2Identity
-        displaySnapshot(output, source: source, settings: settings, sourceSized: true)
+        displaySnapshot(output, settings: settings)
         v2Identity = identity
         v2Source = source
         isPresentingV2 = true
-        // The bitmap is the whole source-aspect page: geometry or appearance
-        // changes never require a re-render.
-        cachedOverlay?.onGeometryChanged = { [weak canvas = cachedOverlay] in
-            guard let canvas else { return }
-            canvas.initialSize = canvas.bounds.size
-            canvas.initialStyle = canvas.traitCollection.userInterfaceStyle
-            canvas.initialScale = canvas.traitCollection.displayScale
-        }
     }
 }
 
 @MainActor private final class ReaderTranslationCachedPageView: UIImageView {
     var snapshotImage: UIImage?
-    weak var sourceImage: UIImage?
-    weak var sourceView: UIImageView?
-    var initialSize = CGSize.zero
-    var initialStyle: UIUserInterfaceStyle = .unspecified
-    var initialScale: CGFloat = 0
-    var onGeometryChanged: (() -> Void)?
 
     func setPresentationHidden(_ hidden: Bool) {
         isHidden = hidden
         if image !== snapshotImage { image = snapshotImage }
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        if !ReaderTranslationGeometry.sameViewport(bounds.size, initialSize) { onGeometryChanged?() }
-    }
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        if traitCollection.userInterfaceStyle != initialStyle || traitCollection.displayScale != initialScale { onGeometryChanged?() }
     }
 }

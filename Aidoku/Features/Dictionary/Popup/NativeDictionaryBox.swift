@@ -4,17 +4,6 @@ import UIKit
 struct NativeDictionaryBox {
     let children: [NativeDictionaryGlossaryBlock]
     let declarations: [String: Any]
-    var plainText: NSAttributedString {
-        let result = NSMutableAttributedString(string: "")
-        for child in children {
-            switch child {
-            case .text(let text): result.append(text)
-            case .table(let table): result.append(table.plainText)
-            case .box(let box): result.append(box.plainText)
-            }
-        }
-        return result
-    }
 }
 
 /// Native boxes keep nested tables and horizontal dictionary content interactive.

@@ -105,43 +105,6 @@ struct TranslationEndpointPolicyTests {
         }
     }
 
-    @Test func localNetworkEndpointsAreIdentifiedWithoutDNS() {
-        for baseURL in [
-            "https://192.168.1.2:8443/v1",
-            "https://10.0.0.4/v1",
-            "https://172.20.1.5/v1",
-            "https://169.254.3.4/v1",
-            "https://translator.local/v1",
-            "https://translator.home.arpa/v1",
-            "https://translator/v1",
-            "https://[fd00::1]/v1",
-            "https://[fe80::1]/v1",
-        ] {
-            #expect(
-                TranslationEndpointPolicy.requiresLocalNetworkPermission(
-                    for: customConfiguration(baseURL: baseURL)
-                )
-            )
-        }
-        for baseURL in [
-            "https://api.openai.com/v1",
-            "https://example.test/v1",
-            "https://8.8.8.8/v1",
-            "https://[2606:4700:4700::1111]/v1",
-        ] {
-            #expect(
-                !TranslationEndpointPolicy.requiresLocalNetworkPermission(
-                    for: customConfiguration(baseURL: baseURL)
-                )
-            )
-        }
-        #expect(
-            !TranslationEndpointPolicy.requiresLocalNetworkPermission(
-                for: .openAI(model: "gpt-5-mini")
-            )
-        )
-    }
-
     @Test func transportWaitsForConnectivityWithinItsTimeouts() {
         for bypassesProxy in [false, true] {
             let configuration =

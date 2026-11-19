@@ -1,6 +1,5 @@
 "IMPORT" = "Importowanie…";
 "DONE" = "Gotowe";
-"FILE_IMPORT_FAIL_TEXT" = "Nie udało się zaimportować pliku. Upewnij się, że jest to plik obrazu, który można odczytać, lub prawidłowe archiwum CBZ albo ZIP zawierające obrazy.";
 "FORMAT_IMAGE" = "Obraz";
 "SHARED_IMAGES_SAVED" = "Zapisano. Otwórz Aidoku, aby czytać.";
 

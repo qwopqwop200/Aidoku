@@ -535,16 +535,6 @@
 
 "TRANSLATION_TITLE" = "OCR र अनुवाद";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "सुरक्षित गरिएको API कुञ्जी बदल्नुहोस् (वैकल्पिक)";
 
 "TRANSLATION_KEY" = "API कुञ्जी";
@@ -561,11 +551,7 @@
 
 "TRANSLATION_TARGET" = "अनुवादको लक्षित भाषा";
 
-
 "TRANSLATION_AUTO" = "स्वचालित रूपमा पत्ता लगाउनुहोस्";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "अनुवाद क्यास खाली गर्नुहोस्";
 
@@ -580,22 +566,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "मोडेल पूर्वनिर्धारित";
 
 "TRANSLATION_CONCURRENCY" = "समवर्ती अनुरोधहरू";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "अनुवाद प्रदायक";
 
@@ -653,8 +623,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS बाइपास मार्फत जडान गर्न सकिएन।";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "अनुवाद असफल भयो। OCR ले पहिचान गरेको पाठ देखाइएको छ। सेटिङ र जडान जाँच गर्नुहोस्।";
-
 "TRANSLATION_MANGA_TITLES" = "माङ्गा शीर्षकहरू अनुवाद गर्नुहोस्";
 
 "TRANSLATION_CHAPTER_TITLES" = "अध्याय शीर्षकहरू अनुवाद गर्नुहोस्";
@@ -667,32 +635,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "पृष्ठ स्रोत भाषा";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "माङ्गा विवरणहरू अनुवाद गर्नुहोस्";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "माङ्गा विवरण भाषाहरू";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "स्वचालित रूपमा स्रोत भाषा पत्ता लगाएर चयन गरिएका भाषाहरू मात्र अनुवाद गर्छ। सबै पत्ता लगाइएका भाषाहरू विकल्पले प्रतिबन्ध हटाउँछ। हरेक वस्तुको भाषा फिल्टर पृष्ठ र अन्य वस्तुका भाषा सेटिङबाट स्वतन्त्र हुन्छ।";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "दृश्यको सन्दर्भ दिन पृष्ठको छवि OCR पाठसँगै पठाउँछ। छवि इनपुट समर्थित नभएमा अनुवाद स्वतः पाठ मात्र प्रयोग गरेर जारी रहन्छ। छवि संलग्न गर्दा डेटा प्रयोग र API खर्च बढ्न सक्छ।";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "छवि इनपुट समर्थित छैन। अनुवाद छविहरू बिना जारी रहन्छ।";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "अनुकूलन (OpenAI-संगत)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "कुनै पनि छैन";
 
@@ -1010,17 +959,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "सेटिङ प्रदर्शन गर्न असमर्थ: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "अनुवादसहित डाउनलोड गर्नुहोस्";
-
 
 "TRANSLATION_STATE_ON" = "चालु";
 "TRANSLATION_STATE_OFF" = "बन्द";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "अनुवाद सेटिङहरू अमान्य छन्। सर्भर URL, मोडेल र अन्य सेटिङहरू जाँच गर्नुहोस्।";
 
@@ -1070,15 +1012,12 @@
 
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 पाठ पहिचान असफल भयो। अर्को छवि वा OCR मोडेल प्रयोग गरेर फेरि प्रयास गर्नुहोस्।";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "अनुवाद क्यासको आकार समर्थित दायराभन्दा बाहिर छ।";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "अनुवाद क्यासको भण्डारण अमान्य छ वा उपलब्ध छैन।";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "अनुवाद क्यास सुरक्षित गर्न सकिएन।";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud सिंकका परिवर्तनहरू Aidoku पूर्ण रूपमा बन्द गरेर फेरि खोल्दा लागू हुन्छन्। त्यतिन्जेल हालको सिंक सेटिङ सक्रिय रहन्छ।";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1120,7 +1059,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "यो एपमा स्रोत %@ को संस्करण %d समर्थित छैन। समर्थित संस्करण स्थापना गर्नुहोस्।";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ले जापानी, चिनियाँ (सरलीकृत र परम्परागत), अङ्ग्रेजी र ल्याटिन लिपिका अन्य भाषाहरूको मूल पाठ पढ्छ, तर कोरियाली, सिरिलिक वा भियतनामी पढ्दैन। मूल भाषाको स्वचालित पहिचान र मूल भाषा छनोटका विकल्पहरू पनि यिनै भाषाहरूमा सीमित छन्। जुनसुकै लक्ष्य भाषामा भने अनुवाद गर्न सकिन्छ। Manga छनोट गर्दा पाठ पत्ता लगाउने सीमा मानहरू 0.85 र 0.25 लागू हुन्छन्; पाठ पत्ता लगाउन प्रयोग हुने पूर्वनिर्धारित आकार 1120 px हो।";
 

@@ -819,16 +819,6 @@
 
 "TRANSLATION_TITLE" = "OCR & Terjemahan";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Ganti kunci API yang disimpan (opsional)";
 
 "TRANSLATION_KEY" = "Kunci API";
@@ -845,11 +835,7 @@
 
 "TRANSLATION_TARGET" = "Terjemahkan Ke";
 
-
 "TRANSLATION_AUTO" = "Deteksi Secara Otomatis";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Hapus Cache Terjemahan";
 
@@ -864,22 +850,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Bawaan Model";
 
 "TRANSLATION_CONCURRENCY" = "Permintaan Bersamaan";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Penyedia Terjemahan";
 
@@ -937,8 +907,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Tidak dapat terhubung melalui bypass HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Terjemahan gagal. Teks OCR ditampilkan. Periksa pengaturan dan koneksi Anda.";
-
 "TRANSLATION_MANGA_TITLES" = "Terjemahkan Judul Manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Terjemahkan Judul Bab";
@@ -951,32 +919,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Bahasa Sumber Halaman";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Terjemahkan Deskripsi Manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Bahasa Deskripsi Manga";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Deteksi bahasa sumber secara otomatis dan terjemahkan hanya bahasa yang dipilih. Semua Bahasa Terdeteksi menghilangkan batasan tersebut. Filter bahasa setiap item tidak bergantung pada pengaturan bahasa halaman maupun item lainnya.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Kirim gambar halaman bersama teks OCR untuk memberikan konteks adegan. Jika input gambar tidak didukung, terjemahan otomatis dilanjutkan hanya dengan teks. Melampirkan gambar dapat meningkatkan penggunaan data dan biaya API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Input gambar tidak didukung. Terjemahan dilanjutkan tanpa gambar.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Kustom (Kompatibel dengan OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Tidak ada";
 
@@ -1031,17 +980,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Tidak dapat menampilkan pengaturan: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Unduh dengan terjemahan";
-
 
 "TRANSLATION_STATE_ON" = "Aktif";
 "TRANSLATION_STATE_OFF" = "Nonaktif";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Pengaturan terjemahan tidak valid. Periksa URL server, model, dan pengaturan lainnya.";
 
@@ -1091,15 +1033,12 @@
 
 "OCR_ERROR_PREDICTION" = "Pengenalan teks PP-OCRv6 gagal. Coba lagi dengan gambar atau model OCR lain.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "Ukuran cache terjemahan berada di luar rentang yang didukung.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Penyimpanan cache terjemahan tidak valid atau tidak tersedia.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Cache terjemahan tidak dapat disimpan.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Perubahan sinkronisasi iCloud berlaku setelah Anda menutup Aidoku sepenuhnya lalu membukanya kembali. Hingga saat itu, pengaturan sinkronisasi saat ini tetap aktif.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1141,7 +1080,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sumber %@ versi %d tidak didukung oleh aplikasi ini. Pasang versi yang didukung.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 membaca teks sumber dalam bahasa Jepang, bahasa Tionghoa (aksara sederhana dan tradisional), bahasa Inggris, dan bahasa lain beraksara Latin, tetapi tidak bahasa Korea, aksara Sirilik, atau bahasa Vietnam. Deteksi otomatis bahasa sumber dan pilihan bahasa sumber juga terbatas pada bahasa-bahasa tersebut. Anda tetap dapat menerjemahkan ke bahasa tujuan apa pun. Memilih Manga menerapkan ambang deteksi 0.85 dan 0.25; ukuran deteksi bawaannya adalah 1120 px.";
 

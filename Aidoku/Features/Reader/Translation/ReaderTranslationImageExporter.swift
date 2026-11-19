@@ -13,7 +13,7 @@ enum ReaderTranslationImageExporter {
                     message: NSLocalizedString("LOADING_ELLIPSIS"), preferredStyle: .alert)
                 presenter.present(progress, animated: true)
                 do {
-                    let image = try await page.exportTranslatedImage(host: presenter.view)
+                    let image = try page.exportTranslatedImage()
                     progress.dismiss(animated: true) { image.saveToAlbum(viewController: presenter) }
                 } catch {
                     progress.dismiss(animated: true) {

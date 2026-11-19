@@ -59,7 +59,7 @@ struct ReaderTranslationDismissalTests {
         let sourceKey = try #require(reader.page.sourcePage?.translationCacheKey)
         let key = ReaderTranslationV2Service.cacheKey(page: sourceKey, crop: CGRect(x: 0, y: 0, width: 1, height: 1),
                                                       settings: keySettings)
-        reader.page.displayLoadedImage(.init(image: reader.translated, regions: [], settings: settings, v2CacheKey: key))
+        reader.page.displayLoadedImage(.init(image: reader.translated, settings: settings, v2CacheKey: key))
         controller.translationVisibilityDidChange()
         let overlay = try #require(reader.imageView.subviews.first as? UIImageView)
         #expect(overlay.image === reader.translated)

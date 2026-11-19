@@ -3,31 +3,6 @@ import XCTest
 @testable import Aidoku
 
 final class NativeTranslationReuseIdentityTests: XCTestCase {
-    func testExactIdentityReusesOnlyMatchingTranslation() throws {
-        let configuration = makeConfiguration()
-        let request = makeRequest()
-        let identities =
-            try NativeTranslationReuseIdentity.identitiesBySegmentID(
-                configuration: configuration,
-                request: request
-            )
-        let first = try XCTUnwrap(identities["segment-0"])
-        let second = try XCTUnwrap(identities["segment-1"])
-        let index = NativeTranslationReuseIndex(values: [
-            NativeTranslationReuseValue(
-                identity: first,
-                translatedText: "첫 번째"
-            ),
-        ])
-
-        XCTAssertEqual(
-            index.value(matching: first)?.translatedText,
-            "첫 번째"
-        )
-        XCTAssertNil(index.value(matching: second))
-        XCTAssertNil(index.value(matching: nil))
-    }
-
     func testIdentityIncludesCompleteOrderedBatchAndSegmentPosition()
         throws
     {

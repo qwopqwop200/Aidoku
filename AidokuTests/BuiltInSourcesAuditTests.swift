@@ -27,7 +27,7 @@ struct BuiltInSourceResponseLimitTests {
     @Test func suwayomiBodyWithinLimitKeepsResponse() async throws {
         let session = AuditBodyProtocol.session()
         defer { session.invalidateAndCancel() }
-        let (data, response) = try await SuwayomiHelper.limitedData(
+        let (data, response) = try await NativeSourceNetwork.limitedData(
             for: AuditBodyProtocol.request(bytes: 4096), session: session, maximum: 4096
         )
         #expect(data.count == 4096)
@@ -38,7 +38,7 @@ struct BuiltInSourceResponseLimitTests {
         let session = AuditBodyProtocol.session()
         defer { session.invalidateAndCancel() }
         do {
-            _ = try await SuwayomiHelper.limitedData(for: AuditBodyProtocol.request(bytes: 4097), session: session, maximum: 4096)
+            _ = try await NativeSourceNetwork.limitedData(for: AuditBodyProtocol.request(bytes: 4097), session: session, maximum: 4096)
             Issue.record("Expected an oversize body to be rejected")
         } catch let error as URLError {
             #expect(error.code == .dataLengthExceedsMaximum)

@@ -354,16 +354,6 @@
 
 "TRANSLATION_TITLE" = "OCR i tłumaczenia";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Zamień zapisany klucz API (opcjonalnie)";
 
 "TRANSLATION_KEY" = "Klucz API";
@@ -380,11 +370,7 @@
 
 "TRANSLATION_TARGET" = "Przetłumacz na";
 
-
 "TRANSLATION_AUTO" = "Wykryj automatycznie";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Wyczyść pamięć podręczną tłumaczeń";
 
@@ -399,22 +385,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Domyślne ustawienie modelu";
 
 "TRANSLATION_CONCURRENCY" = "Równoczesne żądania";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Dostawca tłumaczeń";
 
@@ -472,8 +442,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nie można połączyć się z użyciem obejścia blokowania HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tłumaczenie nie powiodło się. Wyświetlany jest tekst rozpoznany przez OCR. Sprawdź ustawienia i połączenie.";
-
 "TRANSLATION_MANGA_TITLES" = "Tłumacz tytuły mang";
 
 "TRANSLATION_CHAPTER_TITLES" = "Tłumacz tytuły rozdziałów";
@@ -486,32 +454,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Język źródłowy strony";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Tłumacz opisy mang";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Języki opisu mangi";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatycznie wykrywa język źródłowy i tłumaczy tylko wybrane języki. Opcja Wszystkie wykryte języki usuwa ograniczenie. Filtr języka każdego elementu działa niezależnie od ustawień języka stron i innych elementów.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Wysyła obraz strony wraz z tekstem OCR, aby dostarczyć kontekst sceny. Jeśli obrazy nie są obsługiwane, tłumaczenie jest automatycznie kontynuowane tylko na podstawie tekstu. Dołączanie obrazów może zwiększyć zużycie danych i koszty API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Obrazy nie są obsługiwane jako dane wejściowe. Tłumaczenie jest kontynuowane bez obrazów.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Własny serwer (zgodny z OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Brak";
 
@@ -1031,16 +980,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nie można wyświetlić ustawienia: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Pobierz z tłumaczeniem";
-
 
 "TRANSLATION_STATE_ON" = "Włączone";
 "TRANSLATION_STATE_OFF" = "Wyłączone";
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Ustawienia tłumaczenia są nieprawidłowe. Sprawdź adres URL serwera, model i pozostałe ustawienia.";
 "TRANSLATION_ERROR_REQUEST" = "Nie można użyć tekstu, obrazu lub ustawień języka do tłumaczenia.";
@@ -1066,13 +1009,10 @@
 "OCR_ERROR_IMAGE" = "Nie udało się przygotować obrazu do rozpoznawania tekstu.";
 "OCR_ERROR_OUTPUT" = "Model PP-OCRv6 zwrócił nieprawidłowy lub nieobsługiwany wynik.";
 "OCR_ERROR_PREDICTION" = "Rozpoznawanie tekstu przez PP-OCRv6 nie powiodło się. Spróbuj ponownie z innym obrazem lub modelem OCR.";
-"TRANSLATION_ERROR_CACHE_SIZE" = "Rozmiar pamięci podręcznej tłumaczeń wykracza poza obsługiwany zakres.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Miejsce przechowywania pamięci podręcznej tłumaczeń jest nieprawidłowe lub niedostępne.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Nie udało się zapisać pamięci podręcznej tłumaczeń.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Zmiany synchronizacji iCloud zaczną obowiązywać po całkowitym zamknięciu i ponownym otwarciu Aidoku. Do tego czasu aktywne pozostaje obecne ustawienie.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1114,7 +1054,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Źródło %@ w wersji %d nie jest obsługiwane przez tę aplikację. Zainstaluj obsługiwaną wersję.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 odczytuje tekst źródłowy w języku japońskim, chińskim (uproszczonym i tradycyjnym), angielskim i innych językach zapisywanych alfabetem łacińskim, ale nie koreański, cyrylicę ani wietnamski. Automatyczne wykrywanie języka źródłowego oraz wybór języka źródłowego są ograniczone do tych języków. Nadal można tłumaczyć na dowolny język docelowy. Wybranie modelu Manga ustawia progi detektora na 0,85 i 0,25; domyślny rozmiar obrazu do wykrywania tekstu wynosi 1120 px.";
 

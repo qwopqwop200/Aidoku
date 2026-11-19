@@ -131,7 +131,7 @@ extension HistoryView.ViewModel {
     }
 
     // fetch a specified number of new history entries (that will be appended to the top)
-    func fetchNew(count: Int, refreshingDays: Set<Int> = [], replacingChapter: ChapterIdentifier? = nil, changedChapterIds: [ChapterIdentifier]? = nil) async {
+    func fetchNew(count: Int, refreshingDays: Set<Int> = [], changedChapterIds: [ChapterIdentifier]? = nil) async {
         let generation = historyReloadGeneration
         // Several mutation notifications can await the same predecessor. Recheck
         // ownership after every suspension so only one successor reads/merges.
@@ -142,11 +142,6 @@ extension HistoryView.ViewModel {
             if loadTaskID == predecessorID { loadTask = nil }
         }
         guard !Task.isCancelled else { return }
-        var refreshingDays = refreshingDays
-        if let replacingChapter,
-           let day = removeStoredHistory(chapterId: replacingChapter, updateFilteredHistory: false) {
-            refreshingDays.insert(day)
-        }
         let issued = UUID()
         loadTaskID = issued
         let task = Task.detached {
@@ -351,7 +346,6 @@ extension HistoryView.ViewModel {
                 }
                 await group.waitForAll()
             }
-
         }
         mangaLoadTask = nil
     }

@@ -82,7 +82,6 @@ extension WKWebView {
     }
 }
 
-
 @MainActor
 private final class SourceNavigationPreparation {
     static var key: UInt8 = 0

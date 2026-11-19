@@ -924,8 +924,6 @@
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d received · TLS fragmentation not confirmed";
 "HTTPS_BYPASS_TEST_FAILED" = "Could not connect through the HTTPS bypass.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Translation failed. Showing OCR text. Check your settings and connection.";
-
 "TRANSLATION_MANGA_TITLES" = "Translate Manga Titles";
 
 "TRANSLATION_CHAPTER_TITLES" = "Translate Chapter Titles";
@@ -938,24 +936,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Page Source Language";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Translate Manga Descriptions";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Manga Description Languages";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatically detect the source language and translate only the selected languages. All Detected Languages removes the restriction. Each item’s language filter is independent of page and other item language settings.";
 
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Send the page image with OCR text to provide scene context. If image input is unsupported, translation automatically continues with text only. Attaching images may increase data usage and API cost.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Image input is not supported. Translation continues without images.";
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Custom (OpenAI-Compatible)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "None";
 
@@ -1003,18 +990,11 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Unable to display setting: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Download with Translation";
-
 
 "TRANSLATION_STATE_ON" = "On";
 
 "TRANSLATION_STATE_OFF" = "Off";
-
-
-
-
-
 
 // Localized OCR and translation errors
 "TRANSLATION_ERROR_CONFIGURATION" = "The translation settings are invalid. Check the server URL, model, and other settings.";
@@ -1041,13 +1021,10 @@
 "OCR_ERROR_IMAGE" = "The image could not be prepared for text recognition.";
 "OCR_ERROR_OUTPUT" = "The PP-OCRv6 model returned invalid or unsupported output.";
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 text recognition failed. Try again with another image or OCR model.";
-"TRANSLATION_ERROR_CACHE_SIZE" = "The translation cache size is outside the supported range.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "The translation cache storage is invalid or unavailable.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "The translation cache could not be saved.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Changes to iCloud Sync take effect the next time you fully close and reopen Aidoku. Until then, the current sync setting remains active.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1089,7 +1066,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Source %@ version %d is not supported by this app. Install a supported version.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 reads Japanese, Chinese (Simplified and Traditional), English and other Latin-script source text, but not Korean, Cyrillic or Vietnamese. Automatic source detection and source-language choices are limited to these languages. You can still translate into any target language. Choosing Manga applies detector thresholds of 0.85 and 0.25; its default detection size is 1120 px.";
 

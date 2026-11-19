@@ -1,6 +1,5 @@
 "IMPORT" = "Voer tans in…";
 "DONE" = "Klaar";
-"FILE_IMPORT_FAIL_TEXT" = "Kon nie die lêer invoer nie. Maak seker dat dit ’n leesbare beeldlêer of ’n geldige CBZ- of ZIP-argief met beelde is.";
 "FORMAT_IMAGE" = "Beeld";
 "SHARED_IMAGES_SAVED" = "Suksesvol gestoor. Maak Aidoku oop om te lees.";
 

@@ -645,16 +645,6 @@
 
 "TRANSLATION_TITLE" = "OCR и перевод";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Заменить сохраненный ключ API (необязательно)";
 
 "TRANSLATION_KEY" = "API-ключ";
@@ -671,11 +661,7 @@
 
 "TRANSLATION_TARGET" = "Перевести на";
 
-
 "TRANSLATION_AUTO" = "Определять автоматически";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Очистить кэш переводов";
 
@@ -690,22 +676,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "По умолчанию для модели";
 
 "TRANSLATION_CONCURRENCY" = "Параллельные запросы";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Поставщик услуг перевода";
 
@@ -763,8 +733,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Не удалось подключиться через обход HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Не удалось выполнить перевод. Показан распознанный текст. Проверьте настройки и подключение.";
-
 "TRANSLATION_MANGA_TITLES" = "Переводить названия манги";
 
 "TRANSLATION_CHAPTER_TITLES" = "Переводить названия глав";
@@ -777,32 +745,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Исходный язык страницы";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Переводить описания манги";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Языки описаний манги";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Автоматически определяет исходный язык и переводит только выбранные языки. «Все обнаруженные языки» снимает ограничение. Языковой фильтр каждого элемента не зависит от настроек языка страниц и других элементов.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Отправляет изображение страницы вместе с распознанным текстом, чтобы учесть контекст сцены. Если ввод изображений не поддерживается, перевод автоматически продолжается только по тексту. Прикрепление изображений может увеличить расход трафика и стоимость API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Ввод изображений не поддерживается. Перевод продолжится без изображений.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Свой сервер (совместимый с OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Нет";
 
@@ -1033,16 +982,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Невозможно отобразить настройку: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Скачать с переводом";
-
 
 "TRANSLATION_STATE_ON" = "Включено";
 "TRANSLATION_STATE_OFF" = "Выключено";
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Некорректные настройки перевода. Проверьте URL-адрес сервера, модель и другие настройки.";
 "TRANSLATION_ERROR_REQUEST" = "Не удалось использовать текст, изображение или языковые настройки для перевода.";
@@ -1068,13 +1011,10 @@
 "OCR_ERROR_IMAGE" = "Не удалось подготовить изображение к распознаванию текста.";
 "OCR_ERROR_OUTPUT" = "Модель PP-OCRv6 вернула некорректный или неподдерживаемый результат.";
 "OCR_ERROR_PREDICTION" = "Не удалось распознать текст с помощью PP-OCRv6. Попробуйте другое изображение или модель OCR.";
-"TRANSLATION_ERROR_CACHE_SIZE" = "Размер кэша переводов находится за пределами поддерживаемого диапазона.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Хранилище кэша переводов некорректно или недоступно.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Не удалось сохранить кэш переводов.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Изменения синхронизации iCloud вступят в силу после полного закрытия и повторного открытия Aidoku. До этого действует текущая настройка.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 

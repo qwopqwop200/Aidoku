@@ -80,14 +80,17 @@ struct AddSourceView: View {
                             )
                         }
                     } else {
-                        let query = searchText.lowercased()
-                        let filteredSources = if query.isEmpty {
+                        let filteredSources = if searchText.isEmpty {
                             externalSources
                         } else {
                             externalSources.filter {
-                                $0.name.lowercased().contains(query)
-                                    || $0.altNames.contains { $0.lowercased().contains(query) }
-                                    || $0.urls.contains { $0.lowercased().contains(query) }
+                                let fields: [String] = [$0.name.lowercased()]
+                                    + $0.altNames.map({ $0.lowercased() })
+                                    + $0.urls.map({ $0.lowercased() })
+                                return fields
+                                    .contains {
+                                        $0.contains(searchText.lowercased())
+                                    }
                             }
                         }
                         if filteredSources.isEmpty {
@@ -318,9 +321,10 @@ struct AddSourceView: View {
     }
 
     func checkAllSourcesInstalled() async -> Bool {
-        let installedSources = await SourceManager.shared.getSourceInfos(sorted: false)
-        let installedIds = Set(installedSources.map(\.sourceId))
-        return allExternalSources.allSatisfy { installedIds.contains($0.id) }
+        let installedSources = await  SourceManager.shared.getSourceInfos(sorted: false)
+        return !allExternalSources.contains { source in
+            !installedSources.contains(where: { $0.sourceId == source.id })
+        }
     }
 
     func filterExternalSources() async -> ([SourceInfo], allSourcesInstalled: Bool) {
@@ -332,12 +336,11 @@ struct AddSourceView: View {
 
         var allSourcesInstalled = true
 
-        let installedSources = await SourceManager.shared.getSourceInfos(sorted: false)
-        let installedIds = Set(installedSources.map(\.sourceId))
+        let installedSources = await SourceManager.shared.getSourceInfos()
         let result = allExternalSources
             .compactMap { info -> SourceInfo? in
                 // strip installed sources from external list
-                if installedIds.contains(info.id) {
+                if installedSources.contains(where: { $0.sourceId == info.id }) {
                     return nil
                 }
                 // this source isn't installed

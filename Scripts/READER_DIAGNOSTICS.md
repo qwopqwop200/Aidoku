@@ -30,27 +30,19 @@ be retroactively connected to a page. It never needs to open the translation dat
 Each event includes wall time, monotonic uptime, process ID and a per-file sequence number.
 `trace` identifies a work chain within one process. `page_token` is the first 64 bits of the existing
 SHA-256 page identity; it stays consistent across OCR, provider work, cache replay and UIKit callbacks.
-`page` is the 1-based chapter position when known, otherwise -1. In particular, imported images with
-`Page.index == 0` no longer falsely identify every visible image as page 1. Offscreen work with unknown
-position can be joined to later `visible_page` events by token. Separate loads of one page may have
+`page` is the 1-based chapter position when known, otherwise -1. Separate loads of one page may have
 separate traces; the token connects them.
 
-Typical flow:
+Recorded events:
 
 1. `source_load` / `source_image_response` / `source_download` / `source_decode_load`: source acquisition,
    cache/network response and decode/load. `source_load_result` has count 1 for success, 0 for failure.
-2. `loaded_translation_hit/miss`, `translation_cache_hit`, `ocr_cache_hit/miss`: which work was reusable.
-3. `ocr_preparation`, `image_admission_queued`, `image_admitted`: OCR preparation and image-budget wait.
-   Existing `ocr_queue/frame/detection/recognition/postprocess` phase records share the context.
-4. `preload_translation`, `preload_adopted/demand`, `provider_queue`, `provider_client`, `transport`,
-   `providerFailure`: prefetch adoption, provider admission and network/response timing.
-5. `layout_memory_hit`, `layout_disk_lookup`, `asset_memory_hit`, `asset_read_joined`,
-   `asset_disk_decode`, `asset_disk_hit/miss`, `render_asset_identity_mismatch`: render-cache behavior.
-6. `export_queued/admitted`, `export_render`, `export_pdf`, `native_composite`, `visible_snapshot`:
-   rendering admission, DOM/export, PDF and native composition.
-7. `visible_page`, `visible_live_attached/committed`, `visible_bitmap_attached`: presentation.
-   `bitmap_attached_before_layout` means the image view had nonpositive bounds at attachment;
-   it is a diagnostic condition, not proof that the eventual display failed.
+2. `loaded_translation_hit/miss`, `loaded_presentation_fallback`: whether a saved translation was reused.
+3. `service`, `providerAttempt`, `providerFailure`, `transport`, `batch` and `api_*` milestones: provider
+   admission, retries and network/response timing.
+4. `memory_reclaim_begin/end`: image work-budget reclamation.
+5. `visible_bitmap_attached`: presentation. `bitmap_attached_before_layout` means the image view had
+   nonpositive bounds at attachment; it is a diagnostic condition, not proof that the display failed.
 
 Measured scopes emit `_begin` and `_end`. End records include `elapsed_ms`, numeric error `code`,
 and `outcome` (0 returned normally, 1 cancellation, 2 error). Optional-cache scopes may return nil
@@ -59,8 +51,7 @@ sum nested spans**. The report ranks phases by maximum duration and shows mean/P
 milestones and unmatched starts. An unmatched start can be active work, cancellation, log rotation,
 a crash or dropped records; it is not automatically a deadlock.
 
-`translation_cache_wrong_language` and `api_invalid_response` help distinguish a rejected translation
-from a renderer failure. No source/translated text, URL, credential, prompt or model name is added.
+`api_invalid_response` helps distinguish a rejected translation from a renderer failure. No source/translated text, URL, credential, prompt or model name is added.
 
 ## Cost and retention contract
 
@@ -76,8 +67,3 @@ from a renderer failure. No source/translated text, URL, credential, prompt or m
   identifies the sample instant; repeated values are shared samples, **not** per-event measurements.
 - There is no extra OCR/provider/render work to obtain diagnostics. Existing admission limits,
   cancellation, output pixels and cache identities are unchanged.
-
-Tests cover rotation, overflow reporting, batching, memory-sample count, invalid numeric values,
-trace handoff through detached work, and existing reader presentation/concurrency/export behavior.
-Producer timing printed by the burst test measures only log admission; it is not an end-to-end
-reader speed or long-session device-memory claim.

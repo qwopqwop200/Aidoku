@@ -11,46 +11,31 @@ import Foundation
 @available(iOS 18.0, *)
 enum V2Detection {
     /// Selected on GT dev: the legacy Manga binarization (0.85, unclip 1.4)
-    /// followed by line assembly beats the low-threshold candidate below on
-    /// recall@0.5, precision and matched IoU (recall@0.7 is within 0.1 pt).
+    /// followed by line assembly beats a low-threshold candidate (pixel 0.4,
+    /// unclip 1.3) on recall@0.5, precision and matched IoU (recall@0.7 is within 0.1 pt).
     static let configuration = NativeCoreMLDBPostprocessConfiguration.manga
-    /// Low-threshold candidate (pixel 0.4, unclip 1.3), evaluated and kept for comparison.
-    static let lowThresholdConfiguration = NativeCoreMLDBPostprocessConfiguration(
-        threshold: 0.4,
-        boxThreshold: 0.25,
-        unclipRatio: 1.3,
-        maximumCandidates: 3_000
-    )
 
-    static func detect(
-        _ page: V2Page,
-        detector: NativeCoreMLDetector,
-        configuration: NativeCoreMLDBPostprocessConfiguration = V2Detection.configuration
-    ) async throws -> [V2Line] {
+    static func detect(_ page: V2Page, detector: NativeCoreMLDetector) async throws -> [V2Line] {
         // Geometry-only entry point: skips the legacy evidence V2 never reads, the input digest
         // and the MLTensor round trip (multiarray feature-provider prediction, bit-identical output).
-        let result = try await detector.detectGeometry(image: page.image, requestID: page.id, configuration: configuration)
-        return result.boxes.compactMap { line(polygon: $0.polygon, score: $0.score) }
+        let boxes = try await detector.detectGeometry(image: page.image, configuration: configuration)
+        return boxes.compactMap { line(polygon: $0.polygon, score: $0.score) }
     }
 
     /// Detection from an RGBA frame the caller already converted (shared with S3 recognition).
-    static func detect(
-        frame: NativeOCRRGBAFrame,
-        page: V2Page,
-        detector: NativeCoreMLDetector,
-        configuration: NativeCoreMLDBPostprocessConfiguration = V2Detection.configuration
-    ) async throws -> [V2Line] {
-        let result = try await detector.detectGeometry(frame: frame, requestID: page.id, configuration: configuration)
-        return result.boxes.compactMap { line(polygon: $0.polygon, score: $0.score) }
+    static func detect(frame: NativeOCRRGBAFrame, page: V2Page, detector: NativeCoreMLDetector) async throws -> [V2Line] {
+        let boxes = try await detector.detectGeometry(frame: frame, configuration: configuration)
+        return boxes.compactMap { line(polygon: $0.polygon, score: $0.score) }
     }
 
-    /// Detection followed by fragment assembly.
-    static func detectLines(
-        _ page: V2Page,
-        detector: NativeCoreMLDetector,
-        layout: [V2LayoutRegion]
-    ) async throws -> [V2Line] {
-        V2LineAssembly.assemble(try await detect(page, detector: detector), layout: layout)
+    /// Detection on one pooled resident detector (one page per instance at a time).
+    static func detect(_ page: V2Page, models: V2Models) async throws -> [V2Line] {
+        try await models.detectors.with { try await detect(page, detector: $0) }
+    }
+
+    /// Frame-sharing variant used by the pipeline (S3 reuses the same frame).
+    static func detect(frame: NativeOCRRGBAFrame, page: V2Page, models: V2Models) async throws -> [V2Line] {
+        try await models.detectors.with { try await detect(frame: frame, page: page, detector: $0) }
     }
 
     static func line(polygon: [CGPoint], score: Double) -> V2Line? {

@@ -777,16 +777,6 @@
 
 "TRANSLATION_TITLE" = "OCR et traduction";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Remplacer la clé API enregistrée (facultatif)";
 
 "TRANSLATION_KEY" = "Clé API";
@@ -803,11 +793,7 @@
 
 "TRANSLATION_TARGET" = "Traduire vers";
 
-
 "TRANSLATION_AUTO" = "Détecter automatiquement";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Vider le cache de traduction";
 
@@ -822,22 +808,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Valeur par défaut du modèle";
 
 "TRANSLATION_CONCURRENCY" = "Demandes simultanées";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Fournisseur de traduction";
 
@@ -895,8 +865,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Impossible de se connecter via le contournement HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "La traduction a échoué. Le texte OCR est affiché. Vérifiez les paramètres et la connexion.";
-
 "TRANSLATION_MANGA_TITLES" = "Traduire les titres des mangas";
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduire les titres des chapitres";
@@ -909,32 +877,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Langue source de la page";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Traduire les descriptions de mangas";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Langues des descriptions de mangas";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Détecte automatiquement la langue source et traduit uniquement les langues sélectionnées. « Toutes les langues détectées » supprime la restriction. Le filtre de langue de chaque élément est indépendant des réglages de langue des pages et des autres éléments.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Envoie l’image de la page avec le texte OCR pour fournir le contexte de la scène. Si les images ne sont pas prises en charge, la traduction continue automatiquement avec le texte seul. Joindre des images peut augmenter la consommation de données et le coût de l’API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Les images ne sont pas prises en charge en entrée. La traduction continue sans images.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Personnalisé (compatible OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Aucun";
 
@@ -1034,9 +983,7 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Impossible d'afficher le paramètre : %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Télécharger avec traduction";
-
 
 "TRANSLATION_STATE_ON" = "Activée";
 "TRANSLATION_STATE_OFF" = "Désactivée";
@@ -1064,13 +1011,10 @@
 "OCR_ERROR_IMAGE" = "Impossible de préparer l’image pour la reconnaissance du texte.";
 "OCR_ERROR_OUTPUT" = "Le modèle PP-OCRv6 a renvoyé une sortie non valide ou non prise en charge.";
 "OCR_ERROR_PREDICTION" = "La reconnaissance du texte PP-OCRv6 a échoué. Réessayez avec une autre image ou un autre modèle OCR.";
-"TRANSLATION_ERROR_CACHE_SIZE" = "La taille du cache de traduction est hors des limites prises en charge.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "L’espace de stockage du cache de traduction est non valide ou indisponible.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Impossible d’enregistrer le cache de traduction.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Les modifications de la synchronisation iCloud prennent effet après la fermeture complète et la réouverture d’Aidoku. Le réglage actuel reste actif jusque-là.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1112,7 +1056,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "La source %@ version %d n’est pas prise en charge par cette application. Installez une version compatible.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 lit les textes sources en japonais, en chinois (simplifié et traditionnel), en anglais et dans les autres langues à écriture latine, mais pas le coréen, le cyrillique ni le vietnamien. La détection automatique et la sélection de la langue source sont également limitées à ces langues. La traduction vers n’importe quelle langue cible reste possible. Sélectionner Manga applique des seuils de détection du texte de 0,85 et 0,25 ; la taille de détection par défaut est de 1120 px.";
 

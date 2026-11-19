@@ -867,10 +867,8 @@ extension LibraryViewModel {
 
     func removeFromCurrentCategory(manga: MangaInfo) async {
         guard let currentCategory, isInRealCategory else { return }
-        mutateLibrary {
-            pinnedManga.removeAll { $0.id == manga.id }
-            self.manga.removeAll { $0.id == manga.id }
-        }
+        pinnedManga.removeAll { $0.id == manga.id }
+        self.manga.removeAll { $0.id == manga.id }
         await CoreDataManager.shared.removeCategoriesFromManga(
             mangaId: manga.id,
             categories: [currentCategory]

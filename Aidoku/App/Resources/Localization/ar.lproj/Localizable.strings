@@ -407,16 +407,6 @@
 
 "TRANSLATION_TITLE" = "التعرف الضوئي على الحروف والترجمة";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "استبدال مفتاح API المحفوظ (اختياري)";
 
 "TRANSLATION_KEY" = "مفتاح واجهة برمجة التطبيقات";
@@ -433,11 +423,7 @@
 
 "TRANSLATION_TARGET" = "ترجمة إلى";
 
-
 "TRANSLATION_AUTO" = "الكشف تلقائيًا";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "مسح ذاكرة التخزين المؤقت للترجمة";
 
@@ -452,22 +438,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "الإعداد الافتراضي للنموذج";
 
 "TRANSLATION_CONCURRENCY" = "الطلبات المتزامنة";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "مزود الترجمة";
 
@@ -525,8 +495,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "تعذر الاتصال عبر تجاوز HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "فشلت الترجمة. يُعرض النص المستخرج بالتعرف الضوئي على الحروف. تحقق من الإعدادات والاتصال.";
-
 "TRANSLATION_MANGA_TITLES" = "ترجمة عناوين المانجا";
 
 "TRANSLATION_CHAPTER_TITLES" = "ترجمة عناوين الفصول";
@@ -539,32 +507,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "لغة النص الأصلي للصفحة";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "ترجمة أوصاف المانجا";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "لغات وصف المانجا";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "يكتشف لغة النص الأصلي تلقائيًا ويترجم اللغات المحددة فقط. يزيل خيار جميع اللغات المكتشفة هذا القيد. عامل تصفية اللغة لكل عنصر مستقل عن إعدادات لغة الصفحات والعناصر الأخرى.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "أرسل صورة الصفحة مع نص OCR لتوفير سياق المشهد. إذا لم يكن إدخال الصور مدعومًا، تستمر الترجمة تلقائيًا بالنص فقط. قد يؤدي إرفاق الصور إلى زيادة استخدام البيانات وتكلفة API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "إدخال الصور غير مدعوم. ستستمر الترجمة بدون صور.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "مخصص (متوافق مع OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "لا شيء";
 
@@ -1033,17 +982,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "غير قادر على عرض الإعداد: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "تنزيل مع الترجمة";
-
 
 "TRANSLATION_STATE_ON" = "مفعّل";
 "TRANSLATION_STATE_OFF" = "معطّل";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "إعدادات الترجمة غير صالحة. تحقق من عنوان URL للخادم والنموذج والإعدادات الأخرى.";
 
@@ -1093,15 +1035,12 @@
 
 "OCR_ERROR_PREDICTION" = "فشل التعرف على النص باستخدام PP-OCRv6. حاول مرة أخرى باستخدام صورة أو نموذج OCR آخر.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "حجم ذاكرة التخزين المؤقت للترجمة خارج النطاق المدعوم.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "مساحة تخزين ذاكرة التخزين المؤقت للترجمة غير صالحة أو غير متاحة.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "تعذر حفظ ذاكرة التخزين المؤقت للترجمة.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "تسري تغييرات مزامنة iCloud بعد إغلاق Aidoku بالكامل وإعادة فتحه. حتى ذلك الحين، يظل إعداد المزامنة الحالي فعالاً.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 

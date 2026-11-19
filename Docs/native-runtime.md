@@ -36,62 +36,13 @@ and raster behavior is not proof of exact iPhone output.
 See [CLI configuration and outputs](../Scripts/image-translation/README.md),
 including `.env`, saved phone settings, replay and bounded concurrency.
 
-## OCR resolution limits
+## Native allocation policy
 
-Reader settings and the image-translation CLI use a detector longest-side ceiling
-of **1184** and recognizer crops of at most **48 × 1184**. Existing larger saved
-values are bounded on load/use/save; smaller valid choices are retained. The CLI
-also bounds explicit flags, environment profiles and imported phone settings to
-32...1184. Recognition height remains 48. OCR cache keys include the effective
-configuration, so earlier 1280 results cannot satisfy the new settings.
-
-The bundled models support dynamic input dimensions. Historical fixed-function
-names such as `rec1280b1` describe compiled tensor contracts, not the app's current
-crop limit. Low-level explicit model/replay configuration keeps its documented
-wider range for frozen regression fixtures; it does not change reader or CLI
-limits. Historical service replay fixtures explicitly retain their captured
-1280 recognition width so a new app default cannot silently change their inputs.
-Tests in `NativeOCRResolutionContractTests` exercise real inference for all three
-bundled detector and recognizer tiers at the 1184 limit.
-
-Unused fixed detector canvas tables, the unused detector predictor-injection
-interface and the alternate full-image preprocessing switch were removed. The
-independent full-image sampling reference now lives only in its regression test.
-The one-off efficiency measurement suite became `NativeRenderPipelineTests`,
-retaining live/export/source correctness assertions without sampling memory,
-repeating benchmarks or writing reports from the app test target.
-
-## Native allocation and painting policy
-
-Admitted source repairs draw into the worker's existing bitmap, avoiding a full
-page prefix copy, main-actor window capture and bitmap replay. Unsupported
-geometry retains the native fallback. Horizontal outlined text reuses the
-measured Core Text glyphs for fill/stroke passes; mixed stroke attributes,
-color glyphs, vertical and condensed text retain the appropriate existing path.
-Mixed stroke runs can change ligatures when reshaped, so they must not enter
-the glyph-reuse path.
-
-Cold image composition accepts the existing native bitmap and repair CGImages.
-PNG/Base64 encoding remains for persisted assets and explicitly requested layer
-diagnostics. Cached reads retain their encoded-asset compatibility path. The
-host similarly composes repair images directly and encodes the final PNG once
-for both the saved image and its HTML preview. The visual cache namespace is
-`reader-render-v159-native-direct-paint`; OCR and translation keys are unchanged.
-
-SQLite compressed reads borrow the BLOB only within the synchronous statement
-and return owned decoded bytes. Writes retain their source buffer until SQLite
-finalizes the statement. Cancelled preload JPEG slots cannot be refilled by a
-late producer. Hidden overlay rasters are released, and the overlay stays weak
-while waiting for a shared layout producer. Dictionary raster attachments decode
+Translation-cache SQLite compressed reads borrow the BLOB only within the
+synchronous statement and return owned decoded bytes. Writes retain their source
+buffer until SQLite finalizes the statement. Dictionary raster attachments decode
 at their display size and retain one size/trait-specific rendered bitmap;
 explicit pixelated images preserve their original pixels.
-
-The archived `NativeEfficiencyMeasurementTests` benchmark used one warmup and
-three samples per phase. Its historical report records wall time, sampled process
-RSS, physical footprint, returned payload bytes and output PNGs. The replacement
-`NativeRenderPipelineTests` retains the correctness checks without measurements
-or report output. Historical generated fixtures and the six-source-draw
-microbenchmark do not establish whole-app or physical-device improvements.
 
 ## Verification
 

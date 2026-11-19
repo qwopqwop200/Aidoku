@@ -323,28 +323,18 @@ struct TranslationStreamingTests {
             index = end
         }
         let body = try Self.sse(pieces)
-        let expectedIDs: Set<String> = ["segment-0", "segment-1"]
         for step in [1, 2, 3, 17, body.count] {
             var decoder = ChatCompletionStreamDecoder()
-            var scanner = StreamedTranslationItemScanner()
-            var streamed: [RemoteTranslatedSegment] = []
             var offset = 0
             while offset < body.count {
                 let end = min(body.count, offset + step)
-                for delta in try decoder.consume(body.subdata(in: offset..<end)) {
-                    streamed += scanner.append(delta).compactMap {
-                        TranslationHTTPCodec.streamedSegment(fromItemJSON: $0, expectedSegmentIDs: expectedIDs)
-                    }
-                }
+                _ = try decoder.consume(body.subdata(in: offset..<end))
                 offset = end
             }
             _ = try decoder.finish()
             #expect(decoder.content == content)
             #expect(decoder.finishReason == "stop")
             #expect(decoder.completed)
-            // The invalid middle item is skipped; progress keeps stream order.
-            #expect(streamed == [RemoteTranslatedSegment(id: "segment-0", text: "어이, \"기다려\" {}"),
-                                 RemoteTranslatedSegment(id: "segment-1", text: "줄\n바꿈 \\ 끝 😀")])
         }
     }
 
@@ -403,17 +393,13 @@ struct TranslationStreamingTests {
 
     // MARK: Client
 
-    @Test func clientUpgradesVerifiedVLLMEndpointAndStreamsPartialsInOrder() async throws {
+    @Test func clientUpgradesVerifiedVLLMEndpointToStreamedCompactOutput() async throws {
         let transport = ScriptedStreamingTransport(mode: .streamed)
         let client = RemoteTranslationClient(credentialStore: StreamingTestCredential(), transport: transport)
         let request = Self.request(["おい", "待て", "ドン"])
         let first = try await client.translate(request, configuration: Self.configuration())
-        let partials = PartialRecorder()
-        let second = try await client.translate(request, configuration: Self.configuration(),
-                                                onPartial: { partials.append($0) })
+        let second = try await client.translate(request, configuration: Self.configuration())
         #expect(first == second)
-        #expect(partials.values.flatMap { $0 } == second.translations)
-        #expect(partials.values.count == 3) // One per streamed object.
         let kinds = await transport.kinds
         #expect(kinds == [.standard, .compact])
         #expect(client.compactOutput.state(for: try RemoteTranslationClient.compactCapabilityKey(for: Self.configuration())) == .verified)
@@ -474,13 +460,6 @@ struct TranslationStreamingTests {
     }
 }
 
-private final class PartialRecorder: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage: [[RemoteTranslatedSegment]] = []
-    func append(_ value: [RemoteTranslatedSegment]) { lock.lock(); storage.append(value); lock.unlock() }
-    var values: [[RemoteTranslatedSegment]] { lock.lock(); defer { lock.unlock() }; return storage }
-}
-
 private struct StreamingTestCredential: TranslationCredentialProviding {
     func secret(for account: String) throws -> String { "unit-test-only" }
 }
@@ -513,7 +492,7 @@ private actor MetadataStreamingTransport: TranslationHTTPTransport {
 }
 
 /// Answers "ko:<source>" for every segment. Standard requests receive a
-/// buffered chat completion; compact requests receive SSE in 7-byte chunks.
+/// buffered chat completion; compact requests receive SSE.
 private actor ScriptedStreamingTransport: TranslationHTTPTransport {
     enum Mode { case streamed, rejectCompact, malformedCompact }
     enum Kind: Equatable { case standard, compact }
@@ -529,11 +508,6 @@ private actor ScriptedStreamingTransport: TranslationHTTPTransport {
     }
 
     func data(for request: URLRequest, maximumResponseBytes: Int, bypassesProxy: Bool) async throws -> TranslationHTTPResponse {
-        try await data(for: request, maximumResponseBytes: maximumResponseBytes, bypassesProxy: bypassesProxy, onBodyData: nil)
-    }
-
-    func data(for request: URLRequest, maximumResponseBytes: Int, bypassesProxy: Bool,
-              onBodyData: TranslationHTTPBodyObserver?) async throws -> TranslationHTTPResponse {
         let httpBody = try #require(request.httpBody)
         let root = try #require(JSONSerialization.jsonObject(with: httpBody) as? [String: Any])
         let compact = root["structured_outputs"] != nil
@@ -577,12 +551,6 @@ private actor ScriptedStreamingTransport: TranslationHTTPTransport {
             let streamed = mode == .malformedCompact ? "{\"translations\":[" : content
             let pieces = items.enumerated().map { ($0.offset == 0 ? "{\"translations\":[" : ",") + $0.element } + ["]}"]
             let body = try TranslationStreamingTests.sse(mode == .malformedCompact ? [streamed] : pieces)
-            var offset = 0
-            while offset < body.count {
-                let end = min(body.count, offset + 7)
-                onBodyData?(body.subdata(in: offset..<end))
-                offset = end
-            }
             return TranslationHTTPResponse(data: body, response: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,
                 headerFields: ["Content-Type": "text/event-stream; charset=utf-8"])!)
         }
@@ -594,7 +562,6 @@ private actor ScriptedStreamingTransport: TranslationHTTPTransport {
         }
         envelope["system_fingerprint"] = fingerprint
         let body = try JSONSerialization.data(withJSONObject: envelope)
-        onBodyData?(body)
         var headers = ["Content-Type": "application/json"]
         headers["X-vLLM-Version"] = versionHeader
         return TranslationHTTPResponse(data: body, response: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,

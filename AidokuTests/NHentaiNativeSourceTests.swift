@@ -107,13 +107,6 @@ struct NHentaiNativeSourceTests {
         #expect(try await runner.handleDeepLink(url: "https://nhentai.net/g/42/")?.mangaKey == "42")
         #expect(try await runner.handleDeepLink(url: "https://nhentai.net.evil.invalid/g/42/") == nil)
     }
-    private final class HomeRecorder: @unchecked Sendable {
-        private let lock = NSLock()
-        private var values: [Home] = []
-        func record(_ home: Home) { lock.withLock { values.append(home) } }
-        var snapshots: [Home] { lock.withLock { values } }
-    }
-
     @Test func homePartialsUseOwningSubscriberAndDoNotEnterReplacementSink() async throws {
         let fixture = NetworkFixture()
         let runner = NHentaiSourceRunner(fetch: { await fixture.fetch($0) }, preference: { _ in nil },

@@ -55,13 +55,6 @@ struct ReauditNHentaiTests {
         await publisher.removeSink(token: token)
     }
 
-    private final class HomeRecorder: @unchecked Sendable {
-        private let lock = NSLock()
-        private var values: [Home] = []
-        func record(_ home: Home) { lock.withLock { values.append(home) } }
-        var snapshots: [Home] { lock.withLock { values } }
-    }
-
     private actor GalleryFixture {
         var requests: [URLRequest] = []
         func fetch(_ request: URLRequest) -> (Data, URLResponse) {

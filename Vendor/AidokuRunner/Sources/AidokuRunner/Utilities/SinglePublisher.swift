@@ -19,7 +19,9 @@ public actor SinglePublisher<T: Sendable> {
     private var sink: ((T) -> Void)?
     public private(set) var subscriptionID: UUID?
 
-    public func send(_ value: T) { sink?(value) }
+    public func send(_ value: T) {
+        sink?(value)
+    }
 
     /// A result from an obsolete invocation cannot enter a replacement sink.
     public func send(_ value: T, to token: UUID?) {

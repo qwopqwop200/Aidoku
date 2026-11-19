@@ -5,15 +5,13 @@ import Testing
 struct TranslationJoinedPriorityTests {
     @Test(arguments: [false, true])
     func joinedForegroundPriorityAppliesOnlyWhileItsConsumerIsAlive(cancelJoined: Bool) async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("joined-priority-" + UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
         let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
         let marker = JoinedPriorityMarker()
         let blocker = Task { try await limiter.withPermit { await marker.start(); try await Task.sleep(for: .seconds(30)) } }
         defer { blocker.cancel() }
         try await waitUntil { await marker.started }
         let client = JoinedPriorityClient()
-        let service = TranslationService(client: client, cache: try TranslationCache(storageRootURL: root), providerRequestLimiter: limiter)
+        let service = TranslationService(client: client, cache: TranslationCache(), providerRequestLimiter: limiter)
         let configuration = RemoteTranslationConfiguration.openAI(model: "joined-priority-fixture")
         let earlier = Task { try await service.translate(request("other", id: "other-id"), configuration: configuration, priority: .prefetch) }
         defer { earlier.cancel() }

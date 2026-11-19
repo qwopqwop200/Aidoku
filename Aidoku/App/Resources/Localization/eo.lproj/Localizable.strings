@@ -178,16 +178,6 @@
 
 "TRANSLATION_TITLE" = "OCR kaj tradukado";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Anstataŭigi konservitan API-ŝlosilon (laŭvola)";
 
 "TRANSLATION_KEY" = "API-ŝlosilo";
@@ -204,11 +194,7 @@
 
 "TRANSLATION_TARGET" = "Traduki al";
 
-
 "TRANSLATION_AUTO" = "Detekti aŭtomate";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Malplenigi tradukan kaŝmemoron";
 
@@ -223,22 +209,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Defaŭlto de modelo";
 
 "TRANSLATION_CONCURRENCY" = "Samtempaj petoj";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Traduka provizanto";
 
@@ -296,8 +266,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Ne eblis konekti per HTTPS-pretervojo.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Tradukado malsukcesis. La OCR-teksto estas montrata. Kontrolu viajn agordojn kaj konekton.";
-
 "TRANSLATION_MANGA_TITLES" = "Traduki mangaajn titolojn";
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduki ĉapitrotitolojn";
@@ -310,32 +278,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Fontlingvo de paĝoj";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Traduki mangaajn priskribojn";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Lingvoj de mangaaj priskriboj";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Aŭtomate detektas la fontlingvon kaj tradukas nur la elektitajn lingvojn. Ĉiuj detektitaj lingvoj forigas la limigon. La lingvofiltrilo de ĉiu ero estas sendependa de la lingvaj agordoj por paĝoj kaj aliaj eroj.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sendas la paĝbildon kune kun la OCR-teksto por doni scenan kuntekston. Se bilda enigo ne estas subtenata, tradukado aŭtomate daŭras nur per teksto. Aldonado de bildoj povas pliigi datumuzon kaj API-koston.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Bilda enigo ne estas subtenata. Tradukado daŭras sen bildoj.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Propra (kongrua kun OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Neniu";
 
@@ -1031,18 +980,11 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Ne eblas montri agordon: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Elŝuti kun traduko";
-
 
 "TRANSLATION_STATE_ON" = "Ŝaltita";
 
 "TRANSLATION_STATE_OFF" = "Malŝaltita";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "La tradukaj agordoj estas nevalidaj. Kontrolu la servilan URL, la modelon kaj la aliajn agordojn.";
 
@@ -1092,15 +1034,12 @@
 
 "OCR_ERROR_PREDICTION" = "Tekstrekono per PP-OCRv6 malsukcesis. Provu denove kun alia bildo aŭ OCR-modelo.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "La grandeco de la traduka kaŝmemoro estas ekster la subtenata intervalo.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "La konservejo por la traduka kaŝmemoro estas nevalida aŭ nedisponebla.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Ne eblis konservi la tradukan kaŝmemoron.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Ŝanĝoj al iCloud-sinkronigo ekvalidas post plena fermo kaj remalfermo de Aidoku. Ĝis tiam la nuna sinkroniga agordo restas aktiva.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1142,7 +1081,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Fonto %@ versio %d ne estas subtenata de ĉi tiu aplikaĵo. Instalu subtenatan version.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 legas fonttekston en la japana, la ĉina (simpligitaj kaj tradiciaj skribsignoj), la angla kaj aliaj latinliteraj lingvoj, sed ne la korean, cirilan aŭ vjetnaman. Aŭtomata identigo de la fontlingvo kaj la elektoj de fontlingvo ankaŭ limiĝas al tiuj lingvoj. Vi ankoraŭ povas traduki al ajna cellingvo. Elekto de Manga aplikas detektajn sojlojn de 0.85 kaj 0.25; ĝia defaŭlta detekta grandeco estas 1120 px.";
 

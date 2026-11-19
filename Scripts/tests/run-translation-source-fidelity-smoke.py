@@ -199,7 +199,8 @@ func NSLocalizedString(_ key: String) -> String { key }
         let salts = saltedBodies.compactMap { $0["cache_salt"] as? String }
         precondition(salts.count == 2 && salts[0] != salts[1])
         precondition(salts.allSatisfy { Data(base64Encoded: $0)?.count == 32 })
-        let chatSaltConfig = saltConfig.replacingAPIProtocol(.chatCompletions)
+        let chatSaltConfig = RemoteTranslationConfiguration(provider: .custom, apiProtocol: .chatCompletions,
+            baseURL: "https://test.invalid/v1", model: "test", credentialAccount: "test")
         let chatSaltedBodies = try (0..<2).map { _ -> [String: Any] in
             try JSONSerialization.jsonObject(with: TranslationHTTPCodec.requestBody(
                 configuration: chatSaltConfig, request: saltRequest)) as! [String: Any]
@@ -218,7 +219,6 @@ func NSLocalizedString(_ key: String) -> String { key }
         for proto in [RemoteTranslationProtocol.responses, .chatCompletions] {
             for role in roles {
                 let item: [String: Any] = ["id": "role", "text_role": role.rawValue, "text": "번역문"]
-                let itemData = try JSONSerialization.data(withJSONObject: item)
                 let envelope = String(decoding: try JSONSerialization.data(withJSONObject: ["translations": [item]]), as: UTF8.self)
                 let root: [String: Any] = proto == .responses
                     ? ["status": "completed", "output": [["type": "message", "content": [["type": "output_text", "text": envelope]]]]]
@@ -227,15 +227,11 @@ func NSLocalizedString(_ key: String) -> String { key }
                     protocol: proto, expectedSegmentIDs: ["role"], sfxSourceTexts: ["role": "原文"], backgroundSourceTexts: ["role": "原文"])
                 precondition(parsed[0].textRole == role)
                 precondition(parsed[0].text == "번역문")
-                let partial = TranslationHTTPCodec.streamedSegment(fromItemJSON: itemData, expectedSegmentIDs: ["role"],
-                    sfxSourceTexts: ["role": "原文"], backgroundSourceTexts: ["role": "原文"])!
-                precondition(partial.textRole == role)
                 let roundTrip = try JSONDecoder().decode([RemoteTranslatedSegment].self, from: JSONEncoder().encode(parsed))
                 precondition(roundTrip == parsed)
                 let sourceRequest = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: [.init(id: "caller", text: "原文")])
                 let canonical = sourceRequest.canonicalizedForTranslationSemantics()
                 let remote = RemoteTranslatedSegment(id: "segment-0", text: parsed[0].text, isSFX: parsed[0].isSFX, textRole: role)
-                precondition(canonical.restoringCallerSegmentIDs(inPartial: [remote])[0].textRole == role)
                 let restored = try canonical.restoringCallerSegmentIDs(in: .init(translations: [remote], source: .network, providerRequestID: nil))
                 precondition(restored.translations[0].id == "caller" && restored.translations[0].textRole == role)
             }
@@ -263,25 +259,7 @@ func NSLocalizedString(_ key: String) -> String { key }
                 } catch RemoteTranslationError.invalidResponse(_) { }
             }
         }
-        for role in roles {
-            let original = RemoteTranslatedSegment(id: "same", text: "source", isSFX: false, textRole: role)
-            let replacement = RemoteTranslatedSegment(id: "same", text: "translated")
-            let retained = replacement.retainingAdmittedRole(from: original)
-            precondition(retained.textRole == ((role == .sfx || role == .background) ? nil : role))
-            precondition(retained.id == replacement.id && retained.text == replacement.text && retained.isSFX == nil)
-            let foreign = RemoteTranslatedSegment(id: "other", text: "translated")
-            precondition(foreign.retainingAdmittedRole(from: original) == foreign)
-            let classified = RemoteTranslatedSegment(id: "same", text: "translated", textRole: .storyText)
-            precondition(classified.retainingAdmittedRole(from: original) == classified)
-        }
-        let oldSFX = RemoteTranslatedSegment(id: "same", text: "source", isSFX: true, textRole: .dialogue)
-        precondition(RemoteTranslatedSegment(id: "same", text: "translated").retainingAdmittedRole(from: oldSFX).textRole == nil)
-        print("PASS shared reader/host retry role retention: 5 roles, foreign IDs, explicit new role, contradictory SFX flag")
-        let invalidRole: [String: Any] = ["id": "role", "text_role": "invented", "text": "번역문"]
-        let invalidRoleData = try JSONSerialization.data(withJSONObject: invalidRole)
-        precondition(TranslationHTTPCodec.streamedSegment(fromItemJSON: invalidRoleData,
-            expectedSegmentIDs: ["role"], backgroundSourceTexts: ["role": "原文"]) == nil)
-        print("PASS legacy absent role, JSON roundtrip, 5 roles × 2 protocols, explicit text-only streamed/final parse and caller ID restoration")
+        print("PASS legacy absent role, JSON roundtrip, 5 roles × 2 protocols, explicit text-only final parse and caller ID restoration")
         let left = RemoteTranslationSegment(id: "left", text: "それでアンタにぴーぴー泣かれるほうが迷惑だわっ」", bounds: [0.1, 0.1, 0.1, 0.5])
         let right = RemoteTranslationSegment(id: "right", text: "だからアンタはこんな事しなくていいって言ったでしょうがっ", bounds: [0.8, 0.1, 0.1, 0.5])
         let duplicated = "“그러니까 당신은 이런 짓 안 해도 된다고 말했잖아요!”"

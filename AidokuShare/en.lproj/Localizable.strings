@@ -1,6 +1,5 @@
 "IMPORT" = "Importing…";
 "DONE" = "Done";
-"FILE_IMPORT_FAIL_TEXT" = "Failed to import file. Please ensure it is a readable image file or a valid CBZ or ZIP archive containing images.";
 "FORMAT_IMAGE" = "Image";
 "SHARED_IMAGES_SAVED" = "Saved. Open Aidoku to read.";
 

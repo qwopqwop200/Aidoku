@@ -25,7 +25,6 @@ struct TranslationErrorLocalizationTests {
         let entries = try #require(PropertyListSerialization.propertyList(from: Data(contentsOf: url), options: 0, format: nil) as? [String: String])
         let englishEntries = try Self.englishReference.get()
         let keys = englishEntries.keys.filter { $0.hasPrefix("TRANSLATION_ERROR_") } + [
-            "TRANSLATION_IMAGE_UNSUPPORTED", "TRANSLATION_CONNECTION_FAILED_NOTICE", "TRANSLATION_INCLUDE_IMAGE_HELP",
             "TRANSLATION_TEST_SUCCESS", "TRANSLATION_TEST_FAILURE", "TRANSLATION_TEST_HELP"
         ]
         for key in keys {
@@ -62,8 +61,7 @@ struct TranslationErrorLocalizationTests {
             TranslationCredentialStoreError.invalidAccount, TranslationCredentialStoreError.invalidSecret,
             TranslationCredentialStoreError.notFound, TranslationCredentialStoreError.invalidEncoding,
             TranslationCredentialStoreError.keychainStatus(-25300),
-            TranslationCacheError.invalidSizeMiB(-1), TranslationCacheError.invalidStorageRoot,
-            TranslationCacheError.unsafeStorageObject, TranslationCacheError.encodingFailure, TranslationCacheError.persistenceFailure
+            TranslationCacheError.unsafeStorageObject, TranslationCacheError.persistenceFailure
         ]
         for error in errors {
             let description = error.localizedDescription
@@ -107,8 +105,6 @@ struct TranslationErrorLocalizationTests {
     @Test func ocrDiagnosticsDoNotLeakIntoUserMessages() {
         let diagnostic = "UNLOCALIZED_COREML_DIAGNOSTIC"
         let errors: [any LocalizedError] = [
-            NativeCoreMLRecognizerError.modelLoadFailed(diagnostic),
-            NativeCoreMLRecognizerError.predictionFailed(diagnostic),
             NativeCoreMLDetectorError.modelLoadFailed(diagnostic),
             NativeCoreMLDetectorError.predictionFailed(diagnostic)
         ]

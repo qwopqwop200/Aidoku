@@ -6,11 +6,8 @@ import Testing
 /// multi-segment batch into hundreds of serial retries after split repair.
 struct TranslationSplitRepairBudgetTests {
     @Test func persistentlyMalformedProviderBoundsSplitDescendantRetries() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("split-budget-" + UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let cache = try TranslationCache(configuration: .init(diskEnabled: false, maxSizeMiB: 1), storageRootURL: root)
         let client = MalformedClient()
-        let service = TranslationService(client: client, cache: cache)
+        let service = TranslationService(client: client, cache: TranslationCache(maxSizeMiB: 1))
         let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
             segments: (0..<4).map { RemoteTranslationSegment(id: "segment-\($0)", text: "source-\($0)") })
         await #expect(throws: RemoteTranslationError.self) {

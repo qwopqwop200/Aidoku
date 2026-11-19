@@ -323,16 +323,6 @@
 
 "TRANSLATION_TITLE" = "OCR a překlad";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Nahradit uložený klíč API (volitelné)";
 
 "TRANSLATION_KEY" = "Klíč API";
@@ -349,11 +339,7 @@
 
 "TRANSLATION_TARGET" = "Přeložit do";
 
-
 "TRANSLATION_AUTO" = "Detekovat automaticky";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Vymazat mezipaměť překladu";
 
@@ -368,22 +354,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Výchozí nastavení modelu";
 
 "TRANSLATION_CONCURRENCY" = "Souběžné požadavky";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Poskytovatel překladu";
 
@@ -441,8 +411,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nepodařilo se připojit s obcházením blokování HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Překlad se nezdařil. Zobrazuje se text rozpoznaný pomocí OCR. Zkontrolujte nastavení a připojení.";
-
 "TRANSLATION_MANGA_TITLES" = "Překládat názvy mangy";
 
 "TRANSLATION_CHAPTER_TITLES" = "Překládat názvy kapitol";
@@ -455,32 +423,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Zdrojový jazyk stránky";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Překládat popisy mangy";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Jazyky popisů mangy";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automaticky určí zdrojový jazyk a přeloží pouze vybrané jazyky. Volba Všechny zjištěné jazyky ruší omezení. Jazykový filtr každé položky je nezávislý na nastavení jazyka stránek a ostatních položek.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Odešle obrázek stránky spolu s textem OCR pro kontext scény. Pokud obrázky na vstupu nejsou podporovány, překlad automaticky pokračuje pouze s textem. Přikládání obrázků může zvýšit spotřebu dat a náklady na API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Obrázky na vstupu nejsou podporovány. Překlad pokračuje bez obrázků.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Vlastní server (kompatibilní s OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Žádná";
 
@@ -1031,16 +980,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nelze zobrazit nastavení: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Stáhnout s překladem";
-
 
 "TRANSLATION_STATE_ON" = "Zapnuto";
 "TRANSLATION_STATE_OFF" = "Vypnuto";
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Nastavení překladu je neplatné. Zkontrolujte adresu URL serveru, model a další nastavení.";
 "TRANSLATION_ERROR_REQUEST" = "Text, obrázek nebo jazyková nastavení nelze použít k překladu.";
@@ -1066,13 +1009,10 @@
 "OCR_ERROR_IMAGE" = "Obrázek se nepodařilo připravit k rozpoznávání textu.";
 "OCR_ERROR_OUTPUT" = "Model PP-OCRv6 vrátil neplatný nebo nepodporovaný výstup.";
 "OCR_ERROR_PREDICTION" = "Rozpoznávání textu pomocí PP-OCRv6 selhalo. Zkuste jiný obrázek nebo model OCR.";
-"TRANSLATION_ERROR_CACHE_SIZE" = "Velikost mezipaměti překladu je mimo podporovaný rozsah.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Úložiště mezipaměti překladu je neplatné nebo nedostupné.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Mezipaměť překladu se nepodařilo uložit.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Změny synchronizace iCloud se projeví po úplném zavření a opětovném otevření Aidoku. Do té doby zůstává aktivní současné nastavení.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1114,7 +1054,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Zdroj %@ verze %d tato aplikace nepodporuje. Nainstalujte podporovanou verzi.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 čte zdrojový text v japonštině, čínštině (zjednodušené i tradiční), angličtině a dalších jazycích psaných latinkou, nikoli však korejštinu, cyrilici ani vietnamštinu. Automatické určení zdrojového jazyka i výběr zdrojového jazyka jsou omezeny na tyto jazyky. Překlad do libovolného cílového jazyka je nadále možný. Výběrem modelu Manga se nastaví prahové hodnoty detektoru na 0,85 a 0,25; výchozí velikost pro detekci je 1120 px.";
 

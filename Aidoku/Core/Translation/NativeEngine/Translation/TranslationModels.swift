@@ -109,17 +109,6 @@ struct RemoteTranslatedSegment: Codable, Hashable, Sendable {
     let text: String
     var isSFX: Bool? = nil
     var textRole: RemoteTranslationTextRole? = nil
-
-    /// A filter-free recovery omits classification. Retain admitted speech roles
-    /// for the same ID, but never carry obsolete preserved-background/SFX roles.
-    func retainingAdmittedRole(from original: Self) -> Self {
-        guard id == original.id, textRole == nil, original.isSFX != true,
-              original.textRole != .sfx, original.textRole != .background,
-              original.textRole != .error else { return self }
-        var result = self
-        result.textRole = original.textRole
-        return result
-    }
 }
 
 /// Request-local derived value; it retains no image bytes and is shared only
@@ -152,7 +141,6 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
 
     var imageJPEG: Data? = nil {
         didSet {
-            preparedImageDataURL = nil
             imageDigestMemo = imageJPEG == nil ? nil : TranslationImageDigestMemo()
             roleEvidenceSourceImageIdentity = nil
         }
@@ -168,12 +156,9 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
 
     mutating func copyImageRepresentation(from request: Self) {
         imageJPEG = request.imageJPEG
-        preparedImageDataURL = request.preparedImageDataURL
         imageDigestMemo = request.imageDigestMemo
         roleEvidenceSourceImageIdentity = request.roleEvidenceSourceImageIdentity
     }
-    // Shared String storage across batches; omitted from persisted/wire models.
-    var preparedImageDataURL: String? = nil
     private enum CodingKeys: String, CodingKey {
         case imageJPEG, filtersSFX, filtersBackground, translatesPageLettering, sourceLanguage, targetLanguage, segments
         case roleEvidenceSourceImageIdentity
@@ -193,9 +178,6 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
         hasher.combine(roleEvidenceSourceImageIdentity)
     }
 
-    mutating func prepareImageRepresentation() {
-        preparedImageDataURL = imageJPEG.map { "data:image/jpeg;base64," + $0.base64EncodedString() }
-    }
     var filtersSFX: Bool? = nil
     var filtersBackground: Bool? = nil
     /// Page OCR requires an image and text-role classification, unlike metadata.
@@ -344,17 +326,6 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
 
 /// Bounded provider bytes and provenance captured from the same decoded page.
 /// Never derive the source identity from lossy/resized JPEG bytes or OCR hints.
-struct RemoteTranslationPageImage: Sendable {
-    let jpeg: Data
-    let sourceIdentity: String?
-
-    func apply(to request: inout RemoteTranslationRequest) {
-        request.imageJPEG = jpeg
-        // imageJPEG's observer clears old provenance; bind only after assigning bytes.
-        request.roleEvidenceSourceImageIdentity = sourceIdentity
-    }
-}
-
 struct RemoteTranslationConfiguration: Hashable, Sendable {
     static let defaultInstructions =
         "Preserve tone, emphasis and vocal expression naturally."
@@ -425,42 +396,6 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
             instructions: instructions,
             reasoningEffort: reasoningEffort,
             timeout: timeout
-        )
-    }
-
-    func replacingAPIProtocol(
-        _ apiProtocol: RemoteTranslationProtocol
-    ) -> Self {
-        Self(
-            provider: provider,
-            apiProtocol: apiProtocol,
-            baseURL: baseURL,
-            model: model,
-            credentialAccount: credentialAccount,
-            credentialGeneration: credentialGeneration,
-            instructions: instructions,
-            reasoningEffort: reasoningEffort,
-            timeout: timeout,
-            maximumResponseBytes: maximumResponseBytes,
-            allowsInsecureLocalhostForDevelopment:
-                allowsInsecureLocalhostForDevelopment
-        )
-    }
-
-    func replacingTimeout(_ timeout: TimeInterval) -> Self {
-        Self(
-            provider: provider,
-            apiProtocol: apiProtocol,
-            baseURL: baseURL,
-            model: model,
-            credentialAccount: credentialAccount,
-            credentialGeneration: credentialGeneration,
-            instructions: instructions,
-            reasoningEffort: reasoningEffort,
-            timeout: timeout,
-            maximumResponseBytes: maximumResponseBytes,
-            allowsInsecureLocalhostForDevelopment:
-                allowsInsecureLocalhostForDevelopment
         )
     }
 
@@ -607,21 +542,12 @@ struct RemoteTranslationBatchResult: Hashable, Sendable {
     let translations: [RemoteTranslatedSegment]
     let source: TranslationResultSource
     let providerRequestID: String?
-
-    func text(for segmentID: String) -> String? {
-        translations.first(where: { $0.id == segmentID })?.text
-    }
-
-    var singleText: String? {
-        guard translations.count == 1 else { return nil }
-        return translations[0].text
-    }
 }
 
 /// Canonical provider/cache representation of one caller request. OCR tracker
 /// IDs are presentation-lifetime metadata, not translation semantics. Replacing
 /// them with batch-local ordinals lets identical ordered OCR text share the
-/// persistent cache and an in-flight provider request across tracker resets.
+/// cache and an in-flight provider request across tracker resets.
 /// Results are mapped back to the caller's IDs before leaving TranslationService.
 struct CanonicalRemoteTranslationRequest: Sendable {
     let request: RemoteTranslationRequest
@@ -632,25 +558,11 @@ struct CanonicalRemoteTranslationRequest: Sendable {
         self.callerSegmentIDs = callerSegmentIDs
     }
 
-    /// Every result (network, streamed, cached, any client) leaves the service
+    /// Every result (network, cached, any client) leaves the service
     /// here, so leaked JSON escapes are decoded once, against the segment's source.
     private func repairedText(_ text: String, at index: Int) -> String {
         TranslationHTTPCodec.decodingLeakedEscapes(
             in: text, source: request.segments.indices.contains(index) ? request.segments[index].text : nil)
-    }
-
-    /// Maps provisional streamed segments back to caller IDs, dropping any
-    /// segment whose canonical ID is not part of this request.
-    func restoringCallerSegmentIDs(inPartial segments: [RemoteTranslatedSegment]) -> [RemoteTranslatedSegment] {
-        let expectedCanonicalIDs = request.segments.map(\.id)
-        guard expectedCanonicalIDs.count == callerSegmentIDs.count else { return [] }
-        return segments.compactMap { segment in
-            guard let index = expectedCanonicalIDs.firstIndex(of: segment.id) else { return nil }
-            let text = repairedText(segment.text, at: index)
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-            return RemoteTranslatedSegment(id: callerSegmentIDs[index], text: text,
-                isSFX: segment.isSFX, textRole: segment.textRole)
-        }
     }
 
     func restoringCallerSegmentIDs(

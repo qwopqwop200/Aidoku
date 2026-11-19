@@ -47,7 +47,6 @@ func NSLocalizedString(_ key: String) -> String { key }
                 segments: segments)
             result.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
             result.roleEvidenceSourceImageIdentity = identity
-            result.prepareImageRepresentation()
             result.filtersSFX = true
             result.filtersBackground = true
             result.translatesPageLettering = true
@@ -76,7 +75,7 @@ func NSLocalizedString(_ key: String) -> String { key }
         try focused.validate()
         check(focused.segments == [a], "ID, source, bbox and bound evidence remain exact")
         check(focused.imageJPEG == input.imageJPEG && focused.imageDigest == input.imageDigest &&
-            focused.roleEvidenceSourceImageIdentity == identity && focused.preparedImageDataURL == input.preparedImageDataURL,
+            focused.roleEvidenceSourceImageIdentity == identity,
             "same full-page image representation and identity")
         check(focused.sourceLanguage == input.sourceLanguage && focused.targetLanguage == input.targetLanguage &&
             focused.translatesPageLettering == input.translatesPageLettering &&

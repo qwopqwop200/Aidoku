@@ -61,23 +61,17 @@ extension UIImage {
 
     /// Limited access permits adding images but not fetching or creating user albums.
     @MainActor
-    @discardableResult
-    func saveToPhotoLibrary(albumName: String, authorizationStatus: PHAuthorizationStatus) async throws -> String? {
+    func saveToPhotoLibrary(albumName: String, authorizationStatus: PHAuthorizationStatus) async throws {
         let supportsAlbums = authorizationStatus == .authorized
         let album = supportsAlbums ? fetchAlbum(albumName) : nil
-        let result = PhotoAssetSaveResult()
         try await PHPhotoLibrary.shared().performChanges {
             let asset = PHAssetChangeRequest.creationRequestForAsset(from: self)
-            guard let placeholder = asset.placeholderForCreatedAsset else { return }
-            result.set(placeholder.localIdentifier)
-            guard supportsAlbums else { return }
+            guard supportsAlbums, let placeholder = asset.placeholderForCreatedAsset else { return }
             let collection = album.flatMap { PHAssetCollectionChangeRequest(for: $0) }
                 ?? PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumName)
             collection.addAssets([placeholder] as NSFastEnumeration)
         }
-        return result.get()
     }
-
 }
 
 @MainActor
@@ -117,21 +111,4 @@ private func fetchAlbum(_ name: String) -> PHAssetCollection? {
     return PHAssetCollection.fetchAssetCollections(
         with: .album, subtype: .any, options: options
     ).firstObject
-}
-
-private final class PhotoAssetSaveResult: @unchecked Sendable {
-    private let lock = NSLock()
-    private var identifier: String?
-
-    func set(_ value: String) {
-        lock.lock()
-        defer { lock.unlock() }
-        identifier = value
-    }
-
-    func get() -> String? {
-        lock.lock()
-        defer { lock.unlock() }
-        return identifier
-    }
 }

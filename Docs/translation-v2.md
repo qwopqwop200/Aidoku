@@ -101,8 +101,7 @@ synthetic pages without any LLM call.
 `swift Scripts/image-translation.swift [options] IMAGE|FOLDER ...` compiles this
 folder, an explicit list of shared app files (detector, recognizer, translation
 client, simple grouping, painters) and `Scripts/image-translation-v2` into an
-incremental `-O` binary (`build/image-translation-v2`). V2 is its only pipeline;
-`--pipeline v2` is accepted as a no-op alias. Modes:
+incremental `-O` binary (`build/image-translation-v2`). Modes:
 
 - live (default): S5 calls the real provider through `V2Translation.translate` and
   `RemoteTranslationClient` with the app's mandatory page settings (page JPEG

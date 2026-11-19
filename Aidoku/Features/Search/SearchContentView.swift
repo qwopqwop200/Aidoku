@@ -48,7 +48,7 @@ struct SearchContentView: View {
                 )
                 .offset(y: -keyboardOffset / 2)
                 .ignoresSafeArea(.all)
-            } else if !searchText.isEmpty && viewModel.results.isEmpty {
+            } else if !searchText.isEmpty && viewModel.resultsIsEmpty {
                 if viewModel.isLoading {
                     ProgressView()
                         .progressViewStyle(.circular)
@@ -142,37 +142,39 @@ struct SearchContentView: View {
     var searchResults: some View {
         ForEach(viewModel.results) { searchResult in
             let source = searchResult.source
-            Section {
-                HomeScrollerView(
-                    source: source,
-                    component: .init(
-                        title: nil,
-                        value: .scroller(entries: searchResult.links)
+            if !searchResult.links.isEmpty {
+                Section {
+                    HomeScrollerView(
+                        source: source,
+                        component: .init(
+                            title: nil,
+                            value: .scroller(entries: searchResult.links)
+                        )
                     )
-                )
-                .id(searchResult.contentID)
-                .environmentObject(path)
-                .listRowBackground(Color.clear)
-                .listRowInsets(.zero)
-                .listRowSeparator(.hidden)
-            } header: {
-                HStack {
-                    SourceIconView(
-                        sourceId: source.key,
-                        imageUrl: source.imageUrl,
-                        iconSize: 29
-                    )
-                    .scaleEffect(0.75)
-                    Text(source.name)
+                    .id(searchResult.contentID) // fixes issue with incorrect entries showing
+                    .environmentObject(path)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(.zero)
+                    .listRowSeparator(.hidden)
+                } header: {
+                    HStack {
+                        SourceIconView(
+                            sourceId: source.key,
+                            imageUrl: source.imageUrl,
+                            iconSize: 29
+                        )
+                        .scaleEffect(0.75)
+                        Text(source.name)
 
-                    Spacer()
+                        Spacer()
 
-                    Button(NSLocalizedString("VIEW_MORE")) {
-                        openResult(searchResult)
+                        Button(NSLocalizedString("VIEW_MORE")) {
+                            openResult(searchResult)
+                        }
                     }
+                    .font(.body)
+                    .textCase(nil)
                 }
-                .font(.body)
-                .textCase(nil)
             }
         }
     }

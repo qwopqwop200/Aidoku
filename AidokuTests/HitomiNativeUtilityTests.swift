@@ -114,16 +114,13 @@ struct HitomiNativeUtilityTests {
     }
 
     @Test func galleryPayloadAndMixedIDsDecodeWithoutScriptEvaluation() throws {
-        let data = try HitomiGalleryRouting.galleryJSON("var galleryinfo = {\"id\":123};\n")
+        let data = try HitomiGGState.galleryJSON("var galleryinfo = {\"id\":123};\n")
         #expect(try JSONSerialization.jsonObject(with: data) is [String: Any])
-        #expect(try JSONDecoder().decode(HitomiGalleryID.self, from: Data("123".utf8)).value == "123")
-        #expect(try JSONDecoder().decode(HitomiGalleryID.self, from: Data("\"123\"".utf8)).value == "123")
-        #expect(throws: DecodingError.self) { try JSONDecoder().decode(HitomiGalleryID.self, from: Data("-1".utf8)) }
-        #expect(throws: HitomiGGState.Failure.self) { try HitomiGalleryRouting.galleryJSON("galleryinfo = {}; alert(1);") }
-        #expect(HitomiGalleryRouting.galleryID(url: "https://hitomi.la/reader/123.html") == 123)
-        #expect(HitomiGalleryRouting.galleryID(url: "https://hitomi.la/g/456/") == 456)
-        #expect(HitomiGalleryRouting.galleryID(url: "https://hitomi.la/galleries/title-789.html") == 789)
-        #expect(HitomiGalleryRouting.galleryID(url: "https://hitomi.la.evil/reader/123.html") == nil)
+        #expect(throws: HitomiGGState.Failure.self) { try HitomiGGState.galleryJSON("galleryinfo = {}; alert(1);") }
+        #expect(HitomiGGState.galleryID(url: "https://hitomi.la/reader/123.html") == 123)
+        #expect(HitomiGGState.galleryID(url: "https://hitomi.la/g/456/") == 456)
+        #expect(HitomiGGState.galleryID(url: "https://hitomi.la/galleries/title-789.html") == 789)
+        #expect(HitomiGGState.galleryID(url: "https://hitomi.la.evil/reader/123.html") == nil)
     }
 
     private actor Transport {

@@ -154,17 +154,12 @@ enum V2Painter {
         return (color(style.textColor), style.strokeColor.map(color))
     }
 
-    /// Baseline origins (top-left page coordinates) for each line/glyph cell of `item`.
-    /// Horizontal: one origin per line with its measured width. Vertical: one per character.
-    static func origins(for item: V2PlacedText, stroke: CGFloat,
-                        metrics: V2Layout.FontMetrics, font: CTFont) -> [(text: String, origin: CGPoint)] {
-        runs(for: item, stroke: stroke, metrics: metrics, font: font, color: nil).map { ($0.text, $0.origin) }
-    }
-
-    /// `origins`, keeping each measured line (shaped with `color`) for drawing.
+    /// Baseline origins (top-left page coordinates) for each line/glyph cell of `item`,
+    /// with each measured line (shaped with `color`) for drawing. Horizontal: one origin
+    /// per line with its measured width. Vertical: one per character.
     /// Colour does not change shaping or typographic width.
     private static func runs(for item: V2PlacedText, stroke: CGFloat, metrics: V2Layout.FontMetrics, font: CTFont,
-                             color: CGColor?) -> [(text: String, origin: CGPoint, line: CTLine)] {
+                             color: CGColor) -> [(text: String, origin: CGPoint, line: CTLine)] {
         let size = item.fontPixels
         let ascent = metrics.ascent * size, glyph = (metrics.ascent + metrics.descent) * size
         var result: [(String, CGPoint, CTLine)] = []
@@ -195,9 +190,11 @@ enum V2Painter {
         return result
     }
 
-    private static func line(_ text: String, font: CTFont, color: CGColor?) -> CTLine {
-        var attributes: [NSAttributedString.Key: Any] = [NSAttributedString.Key(kCTFontAttributeName as String): font]
-        if let color { attributes[NSAttributedString.Key(kCTForegroundColorAttributeName as String)] = color }
+    private static func line(_ text: String, font: CTFont, color: CGColor) -> CTLine {
+        let attributes: [NSAttributedString.Key: Any] = [
+            NSAttributedString.Key(kCTFontAttributeName as String): font,
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): color
+        ]
         return CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attributes))
     }
 

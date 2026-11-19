@@ -96,9 +96,7 @@ class ReaderPageViewController: BaseObservingViewController {
                 pageView = ReaderPageView(parent: self, temporaryPageStore: temporaryPageStore)
                 pageView?.prepareTranslationForDisplay = { [weak self] image, page in
                     guard let self else { throw CancellationError() }
-                    return try await self.delegate?.prepareCachedTranslationForDisplay(image: image, page: page, geometry: { [weak self] in
-                        self?.pageView?.translationImageGeometry(for: image)
-                    })
+                    return try await self.delegate?.prepareCachedTranslationForDisplay(image: image, page: page)
                 }
         }
     }

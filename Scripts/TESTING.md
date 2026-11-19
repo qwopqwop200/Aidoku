@@ -44,7 +44,7 @@ entry still applies to kept code and passes:
   replay from a V2 run with no provider call, decode failures, exit codes and
   credential exclusion from every output file).
 - OCR and translation contracts over files the V2 host compiles: CTC collapse,
-  DB float digest, detector padding, detector seed evidence, DB child columns,
+  DB float digest, detector padding, DB child columns,
   multiline column recovery, geometry deduplication, ROI probability evidence,
   recognizer execution/observation/tensor identity, role verification planner,
   codec source fidelity and the language filter.

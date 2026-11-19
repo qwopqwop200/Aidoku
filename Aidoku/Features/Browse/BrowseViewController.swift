@@ -564,10 +564,12 @@ extension BrowseViewController {
                 }
             }
         } else {
-            let previousItems = Set(dataSource.snapshot().itemIdentifiers)
+            let previousItems = dataSource.snapshot().itemIdentifiers
             let changedItems = snapshot.itemIdentifiers.filter { item in
-                guard let index = previousItems.firstIndex(of: item) else { return false }
-                return previousItems[index].info != item.info
+                guard let previous = previousItems.first(where: { $0 == item }) else {
+                    return false
+                }
+                return previous.info != item.info
             }
             snapshot.reconfigureItems(changedItems)
 

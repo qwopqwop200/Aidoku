@@ -191,16 +191,6 @@
 
 "TRANSLATION_TITLE" = "OCR og oversettelse";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Erstatt lagret API-nøkkel (valgfritt)";
 
 "TRANSLATION_KEY" = "API-nøkkel";
@@ -217,11 +207,7 @@
 
 "TRANSLATION_TARGET" = "Oversett til";
 
-
 "TRANSLATION_AUTO" = "Oppdag automatisk";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Tøm oversettelsesbufferen";
 
@@ -236,22 +222,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Modellens standardinnstilling";
 
 "TRANSLATION_CONCURRENCY" = "Samtidige forespørsler";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Oversettelsesleverandør";
 
@@ -309,8 +279,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Kunne ikke koble til via omgåelse av HTTPS-blokkering.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Oversettelsen mislyktes. OCR-teksten vises. Kontroller innstillingene og tilkoblingen.";
-
 "TRANSLATION_MANGA_TITLES" = "Oversett mangatitler";
 
 "TRANSLATION_CHAPTER_TITLES" = "Oversett kapitteltitler";
@@ -323,32 +291,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Sidens kildespråk";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Oversett mangabeskrivelser";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Språk for mangabeskrivelser";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Gjenkjenner kildespråket automatisk og oversetter bare de valgte språkene. Alle oppdagede språk fjerner begrensningen. Hvert elements språkfilter er uavhengig av språkinnstillingene for sider og andre elementer.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sender sidebildet sammen med OCR-teksten for å gi kontekst til scenen. Hvis bilder ikke støttes som inndata, fortsetter oversettelsen automatisk med bare tekst. Bilder kan øke databruken og API-kostnadene.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Bilder støttes ikke som inndata. Oversettelsen fortsetter uten bilder.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Egen server (OpenAI-kompatibel)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Ingen";
 
@@ -1031,18 +980,11 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Kan ikke vise innstilling: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Last ned med oversettelse";
-
 
 "TRANSLATION_STATE_ON" = "På";
 
 "TRANSLATION_STATE_OFF" = "Av";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Oversettelsesinnstillingene er ugyldige. Kontroller serverens URL, modellen og de andre innstillingene.";
 
@@ -1092,15 +1034,12 @@
 
 "OCR_ERROR_PREDICTION" = "Tekstgjenkjenning med PP-OCRv6 mislyktes. Prøv igjen med et annet bilde eller en annen OCR-modell.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "Størrelsen på hurtigbufferen for oversettelse er utenfor det støttede området.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Lagringsplassen for hurtigbufferen for oversettelse er ugyldig eller utilgjengelig.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Hurtigbufferen for oversettelse kunne ikke lagres.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Endringer i iCloud-synkronisering trer i kraft når du lukker Aidoku helt og åpner appen igjen. Frem til da gjelder den nåværende innstillingen.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1142,7 +1081,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Kilden %@ versjon %d støttes ikke av denne appen. Installer en støttet versjon.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 leser kildetekst på japansk, kinesisk (forenklet og tradisjonell), engelsk og andre språk med latinsk skrift, men ikke koreansk, kyrillisk eller vietnamesisk. Automatisk identifisering av kildespråket og valg av kildespråk er begrenset til disse språkene. Du kan fortsatt oversette til et hvilket som helst målspråk. Når du velger Manga, brukes deteksjonstersklene 0.85 og 0.25; standardstørrelsen for tekstlokalisering er 1120 px.";
 

@@ -18,7 +18,7 @@ struct V2LayoutTests {
         let placed = V2Layout.place([block(0, CGRect(x: 100, y: 100, width: 400, height: 300), "안녕 하세요")], pageSize: page)
         #expect(placed.count == 1)
         let item = placed[0]
-        #expect(item.fontPixels == 40 * V2Layout.Options().capRatio)
+        #expect(item.fontPixels == 40 * V2Layout.capRatio)
         #expect(CGRect(x: 80, y: 80, width: 440, height: 340).contains(item.frame))
         #expect(item.lines.joined(separator: " ") == "안녕 하세요")
     }

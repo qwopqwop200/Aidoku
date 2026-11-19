@@ -10,11 +10,8 @@ import Testing
         #expect(session.configuration.timeoutIntervalForRequest == 3.5)
     }
 
-    @Test func blockingCompletionSupportsNilAndRepeatedFailure() async {
+    @Test func blockingThrowingTaskRepeatsFailure() async {
         await Task.detached {
-            let nilTask = BlockingTask<Int?> { nil }
-            #expect(nilTask.get() == nil)
-            #expect(nilTask.get() == nil)
             enum ExpectedError: Error { case failure }
             let failed = BlockingThrowingTask<Int> { throw ExpectedError.failure }
             for _ in 0..<2 {
@@ -41,5 +38,4 @@ import Testing
         let sibling = FileManager.default.documentDirectory.deletingLastPathComponent().appendingPathComponent("Documents-other/file.png")
         #expect(sibling.toAidokuImageUrl() == nil)
     }
-
 }

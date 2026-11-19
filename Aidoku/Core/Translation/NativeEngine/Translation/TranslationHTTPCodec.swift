@@ -191,7 +191,7 @@ enum TranslationHTTPCodec {
         var responsesContent: [[String: Any]] = [["type": "input_text", "text": translationData]]
         var chatContent: [[String: Any]] = [["type": "text", "text": translationData]]
         if let jpeg = request.imageJPEG {
-            let url = request.preparedImageDataURL ?? ("data:image/jpeg;base64," + jpeg.base64EncodedString())
+            let url = "data:image/jpeg;base64," + jpeg.base64EncodedString()
             // Present the page before fallible OCR for visual SFX classification.
             // Reorder the same parts without adding another image or request.
             responsesContent.insert(["type": "input_image", "image_url": url, "detail": "high"], at: filtersSFX ? 0 : responsesContent.count)
@@ -690,19 +690,6 @@ enum TranslationHTTPCodec {
         let major = parts[0], minor = parts[1]
         // Responses' top-level structured_outputs was verified on vLLM 0.27.
         return major > 0 || minor >= (apiProtocol == .responses ? 27 : 11)
-    }
-
-    /// Best-effort validation of one streamed item for progressive display.
-    /// Invalid items return nil; the final envelope remains authoritative.
-    static func streamedSegment(
-        fromItemJSON data: Data,
-        expectedSegmentIDs: Set<String>,
-        sfxSourceTexts: [String: String]? = nil,
-        backgroundSourceTexts: [String: String]? = nil
-    ) -> RemoteTranslatedSegment? {
-        guard let object = try? JSONSerialization.jsonObject(with: data) else { return nil }
-        return try? validatedSegment(object, expectedIDs: expectedSegmentIDs,
-                                     sfxSourceTexts: sfxSourceTexts, backgroundSourceTexts: backgroundSourceTexts)
     }
 
     /// Validates a complete Chat Completions SSE body with the same finish and

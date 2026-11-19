@@ -96,4 +96,27 @@ struct CategoryOrderingTests {
             #expect(!context.hasChanges)
         }
     }
+
+    @Test func appendingAfterMaximumRestoredSortPreservesExistingOrderAndPayload() throws {
+        try withContext { context in
+            let manager = CoreDataManager.shared
+            let a = try manager.createCategory(title: "A", context: context)
+            let b = try manager.createCategory(title: "B", context: context)
+            let group = try manager.createCategory(title: "Group", group: true, context: context)
+            a.sort = 7
+            b.sort = Int16.max // This is permitted by backup validation and import.
+            group.sort = 9
+            group.data = Data("group-payload".utf8) as NSData
+            try context.save()
+            let ids = [a.objectID, b.objectID, group.objectID]
+            _ = try manager.createCategory(title: "C", context: context)
+            try context.save()
+            context.reset()
+            #expect(manager.getCategoryTitles(context: context) == ["A", "B", "C"])
+            for id in ids { #expect(try context.existingObject(with: id).isDeleted == false) }
+            let restoredGroup = try #require(context.existingObject(with: ids[2]) as? CategoryObject)
+            #expect(restoredGroup.sort == 9)
+            #expect(restoredGroup.data as? Data == Data("group-payload".utf8))
+        }
+    }
 }

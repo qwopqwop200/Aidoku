@@ -327,16 +327,6 @@
 
 "TRANSLATION_TITLE" = "OCR și traducere";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Înlocuiți cheia API salvată (opțional)";
 
 "TRANSLATION_KEY" = "Cheie API";
@@ -353,11 +343,7 @@
 
 "TRANSLATION_TARGET" = "Traduceți în";
 
-
 "TRANSLATION_AUTO" = "Detectează automat";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Ștergeți memoria cache de traducere";
 
@@ -372,22 +358,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Valoarea implicită a modelului";
 
 "TRANSLATION_CONCURRENCY" = "Cereri concurente";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Furnizor de traduceri";
 
@@ -445,8 +415,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nu s-a putut realiza conexiunea prin ocolirea blocării HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Traducerea a eșuat. Se afișează textul recunoscut prin OCR. Verificați setările și conexiunea.";
-
 "TRANSLATION_MANGA_TITLES" = "Traduceți titlurile manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Traduceți titlurile capitolelor";
@@ -459,32 +427,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Limba sursă a paginii";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Traduceți descrierile manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Limbile descrierilor manga";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Detectează automat limba sursă și traduce numai limbile selectate. Opțiunea Toate limbile detectate elimină restricția. Filtrul de limbă al fiecărui element este independent de setările de limbă ale paginilor și ale celorlalte elemente.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Trimite imaginea paginii împreună cu textul OCR pentru a oferi contextul scenei. Dacă imaginile nu sunt acceptate ca date de intrare, traducerea continuă automat doar cu text. Atașarea imaginilor poate crește consumul de date și costul API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Imaginile nu sunt acceptate ca date de intrare. Traducerea continuă fără imagini.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Personalizat (compatibil cu OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Fără raționament";
 
@@ -1031,9 +980,7 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nu se poate afișa setarea: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Descarcă cu traducere";
-
 
 "TRANSLATION_STATE_ON" = "Activată";
 "TRANSLATION_STATE_OFF" = "Dezactivată";
@@ -1061,13 +1008,10 @@
 "OCR_ERROR_IMAGE" = "Imaginea nu a putut fi pregătită pentru recunoașterea textului.";
 "OCR_ERROR_OUTPUT" = "Modelul PP-OCRv6 a returnat un rezultat nevalid sau neacceptat.";
 "OCR_ERROR_PREDICTION" = "Recunoașterea textului PP-OCRv6 a eșuat. Încercați din nou cu altă imagine sau alt model OCR.";
-"TRANSLATION_ERROR_CACHE_SIZE" = "Dimensiunea memoriei cache de traducere este în afara intervalului acceptat.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Spațiul de stocare pentru memoria cache de traducere este nevalid sau indisponibil.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Memoria cache de traducere nu a putut fi salvată.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Modificările sincronizării iCloud se aplică după închiderea completă și redeschiderea Aidoku. Până atunci, setarea actuală rămâne activă.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1109,7 +1053,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sursa %@ versiunea %d nu este acceptată de această aplicație. Instalați o versiune acceptată.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 citește text sursă în japoneză, chineză (simplificată și tradițională), engleză și alte limbi cu alfabet latin, dar nu și coreeană, chirilică sau vietnameză. Detectarea automată a limbii sursă și opțiunile de selectare a limbii sursă sunt limitate la aceste limbi. Traducerea în orice limbă țintă este în continuare posibilă. Selectarea modelului Manga aplică pragurile de detectare 0,85 și 0,25; dimensiunea implicită pentru detectare este de 1120 px.";
 

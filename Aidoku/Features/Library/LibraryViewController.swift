@@ -531,7 +531,7 @@ class LibraryViewController: OldMangaCollectionViewController {
 extension LibraryViewController {
     func updateNavbarItems() {
         if isEditing {
-            let allItemsSelected = collectionView.indexPathsForSelectedItems?.count ?? 0 == dataSource.snapshot().numberOfItems
+            let allItemsSelected = collectionView.indexPathsForSelectedItems?.count ?? 0 == dataSource.snapshot().itemIdentifiers.count
             navigationItem.leftBarButtonItem = if allItemsSelected {
                 makeBarButton(
                     action: #selector(deselectAllItems),

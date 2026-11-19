@@ -85,7 +85,7 @@ enum NativeDictionaryMedia {
         }
         guard let decoded = image, decoded.size.width > 0, decoded.size.height > 0 else { return missing(alt, attributes: attributes) }
         let dimensions = geometry(node, naturalSize: naturalSize ?? decoded.size, font: font, availableWidth: availableWidth)
-        // popup.js masks monochrome bytes with exact black/white, independent of dictionary text colors.
+        // Monochrome media is masked with exact black/white, independent of dictionary text colors.
         let monochrome = UIColor { $0.userInterfaceStyle == .dark ? .white : .black }
         let border = node["border"] as? String ?? css["border"] as? String ?? ""
         let borderParts = border.split(whereSeparator: { $0.isWhitespace }).map(String.init)
@@ -97,7 +97,7 @@ enum NativeDictionaryMedia {
         let background = (css["background-color"] as? String ?? css["background"] as? String)
             .flatMap { NativeDictionaryCSS.color($0, current: foreground) }
         let result = NativeDictionaryImageAttachment(image: decoded, tint: node["appearance"] as? String == "monochrome" ? monochrome : nil,
-            pixelated: pixelated, title: alt,
+            pixelated: pixelated,
             borderWidth: border.contains("none") || border.contains("hidden") ? 0 : max(0, borderWidth),
             borderColor: borderColor, cornerRadius: max(0, radius), background: background)
         result.bounds = CGRect(x: 0, y: dimensions.baselineOffset, width: dimensions.size.width, height: dimensions.size.height)
@@ -142,7 +142,6 @@ final class NativeDictionaryImageAttachment: NSTextAttachment {
     let original: UIImage
     let tint: UIColor?
     let pixelated: Bool
-    let title: String
     let borderWidth: CGFloat
     let borderColor: UIColor
     let cornerRadius: CGFloat
@@ -174,9 +173,9 @@ final class NativeDictionaryImageAttachment: NSTextAttachment {
         return max(0.25, min(scale, (maximumRenderPixels / area).squareRoot()))
     }
 
-    init(image: UIImage, tint: UIColor?, pixelated: Bool, title: String,
+    init(image: UIImage, tint: UIColor?, pixelated: Bool,
          borderWidth: CGFloat = 0, borderColor: UIColor = .label, cornerRadius: CGFloat = 0, background: UIColor? = nil) {
-        original = image; self.tint = tint; self.pixelated = pixelated; self.title = title
+        original = image; self.tint = tint; self.pixelated = pixelated
         self.borderWidth = borderWidth; self.borderColor = borderColor; self.cornerRadius = cornerRadius; self.background = background
         super.init(data: nil, ofType: nil)
         self.image = image

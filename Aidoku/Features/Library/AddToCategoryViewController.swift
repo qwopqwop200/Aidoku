@@ -105,7 +105,6 @@ class AddToCategoryViewController: BaseTableViewController {
             return false
         }
     }
-
 }
 
 // MARK: - Table View Delegate

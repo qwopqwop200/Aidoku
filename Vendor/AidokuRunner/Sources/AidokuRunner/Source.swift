@@ -183,11 +183,9 @@ public final class Source: Sendable {
 
     @discardableResult
     public func restart() async throws -> Bool {
-        if let nativeRunner = runner as? NativeSourceRunnerLifecycle {
-            try await nativeRunner.restart()
-            return true
-        }
-        return false
+        guard let runner = runner as? NativeSourceRunnerLifecycle else { return false }
+        try await runner.restart()
+        return true
     }
 
     public func clearCache() async {
@@ -371,9 +369,9 @@ public extension Source {
         manga.sourceKey = key
 
         // set default language for chapters
-        if languages.count == 1, let language = languages.first, let indices = manga.chapters?.indices {
-            for index in indices where manga.chapters?[index].language == nil {
-                manga.chapters?[index].language = language
+        if languages.count == 1, let language = languages.first, let chapters = manga.chapters {
+            for chapterIdx in chapters.indices {
+                manga.chapters?[chapterIdx].language = chapters[chapterIdx].language ?? language
             }
         }
 

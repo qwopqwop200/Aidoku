@@ -875,8 +875,7 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await !reopened.contains("legacy", kind: .translation))
         #expect(try await reopened.regions(for: "legacy", kind: .metadata) == regions)
         #expect(try await reopened.regions(for: "page", kind: .translation) == page)
-        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        settings.ocr.detectorMinimumBoxSide = 2
+        let settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
         try await reopened.synchronizeSettings(settings)
         #expect(try await !reopened.contains("page", kind: .translation))
         #expect(try await reopened.regions(for: "legacy", kind: .metadata) == regions)

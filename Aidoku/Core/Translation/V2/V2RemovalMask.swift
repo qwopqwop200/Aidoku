@@ -45,7 +45,7 @@ enum V2RemovalMask {
         guard !targets.isEmpty else { return mask }
         let geometries = targets.map { geometry($0, width: width, height: height) }
         var results = [BlockMask?](repeating: nil, count: targets.count)
-        // Peak memory is about `bytesPerFramePixel` per frame pixel of every block in flight, so
+        // Peak memory is about 384 bytes per frame pixel of every block in flight, so
         // only small blocks share the pool; large ones run one at a time afterwards.
         let threads = max(1, ProcessInfo.processInfo.activeProcessorCount)
         let small = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) <= concurrentBlockPixels / threads }
@@ -73,10 +73,9 @@ enum V2RemovalMask {
         return mask
     }
 
-    /// Conservative peak bytes per frame pixel of `segment` (about 36 float planes across the
-    /// feature groups, 39 float feature columns and the Int index lists).
-    static let bytesPerFramePixel = 384
-    /// Frame pixels of all blocks segmented concurrently (about 1.1 GB at `bytesPerFramePixel`).
+    /// Frame pixels of all blocks segmented concurrently (about 1.1 GB at a conservative peak
+    /// of 384 bytes per frame pixel of `segment`: about 36 float planes across the feature
+    /// groups, 39 float feature columns and the Int index lists).
     static let concurrentBlockPixels = 3_000_000
     /// Larger frames skip the classifier and erase their line polygons (dilated by
     /// `outputDilation`) instead of risking a multi-GB allocation.

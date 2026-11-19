@@ -17,7 +17,7 @@ runtime's license is preserved in `Docs/licenses/Wasm3-LICENSE`. Native source
 port notices are in `Docs/NativeSource-MIT.txt`. HoshiDicts and its included
 libraries retain their respective license notices.
 
-The native package retains metadata decoding, bounded Postcard serialization,
+The native package retains metadata decoding, Postcard serialization,
 and task-owned partial-result publication. Run `swift test --package-path
 Vendor/AidokuRunner --jobs 2` after changing it, plus the affected integrated iOS
 source/authentication suites. The removed runtime's test suites no longer apply.
@@ -29,7 +29,6 @@ guards. Corrections include malformed ZIP/hash/record bounds, import rollback,
 Unicode/JSON handling, query error propagation, and thread-safe codec dispatch.
 Its generated Unicode table is retained as data. The CLI and unrelated examples
 are not part of this package. Zstandard remains a resolved package dependency.
-
 
 Hoshi native regression sources and runners live in `Scripts/tests/hoshi-*`,
 `Scripts/tests/run-hoshi-*`, and `Vendor/HoshiDicts/Tests/ImportRegression`.

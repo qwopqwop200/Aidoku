@@ -44,25 +44,25 @@ struct DownloadTransportAdmissionTests {
     }
 
     @Test func cancelledQueuedDownloadNeverStartsTransportAndNextRequestRecovers() async throws {
-        let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        let admission = BulkDownloadAdmission(idleLimit: 1, readerLimit: 1)
         let probe = Probe()
         let request = request
         let active = Task {
-            try await limiter.withPermit { try await probe.fetch(request, delay: .seconds(60)) }
+            try await admission.withPermit { try await probe.fetch(request, delay: .seconds(60)) }
         }
         defer { active.cancel() }
         try await waitUntil { await probe.starts == 1 }
-        let worker = DownloadTask(id: "queued", cache: DownloadCache(), downloads: [], transportLimiter: limiter)
+        let worker = DownloadTask(id: "queued", cache: DownloadCache(), downloads: [], bulkAdmission: admission)
         let queued = Task {
             await worker.fetchPageResource(for: request, tmpDirectory: .temporaryDirectory,
                 fetch: { try await probe.fetch(request) }, cleanup: { _ in })
         }
         defer { queued.cancel() }
-        try await waitUntil { await limiter.queuedRequestCount == 1 }
+        try await waitUntil { await admission.snapshot.queuedDownloads == 1 }
         queued.cancel()
         #expect(await queued.value == nil)
         #expect(await probe.starts == 1)
-        #expect(await limiter.queuedRequestCount == 0)
+        #expect(await admission.snapshot.queuedDownloads == 0)
         active.cancel()
         _ = try? await active.value
         let recovered = await worker.fetchPageResource(for: request, tmpDirectory: .temporaryDirectory,
@@ -72,10 +72,10 @@ struct DownloadTransportAdmissionTests {
     }
 
     @Test func rateLimitedSourceReleasesTransportWhileBackingOff() async throws {
-        let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
+        let admission = BulkDownloadAdmission(idleLimit: 1, readerLimit: 1)
         let probe = Probe()
         let request = request
-        let retryingWorker = DownloadTask(id: "rate-limited", cache: DownloadCache(), downloads: [], transportLimiter: limiter)
+        let retryingWorker = DownloadTask(id: "rate-limited", cache: DownloadCache(), downloads: [], bulkAdmission: admission)
         let retrying = Task {
             await retryingWorker.fetchPageResource(for: request, tmpDirectory: .temporaryDirectory,
                 fetch: { try await probe.fetch(request, status: 429) }, cleanup: { _ in })
@@ -86,7 +86,7 @@ struct DownloadTransportAdmissionTests {
             let active = await probe.active
             return starts == 1 && active == 0
         }
-        let otherWorker = DownloadTask(id: "other-source", cache: DownloadCache(), downloads: [], transportLimiter: limiter)
+        let otherWorker = DownloadTask(id: "other-source", cache: DownloadCache(), downloads: [], bulkAdmission: admission)
         let other = Task {
             await otherWorker.fetchPageResource(for: request, tmpDirectory: .temporaryDirectory,
                 fetch: { try await probe.fetch(request) }, cleanup: { _ in })

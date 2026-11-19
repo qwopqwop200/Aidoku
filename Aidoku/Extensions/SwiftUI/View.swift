@@ -194,7 +194,6 @@ extension View {
             return self.onChange(of: value) { [oldValue = value] newValue in
                 action(oldValue, newValue)
             }
-
         }
     }
 }

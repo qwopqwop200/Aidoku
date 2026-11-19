@@ -715,16 +715,6 @@
 
 "TRANSLATION_TITLE" = "OCR i prijevod";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Zamijeni spremljeni API ključ (izborno)";
 
 "TRANSLATION_KEY" = "API ključ";
@@ -741,11 +731,7 @@
 
 "TRANSLATION_TARGET" = "Prevedi na";
 
-
 "TRANSLATION_AUTO" = "Otkrij automatski";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Očisti predmemoriju prijevoda";
 
@@ -760,22 +746,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Zadano za model";
 
 "TRANSLATION_CONCURRENCY" = "Istodobni zahtjevi";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Pružatelj prijevoda";
 
@@ -833,8 +803,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Nije moguće povezati se putem HTTPS premosnice.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Prijevod nije uspio. Prikazuje se tekst prepoznat OCR-om. Provjeri postavke i vezu.";
-
 "TRANSLATION_MANGA_TITLES" = "Prevedi naslove manga";
 
 "TRANSLATION_CHAPTER_TITLES" = "Prevedi naslove poglavlja";
@@ -847,32 +815,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Izvorni jezik stranice";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Prevedi opise manga";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Jezici opisa mange";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Automatski prepoznaje izvorni jezik i prevodi samo odabrane jezike. Opcija Svi otkriveni jezici uklanja ograničenje. Jezični filtar svake stavke neovisan je o jezičnim postavkama stranica i drugih stavki.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Šalje sliku stranice uz OCR tekst radi konteksta scene. Ako unos slika nije podržan, prijevod se automatski nastavlja samo s tekstom. Prilaganje slika može povećati potrošnju podataka i troškove API-ja.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Unos slika nije podržan. Prijevod se nastavlja bez slika.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Prilagođeni (kompatibilan s OpenAI-jem)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Nema";
 
@@ -1033,16 +982,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nije moguće prikazati postavku: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Preuzmi s prijevodom";
-
 
 "TRANSLATION_STATE_ON" = "Uključeno";
 "TRANSLATION_STATE_OFF" = "Isključeno";
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Postavke prijevoda nisu valjane. Provjeri URL poslužitelja, model i ostale postavke.";
 "TRANSLATION_ERROR_REQUEST" = "Tekst, slika ili jezične postavke ne mogu se koristiti za prijevod.";
@@ -1068,13 +1011,10 @@
 "OCR_ERROR_IMAGE" = "Nije moguće pripremiti sliku za prepoznavanje teksta.";
 "OCR_ERROR_OUTPUT" = "Model PP-OCRv6 vratio je nevaljan ili nepodržan izlaz.";
 "OCR_ERROR_PREDICTION" = "Prepoznavanje teksta s pomoću PP-OCRv6 nije uspjelo. Pokušaj s drugom slikom ili OCR modelom.";
-"TRANSLATION_ERROR_CACHE_SIZE" = "Veličina predmemorije prijevoda izvan je podržanog raspona.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Pohrana predmemorije prijevoda nije valjana ili nije dostupna.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Predmemoriju prijevoda nije moguće spremiti.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Promjene iCloud sinkronizacije primjenjuju se nakon potpunog zatvaranja i ponovnog otvaranja aplikacije Aidoku. Do tada ostaje aktivna trenutačna postavka.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 

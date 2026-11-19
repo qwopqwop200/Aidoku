@@ -136,12 +136,8 @@ class BrowseViewModel {
         let installedSources = storedInstalledSources ?? installedSources
         let pinnedSources = storedPinnedSources ?? pinnedSources
 
-        // A reload during a search still needs to refresh the full update list.
-        var installedVersions = Dictionary(installedSources.lazy.map { ($0.sourceId, $0.version) }, uniquingKeysWith: { first, _ in first })
-        installedVersions.merge(pinnedSources.lazy.map { ($0.sourceId, $0.version) }, uniquingKeysWith: { first, _ in first })
         let updates = unfilteredExternalSources
             .compactMap { info -> SourceInfo? in
-                guard let version = installedVersions[info.id], info.version > version else { return nil }
                 // check version availability
                 if let minAppVersion = info.minAppVersion {
                     let minAppVersion = SemanticVersion(minAppVersion)
@@ -156,7 +152,19 @@ class BrowseViewModel {
                     }
                 }
 
-                return info.toInfo()
+                if let installedSource = installedSources.first(where: { $0.sourceId == info.id }) {
+                    if info.version > installedSource.version {
+                        return info.toInfo()
+                    }
+                    return nil
+                }
+                if let pinnedSource = pinnedSources.first(where: { $0.sourceId == info.id }) {
+                    if info.version > pinnedSource.version {
+                        return info.toInfo()
+                    }
+                    return nil
+                }
+                return nil
             }
             .sorted { lhs, rhs in
                 let languageOrder = SourceLanguage.compare(lhs.languages, rhs.languages)

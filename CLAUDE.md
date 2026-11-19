@@ -93,7 +93,7 @@ Other test suites, each run from the repository root:
 ## Architecture
 
 - `Aidoku/App`: app and scene delegates, navigation, and shared resources. Localization tables live in `App/Resources/Localization`.
-- `Aidoku/Core`: non-UI services, grouped by domain (Sources, Database, Downloads, Tracking, Backup, Library, Settings, Dictionary, Translation, Upscaling, Network).
+- `Aidoku/Core`: non-UI services, grouped by domain (Sources, Database, Downloads, Tracking, Backup, Library, Settings, Dictionary, Translation, Network).
 - `Aidoku/Features`: screens (Reader, Library, Browse, Manga, Settings, and so on).
 - `Aidoku/Extensions`: extensions to Apple and third-party types, organized by framework.
 
@@ -127,7 +127,7 @@ swift Scripts/image-translation.swift --ocr-only /path/to/page.png       # S1-S4
 swift Scripts/image-translation.swift --split dev --limit 5 --replay-translations RUN_DIR   # no LLM
 ```
 
-`--pipeline v2` is accepted as a no-op alias. Live mode calls the real provider through `V2Translation` and `RemoteTranslationClient` with the app's mandatory page settings (page image attached, SFX/background filtering on, at most three concurrent page requests). Replay reads saved translations from a legacy `page-index.json` run or a V2 run. The runner reads this repository's ignored `.env`; precedence is CLI arguments > shell environment > `.env` > defaults (`AIDOKU_ENV_FILE=` disables it). Keep credentials in `.env`; never commit, print, or copy them into reports. `.env.example` contains no credential. `python3 Scripts/image-translation/sync-iphone-settings.py --device <DEVICE_ID> --bundle-id <BUNDLE_ID>` copies the installed app's provider/language settings into `.env` and preserves the key.
+Live mode calls the real provider through `V2Translation` and `RemoteTranslationClient` with the app's mandatory page settings (page image attached, SFX/background filtering on, at most three concurrent page requests). Replay reads saved translations from a legacy `page-index.json` run or a V2 run. The runner reads this repository's ignored `.env`; precedence is CLI arguments > shell environment > `.env` > defaults (`AIDOKU_ENV_FILE=` disables it). Keep credentials in `.env`; never commit, print, or copy them into reports. `.env.example` contains no credential. `python3 Scripts/image-translation/sync-iphone-settings.py --device <DEVICE_ID> --bundle-id <BUNDLE_ID>` copies the installed app's provider/language settings into `.env` and preserves the key.
 
 Each run writes `pages/<page>.json` (blocks, lines, translations, placement, timings, failure), `pages/<page>.png` (not in `--ocr-only`) and `summary.json` under `../output/image-translation/run-<UUID>/`. Exit status 1 means a page failed; 2 means invalid settings. Score runs with `python3 Scripts/v2/eval.py RUN_DIR --split dev`. Never view page images; process pixels in code only.
 

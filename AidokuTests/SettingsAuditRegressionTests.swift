@@ -81,5 +81,4 @@ struct SettingsAuditRegressionTests {
         second.clipsToBounds = true
         #expect(!second.clipsToBounds)
     }
-
 }

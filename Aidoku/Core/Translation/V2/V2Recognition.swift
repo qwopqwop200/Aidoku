@@ -350,30 +350,3 @@ enum V2Recognition {
         }
     }
 }
-
-#if !V2_STANDALONE_HARNESS
-@available(iOS 18.0, *)
-extension V2Recognition {
-    /// Reference path through the unchanged legacy recognizer (two handles,
-    /// same-width batching). Kept for parity checks until `V2Models` lands.
-    static func recognize(
-        _ page: V2Page,
-        lines: [V2Line],
-        recognizer: NativeCoreMLRecognizer,
-        minimumConfidence: Double = V2Recognition.minimumConfidence
-    ) async throws -> [V2Line] {
-        let regions = lines.enumerated().map { index, line in
-            NativeCoreMLRecognitionRegion(sourceIndex: index, polygon: line.polygon)
-        }
-        let result = try await NativeOCRDirectionGeometry.$mainMangaPolicy.withValue(true) {
-            try await recognizer.recognize(image: page.image, regions: regions, confidenceThreshold: minimumConfidence)
-        }
-        return result.regions.map { region in
-            var line = lines[region.sourceIndex]
-            line.text = region.text
-            line.confidence = Float(region.confidence)
-            return line
-        }
-    }
-}
-#endif

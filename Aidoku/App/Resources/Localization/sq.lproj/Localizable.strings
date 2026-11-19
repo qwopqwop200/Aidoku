@@ -319,16 +319,6 @@
 
 "TRANSLATION_TITLE" = "OCR & Përkthim";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Zëvendëso çelësin e ruajtur API (opsionale)";
 
 "TRANSLATION_KEY" = "Çelësi API";
@@ -345,11 +335,7 @@
 
 "TRANSLATION_TARGET" = "Përkthe në";
 
-
 "TRANSLATION_AUTO" = "Zbulo automatikisht";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Pastro memorien e përkohshme të përkthimit";
 
@@ -364,22 +350,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Vlera e paracaktuar e modelit";
 
 "TRANSLATION_CONCURRENCY" = "Kërkesat e njëkohshme";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Ofruesi i Përkthimit";
 
@@ -437,8 +407,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Lidhja përmes anashkalimit HTTPS nuk u realizua.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Përkthimi dështoi. Po shfaqet teksti i njohur nga OCR. Kontrolloni cilësimet dhe lidhjen.";
-
 "TRANSLATION_MANGA_TITLES" = "Përkthe titujt e mangave";
 
 "TRANSLATION_CHAPTER_TITLES" = "Përkthe titujt e kapitujve";
@@ -451,32 +419,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Gjuha burimore e faqes";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Përkthe përshkrimet e mangave";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Gjuhët e përshkrimeve të mangave";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Zbulon automatikisht gjuhën burimore dhe përkthen vetëm gjuhët e zgjedhura. Opsioni Të gjitha gjuhët e zbuluara heq kufizimin. Filtri i gjuhës së çdo elementi është i pavarur nga cilësimet e gjuhës së faqeve dhe elementeve të tjera.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Dërgon imazhin e faqes bashkë me tekstin OCR për të dhënë kontekstin e skenës. Nëse imazhet nuk mbështeten si hyrje, përkthimi vazhdon automatikisht vetëm me tekst. Bashkëngjitja e imazheve mund të rrisë përdorimin e të dhënave dhe koston e API-së.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Futja e imazheve nuk mbështetet. Përkthimi vazhdon pa imazhe.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "I personalizuar (i përputhshëm me OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Asnjë";
 
@@ -1010,17 +959,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Nuk mund të shfaqet cilësimi: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Shkarko me përkthim";
-
 
 "TRANSLATION_STATE_ON" = "Aktiv";
 "TRANSLATION_STATE_OFF" = "Joaktiv";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Cilësimet e përkthimit janë të pavlefshme. Kontrolloni URL-në e serverit, modelin dhe cilësimet e tjera.";
 
@@ -1070,15 +1012,12 @@
 
 "OCR_ERROR_PREDICTION" = "Njohja e tekstit me PP-OCRv6 dështoi. Provoni përsëri me një imazh ose model tjetër OCR.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "Madhësia e memories së përkohshme të përkthimit është jashtë intervalit të mbështetur.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Hapësira e ruajtjes së memories së përkohshme të përkthimit është e pavlefshme ose e padisponueshme.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Memoria e përkohshme e përkthimit nuk mund të ruhej.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Ndryshimet e sinkronizimit iCloud zbatohen pasi ta mbyllni plotësisht dhe ta rihapni Aidoku. Deri atëherë, cilësimi aktual mbetet aktiv.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1122,7 +1061,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Burimi %@ versioni %d nuk mbështetet nga ky aplikacion. Instaloni një version të mbështetur.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 lexon tekst burimor në japonisht, kinezisht (të thjeshtuar dhe tradicionale), anglisht dhe gjuhë të tjera me alfabet latin, por jo koreanisht, cirilik ose vietnamisht. Zbulimi automatik i gjuhës burimore dhe përzgjedhja e saj kufizohen në këto gjuhë. Përkthimi në çdo gjuhë të synuar mbetet i mundur. Zgjedhja e modelit Manga vendos pragjet e zbulimit në 0,85 dhe 0,25; madhësia e paracaktuar për zbulimin është 1120 px.";
 

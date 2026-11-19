@@ -177,39 +177,15 @@ final class TranslationRequestPrioritySet: @unchecked Sendable {
     func remove(_ consumer: UUID) { _ = lock.withLock { consumers.removeValue(forKey: consumer) } }
 }
 
-/// Shared by one page's OCR admission, batch scheduler, and queued provider
-/// requests. Promotion never cancels or duplicates an in-flight request.
+/// Shared by one page's queued provider requests. Promotion never cancels or
+/// duplicates an in-flight request.
 final class TranslationRequestPromotion: @unchecked Sendable {
     private let lock = NSLock()
     private var foreground = false
-    private let foregroundSource: (@Sendable () -> Bool)?
-    let changes: AsyncStream<Void>
-    private let continuation: AsyncStream<Void>.Continuation
 
-    /// A composed priority can read its consumers' current demand without
-    /// consuming their one-shot changes streams. Sources must form an acyclic
-    /// graph and must synchronize their own mutable state. Only explicit promote()
-    /// calls emit changes; admission always reads isForeground dynamically.
-    init(foregroundSource: (@Sendable () -> Bool)? = nil) {
-        self.foregroundSource = foregroundSource
-        let stream = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
-        changes = stream.stream
-        continuation = stream.continuation
-    }
+    var isForeground: Bool { lock.withLock { foreground } }
 
-    // Never call another priority/source while holding this promotion's lock.
-    var isForeground: Bool { lock.withLock { foreground } || foregroundSource?() == true }
-
-    func promote() {
-        let changed = lock.withLock {
-            guard !foreground else { return false }
-            foreground = true
-            return true
-        }
-        if changed { continuation.yield(()); continuation.finish() }
-    }
-
-    deinit { continuation.finish() }
+    func promote() { lock.withLock { foreground = true } }
 }
 
 /// Page work precedes metadata; each priority remains FIFO.
@@ -334,12 +310,6 @@ actor TranslationService {
         self.providerRequestLimiter = providerRequestLimiter
     }
 
-    /// Preserve the client's bounded capability warm-up without creating a
-    /// second client or bypassing the shared translation/cache boundary.
-    func prepare(configuration: RemoteTranslationConfiguration) async {
-        await client.prepare(configuration: configuration)
-    }
-
     /// Reads matching translations without entering provider admission.
     func cachedResult(
         _ request: RemoteTranslationRequest,
@@ -365,23 +335,11 @@ actor TranslationService {
         }
     }
 
-    /// `onPartial` receives provisional streamed segments (caller IDs) only
-    /// when this call starts the provider request; cache hits and joined
-    /// in-flight requests publish only the final result.
     func translate(
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration,
-        usesCache: Bool = true,
-        priority: TranslationRequestPriority = .foreground,
-        onPartial: RemoteTranslationPartialHandler? = nil
+        priority: TranslationRequestPriority = .foreground
     ) async throws -> RemoteTranslationBatchResult {
-        guard usesCache else {
-            return try await translateLive(
-                request,
-                configuration: configuration,
-                priority: priority
-            )
-        }
         let startedAt = ProcessInfo.processInfo.systemUptime
         let segmentCount = request.segments.count
         let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(
@@ -466,10 +424,7 @@ actor TranslationService {
                     configuration: configuration,
                     cacheStorageGeneration: cacheStorageGeneration,
                     purgeAdmissionGeneration: purgeAdmissionGeneration,
-                    priority: priority,
-                    onPartial: onPartial.map { handler in
-                        { @Sendable segments in handler(canonicalRequest.restoringCallerSegmentIDs(inPartial: segments)) }
-                    }
+                    priority: priority
                 )
             }
             try Task.checkCancellation()
@@ -490,86 +445,6 @@ actor TranslationService {
                 await self.cancelWaiter(waiterID, for: key)
             }
         }
-    }
-
-    /// Cache-only lookup used to hydrate the first overlay publication. It
-    /// never joins or starts provider work, so a miss can fall through to the
-    /// normal progressive translation path without delaying OCR completion.
-    func cachedTranslation(
-        _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration
-    ) async throws -> RemoteTranslationBatchResult? {
-        try Task.checkCancellation()
-        try request.validate()
-        let canonicalRequest =
-            request.canonicalizedForTranslationSemantics()
-        let endpoint = try configuration.validatedEndpoint()
-        let key = TranslationCacheKey(
-            configuration: configuration,
-            endpoint: endpoint,
-            request: canonicalRequest.request
-        )
-
-        while true {
-            try Task.checkCancellation()
-            let admittedGeneration = purgeGeneration
-            if let purgeTask {
-                try await purgeTask.value
-                continue
-            }
-            let cached = try? await cache.valueIfPresent(for: key)
-            try Task.checkCancellation()
-            guard admittedGeneration == purgeGeneration,
-                  purgeTask == nil
-            else {
-                continue
-            }
-            guard let cached, !ReaderTranslationLanguageFilter.containsWrongLanguage(cached.translations, request: canonicalRequest.request) else { return nil }
-            let canonicalResult = RemoteTranslationBatchResult(
-                translations: cached.translations,
-                source: cached.source,
-                providerRequestID: nil
-            )
-            return try canonicalRequest.restoringCallerSegmentIDs(
-                in: canonicalResult
-            )
-        }
-    }
-
-    /// Performs a provider connectivity check without consulting, joining, or
-    /// populating the normal translation cache. Each call reaches the provider
-    /// independently so a prior translation cannot turn a connection test into
-    /// a false-positive cache hit.
-    func translateLive(
-        _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        priority: TranslationRequestPriority = .foreground
-    ) async throws -> RemoteTranslationBatchResult {
-        try Task.checkCancellation()
-        try request.validate()
-        let canonicalRequest =
-            request.canonicalizedForTranslationSemantics()
-        _ = try configuration.validatedEndpoint()
-        let canonicalResult = try await Self.requestProvider(
-            client: client,
-            request: canonicalRequest.request,
-            configuration: configuration,
-            providerRequestLimiter: providerRequestLimiter,
-            priority: priority
-        )
-        try Task.checkCancellation()
-        let networkResult = RemoteTranslationBatchResult(
-            translations: canonicalResult.translations,
-            source: .network,
-            providerRequestID: canonicalResult.providerRequestID
-        )
-        return try canonicalRequest.restoringCallerSegmentIDs(
-            in: networkResult
-        )
-    }
-
-    func cancelAll() {
-        cancelAllRequests()
     }
 
     /// Cancels every pre-boundary request and purges the backing cache while
@@ -623,8 +498,7 @@ actor TranslationService {
         configuration: RemoteTranslationConfiguration,
         cacheStorageGeneration: UInt64,
         purgeAdmissionGeneration: UInt64,
-        priority: TranslationRequestPriority,
-        onPartial: RemoteTranslationPartialHandler?
+        priority: TranslationRequestPriority
     ) {
         guard purgeAdmissionGeneration == purgeGeneration,
               purgeTask == nil
@@ -642,16 +516,14 @@ actor TranslationService {
         let requestID = UUID()
         let priorities = TranslationRequestPrioritySet()
         priorities.set(priority, for: waiterID)
-        let networkTask = Task { [client, providerRequestLimiter, cache] in
+        let networkTask = Task { [client, providerRequestLimiter] in
             do {
                 let result = try await Self.requestProvider(
                     client: client,
                     request: request,
                     configuration: configuration,
                     providerRequestLimiter: providerRequestLimiter,
-                    priority: .shared(priorities),
-                    onPartial: onPartial,
-                    persistenceAdmission: { try await cache.ensureProviderPersistenceAdmission() }
+                    priority: .shared(priorities)
                 )
                 await finish(
                     key: key,
@@ -682,14 +554,11 @@ actor TranslationService {
         providerRequestLimiter: TranslationProviderRequestLimiter?,
         priority: TranslationRequestPriority,
         allowsParallelSplit: Bool = true,
-        maximumRetries: Int = maximumStructuredOutputRetries,
-        onPartial: RemoteTranslationPartialHandler? = nil,
-        persistenceAdmission: (@Sendable () async throws -> Void)? = nil
+        maximumRetries: Int = maximumStructuredOutputRetries
     ) async throws -> RemoteTranslationBatchResult {
         var attempt = 0
         while true {
             attempt += 1
-            let requiresPersistenceAdmission = attempt == 1
             let attemptStartedAt = ProcessInfo.processInfo.systemUptime
             let segmentCount = request.segments.count
             let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(
@@ -705,17 +574,11 @@ actor TranslationService {
                             elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: attemptStartedAt)
                         )
                         return try await performProviderAttempt(
-                            client: client, request: request, configuration: configuration,
-                            onPartial: onPartial,
-                            persistenceAdmission: requiresPersistenceAdmission ? persistenceAdmission : nil
-                        )
+                            client: client, request: request, configuration: configuration)
                     }
                 } else {
                     result = try await performProviderAttempt(
-                        client: client, request: request, configuration: configuration,
-                        onPartial: onPartial,
-                        persistenceAdmission: requiresPersistenceAdmission ? persistenceAdmission : nil
-                    )
+                        client: client, request: request, configuration: configuration)
                 }
                 TranslationPerformanceDiagnostics
                     .providerAttemptCompleted(
@@ -777,7 +640,7 @@ actor TranslationService {
                                 group.addTask {
                                     let value = try await requestProvider(client: client, request: part, configuration: configuration,
                                         providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
-                                        maximumRetries: splitDescendantMaximumRetries, onPartial: onPartial)
+                                        maximumRetries: splitDescendantMaximumRetries)
                                     return (index, value.translations)
                                 }
                             }
@@ -790,7 +653,7 @@ actor TranslationService {
                         for part in parts {
                             let value = try await requestProvider(client: client, request: part, configuration: configuration,
                                 providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
-                                maximumRetries: splitDescendantMaximumRetries, onPartial: onPartial)
+                                maximumRetries: splitDescendantMaximumRetries)
                             values.append(contentsOf: value.translations)
                         }
                         recovered = values
@@ -832,27 +695,13 @@ actor TranslationService {
         }
     }
 
-    /// Keep provider queueing and the persistence circuit breaker out of the
-    /// client duration. The client includes request encoding/transport/validation,
+    /// Keep provider queueing out of the client duration. The client includes request encoding/transport/validation,
     /// whose nested phases further separate local work from server response wait.
     private static func performProviderAttempt(
         client: RemoteTranslating,
         request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        onPartial: RemoteTranslationPartialHandler?,
-        persistenceAdmission: (@Sendable () async throws -> Void)?
+        configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
-        if let persistenceAdmission {
-            let startedAt = ProcessInfo.processInfo.systemUptime
-            defer {
-                TranslationPerformanceDiagnostics.clientPhaseCompleted(
-                    phase: "persistence_admission",
-                    segmentCount: request.segments.count,
-                    elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt)
-                )
-            }
-            try await persistenceAdmission()
-        }
         try Task.checkCancellation()
         let startedAt = ProcessInfo.processInfo.systemUptime
         defer {
@@ -862,7 +711,7 @@ actor TranslationService {
                 elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt)
             )
         }
-        let result = try await client.translate(request, configuration: configuration, onPartial: onPartial)
+        let result = try await client.translate(request, configuration: configuration)
         guard !ReaderTranslationLanguageFilter.containsWrongLanguage(result.translations, request: request) else {
             throw RemoteTranslationError.invalidResponse("translation is still in source language")
         }
@@ -909,9 +758,6 @@ actor TranslationService {
         else {
             return
         }
-        // Do not publish provider completion until the cache actor has tried
-        // its durable tier. This closes the force-quit window where a visible
-        // translation previously existed only in memory.
         await cache.insert(
             result.translations,
             for: key,
@@ -946,39 +792,23 @@ actor TranslationService {
 }
 
 enum BoundedTranslationBatchExecutor {
-    typealias BatchCompletionHandler = @Sendable (
-        _ index: Int,
-        _ result: RemoteTranslationBatchResult
-    ) async throws -> Void
-    /// Provisional streamed segments of batch `index`, delivered synchronously
-    /// from the network callback in response order. The completion handler
-    /// for the same index remains authoritative.
-    typealias BatchPartialHandler = @Sendable (_ index: Int, _ segments: [RemoteTranslatedSegment]) -> Void
-
     private struct IndexedBatchResult: Sendable {
         let index: Int
         let result: RemoteTranslationBatchResult
     }
 
-    static let defaultMaximumConcurrentRequests = 16
     static let allowedMaximumConcurrentRequests = 64
 
     /// Runs an already-bounded request group concurrently while retaining the
-    /// original result indices. Smaller batches enter limited provider slots
-    /// first, reducing first-overlay latency when the stable frame-leading batch
-    /// was already cached. Throwing task-group semantics cancel siblings on
-    /// failure and never return a partial group. The optional completion hook
-    /// may expose successful batches earlier for a generation-guarded UI.
+    /// original result indices. Cache hits complete first; smaller batches then
+    /// enter limited provider slots first. Throwing task-group semantics cancel
+    /// siblings on failure and never return a partial group.
     static func translate(
         _ requests: [RemoteTranslationRequest],
         configuration: RemoteTranslationConfiguration,
         service: TranslationService,
-        usesCache: Bool = true,
-        maximumConcurrentRequests: Int = defaultMaximumConcurrentRequests,
-        maximumSpeculativeRequests: Int = 2,
-        priority: TranslationRequestPriority = .foreground,
-        onBatchCompleted: BatchCompletionHandler? = nil,
-        onBatchPartial: BatchPartialHandler? = nil
+        maximumConcurrentRequests: Int,
+        priority: TranslationRequestPriority
     ) async throws -> [RemoteTranslationBatchResult] {
         let startedAt = ProcessInfo.processInfo.systemUptime
         let totalSegments = requests.reduce(into: 0) {
@@ -997,16 +827,9 @@ enum BoundedTranslationBatchExecutor {
             ),
             requests.count
         )
-        // Publish every cache hit before any fallible provider request can cancel
-        // its siblings, including batches outside the current concurrency window.
         var cachedResults = Array<RemoteTranslationBatchResult?>(repeating: nil, count: requests.count)
-        if usesCache {
-            for index in requests.indices {
-                if let result = try await service.cachedResult(requests[index], configuration: configuration) {
-                    cachedResults[index] = result
-                    try await onBatchCompleted?(index, result)
-                }
-            }
+        for index in requests.indices {
+            cachedResults[index] = try await service.cachedResult(requests[index], configuration: configuration)
         }
         let submissionOrder = requests.indices.filter { cachedResults[$0] == nil }.sorted { left, right in
             let leftCount = requests[left].segments.count
@@ -1026,27 +849,19 @@ enum BoundedTranslationBatchExecutor {
             return left < right
         }
         let results = try await withThrowingTaskGroup(
-            of: IndexedBatchResult?.self,
+            of: IndexedBatchResult.self,
             returning: [RemoteTranslationBatchResult].self
         ) { group in
             defer { group.cancelAll() }
             var nextSubmission = 0
             var active = 0
             var completedCount = cachedResults.compactMap { $0 }.count
-            var pendingProgress: IndexedBatchResult?
             var orderedResults = cachedResults
-            // Wake on promotion even when both speculative API batches are slow.
-            if case .promotable(let promotion) = priority {
-                group.addTask {
-                    for await _ in promotion.changes { break }
-                    return nil
-                }
-            }
 
             while true {
                 try Task.checkCancellation()
                 let limit = priority.isForeground ? concurrency
-                    : min(min(2, max(1, maximumSpeculativeRequests)), max(1, maximumConcurrentRequests - 1))
+                    : min(2, max(1, maximumConcurrentRequests - 1))
                 while active < limit, nextSubmission < submissionOrder.count {
                     let index = submissionOrder[nextSubmission]
                     nextSubmission += 1
@@ -1058,25 +873,16 @@ enum BoundedTranslationBatchExecutor {
                             result: service.translate(
                                 requests[index],
                                 configuration: configuration,
-                                usesCache: usesCache,
-                                priority: priority,
-                                onPartial: onBatchPartial.map { handler in { @Sendable in handler(index, $0) } }
+                                priority: priority
                             )
                         )
                     }
                 }
-                // Refill before UI progress so rendering cannot idle provider slots.
-                if let completed = pendingProgress {
-                    try await onBatchCompleted?(completed.index, completed.result)
-                    pendingProgress = nil
-                }
                 if completedCount == requests.count { break }
-                guard let event = try await group.next() else { break }
-                guard let completed = event else { continue }
+                guard let completed = try await group.next() else { break }
                 active -= 1
                 completedCount += 1
                 orderedResults[completed.index] = completed.result
-                pendingProgress = completed
             }
 
             try Task.checkCancellation()
@@ -1102,152 +908,5 @@ enum BoundedTranslationBatchExecutor {
             )
         }
         return results
-    }
-}
-
-/// Cancels the previous request whenever a newer frame is submitted. Generation
-/// checks also prevent a provider that ignores cancellation from publishing a
-/// stale translation.
-actor LatestTranslationCoordinator {
-    /// Match the transport's per-host connection bound. A large OCR frame can
-    /// therefore overlap independent provider batches without opening an
-    /// unbounded number of radio/network requests.
-    static let maximumConcurrentBatchRequests =
-        BoundedTranslationBatchExecutor.defaultMaximumConcurrentRequests
-
-    private let service: TranslationService
-    private var generation: UInt64 = 0
-    private var currentTask:
-        Task<[RemoteTranslationBatchResult], Error>?
-
-    init(service: TranslationService) {
-        self.service = service
-    }
-
-    func translateLatest(
-        _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        usesCache: Bool = true
-    ) async throws -> RemoteTranslationBatchResult {
-        let results = try await translateLatestBatches(
-            [request],
-            configuration: configuration,
-            usesCache: usesCache
-        )
-        guard let result = results.first else {
-            throw RemoteTranslationError.invalidRequest(
-                "translation batch cannot be empty"
-            )
-        }
-        return result
-    }
-
-    /// Runs one frame's already-bounded provider batches as one latest-wins
-    /// operation. Final results retain request order; the optional progress
-    /// callback receives completion order only while this generation remains
-    /// current.
-    func translateLatestBatches(
-        _ requests: [RemoteTranslationRequest],
-        configuration: RemoteTranslationConfiguration,
-        usesCache: Bool = true,
-        maximumConcurrentRequests: Int = maximumConcurrentBatchRequests,
-        onBatchCompleted:
-            BoundedTranslationBatchExecutor.BatchCompletionHandler? = nil
-    ) async throws -> [RemoteTranslationBatchResult] {
-        guard !requests.isEmpty else { return [] }
-        generation &+= 1
-        let issuedGeneration = generation
-        currentTask?.cancel()
-
-        let guardedProgress:
-            BoundedTranslationBatchExecutor.BatchCompletionHandler?
-        if let progress = onBatchCompleted {
-            guardedProgress = { @Sendable [weak self] index, result in
-                guard let self else {
-                    throw CancellationError()
-                }
-                try await self.publishBatchProgressIfCurrent(
-                    issuedGeneration: issuedGeneration,
-                    index: index,
-                    result: result,
-                    progress: progress
-                )
-            }
-        } else {
-            guardedProgress = nil
-        }
-        let task = Task { [service] in
-            try await Self.translateBatches(
-                requests,
-                configuration: configuration,
-                service: service,
-                usesCache: usesCache,
-                maximumConcurrentRequests: maximumConcurrentRequests,
-                onBatchCompleted: guardedProgress
-            )
-        }
-        currentTask = task
-
-        do {
-            let result = try await withTaskCancellationHandler {
-                try await task.value
-            } onCancel: {
-                task.cancel()
-            }
-            try Task.checkCancellation()
-            guard issuedGeneration == generation else {
-                throw CancellationError()
-            }
-            currentTask = nil
-            return result
-        } catch {
-            if issuedGeneration == generation {
-                currentTask = nil
-            }
-            throw error
-        }
-    }
-
-    nonisolated private static func translateBatches(
-        _ requests: [RemoteTranslationRequest],
-        configuration: RemoteTranslationConfiguration,
-        service: TranslationService,
-        usesCache: Bool,
-        maximumConcurrentRequests: Int,
-        onBatchCompleted:
-            BoundedTranslationBatchExecutor.BatchCompletionHandler?
-    ) async throws -> [RemoteTranslationBatchResult] {
-        try await BoundedTranslationBatchExecutor.translate(
-            requests,
-            configuration: configuration,
-            service: service,
-            usesCache: usesCache,
-            maximumConcurrentRequests: maximumConcurrentRequests,
-            onBatchCompleted: onBatchCompleted
-        )
-    }
-
-    private func publishBatchProgressIfCurrent(
-        issuedGeneration: UInt64,
-        index: Int,
-        result: RemoteTranslationBatchResult,
-        progress:
-            BoundedTranslationBatchExecutor.BatchCompletionHandler
-    ) async throws {
-        try Task.checkCancellation()
-        guard issuedGeneration == generation else {
-            throw CancellationError()
-        }
-        try await progress(index, result)
-        try Task.checkCancellation()
-        guard issuedGeneration == generation else {
-            throw CancellationError()
-        }
-    }
-
-    func cancelCurrent() {
-        generation &+= 1
-        currentTask?.cancel()
-        currentTask = nil
     }
 }

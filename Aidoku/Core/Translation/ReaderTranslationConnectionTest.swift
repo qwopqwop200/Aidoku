@@ -1,5 +1,5 @@
 import Combine
-import Foundation
+import UIKit
 
 /// A manual test always makes a live request, without saving the form or its key.
 @MainActor
@@ -24,10 +24,7 @@ final class ReaderTranslationConnectionTest: ObservableObject {
 
     deinit { task?.cancel() }
 
-    func start(
-        settings: ReaderTranslationSettings, apiKey: String,
-        onResult: @escaping (Result<String, Error>) -> Void = { _ in }
-    ) {
+    func start(settings: ReaderTranslationSettings, apiKey: String) {
         guard state != .running else { return }
         generation = UUID()
         let issued = generation
@@ -42,7 +39,6 @@ final class ReaderTranslationConnectionTest: ObservableObject {
             case .success(let text): state = .success(text)
             case .failure(let error): state = .failure(error.localizedDescription)
             }
-            onResult(result)
         }
     }
 
@@ -63,10 +59,46 @@ final class ReaderTranslationConnectionTest: ObservableObject {
             account: settings.selectedCredentialAccount,
             draft: apiKey.trimmingCharacters(in: .whitespacesAndNewlines), saved: savedCredentials
         )
-        return try await ReaderTranslationAPIValidator.probe(
+        return try await probe(
             settings, client: RemoteTranslationClient(credentialStore: credentials, transport: transport,
                 imageSupport: imageSupport, rechecksImageSupport: true)
         )
+    }
+
+    nonisolated static func probe(_ settings: ReaderTranslationSettings, client: any RemoteTranslating) async throws -> String {
+        try settings.validate()
+        let sample: String
+        switch settings.sourceLanguage {
+        case "ko": sample = "연결 테스트"
+        case "ja": sample = "接続テスト"
+        case "zh-Hans", "zh-Hant": sample = "连接测试"
+        default: sample = "Hello, world!"
+        }
+        var request = RemoteTranslationRequest(
+            sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,
+            segments: [.init(id: "connection-test", text: sample)]
+        )
+        request.translatesPageLettering = true
+        request.filtersSFX = true
+        request.filtersBackground = true
+        // Exercise the required page request format without uploading a user page.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let size = CGSize(width: 32, height: 32)
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+        request.imageJPEG = try ReaderTranslationImagePreparation.translationJPEG(image)
+        let response = try await client.translate(request, configuration: settings.configuration)
+        try Task.checkCancellation()
+        guard response.translations.count == 1,
+              response.translations[0].id == "connection-test",
+              !response.translations[0].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw RemoteTranslationError.invalidResponse("The connection test returned no translated text.")
+        }
+        return response.translations[0].text
     }
 
     private struct TestCredentials: TranslationCredentialProviding {

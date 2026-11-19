@@ -274,7 +274,7 @@ extension SettingsTrackingView {
                 return
             }
             if enabled {
-                // enable tracking for library items from this source
+                // enable tracking for all items in library
                 let libraryManga = await CoreDataManager.shared.container.performBackgroundTask { context in
                     let manga = CoreDataManager.shared.getLibraryManga(sourceKey: sourceKey, context: context)
                     return manga.compactMap { $0.manga?.toNewManga() }
@@ -296,7 +296,7 @@ extension SettingsTrackingView {
                     }
                 }
             } else {
-                // remove existing tracker links for this source
+                // remove existing linked trackers on all items
                 do {
                     try await tracker.removeTrackItems(sourceKey: sourceKey)
                 } catch {

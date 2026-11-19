@@ -1,21 +1,14 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 
-enum IPhoneUILocale: String, Codable, CaseIterable, Sendable {
-    case korean = "ko"
-    case english = "en"
-    case chinese = "zh"
-    case japanese = "ja"
-}
-
-enum IPhoneOverlayMode: String, Codable, CaseIterable, Sendable {
+enum IPhoneOverlayMode: String, Codable, Sendable {
     case translateOnly
     case originalAndTranslation
     case subtitle
     case sidePanel
 }
 
-enum IPhoneOverlayColorMode: String, Codable, CaseIterable, Sendable {
+enum IPhoneOverlayColorMode: String, Codable, Sendable {
     case white
     case dark
 
@@ -30,66 +23,24 @@ enum IPhoneOverlayColorMode: String, Codable, CaseIterable, Sendable {
     }
 }
 
-enum IPhoneOverlayAppearance: String, CaseIterable, Sendable {
-    case source
-    case white
-    case dark
-}
-
-enum IPhoneOverlayTextPlacement: String, Codable, CaseIterable, Sendable {
+enum IPhoneOverlayTextPlacement: String, Codable, Sendable {
     case replace
     case expanded
 }
 
-enum IPhoneSubtitlePosition: String, Codable, CaseIterable, Sendable {
+enum IPhoneSubtitlePosition: String, Codable, Sendable {
     case top
     case bottom
 }
 
-enum IPhoneAppearanceMode: String, Codable, CaseIterable, Sendable {
-    case system
-    case light
-    case dark
-}
-
 struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
-    // Rendering-only metric; not persisted as a user preference.
-    var reservesSurfaceBorder = true
-    // Runtime-only renderer tuning; deliberately excluded from persisted preferences.
-    var textBoxGeometryParameters = NativeTextBoxGeometryParameters.baseline
     var visible: Bool
     var mode: IPhoneOverlayMode
     var colorMode: IPhoneOverlayColorMode
     var preserveSourceTextColor = false
     var preserveSourceBackgroundColor = false
     var inpaintingEnabled = false
-    // Keep legacy fields decodable; the single UI control writes both atomically.
-    var preserveSourceColors: Bool {
-        get { preserveSourceTextColor && preserveSourceBackgroundColor }
-        set { preserveSourceTextColor = newValue; preserveSourceBackgroundColor = newValue }
-    }
-    var appearance: IPhoneOverlayAppearance {
-        get {
-            if preserveSourceColors { return .source }
-            switch colorMode {
-            case .white: return .white
-            case .dark: return .dark
-            }
-        }
-        set {
-            preserveSourceColors = newValue == .source
-            switch newValue {
-            case .source, .white: colorMode = .white
-            case .dark: colorMode = .dark
-            }
-        }
-    }
-    // Legacy preferences remain decodable, but cannot reactivate removed source repair.
-    var usesSourceInpainting: Bool { false }
     var opacity: Double
-    /// Sampled-color replacement boxes must be opaque to hide the original lettering.
-    /// Legacy opacity preferences are retained for decoding only.
-    var renderedBackgroundOpacity: Double { 1 }
     var textPlacement: IPhoneOverlayTextPlacement
     var subtitlePosition: IPhoneSubtitlePosition
     var subtitleMaxLines: Int

@@ -12,14 +12,6 @@ struct SettingsLoginWebSchedulingTests {
                                          statusCode: 200, httpVersion: nil, headerFields: nil)!)
     }
 
-    private func waitUntil(_ predicate: () -> Bool) async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while !predicate() {
-            guard ContinuousClock.now < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(1))
-        }
-    }
-
     @Test func tokenExchangeOwnsBusyLifetimeAndRejectsSupersededResponse() async throws {
         let owner = SettingsLoginAttempt()
         var oldReply: CheckedContinuation<(Data, URLResponse), Never>?
@@ -29,12 +21,12 @@ struct SettingsLoginWebSchedulingTests {
         owner.exchange(attempt: old, operation: {
             await withCheckedContinuation { oldReply = $0 }
         }, commit: { writes.append($0) }, failed: { errors += 1 })
-        try await waitUntil { oldReply != nil }
+        try await RegressionTestWait.until { oldReply != nil }
         #expect(owner.isLoading)
         let latest = owner.begin()
         owner.exchange(attempt: latest, operation: { response("latest") },
                        commit: { writes.append($0) }, failed: { errors += 1 })
-        try await waitUntil { writes == ["latest"] }
+        try await RegressionTestWait.until { writes == ["latest"] }
         #expect(!owner.isLoading)
         oldReply?.resume(returning: response("obsolete"))
         try await Task.sleep(for: .milliseconds(20))
@@ -51,7 +43,7 @@ struct SettingsLoginWebSchedulingTests {
         owner.exchange(attempt: attempt, operation: {
             await withCheckedContinuation { reply = $0 }
         }, commit: { _ in writes += 1 }, failed: { errors += 1 })
-        try await waitUntil { reply != nil }
+        try await RegressionTestWait.until { reply != nil }
         owner.cancel()
         #expect(!owner.isLoading)
         reply?.resume(returning: response("stale"))
@@ -69,10 +61,10 @@ struct SettingsLoginWebSchedulingTests {
         var writes = 0
         owner.exchange(URLRequest(url: url), attempt: owner.begin(), session: session,
                        commit: { _ in writes += 1 }, failed: { writes += 1 })
-        try await waitUntil { SettingsTokenURLProtocol.started(url) }
+        try await RegressionTestWait.until { SettingsTokenURLProtocol.started(url) }
         #expect(owner.isLoading)
         owner.cancel()
-        try await waitUntil { SettingsTokenURLProtocol.stopped(url) }
+        try await RegressionTestWait.until { SettingsTokenURLProtocol.stopped(url) }
         #expect(!owner.isLoading && writes == 0)
     }
 
@@ -93,17 +85,17 @@ struct SettingsLoginWebSchedulingTests {
         let webView = WKWebView()
         coordinator.startObserving(webView)
         coordinator.requestRefresh()
-        try await waitUntil { pending.count == 1 }
+        try await RegressionTestWait.until { pending.count == 1 }
         for _ in 0..<100 { coordinator.requestRefresh() }
         #expect(calls == 1)
         pending[0].resume(returning: (["session": "obsolete"], ["session": "obsolete"]))
-        try await waitUntil { pending.count == 2 }
+        try await RegressionTestWait.until { pending.count == 2 }
         #expect(cookieWrites == 0 && storageWrites == 0)
         pending[1].resume(returning: (["session": "latest"], ["session": "latest"]))
-        try await waitUntil { cookieWrites == 1 }
+        try await RegressionTestWait.until { cookieWrites == 1 }
         #expect(calls == 2 && storageWrites == 1)
         coordinator.requestRefresh()
-        try await waitUntil { pending.count == 3 }
+        try await RegressionTestWait.until { pending.count == 3 }
         Aidoku.WebView.dismantleUIView(webView, coordinator: coordinator)
         pending[2].resume(returning: (["session": "after-close"], [:]))
         try await Task.sleep(for: .milliseconds(20))
@@ -120,19 +112,19 @@ struct SettingsLoginWebSchedulingTests {
             starts += 1
             return await withCheckedContinuation { gate = $0 }
         }, commit: { commits.append($0) })
-        try await waitUntil { gate != nil }
+        try await RegressionTestWait.until { gate != nil }
         for index in 0..<100 {
             owner.request(operation: { starts += 1; return index }, commit: { commits.append($0) })
         }
         #expect(starts == 1)
         gate?.resume(returning: -1)
-        try await waitUntil { commits == [99] }
+        try await RegressionTestWait.until { commits == [99] }
         #expect(starts == 2)
         var exitGate: CheckedContinuation<Int, Never>?
         owner.request(operation: {
             await withCheckedContinuation { exitGate = $0 }
         }, commit: { commits.append($0) })
-        try await waitUntil { exitGate != nil }
+        try await RegressionTestWait.until { exitGate != nil }
         owner.cancel()
         exitGate?.resume(returning: -2)
         try await Task.sleep(for: .milliseconds(20))
@@ -155,9 +147,9 @@ struct SettingsLoginWebSchedulingTests {
         webView.loadSourceRequest(URLRequest(url: urlA), configure: { _ in
             await withCheckedContinuation { first = $0 }
         })
-        try await waitUntil { first != nil }
+        try await RegressionTestWait.until { first != nil }
         webView.loadSourceRequest(URLRequest(url: urlB), configure: { _ in })
-        try await waitUntil { webView.loads == [urlB] }
+        try await RegressionTestWait.until { webView.loads == [urlB] }
         first?.resume()
         try await Task.sleep(for: .milliseconds(20))
         #expect(webView.loads == [urlB])
@@ -165,7 +157,7 @@ struct SettingsLoginWebSchedulingTests {
         webView.loadSourceRequest(URLRequest(url: urlA), configure: { _ in
             await withCheckedContinuation { last = $0 }
         })
-        try await waitUntil { last != nil }
+        try await RegressionTestWait.until { last != nil }
         webView.cancelSourceRequest()
         last?.resume()
         try await Task.sleep(for: .milliseconds(20))

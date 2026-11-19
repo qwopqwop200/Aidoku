@@ -741,16 +741,6 @@
 
 "TRANSLATION_TITLE" = "OCR ve Çeviri";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Kayıtlı API anahtarını değiştir (isteğe bağlı)";
 
 "TRANSLATION_KEY" = "API anahtarı";
@@ -767,11 +757,7 @@
 
 "TRANSLATION_TARGET" = "Hedef Dil";
 
-
 "TRANSLATION_AUTO" = "Otomatik Olarak Algıla";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Çeviri Önbelleğini Temizle";
 
@@ -786,22 +772,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Model Varsayılanı";
 
 "TRANSLATION_CONCURRENCY" = "Eşzamanlı İstekler";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Çeviri Sağlayıcısı";
 
@@ -859,8 +829,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS Engelini Aşma üzerinden bağlantı kurulamadı.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Çeviri başarısız oldu. OCR ile tanınan metin gösteriliyor. Ayarları ve bağlantınızı kontrol edin.";
-
 "TRANSLATION_MANGA_TITLES" = "Manga Başlıklarını Çevir";
 
 "TRANSLATION_CHAPTER_TITLES" = "Bölüm Başlıklarını Çevir";
@@ -873,32 +841,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Sayfa Kaynak Dili";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Manga Açıklamalarını Çevir";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Manga Açıklama Dilleri";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Kaynak dili otomatik algılar ve yalnızca seçilen dilleri çevirir. Algılanan Tüm Diller kısıtlamayı kaldırır. Her öğenin dil filtresi, sayfa ve diğer öğelerin dil ayarlarından bağımsızdır.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Sahne bağlamını sağlamak için sayfa görselini OCR metniyle birlikte gönderir. Görsel girişi desteklenmiyorsa çeviri otomatik olarak yalnızca metinle devam eder. Görsel eklemek veri kullanımını ve API maliyetini artırabilir.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Görsel girişi desteklenmiyor. Çeviri görseller olmadan devam eder.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Özel (OpenAI Uyumlu)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Yok";
 
@@ -1033,17 +982,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Ayar görüntülenemiyor: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Çevirerek indir";
-
 
 "TRANSLATION_STATE_ON" = "Açık";
 "TRANSLATION_STATE_OFF" = "Kapalı";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Çeviri ayarları geçersiz. Sunucu URL’sini, modeli ve diğer ayarları kontrol edin.";
 
@@ -1093,15 +1035,12 @@
 
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 metin tanıma başarısız oldu. Başka bir görüntü veya OCR modeliyle tekrar deneyin.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "Çeviri önbelleği boyutu desteklenen aralığın dışında.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Çeviri önbelleğinin depolama alanı geçersiz veya kullanılamıyor.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Çeviri önbelleği kaydedilemedi.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud Senkronizasyonu değişiklikleri, Aidoku tamamen kapatılıp yeniden açıldığında uygulanır. O zamana kadar mevcut senkronizasyon ayarı etkin kalır.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 

@@ -171,7 +171,7 @@ final class V2Models: @unchecked Sendable {
         }
         let detectors = timed("detector") {
             (0..<max(1, detectorInstances)).map { _ in
-                NativeCoreMLDetector(bundle: bundle, modelResourceName: detectorResourceName)
+                NativeCoreMLDetector(bundle: bundle)
             }
         }
         let recognition = try timed("recognizer") { try V2RecognitionEngine.load(bundle: bundle) }

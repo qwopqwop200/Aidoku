@@ -396,25 +396,6 @@ extension LocalFileDataManager {
         }
     }
 
-    // Retain convenience entry points for callers creating individual records.
-    func createManga(
-        url: URL, id: String, title: String, cover: String? = nil, description: String? = nil,
-        viewer: AidokuRunner.Viewer = .unknown, comicInfo: ComicInfo? = nil
-    ) {
-        stageManga(url: url, id: id, title: title, cover: cover, description: description, viewer: viewer, comicInfo: comicInfo)
-        do { try saveImport(context) } catch { context.rollback() }
-    }
-
-    func createChapter(
-        mangaId: String, url: URL, id: String, title: String? = nil,
-        volume: Float? = nil, chapter: Float? = nil, comicInfo: ComicInfo? = nil
-    ) {
-        do {
-            try stageChapter(mangaId: mangaId, url: url, id: id, title: title, volume: volume, chapter: chapter, comicInfo: comicInfo)
-            try saveImport(context)
-        } catch { context.rollback() }
-    }
-
     private func stageManga(
         url: URL,
         id: String,
@@ -460,7 +441,6 @@ extension LocalFileDataManager {
             }
         }
         object.fileInfo = fileInfo
-
     }
 
     private func stageChapter(

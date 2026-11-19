@@ -78,9 +78,6 @@ actor EHentaiSourceRunner: AidokuRunner.NativeSourceRunnerLifecycle {
         }
         return parts.joined(separator: "; ")
     }
-    func imageRequestAuthority() -> [String] {
-        [domain, cookies()]
-    }
 
     private func rewrite(_ string: String) throws -> String {
         guard var components = URLComponents(string: string), let host = components.host,

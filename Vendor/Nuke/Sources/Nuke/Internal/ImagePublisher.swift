@@ -31,88 +31,54 @@ struct ImagePublisher: Publisher, Sendable {
     }
 }
 
-private final class ImageSubscription<S>: Subscription, Sendable where S: Subscriber, S: Sendable, S.Input == ImageResponse, S.Failure == ImagePipeline.Error {
-    private struct State {
-        var task: ImageTask?
-        var subscriber: S?
-        var isStarted = false
-    }
-    private let state: Mutex<State>
+private final class ImageSubscription<S>: Subscription where S: Subscriber, S: Sendable, S.Input == ImageResponse, S.Failure == ImagePipeline.Error {
+    private var task: ImageTask?
+    private let subscriber: S?
     private let request: ImageRequest
     private let pipeline: ImagePipeline
 
     init(request: ImageRequest, pipeline: ImagePipeline, subscriber: S) {
         self.pipeline = pipeline
         self.request = request
-        self.state = Mutex(value: State(subscriber: subscriber))
+        self.subscriber = subscriber
+
     }
 
     func request(_ demand: Subscribers.Demand) {
         guard demand > 0 else { return }
-        let subscriber = state.withLock { state -> S? in
-            guard !state.isStarted, let subscriber = state.subscriber else { return nil }
-            state.isStarted = true
-            return subscriber
-        }
         guard let subscriber else { return }
 
         if let image = pipeline.cache[request] {
             _ = subscriber.receive(ImageResponse(container: image, request: request, cacheType: .memory))
 
             if !image.isPreview {
-                finish(.finished)
+                subscriber.receive(completion: .finished)
                 return
             }
         }
 
-        guard state.value.subscriber != nil else { return }
-        let task = pipeline.loadImage(
+        task = pipeline.loadImage(
              with: request,
-             progress: { [weak self] response, _, _ in
-                 if let response, let subscriber = self?.state.value.subscriber {
+             progress: { response, _, _ in
+                 if let response {
                     // Send progressively decoded image (if enabled and if any)
                      _ = subscriber.receive(response)
                  }
              },
-             completion: { [weak self] result in
-                 guard let self, let subscriber = self.state.value.subscriber else { return }
+             completion: { result in
                  switch result {
                  case let .success(response):
                     _ = subscriber.receive(response)
-                    self.finish(.finished)
+                    subscriber.receive(completion: .finished)
                  case let .failure(error):
-                     self.finish(.failure(error))
+                     subscriber.receive(completion: .failure(error))
                  }
              }
          )
-        let shouldCancel = state.withLock { state in
-            guard state.subscriber != nil else { return true }
-            state.task = task
-            return false
-        }
-        if shouldCancel { task.cancel() }
     }
 
     func cancel() {
-        let (task, subscriber) = state.withLock { state in
-            let task = state.task
-            let subscriber = state.subscriber
-            state.task = nil
-            state.subscriber = nil
-            return (task, subscriber)
-        }
-        // Downstream deinit may cancel its subscription. Release it outside
-        // the state lock so that reentrant cancellation cannot deadlock.
-        withExtendedLifetime(subscriber) { task?.cancel() }
-    }
-
-    private func finish(_ completion: Subscribers.Completion<ImagePipeline.Error>) {
-        let subscriber = state.withLock { state in
-            let subscriber = state.subscriber
-            state.subscriber = nil
-            state.task = nil
-            return subscriber
-        }
-        subscriber?.receive(completion: completion)
+        task?.cancel()
+        task = nil
     }
 }

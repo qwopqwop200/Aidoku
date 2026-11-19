@@ -16,10 +16,14 @@ enum NativeDetectorPaddingSmoke {
             // last cells also exercise clamped source edges.
             let xs = (0..<width).map { ($0, min(width - 1, $0 + 1), Float($0 % 7) / 7) }
             let ys = (0..<height).map { ($0, min(height - 1, $0 + 1), Float($0 % 11) / 11) }
-            let actual = try NativeCoreMLDetectionPreprocessor.fillBoundedInput(
-                frame: frame, canvasWidth: canvasWidth, canvasHeight: canvasHeight,
-                width: width, height: height, sourceXs: xs, sourceYs: ys)
             let plane = canvasWidth * canvasHeight
+            // NaN-filled storage proves every padding cell is written.
+            var actual = [Float](repeating: .nan, count: plane * 3)
+            try actual.withUnsafeMutableBufferPointer { output in
+                try NativeCoreMLDetectionPreprocessor.fillBoundedInput(
+                    frame: frame, canvasWidth: canvasWidth, canvasHeight: canvasHeight,
+                    width: width, height: height, sourceXs: xs, sourceYs: ys, into: output.baseAddress!)
+            }
             var expected = [Float](repeating: 0, count: plane * 3)
             let means: [Float] = [0.485, 0.456, 0.406]
             let deviations: [Float] = [0.229, 0.224, 0.225]
@@ -38,10 +42,12 @@ enum NativeDetectorPaddingSmoke {
                 struct Stop: Error {}
                 var checks = 0
                 do {
-                    _ = try NativeCoreMLDetectionPreprocessor.fillBoundedInput(
-                        frame: frame, canvasWidth: canvasWidth, canvasHeight: canvasHeight,
-                        width: width, height: height, sourceXs: xs, sourceYs: ys,
-                        cancellationCheck: { checks += 1; if checks == 2 { throw Stop() } })
+                    try actual.withUnsafeMutableBufferPointer { output in
+                        try NativeCoreMLDetectionPreprocessor.fillBoundedInput(
+                            frame: frame, canvasWidth: canvasWidth, canvasHeight: canvasHeight,
+                            width: width, height: height, sourceXs: xs, sourceYs: ys, into: output.baseAddress!,
+                            cancellationCheck: { checks += 1; if checks == 2 { throw Stop() } })
+                    }
                     fatalError("Cancellation was ignored")
                 } catch is Stop { precondition(checks == 2) }
             }

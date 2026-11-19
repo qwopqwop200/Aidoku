@@ -33,12 +33,12 @@ extension SearchContentView {
             }
         }
 
-        private(set) var sources: [AidokuRunner.Source] = []
+        var sources: [AidokuRunner.Source] = []
         var filters: [FilterValue] = []
 
-        @Published private(set) var results: [SearchResult] = []
+        @Published var results: [SearchResult] = []
         @Published var history: [String] = []
-        @Published private(set) var isLoading: Bool = false
+        @Published var isLoading: Bool = false
 
         static let maxHistoryEntries = 20
 
@@ -50,6 +50,10 @@ extension SearchContentView {
         private var completedSources: Set<ObjectIdentifier> = []
         private var searchVisible = true
         private var resumeOnAppearance = false
+
+        var resultsIsEmpty: Bool {
+            !results.contains(where: { !$0.links.isEmpty })
+        }
 
         init() {
             history = UserDefaults.standard.stringArray(forKey: "Search.history") ?? []

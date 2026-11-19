@@ -1,6 +1,5 @@
 "IMPORT" = "Uvozim…";
 "DONE" = "Gotovo";
-"FILE_IMPORT_FAIL_TEXT" = "Uvoz datoteke nije uspio. Provjeri je li to čitljiva slikovna datoteka ili valjana CBZ ili ZIP arhiva koja sadrži slike.";
 "FORMAT_IMAGE" = "Slika";
 "SHARED_IMAGES_SAVED" = "Spremljeno. Otvori Aidoku za čitanje.";
 

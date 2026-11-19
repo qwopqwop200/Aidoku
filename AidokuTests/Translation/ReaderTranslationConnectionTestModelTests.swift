@@ -20,15 +20,13 @@ struct ReaderTranslationConnectionTestModelTests {
 
     @Test func editingOrLeavingCancelsAndRejectsLateResult() async throws {
         let gate = ConnectionTestGate()
-        var completed = false
         let model = ReaderTranslationConnectionTest { _, _ in await gate.run() }
-        model.start(settings: ReaderTranslationSettings(), apiKey: "") { _ in completed = true }
+        model.start(settings: ReaderTranslationSettings(), apiKey: "")
         try await waitUntil { await gate.calls == 1 }
         model.reset()
         await gate.release()
         try await Task.sleep(nanoseconds: 15_000_000)
         #expect(model.state == .idle)
-        #expect(!completed)
     }
 
     @Test func failureShowsErrorAndCanBeRetried() async throws {

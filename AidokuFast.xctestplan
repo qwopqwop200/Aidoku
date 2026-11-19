@@ -38,9 +38,6 @@
             "name" : "BuiltInSourceModelTests"
           },
           {
-            "name" : "CachePersistenceAdmissionTests"
-          },
-          {
             "name" : "CategoryOrderingTests"
           },
           {
@@ -233,9 +230,6 @@
             "name" : "NativeLoginAttemptTests"
           },
           {
-            "name" : "NativeOCRPreparationPipelineTests"
-          },
-          {
             "name" : "NativeOCRRecognitionRegressionTests"
           },
           {
@@ -261,9 +255,6 @@
           },
           {
             "name" : "NativeSpoilerPlusSourceTests"
-          },
-          {
-            "name" : "NativeTranslationCacheIdentityAuditTests"
           },
           {
             "name" : "NativeTranslationEscapedLanguageCacheTests"
@@ -333,9 +324,6 @@
           },
           {
             "name" : "ReaderPagePrefetchReservationsTests"
-          },
-          {
-            "name" : "ReaderPrefetchDataReuseTests"
           },
           {
             "name" : "ReaderRawImageProcessingTests"
@@ -482,12 +470,6 @@
             "name" : "TranslationCacheAuditTests"
           },
           {
-            "name" : "TranslationCacheScalingTests"
-          },
-          {
-            "name" : "TranslationDiskEvictionFailureTests"
-          },
-          {
             "name" : "TranslationEndpointPolicyTests"
           },
           {
@@ -504,9 +486,6 @@
           },
           {
             "name" : "TranslationPerformanceFileLogTests"
-          },
-          {
-            "name" : "TranslationPromotionSourceTests"
           },
           {
             "name" : "TranslationStreamingTests"

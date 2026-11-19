@@ -14,6 +14,8 @@ struct NativeAdapterBoundarySafetyTests {
         let decoded = try CustomSourceConfig(from: wrapped[2...])
         #expect(decoded.encode() == encoded)
         #expect(try CustomSourceConfig(from: Data([0xff, 2])[1...]).encode() == Data([2]))
+        // Oversized string length must throw rather than read past the buffer.
+        #expect(throws: (any Error).self) { try CustomSourceConfig(from: Data([1] + Array(repeating: UInt8(0xff), count: 9) + [0x01])) }
     }
 
     @Test func malformedSliceCountsReturnOriginalImage() async throws {

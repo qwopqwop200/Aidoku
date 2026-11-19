@@ -129,16 +129,6 @@
 
 "TRANSLATION_TITLE" = "OCR اور ترجمہ";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "محفوظ کردہ API کلید کو تبدیل کریں (اختیاری)";
 
 "TRANSLATION_KEY" = "API کلید";
@@ -155,11 +145,7 @@
 
 "TRANSLATION_TARGET" = "ترجمے کی زبان";
 
-
 "TRANSLATION_AUTO" = "خودکار شناخت";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "ترجمہ کیشے کو صاف کریں";
 
@@ -174,22 +160,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "ماڈل ڈیفالٹ";
 
 "TRANSLATION_CONCURRENCY" = "بیک وقت درخواستیں";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "ترجمہ فراہم کنندہ";
 
@@ -247,8 +217,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS بائی پاس کے ذریعے مربوط نہیں ہو سکا۔";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "ترجمہ ناکام ہو گیا۔ OCR سے پہچانا گیا متن دکھایا جا رہا ہے۔ ترتیبات اور کنکشن کی جانچ کریں۔";
-
 "TRANSLATION_MANGA_TITLES" = "مانگا کے عنوانات کا ترجمہ";
 
 "TRANSLATION_CHAPTER_TITLES" = "باب کے عنوانات کا ترجمہ";
@@ -261,32 +229,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "صفحے کی اصل زبان";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "مانگا کی تفصیل کا ترجمہ";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "مانگا کی تفصیل کی زبانیں";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "اصل زبان کا خود بخود پتہ لگائیں اور صرف منتخب کردہ زبانوں کا ترجمہ کریں۔ «تمام دریافت شدہ زبانیں» پابندی ہٹا دیتا ہے۔ ہر آئٹم کا زبان فلٹر صفحے اور دوسرے آئٹمز کی زبان کی ترتیبات سے آزاد ہے۔";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "منظر کا سیاق فراہم کرنے کے لیے صفحے کی تصویر OCR متن کے ساتھ بھیجتا ہے۔ اگر تصویری ان پٹ کی سہولت دستیاب نہ ہو تو ترجمہ خودکار طور پر صرف متن کے ساتھ جاری رہتا ہے۔ تصاویر منسلک کرنے سے ڈیٹا کا استعمال اور API کی لاگت بڑھ سکتی ہے۔";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "تصویری ان پٹ کی سہولت دستیاب نہیں ہے۔ ترجمہ تصاویر کے بغیر جاری رہے گا۔";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "حسب ضرورت (OpenAI سے مطابقت رکھنے والا)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "کوئی نہیں";
 
@@ -1027,17 +976,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "ترتیب ظاہر کرنے سے قاصر: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "ترجمے کے ساتھ ڈاؤن لوڈ کریں";
-
 
 "TRANSLATION_STATE_ON" = "فعال";
 "TRANSLATION_STATE_OFF" = "غیر فعال";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "ترجمے کی ترتیبات درست نہیں ہیں۔ سرور URL، ماڈل اور دیگر ترتیبات کی جانچ کریں۔";
 
@@ -1087,15 +1029,12 @@
 
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 سے متن کی شناخت ناکام ہو گئی۔ کسی اور تصویر یا OCR ماڈل کے ساتھ دوبارہ کوشش کریں۔";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "ترجمے کی کیش کا حجم معاون حد سے باہر ہے۔";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "ترجمے کی کیش کا اسٹوریج درست نہیں ہے یا دستیاب نہیں ہے۔";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "ترجمے کی کیش محفوظ نہیں ہو سکی۔";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud کی مطابقت پذیری میں تبدیلیاں Aidoku کو مکمل طور پر بند کرکے دوبارہ کھولنے پر نافذ ہوں گی۔ تب تک موجودہ ترتیب فعال رہے گی۔";
-
-// Source-preserving inpainting
 
 // Translation settings section
 

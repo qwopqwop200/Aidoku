@@ -213,16 +213,6 @@
 
 "TRANSLATION_TITLE" = "OCR en vertaling";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "Vervang gestoorde API-sleutel (opsioneel)";
 
 "TRANSLATION_KEY" = "API-sleutel";
@@ -239,11 +229,7 @@
 
 "TRANSLATION_TARGET" = "Vertaal na";
 
-
 "TRANSLATION_AUTO" = "Bespeur outomaties";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "Vee vertaalkas uit";
 
@@ -258,22 +244,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "Modelverstek";
 
 "TRANSLATION_CONCURRENCY" = "Gelyktydige versoeke";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "Vertaalverskaffer";
 
@@ -331,8 +301,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "Kon nie deur HTTPS-omseiling koppel nie.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "Vertaling het misluk. OCR-teks word gewys. Gaan jou instellings en verbinding na.";
-
 "TRANSLATION_MANGA_TITLES" = "Vertaal mangatitels";
 
 "TRANSLATION_CHAPTER_TITLES" = "Vertaal hoofstuktitels";
@@ -345,32 +313,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Brontaal van bladsye";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Vertaal mangabeskrywings";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "Tale van mangabeskrywings";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "Bespeur die brontaal outomaties en vertaal slegs die geselekteerde tale. Alle bespeurde tale verwyder die beperking. Elke item se taalfilter is onafhanklik van die taalinstellings vir bladsye en ander items.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "Stuur die bladsybeeld saam met OCR-teks om konteks vir die toneel te verskaf. As beeldinvoer nie ondersteun word nie, gaan vertaling outomaties met slegs teks voort. Beeldaanhegsels kan datagebruik en API-koste verhoog.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "Beeldinvoer word nie ondersteun nie. Vertaling gaan sonder beelde voort.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "Eie bediener (OpenAI-versoenbaar)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "Geen";
 
@@ -1031,18 +980,11 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "Kan nie instelling wys nie: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "Laai met vertaling af";
-
 
 "TRANSLATION_STATE_ON" = "Aan";
 
 "TRANSLATION_STATE_OFF" = "Af";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "Die vertaalinstellings is ongeldig. Gaan die bediener-URL, model en ander instellings na.";
 
@@ -1092,15 +1034,12 @@
 
 "OCR_ERROR_PREDICTION" = "PP-OCRv6-teksherkenning het misluk. Probeer weer met ’n ander beeld of OCR-model.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "Die grootte van die vertaalkas is buite die ondersteunde omvang.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Die berging vir die vertaalkas is ongeldig of onbeskikbaar.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "Die vertaalkas kon nie gestoor word nie.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Veranderinge aan iCloud-sinkronisering geld nadat jy Aidoku heeltemal sluit en weer oopmaak. Tot dan bly die huidige sinkroniseringsinstelling aktief.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 
@@ -1142,7 +1081,6 @@
 
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ weergawe %d word nie deur hierdie toepassing ondersteun nie. Installeer ’n ondersteunde weergawe.";
-
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 lees Japannese, Chinese (vereenvoudig en tradisioneel), Engelse en ander Latynse-skrif bronteks, maar nie Koreaans, Cirillies of Viëtnamees nie. Outomatiese identifikasie van die brontaal en die keuse van brontale is tot hierdie tale beperk. Jy kan steeds na enige teikentaal vertaal. Wanneer jy Manga kies, word opsporingsdrempels van 0.85 en 0.25 toegepas; die verstekgrootte vir teksopsporing is 1120 px.";
 

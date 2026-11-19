@@ -73,34 +73,6 @@ struct ReaderImageDownloadDemandTests {
         view.releasePageResources()
     }
 
-    @Test(arguments: [false, true])
-    func translationDataNetworkDemandIsForegroundOnly(foreground: Bool) async throws {
-        let cache = try DataCache(name: "reader-demand-" + UUID().uuidString)
-        defer { cache.removeAll() }
-        let pipeline = ImagePipeline {
-            let config = URLSessionConfiguration.ephemeral
-            config.protocolClasses = [DemandImageURLProtocol.self]
-            $0.dataLoader = DataLoader(configuration: config)
-            $0.dataCache = cache
-            $0.dataCachePolicy = .storeOriginalData
-            $0.imageCache = nil
-        }
-        // A long grace proves real data transport does not wait for eligibility.
-        let admission = BulkDownloadAdmission(demandGraceNanoseconds: 30_000_000_000)
-        let loader = ReaderTranslationImageLoader(pipeline: pipeline, downloadAdmission: admission)
-        let url = URL(string: "https://reader-image-demand.invalid/\(UUID())")!
-        let page = Page(sourceId: "demand", chapterId: "c", index: 0, imageURL: url.absoluteString)
-        let load = Task { try await loader.prefetchData(page, priority: foreground ? .high : .veryLow) }
-        defer { load.cancel() }
-        try await wait { DemandImageURLProtocol.started(url) }
-        #expect(await admission.snapshot.readerDemands == (foreground ? 1 : 0))
-        #expect(await admission.snapshot.limit == 5)
-        load.cancel()
-        _ = try? await load.value
-        try await wait { await admission.snapshot.readerDemands == 0 }
-        try await wait { DemandImageURLProtocol.stopped(url) }
-    }
-
     @Test func originalDiskBytesAvoidDemandEvenWithProcessorKey() async throws {
         let cache = try DataCache(name: "reader-original-demand-" + UUID().uuidString)
         defer { cache.removeAll() }

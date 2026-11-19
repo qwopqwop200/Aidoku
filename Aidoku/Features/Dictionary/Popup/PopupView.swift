@@ -286,7 +286,6 @@ struct PopupView: View {
                 },
                 onTextSelected: onTextSelected,
                 onTapOutside: onTapOutside,
-                onSwipeDismiss: onSwipeDismiss,
                 onRedirect: { query in
                     let results = LookupEngine.shared.lookup(
                         query,

@@ -1,81 +1,6 @@
 import CryptoKit
 import Foundation
 
-struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
-    var modelTier: IPhoneOCRModelTier = IPhoneOCRSettings.defaultModelTier
-    var detectorMaximumSide = IPhoneOCRSettings.defaultDetectorMaximumSide
-    var recognizerMaximumWidth = IPhoneOCRSettings.mangaMaximumRecognizerWidth
-    var confidenceThreshold = IPhoneOCRSettings.defaultConfidenceThreshold(for: IPhoneOCRSettings.defaultModelTier)
-    var detectorPixelThreshold: Double
-    var detectorConfidenceThreshold: Double
-    var detectorMinimumBoxSide: Double
-
-    init(
-        modelTier: IPhoneOCRModelTier = IPhoneOCRSettings.defaultModelTier,
-        detectorMaximumSide: Int? = nil,
-        recognizerMaximumWidth: Int? = nil,
-        confidenceThreshold: Double? = nil,
-        detectorPixelThreshold: Double? = nil,
-        detectorConfidenceThreshold: Double? = nil,
-        detectorMinimumBoxSide: Double = 3
-    ) {
-        self.modelTier = modelTier
-        self.detectorMaximumSide = detectorMaximumSide ?? IPhoneOCRSettings.defaultDetectorMaximumSide(for: modelTier)
-        self.recognizerMaximumWidth = recognizerMaximumWidth ?? IPhoneOCRSettings.maximumRecognizerWidth(for: modelTier)
-        self.confidenceThreshold = confidenceThreshold ?? IPhoneOCRSettings.defaultConfidenceThreshold(for: modelTier)
-        self.detectorPixelThreshold = detectorPixelThreshold ?? (modelTier == .manga ? 0.85 : modelTier == .tiny ? 0.2 : 0.3)
-        self.detectorConfidenceThreshold = detectorConfidenceThreshold ?? (modelTier == .manga ? 0.25 : modelTier == .tiny ? 0.4 : 0.6)
-        self.detectorMinimumBoxSide = detectorMinimumBoxSide
-    }
-
-    // Bound saved and in-memory reader settings to the mobile ceilings while
-    // preserving smaller limits. The dynamic models require at least 32 pixels.
-    fileprivate var boundedReaderResolution: Self {
-        var value = self
-        value.detectorMaximumSide = min(max(detectorMaximumSide, IPhoneOCRSettings.minimumInputDimension), IPhoneOCRSettings.maximumDetectorSide)
-        value.recognizerMaximumWidth = min(max(recognizerMaximumWidth, IPhoneOCRSettings.minimumInputDimension),
-            IPhoneOCRSettings.maximumRecognizerWidth(for: modelTier))
-        return value
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case modelTier, detectorMaximumSide, recognizerMaximumWidth, confidenceThreshold
-        case detectorPixelThreshold, detectorConfidenceThreshold, detectorMinimumBoxSide
-    }
-
-    init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        // Older saved OCR settings lack detector thresholds or minimum size. Preserve
-        // every existing preference and use that model's original defaults.
-        self.init(
-            modelTier: try values.decode(IPhoneOCRModelTier.self, forKey: .modelTier),
-            detectorMaximumSide: try values.decode(Int.self, forKey: .detectorMaximumSide),
-            recognizerMaximumWidth: try values.decode(Int.self, forKey: .recognizerMaximumWidth),
-            confidenceThreshold: try values.decode(Double.self, forKey: .confidenceThreshold),
-            detectorPixelThreshold: try values.decodeIfPresent(Double.self, forKey: .detectorPixelThreshold),
-            detectorConfidenceThreshold: try values.decodeIfPresent(Double.self, forKey: .detectorConfidenceThreshold),
-            detectorMinimumBoxSide: try values.decodeIfPresent(Double.self, forKey: .detectorMinimumBoxSide) ?? 3
-        )
-    }
-
-    @available(iOS 18.0, *)
-    var detectorPostprocessConfiguration: NativeCoreMLDBPostprocessConfiguration {
-        let base = NativeCoreMLOCRModelProfile.profile(for: modelTier).postprocessConfiguration
-        // Autosaved drafts can bypass validate(); never feed invalid values
-        // into the detector's preconditions.
-        let boxThreshold = detectorConfidenceThreshold.isFinite ? min(max(detectorConfidenceThreshold, 0), 1) : base.boxThreshold
-        return NativeCoreMLDBPostprocessConfiguration(
-            threshold: detectorPixelThreshold.isFinite ? min(max(detectorPixelThreshold, 0), 1) : base.threshold,
-            boxThreshold: boxThreshold,
-            unclipRatio: base.unclipRatio,
-            maximumCandidates: base.maximumCandidates,
-            minimumBoxSide: detectorMinimumBoxSide.isFinite ? min(max(detectorMinimumBoxSide, 0), 20) : base.minimumBoxSide,
-            // Keep the model's recovery margin below a user-adjusted box threshold.
-            recoveryBoxThreshold: base.recoveryBoxThreshold.map { max(0, boxThreshold - (base.boxThreshold - $0)) }
-        )
-    }
-}
-
 struct ReaderCustomTranslationSettings: Equatable, Codable, Sendable {
     var baseURL = ""
     var model = ""
@@ -97,9 +22,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     // Page translation always uses image-backed role classification. Metadata
     // translation explicitly overrides these internal values in TitleTranslation.
     var includePageImage = true
-    var shouldAttachPageImage: Bool {
-        includePageImage
-    }
     var filterBackgroundWithLLM = true
     var filterSFXWithLLM = true
     var translateMangaTitles = false
@@ -168,31 +90,16 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         get { readingDirection == .rightToLeft }
         set { readingDirection = newValue ? .rightToLeft : .leftToRight }
     }
-    var modelTier: IPhoneOCRModelTier {
-        get { ocr.modelTier }
-        set {
-            guard ocr.modelTier != newValue else { return }
-            // Manga uses a fine-tuned detector with different probability calibration.
-            // Apply its preset on selection, and restore the selected tier's preset on exit.
-            if newValue == .manga || ocr.modelTier == .manga {
-                let previous = ReaderOCRConfiguration(modelTier: ocr.modelTier)
-                let next = ReaderOCRConfiguration(modelTier: newValue)
-                ocr.detectorPixelThreshold = next.detectorPixelThreshold
-                ocr.detectorConfidenceThreshold = next.detectorConfidenceThreshold
-                if ocr.detectorMaximumSide == previous.detectorMaximumSide {
-                    ocr.detectorMaximumSide = next.detectorMaximumSide
-                }
-            }
-            ocr.modelTier = newValue
-            normalizeOCRSourceLanguages()
-        }
+    /// The page pipeline has one fixed manga detector/recognizer; changing the
+    /// tier only re-applies its source-language contract.
+    var modelTier = IPhoneOCRSettings.defaultModelTier {
+        didSet { if modelTier != oldValue { normalizeOCRSourceLanguages() } }
     }
     static let defaultOverlay = IPhoneOverlaySettings(
         visible: true, mode: .translateOnly, colorMode: .white, opacity: 0.84,
         textPlacement: .replace, subtitlePosition: .bottom, subtitleMaxLines: 2, subtitleContextSentences: 0
     )
     var overlay = Self.defaultOverlay
-    var ocr = ReaderOCRConfiguration()
     var maximumConcurrentRequests = 16
     // Internal context for metadata translation; never loaded from user preferences.
     var metadataInstructions = ""
@@ -276,16 +183,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         )
     }
 
-    var ocrConfiguration: ReaderOCRConfiguration {
-        ocr.boundedReaderResolution
-    }
-
-    func hasSameTranslation(as other: Self) -> Bool {
-        includePageImage == other.includePageImage && readingDirection == other.readingDirection && configuration == other.configuration && ocrConfiguration == other.ocrConfiguration &&
-            sourceLanguage == other.sourceLanguage && targetLanguage == other.targetLanguage &&
-            ReaderTranslationLanguageFilter.identity(settings: self) == ReaderTranslationLanguageFilter.identity(settings: other)
-    }
-
     static func setAutomaticTranslation(_ enabled: Bool, defaults: UserDefaults = .standard) {
         defaults.set(enabled, forKey: keyPrefix + "automatic")
         NotificationCenter.default.post(name: changed, object: nil)
@@ -293,10 +190,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
 
     func validate() throws {
         guard overlay.opacity.isFinite, (0.2...1).contains(overlay.opacity),
-              ocr.confidenceThreshold.isFinite, (0...1).contains(ocr.confidenceThreshold),
-              ocr.detectorPixelThreshold.isFinite, (0...1).contains(ocr.detectorPixelThreshold),
-              ocr.detectorConfidenceThreshold.isFinite, (0...1).contains(ocr.detectorConfidenceThreshold),
-              ocr.detectorMinimumBoxSide.isFinite, (0...20).contains(ocr.detectorMinimumBoxSide),
               (1...64).contains(maximumConcurrentRequests), (maximumPretranslatedPages ?? 0) >= 0,
               ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }

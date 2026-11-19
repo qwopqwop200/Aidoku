@@ -585,7 +585,7 @@ extension DownloadManager {
             let downloadDate = attributes?[.creationDate] as? Date
 
             // Try to load metadata from the chapter directory
-            let metadata = getComicInfo(in: chapterDirectory)
+            let metadata = DownloadedChapterFile.comicInfo(in: chapterDirectory)
 
             let chapterInfo = DownloadedChapterInfo(
                 chapterId: chapterId,
@@ -622,11 +622,6 @@ extension DownloadManager {
             LogManager.logger.error("Failed to save chapter metadata: \(error)")
             throw error
         }
-    }
-
-    /// Load chapter metadata from chapter directory.
-    private func getComicInfo(in directory: URL) -> ComicInfo? {
-        DownloadedChapterFile.comicInfo(in: directory)
     }
 
     /// Read each chapter's metadata, including compressed and failed downloads.

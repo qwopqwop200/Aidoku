@@ -212,8 +212,8 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
             [block.get('translation') for block in translated['blocks']]
         assert (replay_output / 'pages/page.png').exists()
 
-        # `--pipeline v2` is a no-op alias; settings precedence is CLI > shell.
-        settings = json.loads(run(['--pipeline', 'v2', *provider, '--model', 'cli-model', '--print-settings', first],
+        # Settings precedence is CLI > shell.
+        settings = json.loads(run([*provider, '--model', 'cli-model', '--print-settings', first],
                                   extra={'AIDOKU_TRANSLATION_MODEL': 'shell-model'}).stdout)
         assert settings['provider']['model'] == 'cli-model' and settings['mode'] == 'live', settings
     finally:
@@ -235,6 +235,5 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     run(['--ocr-only', '--source', 'en', first], expected=2)
     run(['--ocr-only', '--replay-translations', live_output, first], expected=2)
     run(['--ocr-only', directory / 'missing.png'], expected=2)
-    run(['--pipeline', 'legacy', first], expected=2)
 print('PASS: V2 OCR-only blocks, live provider request shape (image, roles, ids), overlap and input ordering, '
       'V2-run replay without provider calls, output files, failures and credential exclusion')

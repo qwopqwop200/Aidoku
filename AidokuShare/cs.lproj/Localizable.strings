@@ -1,6 +1,5 @@
 "IMPORT" = "Importování…";
 "DONE" = "Hotovo";
-"FILE_IMPORT_FAIL_TEXT" = "Import souboru se nezdařil. Ujistěte se, že jde o čitelný soubor obrázku nebo platný archiv CBZ či ZIP obsahující obrázky.";
 "FORMAT_IMAGE" = "Obrázek";
 "SHARED_IMAGES_SAVED" = "Uloženo. Otevřete Aidoku a začněte číst.";
 

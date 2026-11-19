@@ -27,16 +27,6 @@ enum NativeDictionaryTable {
         let cells: [Cell]
         let rows: Int
         let columns: Int
-        var plainText: NSAttributedString {
-            let result = NSMutableAttributedString(string: "")
-            for row in 0..<rows {
-                for cell in cells.filter({ $0.row == row }).sorted(by: { $0.column < $1.column }) {
-                    result.append(cell.content); result.append(NSAttributedString(string: "\t"))
-                }
-                result.append(NSAttributedString(string: "\n"))
-            }
-            return result
-        }
     }
     static func model(_ table: Element, stylesheet: NativeDictionaryCSS, font: UIFont,
                       contentBlocks: ((Element, Bool) -> [NativeDictionaryGlossaryBlock])? = nil,

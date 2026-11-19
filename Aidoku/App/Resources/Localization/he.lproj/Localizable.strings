@@ -304,16 +304,6 @@
 
 "TRANSLATION_TITLE" = "OCR ותרגום";
 
-
-
-
-
-
-
-
-
-
-
 "TRANSLATION_KEY_REPLACE" = "החלף מפתח API שמור (אופציונלי)";
 
 "TRANSLATION_KEY" = "מפתח API";
@@ -330,11 +320,7 @@
 
 "TRANSLATION_TARGET" = "תרגום אל";
 
-
 "TRANSLATION_AUTO" = "זיהוי אוטומטי";
-
-
-
 
 "TRANSLATION_CLEAR_CACHE" = "נקה מטמון תרגום";
 
@@ -349,22 +335,6 @@
 "TRANSLATION_MODEL_DEFAULT" = "ברירת המחדל של המודל";
 
 "TRANSLATION_CONCURRENCY" = "בקשות במקביל";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "TRANSLATION_PROVIDER" = "ספק תרגום";
 
@@ -422,8 +392,6 @@
 
 "HTTPS_BYPASS_TEST_FAILED" = "לא ניתן להתחבר דרך מעקף HTTPS.";
 
-"TRANSLATION_CONNECTION_FAILED_NOTICE" = "התרגום נכשל. מוצג הטקסט שזוהה באמצעות OCR. יש לבדוק את ההגדרות ואת החיבור.";
-
 "TRANSLATION_MANGA_TITLES" = "תרגום כותרות מנגה";
 
 "TRANSLATION_CHAPTER_TITLES" = "תרגום כותרות פרקים";
@@ -436,32 +404,13 @@
 
 "TRANSLATION_PAGE_SOURCE" = "שפת מקור העמוד";
 
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "תרגום תיאורי מנגה";
 
 "TRANSLATION_DESCRIPTION_FILTER" = "שפות תיאור מנגה";
 
 "TRANSLATION_METADATA_FILTER_HELP" = "מזהה אוטומטית את שפת המקור ומתרגם רק טקסט בשפות שנבחרו. האפשרות כל השפות שזוהו מבטלת את ההגבלה. מסנן השפה של כל פריט אינו תלוי בהגדרות השפה של העמודים ושל פריטים אחרים.";
 
-
-
-
-
-
-"TRANSLATION_INCLUDE_IMAGE_HELP" = "שליחת תמונת העמוד עם טקסט OCR מספקת את הקשר הסצנה. אם קלט תמונה אינו נתמך, התרגום ממשיך אוטומטית עם טקסט בלבד. צירוף תמונות עשוי להגדיל את צריכת הנתונים ואת עלות ה-API.";
-"TRANSLATION_IMAGE_UNSUPPORTED" = "קלט תמונה אינו נתמך. התרגום ממשיך ללא תמונות.";
-
-
-
-
-
-
-
-
 "TRANSLATION_CUSTOM_PROVIDER" = "מותאם אישית (תואם OpenAI)";
-
-
-
 
 "TRANSLATION_REASONING_NONE" = "ללא";
 
@@ -1031,17 +980,10 @@
 
 "SETTING_MISSING_CONTENT_HANDLER" = "לא ניתן להציג את ההגדרה: %@";
 
-
 "DOWNLOAD_TRANSLATED" = "הורדה עם תרגום";
-
 
 "TRANSLATION_STATE_ON" = "פעיל";
 "TRANSLATION_STATE_OFF" = "כבוי";
-
-
-
-
-
 
 "TRANSLATION_ERROR_CONFIGURATION" = "הגדרות התרגום אינן תקינות. יש לבדוק את כתובת השרת, המודל ושאר ההגדרות.";
 
@@ -1091,15 +1033,12 @@
 
 "OCR_ERROR_PREDICTION" = "זיהוי הטקסט של PP-OCRv6 נכשל. יש לנסות שוב עם תמונה או מודל OCR אחרים.";
 
-"TRANSLATION_ERROR_CACHE_SIZE" = "גודל מטמון התרגום מחוץ לטווח הנתמך.";
 
 "TRANSLATION_ERROR_CACHE_STORAGE" = "אחסון מטמון התרגום אינו תקין או אינו זמין.";
 
 "TRANSLATION_ERROR_CACHE_SAVE" = "לא ניתן לשמור את מטמון התרגום.";
 
 "ICLOUD_SYNC_RESTART_REQUIRED" = "שינויים בסנכרון iCloud ייכנסו לתוקף לאחר סגירה מלאה ופתיחה מחדש של Aidoku. עד אז, הגדרת הסנכרון הנוכחית תישאר פעילה.";
-
-// Source-preserving inpainting
 
 // Translation settings section
 

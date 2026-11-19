@@ -229,7 +229,7 @@ struct LibraryFollowupWorkTests {
         let gate = UpdatesTurnGate()
         probe.gate = gate
         let pending = Task { await manager.notifyNewChapters(summaries) }
-        try await waitUntil { gate.started }
+        try await RegressionTestWait.until { gate.started }
         probe.background = false
         gate.release()
         await pending.value
@@ -250,7 +250,7 @@ struct LibraryFollowupWorkTests {
             submit: { _ in }
         ))
         let first = Task { await manager.requestAuthorization() }
-        try await waitUntil { gate.started }
+        try await RegressionTestWait.until { gate.started }
         let joined = await manager.joinPermissionRequest(releasing: gate)
         #expect(await first.value)
         #expect(joined)
@@ -266,7 +266,7 @@ struct LibraryFollowupWorkTests {
             await gate.wait()
             return true
         })
-        try await waitUntil { gate.started }
+        try await RegressionTestWait.until { gate.started }
         #expect(delivery.start { false } == nil)
         let other = LibraryBackgroundRefresh { completions.record($0) }
         let independent = try #require(other.start { true })
@@ -318,13 +318,13 @@ struct LibraryFollowupWorkTests {
                 entries = [snapshot]
             }
         }
-        try await waitUntil { gate.started }
+        try await RegressionTestWait.until { gate.started }
         var entered = false
         let notification = Task {
             entered = true
             await owner.markViewed([snapshot.items[0].updates[0].id], in: binding)
         }
-        try await waitUntil { entered }
+        try await RegressionTestWait.until { entered }
         #expect(entries.isEmpty)
         gate.release()
         await page.value
@@ -347,7 +347,7 @@ struct LibraryFollowupWorkTests {
                 active -= 1
             }
         }
-        try await waitUntil { gate.started }
+        try await RegressionTestWait.until { gate.started }
         var entered = 0
         let failedDelete = Task {
             entered += 1
@@ -359,7 +359,7 @@ struct LibraryFollowupWorkTests {
                 active -= 1
             }
         }
-        try await waitUntil { entered == 1 }
+        try await RegressionTestWait.until { entered == 1 }
         let nextPage = Task {
             entered += 1
             await owner.run {
@@ -368,7 +368,7 @@ struct LibraryFollowupWorkTests {
                 active -= 1
             }
         }
-        try await waitUntil { entered == 2 }
+        try await RegressionTestWait.until { entered == 2 }
         #expect(order == ["page-start"])
         gate.release()
         await page.value
@@ -377,15 +377,6 @@ struct LibraryFollowupWorkTests {
         #expect(order == ["page-start", "page-end", "delete-failed", "recovery-end", "next-page"])
         #expect(maximumActive == 1)
     }
-
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<2_000 {
-            if condition() { return }
-            try await Task.sleep(nanoseconds: 1_000_000)
-        }
-        throw FixtureTimeout()
-    }
-    private struct FixtureTimeout: Error {}
 }
 
 @MainActor
