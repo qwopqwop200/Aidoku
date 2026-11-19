@@ -1,4 +1,4 @@
-"IMPORT" = "Nhập";
+"IMPORT" = "Đang nhập…";
 "DONE" = "Xong";
 "FILE_IMPORT_FAIL_TEXT" = "Không thể nhập tệp. Vui lòng đảm bảo đó là tệp hình ảnh có thể đọc được hoặc tệp CBZ hay ZIP hợp lệ có chứa hình ảnh.";
 "FORMAT_IMAGE" = "Ảnh";

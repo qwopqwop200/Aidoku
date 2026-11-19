@@ -57,7 +57,7 @@
 "BUILD" = "Byggversion";
 "VIEW_MORE" = "Visa mer";
 "STATUS_CANCELLED" = "Avbruten";
-"CACHE_SIZE_%@" = "Storlek för cacheminne: %@";
+"CACHE_SIZE_%@" = "Cachestorlek: %@";
 "TRACK_DROPPED" = "Avbruten";
 "BACKUP_INFO" = "Långtryck på säkerhetskopia för att exportera den, eller svep till vänster för att radera.";
 
@@ -71,17 +71,17 @@
 "ALWAYS_ASK" = "Fråga alltid";
 "UNREAD_CHAPTER_BADGES" = "Märken för olästa kapitel";
 "EXCLUDED_CATEGORIES" = "Exkluderade kategorier";
-"SUPPORT_VIA_KOFI" = "Stöd via Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Stöd via Ko-fi";
 "BOTH" = "Båda";
 "SELECT" = "Välj";
 "CONTINUE_READING" = "Fortsätt läsa";
 "APPEARANCE" = "Utseende";
-"%@_AGO" = "%@ sen";
+"%@_AGO" = "för %@ sedan";
 "SHARE" = "Dela";
 "INCOGNITO_MODE" = "Inkognitoläge";
 "IS_TRACKING" = "Spåras";
 "SORT_LAST_UPDATED" = "Senast uppdaterad";
-"RESTORE_BACKUP" = "Återställ till denna säkerhetskopia?";
+"RESTORE_BACKUP" = "Vill du återställa till denna säkerhetskopia?";
 "FAILED_CHAPTER_LOAD" = "Kunde ej ladda kapitlet";
 "REORDER" = "Ordna om";
 "FINISHED" = "Slutdatum";
@@ -244,7 +244,7 @@
 "CROP_BORDERS" = "Beskär kanter";
 "SKIP_TITLES" = "Hoppa över titlar";
 "RESTORE" = "Återställ";
-"FINISHED_COLON" = "Avslutade:";
+"FINISHED_COLON" = "Avslutat:";
 "SCORE" = "Betyg";
 "WEEKLY" = "Veckovis";
 "IMPORT_FAIL" = "Importering misslyckades";
@@ -253,7 +253,7 @@
 "TYPE_COLON_%@" = "Typ: %@";
 "ABOUT" = "Om";
 "BROWSE_NO_SOURCES" = "Inga källor";
-"SOURCE_LIST_URL" = "Källista-URL";
+"SOURCE_LIST_URL" = "Källistans URL";
 "ICLOUD_SYNC" = "iCloud-synkronisering";
 "RTL" = "Höger till vänster";
 "NO_CHAPTERS" = "Inga kapitel";
@@ -288,7 +288,7 @@
 "REMOVE" = "Ta bort";
 "DEFAULT" = "Förvald";
 "STATUS_COLON_%@" = "Status: %@";
-"SOURCE_LIST_ADDED_TEXT" = "Du kan nu bläddra bland externa källor i upptäck-fliken.";
+"SOURCE_LIST_ADDED_TEXT" = "Du kan nu bläddra bland externa källor på fliken Upptäck.";
 "BUTTON_ERROR" = "FEL";
 "STOP_TRACKING" = "Avsluta spårning";
 "RELOAD" = "Ladda om";
@@ -317,7 +317,7 @@
 "COPY" = "Kopiera";
 "WARNING" = "Varning";
 "NO_WIFI_ALERT_TITLE" = "Inget Wi-Fi";
-"PAUSE" = "Paus";
+"PAUSE" = "Pausa";
 "RESUME" = "Återuppta";
 "DONE" = "Klar";
 "INVALID" = "Ogiltig";
@@ -399,7 +399,7 @@
 "SERVER_ERROR" = "Serverfel";
 "SERVER_ERROR_CONNECTION" = "Kan inte ansluta till angiven server. Se till att servern körs och att dess URL är korrekt.";
 "SERVER_ERROR_AUTHENTICATION" = "Kan ej logga in. Se till att uppgifterna är korrekta.";
-"KOMGA_SETUP" = "Komga-inställningar";
+"KOMGA_SETUP" = "Konfigurera Komga";
 "OTHER_SETTINGS" = "Andra inställningar";
 "USE_CHAPTERS" = "Använd kapitel";
 "USE_CHAPTERS_TEXT" = "Behandla böcker som kapitel istället för volymer";
@@ -487,12 +487,12 @@
 "PAUSED" = "Pausad";
 "CANCEL_ALL_DOWNLOADS" = "Avbryt alla nedladdningar";
 "DOWNLOADS" = "Nedladdningar";
-"NO_DOWNLOADS" = "Inga nedladdningar finns";
+"NO_DOWNLOADS" = "Inga nedladdningar";
 "NO_DOWNLOADS_TEXT" = "Nedladdat innehåll visas här.";
 "DOWNLOADED_CHAPTERS" = "Nedladdade kapitel";
 "TOTAL_DOWNLOADS" = "Lagringsutrymme för nedladdningar";
 "%i_SERIES" = "%i serier";
-"IN_LIBRARY" = "Finns i bibliotek";
+"IN_LIBRARY" = "I biblioteket";
 "VIEW_SERIES" = "Gå till serie";
 "VIEW_FILES" = "Gå till filer";
 "COMPRESS_DOWNLOADS" = "Komprimera nedladdningar";
@@ -583,7 +583,7 @@
 "SERIES_SINGULAR" = "Serie";
 "HOUR_PLURAL" = "Timmar";
 "HOUR_SINGULAR" = "Timme";
-"ALL_TIME" = "Någonsin";
+"ALL_TIME" = "Totalt";
 "THIS_MONTH" = "Denna månad";
 "THIS_YEAR" = "Detta år";
 "DISABLE_QUICK_ACTIONS" = "Inaktivera snabbåtgärder";
@@ -735,7 +735,7 @@
 
 "TRANSLATION_WORKING" = "Känner igen och översätter…";
 
-"TRANSLATION_OCR_WORKING" = "Känner igen text på enheten...";
+"TRANSLATION_OCR_WORKING" = "Känner igen text på enheten…";
 
 "TRANSLATION_HELP" = "Översättningsikonen aktiverar eller inaktiverar översättning. Synliga sidor förbereds först, sedan närliggande sidor. Förberedelserna följer din läsposition. Sparade OCR-resultat, översättningar och textlayout kan återanvändas när du öppnar läsaren igen eller startar om appen. Delade bilder som öppnas tillfälligt sparar inte denna cache. När du lämnar läsaren avbryts oavslutat arbete.";
 
@@ -794,7 +794,7 @@
 
 "TRANSLATION_WHITE" = "Vit";
 
-"TRANSLATION_DARK" = "Mörkt";
+"TRANSLATION_DARK" = "Mörk";
 
 "TRANSLATION_OPACITY" = "Bakgrundens opacitet";
 
@@ -830,7 +830,7 @@
 
 "TRANSLATION_TEST" = "Testa API-anslutning";
 
-"TRANSLATION_TEST_RUNNING" = "Testar anslutningen...";
+"TRANSLATION_TEST_RUNNING" = "Testar anslutningen…";
 
 "TRANSLATION_TEST_SUCCESS" = "Anslutningen lyckades";
 
@@ -958,7 +958,7 @@
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "Server för mangaläsning";
 "SUWAYOMI_INFO" = "Suwayomi är en självhostad server för mangaläsning som kör tillägg byggda för Mihon (Tachiyomi). Du behöver konfigurera och köra en Suwayomi-server för att kunna använda denna källa.";
-"SUWAYOMI_SETUP" = "Suwayomi-inställning";
+"SUWAYOMI_SETUP" = "Konfigurera Suwayomi";
 "STATUS_LICENSED" = "Licensierad";
 "STATUS_PUBLISHING_FINISHED" = "Publicering avslutad";
 "AUTHOR_NAME" = "Författarens namn";
@@ -1004,7 +1004,7 @@
 "FREQUENCY_DICTIONARIES" = "Ordfrekvensordböcker";
 "PITCH_DICTIONARIES" = "Tonaccentordböcker";
 "KANJI_DICTIONARIES" = "Kanji-ordböcker";
-"IMPORTING_DICTIONARY" = "Importerar ordbok...";
+"IMPORTING_DICTIONARY" = "Importerar ordbok…";
 "IMPORT_ERROR" = "Importfel";
 "REVISION" = "Revision";
 "URL" = "URL";
@@ -1038,13 +1038,13 @@
 "GET_RECOMMENDED_DICTIONARIES" = "Få rekommenderade ordböcker";
 "RECOMMENDED_DICTIONARIES" = "Rekommenderade ordböcker";
 "RECOMMENDED_DICTIONARIES_NOTE" = "Ordböckerna nedan är alla japanska-engelska. För andra språk kan du kontrollera listan med Wiktionary-ordböcker.";
-"RESTORE_MISSING_SOURCES" = "Återställa saknade källor?";
+"RESTORE_MISSING_SOURCES" = "Vill du återställa saknade källor?";
 "RESTORE_MISSING_SOURCES_TEXT" = "Vill du söka efter och installera saknade källor?";
 "INSTALL_SOURCES" = "Installera källor";
-"INSTALLING_SOURCES" = "Installerar källor...";
+"INSTALLING_SOURCES" = "Installerar källor…";
 "MIGRATE_WITH_HISTORY" = "Migrera och behåll historik";
 "AUTO_SCROLL" = "Automatisk rullning";
-"AUTO_SCROLL_SPEED" = "Automatisk rullningshastighet";
+"AUTO_SCROLL_SPEED" = "Hastighet för automatisk rullning";
 "AUTO_SCROLL_POSITION" = "Placering av knappen för automatisk rullning";
 "POSITION_LEFT" = "Vänster";
 "POSITION_RIGHT" = "Höger";

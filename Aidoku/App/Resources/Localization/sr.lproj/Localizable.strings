@@ -6,7 +6,7 @@
 // Reader
 "CHAPTER" = "Поглавље";
 "NO_CHAPTERS" = "Нема поглавља";
-"VOL_SPACE_X" = "Том. %g";
+"VOL_SPACE_X" = "Том %g";
 "CH_SPACE_X" = "Погл. %g";
 "MARK_READ" = "Означи као прочитано";
 "MARK_UNREAD" = "Означи као непрочитано";
@@ -85,7 +85,7 @@
 "SINGLE_PAGE" = "Једна страница";
 "PAGED" = "Читање по страницама";
 "DOUBLE_PAGE" = "Двострука страница";
-"MULTI_LANGUAGE" = "Вишејезични";
+"MULTI_LANGUAGE" = "Вишејезично";
 "STATUS" = "Статус";
 "VOLUMES" = "Томови";
 "STARTED" = "Датум почетка";
@@ -107,7 +107,7 @@
 "CLEAR_TRACKED_MANGA_TEXT" = "Ова радња је неповратна. Све везе између манги и сервиса за праћење биће уклоњене.";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "Да ли сте сигурни да желите да уклоните сва преузимања?";
 "CACHE_SIZE_%@" = "Величина кеша: %@";
-"SUPPORT_VIA_KOFI" = "Подршка преко Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Подршка преко Ko-fi";
 "SORT_UNREAD_CHAPTERS" = "Непрочитана поглавља";
 "RELOAD" = "Поново учитај";
 "%i_OF_%i" = "%i од %i";
@@ -128,7 +128,7 @@
 "MIGRATE_SOURCES" = "Мигрирај изворе";
 "OPTIONS" = "Опције";
 "DESTINATION" = "Одредиште";
-"SELECTED" = "Изабрано";
+"SELECTED" = "Изабрани";
 "NOT_FOUND" = "Није пронађено";
 "MOST_CHAPTERS_SLOWER" = "Највише поглавља (спорије)";
 "MIGRATE_ONE_ITEM?" = "Мигрирати 1 ставку?";
@@ -257,7 +257,7 @@
 "CHAPTERS" = "Поглавља";
 "VOLUME_X" = "Том %g";
 "CHAPTER_X" = "Поглавље %g";
-"VOL_X" = "Том.%g";
+"VOL_X" = "Том %g";
 "NO_CHAPTERS_AVAILABLE" = "Нема доступних поглавља";
 "CONTINUE_READING" = "Настави са читањем";
 "READ" = "Прочитано";
@@ -323,7 +323,7 @@
 "RENAME_CATEGORY_FAIL" = "Неуспело преименовање категорије";
 "SYNC_LOCAL_HISTORY" = "Синхронизуј локалну историју";
 "MIGRATE" = "Мигрирај";
-"AVAILABLE" = "Доступно";
+"AVAILABLE" = "Доступни";
 "FIRST_ALTERNATIVE" = "Прва алтернатива";
 "MIGRATE_%i_ITEMS?" = "Мигрирати изабране ставке (број: %i)?";
 "IS_TRACKING" = "Праћење";
@@ -455,7 +455,7 @@
 
 "TRANSLATION_TEST_SUCCESS" = "Повезивање је успело";
 
-"TRANSLATION_TEST_FAILURE" = "Веза није успела";
+"TRANSLATION_TEST_FAILURE" = "Повезивање није успело";
 
 "TRANSLATION_TEST_HELP" = "Преводи кратку реченицу користећи вредности из овог обрасца. Оставите поље кључа празно да бисте користили сачувани кључ овог сервера. Промене се аутоматски чувају.";
 
@@ -546,7 +546,7 @@
 
 "TRANSLATION_OCR_TINY" = "Веома мали";
 
-"TRANSLATION_REASONING_NONE" = "Без";
+"TRANSLATION_REASONING_NONE" = "Без размишљања";
 
 "TRANSLATION_REASONING_MINIMAL" = "Минимално";
 
@@ -626,7 +626,7 @@
 "CATEGORY" = "Категорија";
 "UNCATEGORIZED" = "Некатегорисано";
 "FILTER_GROUPS" = "Групе филтера";
-"CREATE_FILTER_GROUP" = "Креирајте групу филтера";
+"CREATE_FILTER_GROUP" = "Креирај групу филтера";
 "EDIT_FILTER_GROUP" = "Уреди групу филтера";
 "CLEAR_FILTERS" = "Обриши филтере";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Прикажи некатегорисану категорију";
@@ -699,7 +699,7 @@
 "SERIES" = "Серија";
 "NEW_SERIES" = "Нова серија";
 "NEW_SERIES_TEXT" = "Направите нову серију за ову датотеку";
-"SELECT_SERIES" = "Изаберите серију";
+"SELECT_SERIES" = "Избор серије";
 "VOLUME_CHAPTER_INVALID_ERROR" = "Поглавље са овом конфигурацијом већ постоји.";
 "VOLUME_CHAPTER_EMPTY_ERROR" = "Потребан је број тома и/или поглавља.";
 "SERIES_TITLE_UNIQUE_ERROR" = "Серија са овим насловом већ постоји.";
@@ -737,7 +737,7 @@
 "%@_BOOKS" = "Књиге: %@";
 "1_BOOK" = "1 књига";
 "ON_DECK" = "Следеће за читање";
-"KEEP_READING" = "Наставите да читате";
+"KEEP_READING" = "Наставак читања";
 "RECENTLY_ADDED_BOOKS" = "Недавно додане књиге";
 "RECENTLY_ADDED_SERIES" = "Недавно додане серије";
 "RECENTLY_UPDATED_SERIES" = "Недавно ажуриране серије";
@@ -772,7 +772,7 @@
 "SORT_CHAPTER_ADDED" = "Датум додавања поглавља";
 "SORT_TIME_TO_READ" = "Процењено време читања";
 "SORT_AVERAGE_RATING" = "Просечна оцена";
-"STATUS_ENDED" = "Завршено";
+"STATUS_ENDED" = "Окончано";
 "FORMAT" = "Формат";
 "FORMAT_IMAGE" = "Слика";
 "FORMAT_EPUB" = "EPUB";
@@ -805,7 +805,7 @@
 "RECENTLY_SEARCHED" = "Недавне претраге";
 "NO_RECENT_SEARCHES" = "Нема недавних претрага";
 "NO_RECENT_SEARCHES_TEXT" = "Ваше недавне претраге ће се појавити овде.";
-"SOURCES" = "Извори садржаја";
+"SOURCES" = "Извори";
 "LOGIN" = "Пријави се";
 "LOGOUT_CONFIRM" = "Да ли сте сигурни да желите да се одјавите?";
 "USERNAME" = "Корисничко име";
@@ -831,7 +831,7 @@
 "CONTINUE_READING_ON_RESELECT" = "Поново додирни картицу Историја за наставак читања";
 "DOWNLOADED_CHAPTER_BADGES" = "Ознаке преузетих поглавља";
 "PIN_TITLES" = "Закачи наслове";
-"PIN_DISABLED" = "Качење је онемогућено";
+"PIN_DISABLED" = "Онемогућено";
 "PIN_UPDATED_CHAPTERS" = "Ажурирана поглавља";
 "BACKGROUND_REFRESH" = "Освежавање у позадини";
 "BACKGROUND_REFRESH_TEXT" = "Када ручно покрећете освежавање библиотеке, дозволите да се освежавање заврши чак и ако је апликација у позадини.";
@@ -885,7 +885,7 @@
 "ANIMATE_PAGE_TRANSITIONS" = "Анимирај прелазе страница";
 "TEXT_READER" = "Читач текста";
 "TEXT_READER_STYLE" = "Стил читача";
-"TEXT_READER_PAGED" = "Пагинирано читање";
+"TEXT_READER_PAGED" = "По страницама";
 "TEXT_READER_SCROLL" = "Померање";
 "TEXT_FONT_FAMILY" = "Фонт";
 "TEXT_FONT_SIZE" = "Величина фонта";
@@ -1033,7 +1033,7 @@
 "%@_TRACKER_LOGIN_NEEDED" = "Потребна је пријава на %@";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Ваш токен за %@ је истекао. Повезани сервис за праћење неће радити док се у подешавањима поново не пријавите на њега.";
 "READER_ORIENTATION" = "Оријентација";
-"FOLLOW_DEVICE" = "Прати оријентацију уређаја";
+"FOLLOW_DEVICE" = "Као уређај";
 "FOCUS_ITEM_LEFT" = "Фокусирај ставку лево";
 "FOCUS_ITEM_RIGHT" = "Фокусирај ставку десно";
 "FOCUS_ITEM_ABOVE" = "Фокусирај ставку изнад";
@@ -1102,10 +1102,10 @@
 "TRANSLATION_ERROR_HTTP_REQUEST" = "Сервер за превод је вратио HTTP %d (ID захтева: %@).";
 "TRANSLATION_ERROR_NETWORK_CODE" = "Захтев за превод није успео (грешка %d).";
 "TRANSLATION_ERROR_CONNECTION" = "Није могуће повезати се са API-јем за превод. Проверите мрежну везу, крајњу тачку API-ја и стање сервера, па покушајте поново.";
-"TRANSLATION_ERROR_REFUSED" = "Добављач услуге превода је одбио захтев.";
+"TRANSLATION_ERROR_REFUSED" = "Провајдер превода је одбио захтев.";
 "TRANSLATION_ERROR_KEY_ACCOUNT" = "Идентификатор који се користи за чување API кључа није исправан.";
 "TRANSLATION_ERROR_KEY_INVALID" = "API кључ је празан, предугачак или садржи неподржане знакове.";
-"TRANSLATION_ERROR_KEY_MISSING" = "За овог добављача услуге није сачуван API кључ.";
+"TRANSLATION_ERROR_KEY_MISSING" = "За овог провајдера није сачуван API кључ.";
 "TRANSLATION_ERROR_KEY_ENCODING" = "Сачувани API кључ није могуће декодирати.";
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Операција са Keychain-ом није успела уз статусни код %d.";
 "OCR_ERROR_MODEL_MISSING" = "Недостаје потребан модел PP-OCRv6.";
@@ -1122,7 +1122,7 @@
 
 // Source-preserving inpainting
 "TRANSLATION_SOURCE_COLORS" = "Задржи изворне боје";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Задржи боје текста и позадине заједно.";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Задржава изворне боје текста и позадине заједно.";
 "TRANSLATION_INPAINTING" = "Обнова позадине";
 "TRANSLATION_INPAINTING_HELP" = "Брише изворни текст и чува позадину. Користи оквире ако маска или читљивост нису поуздане. Захтева изворне боје.";
 
@@ -1171,5 +1171,5 @@
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ова апликација не подржава извор %@ верзије %d. Инсталирајте подржану верзију.";
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 подржава само изворни текст на јапанском и кинеском (поједностављено и традиционално писмо). Аутоматско одређивање и избор изворног језика ограничени су на ове језике. Превод на корејски и друге језике и даље је доступан. Избором модела Manga примењују се прагови откривања 0.85 и 0.25; подразумевана величина слике за откривање је 1120 пиксела.";
+"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 подржава само изворни текст на јапанском и кинеском (поједностављено и традиционално писмо). Аутоматско одређивање и избор изворног језика ограничени су на ове језике. Превод на корејски и друге језике и даље је доступан. Избором модела Manga примењују се прагови откривања 0,85 и 0,25; подразумевана величина слике за откривање је 1120 пиксела.";
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Сви подржани OCR језици";

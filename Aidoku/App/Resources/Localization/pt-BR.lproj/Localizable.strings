@@ -84,7 +84,7 @@
 "SAVE_TO_PHOTOS" = "Salvar em fotos";
 
 // Search
-"SEARCH" = "Procurar";
+"SEARCH" = "Buscar";
 "VIEW_MORE" = "Ver mais";
 
 // Settings
@@ -146,7 +146,7 @@
 "VOLUME_X" = "Volume %g";
 "CHAPTER_X" = "Capítulo %g";
 "VOL_X" = "Vol. %g";
-"CURRENT_COLON" = "Atual(is):";
+"CURRENT_COLON" = "Atual:";
 
 // History
 "HISTORY" = "Histórico";
@@ -178,15 +178,15 @@
 "VOL_SPACE_X" = "Vol. %g";
 "CH_SPACE_X" = "Cap. %g";
 "MARK" = "Marcar";
-"PREVIOUS_COLON" = "Anterior(es):";
+"PREVIOUS_COLON" = "Anterior:";
 "NO_NEXT_CHAPTER" = "Não há próximo capítulo";
-"NEXT_COLON" = "Próximo(s):";
-"FINISHED_COLON" = "Finalizado(s):";
+"NEXT_COLON" = "Próximo:";
+"FINISHED_COLON" = "Concluído:";
 "NO_PREVIOUS_CHAPTER" = "Não há capítulo anterior";
 "PAGE_X" = "Página %i";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Isso irá remover o histórico para esse capítulo. Tem certeza que deseja continuar?";
 "AUTH_FOR_HISTORY" = "Autentique-se para ver o histórico de leitura.";
-"AUTH_TO_ENABLE" = "Autenticar para habilitar.";
+"AUTH_TO_ENABLE" = "Autentique-se para ativar.";
 "INCOGNITO_MODE_TEXT" = "Pausa o histórico de leitura quando habilitado";
 "EVERY_12_HOURS" = "A cada 12 horas";
 "LOCK_HISTORY_TAB" = "Bloquear aba Histórico";
@@ -194,8 +194,8 @@
 "PAGE_X_OF_X" = "Página %i de %i";
 "CATEGORY_EMPTY" = "Categoria vazia";
 "VIEW_LIBRARY" = "Visualizar biblioteca";
-"AUTH_TO_OPEN" = "Autenticar para abrir.";
-"AUTH_TO_DISABLE" = "Autenticar para desativar.";
+"AUTH_TO_OPEN" = "Autentique-se para abrir.";
+"AUTH_TO_DISABLE" = "Autentique-se para desativar.";
 "INCOGNITO_MODE" = "Modo anônimo";
 "LIBRARY_UPDATING" = "Atualização da biblioteca";
 "UPDATE_INTERVAL" = "Intervalo de atualização";
@@ -218,7 +218,7 @@
 "MISSING_SOURCES" = "Fontes ausentes";
 "MISSING_SOURCES_TEXT" = "O backup restaurado pode conter dados das seguintes fontes, que não estão instaladas no momento:";
 "LOGS" = "Registros";
-"LOGGING" = "Registrando";
+"LOGGING" = "Registro";
 "LOG_SERVER" = "Servidor de registros";
 "DISPLAY_LOGS" = "Exibir registros";
 "RESET_SETTINGS" = "Redefinir configurações";
@@ -264,7 +264,7 @@
 "VIEW_ON_WEBSITE" = "Visitar site";
 "CLEAR_TRACKED_MANGA" = "Remover todos os vínculos de acompanhamento";
 "CLEAR_TRACKED_MANGA_TEXT" = "Esta ação é irreversível. Serão removidos todos os vínculos dos mangás com os serviços de acompanhamento.";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "Tem certeza que deseja excluir todos os downloads?";
+"REMOVE_ALL_DOWNLOADS_CONFIRM" = "Tem certeza de que deseja remover todos os downloads?";
 "CACHE_SIZE_%@" = "Tamanho do cache: %@";
 "SUPPORT_VIA_KOFI" = "Ajude-nos via Ko-Fi";
 "PILLARBOX_ORIENTATION_INFO" = "Determina em quais orientações da tela as margens laterais são ativadas.";
@@ -290,7 +290,7 @@
 "DEFAULT_READING_MODE" = "Modo de leitura padrão";
 "PILLARBOX" = "Margens laterais";
 "BOTH" = "Ambos";
-"IS_TRACKING" = "Seguindo";
+"IS_TRACKING" = "Em acompanhamento";
 "PINNED" = "Fixado";
 "REMOVE_FROM_CATEGORY" = "Remover da categoria";
 "%i_CHAPTERS" = "%i capítulos";
@@ -444,7 +444,7 @@
 "APPLY" = "Aplicar";
 "RANGE_FROM" = "De";
 "RANGE_TO" = "Até";
-"SOURCE_SETTINGS" = "Configurações de Fontes";
+"SOURCE_SETTINGS" = "Configurações da fonte";
 "RESET_COVER" = "Redefinir Capa";
 "HOUR_SINGULAR" = "Hora";
 "ADD_SOURCE" = "Adicionar Fonte";
@@ -789,7 +789,7 @@
 
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d recebido · Fragmentação TLS não confirmada";
 
-"HTTPS_BYPASS_TEST_FAILED" = "Não foi possível conectar através do bypass HTTPS.";
+"HTTPS_BYPASS_TEST_FAILED" = "Não foi possível conectar através do desvio de bloqueio HTTPS.";
 
 "TRANSLATION_CONNECTION_FAILED_NOTICE" = "A tradução falhou. O texto reconhecido por OCR está sendo exibido. Verifique as configurações e a conexão.";
 
@@ -927,8 +927,8 @@
 "ANIMATE_PAGE_TRANSITIONS" = "Animar transições de página";
 "TEXT_READER" = "Leitor de texto";
 "TEXT_READER_STYLE" = "Estilo do leitor";
-"TEXT_READER_PAGED" = "Leitura paginada";
-"TEXT_READER_SCROLL" = "Rolar";
+"TEXT_READER_PAGED" = "Paginado";
+"TEXT_READER_SCROLL" = "Rolagem";
 "TEXT_FONT_FAMILY" = "Fonte";
 "TEXT_FONT_SIZE" = "Tamanho da fonte";
 "TEXT_LINE_SPACING" = "Espaçamento entre linhas";
@@ -1005,7 +1005,7 @@
 "INSTALL_SOURCES" = "Instalar fontes";
 "INSTALLING_SOURCES" = "Instalando fontes…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Não foi possível importar a fonte. Verifique se o arquivo .aix é válido.";
-"LIBRARY_ENTRIES" = "Entradas da biblioteca de mangá";
+"LIBRARY_ENTRIES" = "Entradas da biblioteca";
 "SENSITIVE_SETTINGS" = "Configurações sensíveis";
 "CLEAR_SOURCE_CACHE_TEXT" = "Limpa os cookies e os dados dos sites associados aos URLs desta fonte, além do conteúdo da fonte em cache. Talvez seja necessário fazer login novamente, e o carregamento poderá demorar mais temporariamente.";
 "PAGE_OFFSET" = "Deslocamento de página";

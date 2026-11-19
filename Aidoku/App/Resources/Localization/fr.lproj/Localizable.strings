@@ -26,11 +26,11 @@
 
 // Browse
 "BROWSE" = "Parcourir";
-"BROWSE_NO_SOURCES" = "Aucune Source";
+"BROWSE_NO_SOURCES" = "Aucune source";
 "ADDING_SOURCES_GUIDE_BUTTON" = "Guide d'ajout de sources";
 "UPDATES" = "Mises à jour";
-"INSTALLED" = "Installé";
-"EXTERNAL" = "Externe";
+"INSTALLED" = "Installées";
+"EXTERNAL" = "Externes";
 "BUTTON_UPDATE" = "METTRE À JOUR";
 "BUTTON_GET" = "OBTENIR";
 "BUTTON_ERROR" = "ERREUR";
@@ -161,7 +161,7 @@
 "MISSING_SOURCE" = "Source manquante";
 "DESELECT_ALL" = "Tout désélectionner";
 "CHAPTERS" = "Chapitres";
-"REMOVE_CHAPTER_HISTORY_TEXT" = "Ceci supprimera l'historique de ce chapitre. Êtes-vous sûr·e de vouloir continuer ?";
+"REMOVE_CHAPTER_HISTORY_TEXT" = "Ceci supprimera l'historique de ce chapitre. Êtes-vous sûr de vouloir continuer ?";
 "AUTH_TO_ENABLE" = "S'authentifier pour activer.";
 "GITHUB_REPO" = "Dépôt GitHub";
 "GENERAL" = "Général";
@@ -177,7 +177,7 @@
 "DISCORD_SERVER" = "Serveur Discord";
 "INCOGNITO_MODE_TEXT" = "Suspend l’enregistrement de l’historique de lecture lorsque ce mode est activé";
 "APPEARANCE_DARK" = "Sombre";
-"RESTORE_BACKUP" = "Restaurer avec cette sauvegarde ?";
+"RESTORE_BACKUP" = "Restaurer cette sauvegarde ?";
 "MARK_ALL" = "Tout marquer";
 "ICLOUD_SYNC" = "Synchronisation iCloud";
 "INCOGNITO_MODE" = "Mode Incognito";
@@ -188,7 +188,7 @@
 "PORTRAIT" = "Portrait";
 "READER" = "Lecteur";
 "NEVER" = "Jamais";
-"SOURCE_LIST_ADDED" = "Ajout de la liste des sources";
+"SOURCE_LIST_ADDED" = "Liste de sources ajoutée";
 "EXPORT_LOGS" = "Exporter les journaux";
 "PIN_UNREAD" = "Non lu";
 "LIBRARY_UPDATING" = "Mise à jour de la bibliothèque";
@@ -265,9 +265,9 @@
 "STATUS_COLON_%@" = "Statut : %@";
 "VIEW_ON_WEBSITE" = "Voir sur le site web";
 "CLEAR_TRACKED_MANGA" = "Supprimer tous les liens de suivi";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "Êtes-vous sûr·e de vouloir supprimer tous les téléchargements ?";
+"REMOVE_ALL_DOWNLOADS_CONFIRM" = "Êtes-vous sûr de vouloir supprimer tous les téléchargements ?";
 "CACHE_SIZE_%@" = "Taille du cache : %@";
-"SUPPORT_VIA_KOFI" = "Soutenir via Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Soutenir via Ko-fi";
 "STOP_TRACKING" = "Arrêter le suivi";
 "STATUS_NOT_PUBLISHED" = "Non publié";
 "MANGA" = "Manga";
@@ -291,8 +291,8 @@
 "UPCOMING" = "À venir";
 "RENAME_CATEGORY_FAIL" = "Impossible de renommer la catégorie";
 "PINNED" = "Épinglé";
-"%i_CHAPTERS" = "%i Chapitres";
-"1_CHAPTER" = "1 Chapitre";
+"%i_CHAPTERS" = "%i chapitres";
+"1_CHAPTER" = "1 chapitre";
 "RENAME_CATEGORY_FAIL_INFO" = "Les noms de catégorie doivent être uniques.";
 "CATEGORY_NAME" = "Nom de la catégorie";
 "MIGRATE_SOURCES" = "Migrer les sources";
@@ -301,8 +301,8 @@
 "MIGRATE" = "Migrer";
 "OPTIONS" = "Options";
 "DESTINATION" = "Destination";
-"SELECTED" = "Sélectionnés";
-"AVAILABLE" = "Disponible";
+"SELECTED" = "Sélectionnées";
+"AVAILABLE" = "Disponibles";
 "NOT_FOUND" = "Non trouvé";
 "MOST_CHAPTERS_SLOWER" = "Le plus de chapitres (lent)";
 "FIRST_ALTERNATIVE" = "Première alternative";
@@ -444,8 +444,8 @@
 "DISPLAY_VOLUME" = "Volume";
 "USE_CHAPTERS" = "Utiliser les chapitres";
 "USE_CHAPTERS_TEXT" = "Traiter les livres comme des chapitres au lieu de volumes";
-"%@_BOOKS" = "%@ Livres";
-"1_BOOK" = "1 Livre";
+"%@_BOOKS" = "%@ livres";
+"1_BOOK" = "1 livre";
 "KEEP_READING" = "Poursuivre la lecture";
 "RECENTLY_ADDED_BOOKS" = "Livres ajoutés récemment";
 "RECENTLY_ADDED_SERIES" = "Séries ajoutées récemment";
@@ -492,7 +492,7 @@
 "RESET_COVER" = "Réinitialiser la couverture";
 "LOGOUT_CONFIRM" = "Êtes-vous sûr de vouloir vous déconnecter ?";
 "USERNAME" = "Nom d'utilisateur";
-"EMAIL" = "Email";
+"EMAIL" = "E-mail";
 "PASSWORD" = "Mot de passe";
 "LOGIN_FAILED" = "Échec de la connexion";
 "LOGIN_FAILED_TEXT" = "Échec de la connexion à la source. Assurez-vous que vos identifiants sont saisis correctement.";
@@ -567,7 +567,7 @@
 "DOWNLOADS" = "Téléchargements";
 "VIEW_FILES" = "Voir les fichiers";
 "COMPRESS_DOWNLOADS" = "Compresser les téléchargements";
-"BACKGROUND_DOWNLOADING" = "Télécharger en arrière-plan";
+"BACKGROUND_DOWNLOADING" = "Téléchargement en arrière-plan";
 "METADATA_DETECTED" = "Anciennes métadonnées détectées";
 "METADATA_DETECTED_TEXT" = "Les anciennes métadonnées JSON seront migrées vers des fichiers ComicInfo.xml.";
 "LIBRARY_ADD_CONTENT" = "Ajoutez du contenu depuis l’onglet Parcourir.";
@@ -578,12 +578,12 @@
 "FILTER_SEPARATOR" = ", ";
 "FILTER_HAS_UNREAD" = "Non lu";
 "FILTER_STARTED" = "Commencé";
-"ASCENDING" = "Ascendant";
-"DESCENDING" = "Descendant";
+"ASCENDING" = "Croissant";
+"DESCENDING" = "Décroissant";
 "OLDEST_FIRST" = "Plus ancien en premier";
 "NEWEST_FIRST" = "Plus récent en premier";
-"HIGHEST_FIRST" = "Nombre le plus élevé en premier";
-"LOWEST_FIRST" = "Nombre le plus faible en premier";
+"HIGHEST_FIRST" = "Plus élevé en premier";
+"LOWEST_FIRST" = "Plus faible en premier";
 "LAYOUT_GRID" = "Grille";
 "LAYOUT_LIST" = "Liste";
 "PROCESSING_ENTRIES" = "Traitement des entrées…";
@@ -680,7 +680,7 @@
 "TEXT_READER" = "Lecteur de texte";
 "TEXT_READER_STYLE" = "Style de lecteur";
 "TEXT_READER_PAGED" = "Paginé";
-"TEXT_READER_SCROLL" = "Défiler";
+"TEXT_READER_SCROLL" = "Défilement";
 "TEXT_FONT_SIZE" = "Taille de police";
 "TEXT_LINE_SPACING" = "Espacement des lignes";
 "TEXT_HORIZONTAL_PADDING" = "Marges horizontales";
@@ -719,9 +719,9 @@
 "TRACK_CHAPTER_OFFSET_TEXT" = "Ajustez la mise à jour automatique du chapitre dans le service de suivi pour ce titre lorsque la numérotation des chapitres diffère entre la source et le service de suivi.";
 "MIGRATE_CONFIRM_TEXT" = "L’historique de lecture des entrées d’origine sera supprimé lors de la migration vers une autre source.";
 "SELECT_PINNED_SOURCES" = "Sélectionner des sources épinglées";
-"SEARCH_MANUALLY" = "Recherche manuelle";
+"SEARCH_MANUALLY" = "Rechercher manuellement";
 "DONT_MIGRATE" = "Ne pas migrer";
-"SELECTED_%i_OF_%i" = "Sélectionné (%i/%i)";
+"SELECTED_%i_OF_%i" = "Sélection (%i/%i)";
 "MIGRATE_%i_OF_%i" = "Migrer (%i/%i)";
 "SHOW_ENTRY" = "Afficher l'entrée";
 "SET_TRACK_CHAPTER_OFFSET" = "Définir le décalage de chapitre";
@@ -1048,7 +1048,7 @@
 "AUTO_SCROLL_SPEED" = "Vitesse de défilement automatique";
 "AUTO_SCROLL_POSITION" = "Position du bouton de défilement automatique";
 "POSITION_LEFT" = "Gauche";
-"POSITION_RIGHT" = "À droite";
+"POSITION_RIGHT" = "Droite";
 "UPLOAD_FILE" = "Importer un fichier";
 "MIGRATE_CHAPTER_HISTORY" = "Migrer l'historique des chapitres";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "Migrez l'historique de lecture restant des anciennes versions qui n'est pas lié aux chapitres de la base de données locale. Cela se produit normalement automatiquement après une mise à jour. Si cela ne s'est pas terminé, vous pouvez le réexécuter ici.";

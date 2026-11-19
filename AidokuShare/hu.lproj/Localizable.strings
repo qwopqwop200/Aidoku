@@ -1,4 +1,4 @@
-"IMPORT" = "Importálás";
+"IMPORT" = "Importálás…";
 "DONE" = "Kész";
 "FILE_IMPORT_FAIL_TEXT" = "Nem sikerült importálni a fájlt. Ellenőrizze, hogy olvasható képfájl vagy képeket tartalmazó érvényes CBZ- vagy ZIP-archívum-e.";
 "FORMAT_IMAGE" = "Kép";

@@ -19,8 +19,8 @@
 
 // Library
 "LIBRARY" = "Biblioteek";
-"LIBRARY_SEARCH" = "Vind in Biblioteek";
-"ADD_TO_LIBRARY" = "Voeg by Biblioteek";
+"LIBRARY_SEARCH" = "Soek in biblioteek";
+"ADD_TO_LIBRARY" = "Voeg by biblioteek";
 "OK" = "OK";
 "RESET" = "Stel terug";
 "DELETE" = "Skrap";
@@ -29,19 +29,19 @@
 "LIBRARY_EMPTY" = "Biblioteek is leeg";
 "REMOVE_FROM_LIBRARY" = "Verwyder uit biblioteek";
 "MANGA_INFO" = "Manga-inligting";
-"SORT_BY" = "Sorteer Volgens";
-"FILTER_BY" = "Filter Volgens";
-"SORT_LAST_OPENED" = "Laas Geopen";
-"SORT_LAST_READ" = "Laas Gelees";
-"SORT_DATE_ADDED" = "Datum Bygevoeg";
+"SORT_BY" = "Sorteer volgens";
+"FILTER_BY" = "Filter volgens";
+"SORT_LAST_OPENED" = "Laas geopen";
+"SORT_LAST_READ" = "Laas gelees";
+"SORT_DATE_ADDED" = "Datum bygevoeg";
 
 // Categories
 "ALL" = "Alle";
 "CATEGORIES" = "Kategorieë";
 "EDIT_CATEGORIES" = "Wysig kategorieë";
-"CATEGORY_ADD" = "Voeg Kategorie By";
+"CATEGORY_ADD" = "Voeg kategorie by";
 "DEFAULT_CATEGORY" = "Standaardkategorie";
-"ALWAYS_ASK" = "Vra Altyd";
+"ALWAYS_ASK" = "Vra altyd";
 
 // Browse
 "BROWSE" = "Blaai";
@@ -72,8 +72,8 @@
 "NSFW" = "NSFW";
 "SOURCE_ORDER" = "Volgorde volgens die bron";
 "MISSING_SOURCE" = "Ontbrekende bron";
-"SELECT_CHAPTERS" = "Kies Hoofstukke";
-"SELECT_ALL" = "Kies Alles";
+"SELECT_CHAPTERS" = "Kies hoofstukke";
+"SELECT_ALL" = "Kies alles";
 "CHAPTERS" = "Hoofstukke";
 "VOLUME_X" = "Bundel %g";
 "CHAPTER_X" = "Hoofstuk %g";
@@ -81,20 +81,20 @@
 "APPEARANCE" = "Voorkoms";
 "APPEARANCE_LIGHT" = "Lig";
 "APPEARANCE_DARK" = "Donker";
-"USE_SYSTEM_APPEARANCE" = "Gebruik Stelselvoorkoms";
+"USE_SYSTEM_APPEARANCE" = "Gebruik stelselvoorkoms";
 "ONLY_UPDATE_ON_WIFI" = "Dateer slegs op Wi-Fi op";
-"EXCLUDED_CATEGORIES" = "Uitgeslote Kategorieë";
+"EXCLUDED_CATEGORIES" = "Uitgeslote kategorieë";
 "REFRESH_METADATA" = "Verfris metadata";
 "NEVER" = "Nooit";
-"EVERY_12_HOURS" = "Elke 12 ure";
+"EVERY_12_HOURS" = "Elke 12 uur";
 "DAILY" = "Daagliks";
 "EVERY_2_DAYS" = "Elke 2 dae";
 "WEEKLY" = "Weekliks";
-"WITH_UNREAD_CHAPTERS" = "Met ongeleesde hoofstukke";
+"WITH_UNREAD_CHAPTERS" = "Met ongelese hoofstukke";
 "WITH_COMPLETED_STATUS" = "Met voltooide status";
 "THAT_HAVENT_BEEN_READ" = "Sonder hoofstukke wat as gelees gemerk is";
 "SOURCE_LISTS" = "Bronnelyste";
-"SOURCE_LIST_ADDED" = "Bronnelys Bygevoeg";
+"SOURCE_LIST_ADDED" = "Bronnelys bygevoeg";
 "BACKUP_IMPORT_FAIL_TEXT" = "Kon nie rugsteun invoer nie. Verseker asseblief dat jou rugsteun in die regte formaat is.";
 "EXPORT" = "Voer uit";
 "RESTORE" = "Herstel";
@@ -111,7 +111,7 @@
 "DOWNLOAD_QUEUE" = "Aflaaiwaglys";
 "SORT_TITLE" = "Titel";
 "MARK" = "Merk";
-"SORT_LATEST_CHAPTER" = "Nuutste Hoofstuk";
+"SORT_LATEST_CHAPTER" = "Nuutste hoofstuk";
 "NONE" = "Geen";
 "CATEGORY_ADD_TEXT" = "Voer die naam van die nuwe kategorie in.";
 "EXTERNAL" = "Eksterne";
@@ -119,7 +119,7 @@
 "LANGUAGES" = "Tale";
 "STATUS_HIATUS" = "Onderbreek";
 "MORE" = "meer";
-"DESELECT_ALL" = "Ontkies Alles";
+"DESELECT_ALL" = "Ontkies alles";
 "MISSING_SOURCE_TEXT" = "Die oorspronklike bron vir hierdie manga kon nie gevind word nie. Installeer die bron weer of verwyder hierdie titel uit jou biblioteek.";
 
 // Reader
@@ -128,14 +128,14 @@
 "CH_X" = "Hfst.%g";
 "VOL_SPACE_X" = "Vol. %g";
 "CH_SPACE_X" = "Hfst. %g";
-"NO_CHAPTERS_AVAILABLE" = "Geen Hoofstukke Beskikbaar";
-"NO_CHAPTERS" = "Geen Hoofstukke";
+"NO_CHAPTERS_AVAILABLE" = "Geen hoofstukke beskikbaar nie";
+"NO_CHAPTERS" = "Geen hoofstukke nie";
 "MARK_READ" = "Merk as gelees";
-"START_READING" = "Begin Lees";
-"CONTINUE_READING" = "Lees Verder";
+"START_READING" = "Begin lees";
+"CONTINUE_READING" = "Lees verder";
 "READ" = "Gelees";
 "UNREAD" = "Ongelees";
-"MARK_ALL" = "Merk Alles";
+"MARK_ALL" = "Merk alles";
 "MARK_PREVIOUS" = "Merk vorige hoofstukke";
 "NEXT_COLON" = "Volgende:";
 "FINISHED_COLON" = "Klaar:";
@@ -147,14 +147,14 @@
 "NO_PREVIOUS_CHAPTER" = "Daar is geen vorige hoofstuk nie";
 "DEFAULT" = "Verstek";
 "READING_MODE" = "Leesmodus";
-"LTR" = "Links na Regs";
-"RTL" = "Regs na Links";
+"LTR" = "Links na regs";
+"RTL" = "Regs na links";
 "VERTICAL" = "Vertikaal";
 "VERTICAL_SCROLL" = "Vertikale rol";
 "INCOGNITO_MODE" = "Inkognitomodus";
 "EXPERIMENTAL" = "Eksperimenteel";
 "INFINITE_VERTICAL_SCROLL" = "Oneindige vertikale rol";
-"SAVE_TO_PHOTOS" = "Stoor na Foto's";
+"SAVE_TO_PHOTOS" = "Stoor in Foto's";
 
 // History
 "HISTORY" = "Geskiedenis";
@@ -168,31 +168,31 @@
 "SEARCH" = "Soek";
 "AUTH_TO_DISABLE" = "Verifieer om af te sit.";
 "AUTH_TO_ENABLE" = "Verifieer om aan te sit.";
-"ICLOUD_SYNC" = "iCloud-Sinkronisering";
-"VIEW_HISTORY" = "Bekyk Geskiedenis";
+"ICLOUD_SYNC" = "iCloud-sinkronisering";
+"VIEW_HISTORY" = "Bekyk geskiedenis";
 "AUTH_FOR_HISTORY" = "Verifieer om leesgeskiedenis te sien.";
-"VIEW_MORE" = "Sien Meer";
+"VIEW_MORE" = "Sien meer";
 
 // Settings
 "SETTINGS" = "Instellings";
-"GITHUB_REPO" = "GitHub-Bewaarplek";
+"GITHUB_REPO" = "GitHub-bewaarplek";
 "ABOUT" = "Oor";
-"DISCORD_SERVER" = "Discord-Bediener";
+"DISCORD_SERVER" = "Discord-bediener";
 "GENERAL" = "Algemeen";
 "READER" = "Leser";
 "LIBRARY_UPDATING" = "Biblioteekopdatering";
 "UPDATE_INTERVAL" = "Opdateringsinterval";
 "LOCK_HISTORY_TAB" = "Sluit geskiedenis-oortjie";
 "OPEN_READER_VIEW" = "Maak leseraansig oop";
-"UNREAD_CHAPTER_BADGES" = "Ongeleesde hoofstuk-kentekens";
-"PIN_UNREAD" = "Ongeleesde";
+"UNREAD_CHAPTER_BADGES" = "Kentekens vir ongelese hoofstukke";
+"PIN_UNREAD" = "Ongelees";
 "PORTRAIT" = "Portret";
 "LANDSCAPE" = "Landskap";
 "SKIP_TITLES" = "Slaan titels oor";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "Die verskafte bronnelys-URL is ongeldig of is reeds bygevoeg.";
 "SOURCE_LIST_ADDED_TEXT" = "Jy kan nou deur eksterne bronne blaai in die Blaai-oortjie.";
 "SOURCE_LIST_URL" = "Bronnelys-URL";
-"SOURCE_LIST_ADD" = "Voeg Bronnelys By";
+"SOURCE_LIST_ADD" = "Voeg bronnelys by";
 "SOURCE_LIST_ADD_TEXT" = "Voer die bronnelys-URL in";
 "BACKUP_NAME" = "Rugsteunnaam";
 "RENAME_BACKUP" = "Hernoem rugsteun";
@@ -462,7 +462,7 @@
 "DOWNLOAD_INCOMPLETE" = "Onvolledige aflaai";
 "TOTAL_DOWNLOADS" = "Berging deur aflaaie gebruik";
 "%i_SERIES" = "%i reekse";
-"IN_LIBRARY" = "In Biblioteek";
+"IN_LIBRARY" = "In biblioteek";
 "VIEW_SERIES" = "Bekyk reeks";
 "VIEW_FILES" = "Bekyk lêers";
 "COMPRESS_DOWNLOADS" = "Druk aflaaie saam";
@@ -470,7 +470,7 @@
 "BACKGROUND_DOWNLOADING" = "Aflaai in die agtergrond";
 "METADATA_DETECTED" = "Verouderde metadata bespeur";
 "METADATA_DETECTED_TEXT" = "Verouderde JSON-metadata sal na ComicInfo.xml-lêers gemigreer word.";
-"CATEGORY_SEARCH" = "Vind in kategorie";
+"CATEGORY_SEARCH" = "Soek in kategorie";
 "LIBRARY_ADD_CONTENT" = "Voeg inhoud vanaf die blaai-oortjie by.";
 "LIBRARY_ADJUST_FILTERS" = "Pas jou filters aan om meer inhoud te sien.";
 "REMOVE_FILTER" = "Verwyder filter";
@@ -482,10 +482,10 @@
 "FILTER_STARTED" = "Reeds begin";
 "ASCENDING" = "Stygend";
 "DESCENDING" = "Dalend";
-"OLDEST_FIRST" = "Oudste Eerste";
+"OLDEST_FIRST" = "Oudste eerste";
 "NEWEST_FIRST" = "Nuutste eerste";
-"HIGHEST_FIRST" = "Hoogste Eerste";
-"LOWEST_FIRST" = "Laagste Eerste";
+"HIGHEST_FIRST" = "Hoogste eerste";
+"LOWEST_FIRST" = "Laagste eerste";
 "COVER" = "Omslag";
 "LAYOUT_GRID" = "Rooster";
 "LAYOUT_LIST" = "Lys";
@@ -522,7 +522,7 @@
 "DISABLE" = "Deaktiveer";
 "ENABLE" = "Aktiveer";
 "REORDER" = "Herrangskik";
-"EDIT_SOURCES" = "Wysig Bronne";
+"EDIT_SOURCES" = "Wysig bronne";
 "CONTENT_RATING" = "Inhoudgradering";
 "SAFE" = "Geen volwasse inhoud nie";
 "CONTAINS_NSFW" = "Bevat NSFW";
@@ -532,7 +532,7 @@
 "MISSING_SOURCE_LIST" = "Ontbrekende bronnelys";
 "MISSING_SOURCE_LIST_INFO" = "Hierdie eksterne bron is nie in enige van die ingestelde bronnelyste beskikbaar nie. Dit sal dus nie opdaterings ontvang nie en kan in die toekoms ophou werk.";
 "BASE_URL" = "Basis-URL";
-"SEE_ALL" = "Sien Alles";
+"SEE_ALL" = "Sien alles";
 "HOME" = "Tuis";
 "FILTERS" = "Filters";
 "APPLY" = "Pas toe";
@@ -588,7 +588,7 @@
 "SERIES" = "Reeks";
 "NEW_SERIES" = "Nuwe reeks";
 "NEW_SERIES_TEXT" = "Skep 'n nuwe reeks vir hierdie lêer";
-"SELECT_SERIES" = "Kies Reeks";
+"SELECT_SERIES" = "Kies reeks";
 "VOLUME_CHAPTER_INVALID_ERROR" = "'n Hoofstuk met hierdie konfigurasie bestaan reeds.";
 "VOLUME_CHAPTER_EMPTY_ERROR" = "’n Bundel- en/of hoofstuknommer word vereis.";
 "SERIES_TITLE_UNIQUE_ERROR" = "'n Reeks met hierdie titel bestaan reeds.";
@@ -613,9 +613,9 @@
 "SERVER_URL_INFO" = "Die basis-URL van 'n bediener om aan te koppel.";
 "SERVER_URL_UNIQUE_ERROR" = "'n Bron wat met daardie bediener opgestel is, bestaan reeds.";
 "MIRRORS" = "Spieëlbedieners";
-"MIRRORS_INFO" = "Bykomende URL's om as 'n basis-URL te probeer gebruik as die hoof een nie kan koppel nie.";
+"MIRRORS_INFO" = "Bykomende URL's om as basis-URL te probeer as die hoof-URL nie kan koppel nie.";
 "SERVER_ERROR" = "Bedienerfout";
-"SERVER_ERROR_CONNECTION" = "Kan nie aan die gegewe bediener koppel nie. Maak seker dat 'n bedienerinstansie loop en die URL is korrek ingevoer.";
+"SERVER_ERROR_CONNECTION" = "Kan nie aan die gegewe bediener koppel nie. Maak seker dat 'n bedienerinstansie loop en dat die URL korrek ingevoer is.";
 "SERVER_ERROR_AUTHENTICATION" = "Kan nie aanmeld nie. Maak seker dat jou aanmeldbesonderhede korrek ingevoer is.";
 "OTHER_SETTINGS" = "Ander instellings";
 "DISPLAY_DEFAULT" = "Verstek";
@@ -623,14 +623,14 @@
 "DISPLAY_VOLUME" = "Bundel";
 "USE_CHAPTERS" = "Gebruik hoofstukke";
 "USE_CHAPTERS_TEXT" = "Behandel boeke as hoofstukke in plaas van bundels";
-"%@_BOOKS" = "%@ Boeke";
-"1_BOOK" = "1 Boek";
+"%@_BOOKS" = "%@ boeke";
+"1_BOOK" = "1 boek";
 "ON_DECK" = "Volgende om te lees";
 "KEEP_READING" = "Hou aan lees";
 "RECENTLY_ADDED_BOOKS" = "Onlangs bygevoegde boeke";
 "RECENTLY_ADDED_SERIES" = "Onlangs bygevoegde reekse";
 "RECENTLY_UPDATED_SERIES" = "Onlangs opgedateerde reekse";
-"RECENTLY_READ_BOOKS" = "Onlangs geleesde boeke";
+"RECENTLY_READ_BOOKS" = "Onlangs gelese boeke";
 "ANY" = "Enige";
 "AUTHOR" = "Skrywer";
 "ARTIST" = "Kunstenaar";
@@ -683,15 +683,15 @@
 "INVALID_KEY" = "Ongeldige sleutel";
 "LINK_COPIED" = "Skakel gekopieer";
 "LINK_COPIED_TEXT" = "Die skakel is na die knipbord gekopieer.";
-"SCANLATOR" = "Skanderings- en vertaalspan";
-"NO_SCANLATOR" = "Geen skanderings- en vertaalspan nie";
+"SCANLATOR" = "Vertaalspan";
+"NO_SCANLATOR" = "Geen vertaalspan nie";
 "LOCKED" = "Gesluit";
 "TOGGLE_LOCK" = "Sluit of ontsluit";
 "REFRESH_DETAILS" = "Verfris besonderhede";
 "VOLUME" = "Bundel";
 "SKIPPING_CHAPTERS" = "Slaan %i hoofstukke oor: hulle ontbreek by die bron of is uitgefiltreer";
 "OPEN_WEBSITE" = "Maak webwerf oop";
-"SET_COVER_IMAGE" = "Stel voorbladbeeld";
+"SET_COVER_IMAGE" = "Stel voorbladbeeld in";
 "UPLOAD_CUSTOM_COVER" = "Kies ’n eie omslag";
 "RESET_COVER" = "Stel omslag terug";
 "NO_HISTORY" = "Geen geskiedenis nie";
@@ -763,7 +763,7 @@
 "HOUR_PLURAL" = "Ure";
 "HOUR_SINGULAR" = "Uur";
 "ALL_TIME" = "Alle tye";
-"THIS_MONTH" = "Hierdie Maand";
+"THIS_MONTH" = "Hierdie maand";
 "THIS_YEAR" = "Hierdie jaar";
 "UNAVAILABLE_SOURCE_LISTS" = "Onbeskikbare bronnelyste";
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "'n Fout het voorgekom tydens die haal van die bogenoemde bronnelyste.";
@@ -782,7 +782,7 @@
 "READER_BG_COLOR_WHITE" = "Wit";
 "READER_BG_COLOR_BLACK" = "Swart";
 "TAP_ZONES" = "Tiksones";
-"ZONE_LEFT_RIGHT" = "Links en Regs";
+"ZONE_LEFT_RIGHT" = "Links en regs";
 "ZONE_L_SHAPED" = "L-vormig";
 "ZONE_KINDLE" = "Kindle";
 "ZONE_EDGE" = "Rand";
@@ -791,7 +791,7 @@
 "ANIMATE_PAGE_TRANSITIONS" = "Animeer bladsy-oorgange";
 "TEXT_READER" = "Teksleser";
 "TEXT_READER_STYLE" = "Leserstyl";
-"TEXT_READER_PAGED" = "Gepagineerde lees";
+"TEXT_READER_PAGED" = "Bladsygewys";
 "TEXT_READER_SCROLL" = "Rol";
 "TEXT_FONT_FAMILY" = "Lettertipe";
 "TEXT_FONT_SIZE" = "Lettergrootte";
@@ -804,7 +804,7 @@
 "DICTIONARY_LOOKUP" = "Woordeboekopsoek";
 "DICTIONARY_SETTINGS_TEXT" = "Aktiveer Woordeboekopsoek om OCR-verwerking op bladsyprente toe te laat om woorde in enige ingevoerde Yomitan-woordeboeke te soek.";
 "DICTIONARIES" = "Woordeboeke";
-"ABOUT_DICTIONARIES" = "Oor Woordeboeke";
+"ABOUT_DICTIONARIES" = "Oor woordeboeke";
 "ABOUT_DICTIONARIES_TEXT" = "Yomitan-woordeboeke kan vanaf zip-lêers ingevoer word. Jy kan woordeboeke aktiveer of deaktiveer, en hulle kan herrangskik word deur te sleep.";
 "LOOKUP_GESTURE" = "Opsoekgebaar";
 "SINGLE_TAP" = "Enkele tik";
@@ -843,14 +843,14 @@
 "KANJI_META_COUNT" = "Aantal kanji-metadata-inskrywings";
 "TAG_COUNT" = "Aantal etikette";
 "MEDIA_COUNT" = "Mediatelling";
-"IS_UPDATABLE" = "Is Opdateerbaar";
+"IS_UPDATABLE" = "Kan opgedateer word";
 "SIZE" = "Grootte";
 "REMOVE_DICTIONARY" = "Verwyder woordeboek";
 "REMOVE_WORD" = "Verwyder woord";
 "VOCABULARY" = "Woordeskat";
 "1_WORD" = "1 woord";
 "%i_WORDS" = "%i woorde";
-"NO_VOCABULARY" = "Geen Woordeskat";
+"NO_VOCABULARY" = "Geen woordeskat nie";
 "NO_VOCABULARY_TEXT" = "Gestoorde woordeskat sal hier verskyn.";
 "DEFINITION" = "Definisie";
 "VOCAB_CONTEXT" = "Konteks";
@@ -861,12 +861,12 @@
 "UPDATE_NOW" = "Dateer nou op";
 "LAST_UPDATED_%@" = "Laas opgedateer: %@";
 "MONTHLY" = "Maandeliks";
-"GET_RECOMMENDED_DICTIONARIES" = "Kry Aanbevole Woordeboeke";
+"GET_RECOMMENDED_DICTIONARIES" = "Kry aanbevole woordeboeke";
 "RECOMMENDED_DICTIONARIES" = "Aanbevole woordeboeke";
 "RECOMMENDED_DICTIONARIES_NOTE" = "Die woordeboeke hieronder is almal Japannees-Engelse woordeboeke. Raadpleeg die lys Wiktionary-woordeboeke vir ander tale.";
 "RESTORE_MISSING_SOURCES" = "Herstel ontbrekende bronne?";
 "RESTORE_MISSING_SOURCES_TEXT" = "Wil jy ontbrekende bronne soek en installeer?";
-"INSTALL_SOURCES" = "Installeer Bronne";
+"INSTALL_SOURCES" = "Installeer bronne";
 "INSTALLING_SOURCES" = "Installeer tans bronne…";
 "SOURCE_IMPORT_FAIL_TEXT" = "Kon nie bron invoer nie. Maak asseblief seker dat jou aix-lêer geldig is.";
 "FILE_IMPORT_FAIL_TEXT" = "Kon nie die lêer invoer nie. Maak seker dat dit ’n leesbare beeldlêer of ’n geldige CBZ- of ZIP-argief met beelde is.";
@@ -885,13 +885,13 @@
 "READING_SESSIONS" = "Leessessies";
 "CLEAR_NETWORK_CACHE" = "Vee netwerkkas uit";
 "CLEAR_NETWORK_CACHE_TEXT" = "Hierdie aksie is onomkeerbaar. Gekas netwerkversoeke en beelde sal uitgevee word.";
-"CLEAR_READ_HISTORY" = "Vee Leesgeskiedenis uit";
+"CLEAR_READ_HISTORY" = "Vee leesgeskiedenis uit";
 "CLEAR_READ_HISTORY_TEXT" = "Hierdie aksie is onomkeerbaar. Alle leesgeskiedenis sal verwyder word.";
 "CLEAR_EXCLUDING_LIBRARY" = "Vee leesgeskiedenis uit, biblioteek uitgesluit";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Hierdie aksie is onomkeerbaar. Alle leesgeskiedenis van titels wat nie in die biblioteek is nie, sal verwyder word.";
 "RESET_SETTINGS" = "Stel instellings terug";
 "RESET_SETTINGS_TEXT" = "Hierdie aksie is onomkeerbaar. Alle program- en broninstellings sal teruggestel word.";
-"CLEAR_SOURCE_CACHE" = "Vee Bronkas uit";
+"CLEAR_SOURCE_CACHE" = "Vee bronkas uit";
 "CLEAR_SOURCE_CACHE_TEXT" = "Vee koekies en webwerfdata vir hierdie bron se URL’s uit, saam met gekaste broninhoud. Jy sal dalk weer moet aanmeld, en laai kan tydelik langer neem.";
 "PAGE_X_OF_X" = "Bladsy %i van %i";
 "LIBRARY_LOCKED" = "Biblioteek is gesluit.";
@@ -902,9 +902,9 @@
 "LOCKED_CATEGORIES" = "Geslote kategorieë";
 "AUTH_FOR_LIBRARY" = "Verifieer om biblioteek te sien.";
 "LOCK_LIBRARY" = "Sluit biblioteek";
-"SET_AS_WIDE_PAGE" = "Stel as wye bladsy";
+"SET_AS_WIDE_PAGE" = "Stel as wye bladsy in";
 "AUTOMATIC" = "Outomaties";
-"SET_AS_NORMAL_PAGE" = "Stel as normale bladsy";
+"SET_AS_NORMAL_PAGE" = "Stel as normale bladsy in";
 "PAGES_TO_PRELOAD" = "Bladsye om vooraf te laai";
 "SINGLE_PAGE" = "Enkelbladsy";
 "PAGED" = "Bladsygewys";
@@ -921,7 +921,7 @@
 "START_TRACKING" = "Begin nasporing";
 "SCORE" = "Gradering";
 "TRACK_READING" = "Lees";
-"TRACK_PLANNING" = "Beplanning";
+"TRACK_PLANNING" = "Beplan";
 "TRACK_COMPLETED" = "Voltooi";
 "TRACK_PAUSED" = "Onderbreek";
 "TRACK_DROPPED" = "Lees gestaak";
@@ -929,7 +929,7 @@
 "STARTED" = "Begindatum";
 "FINISHED" = "Einddatum";
 "STOP_TRACKING" = "Stop nasporing";
-"SET_TRACK_CHAPTER_OFFSET" = "Stel hoofstukverskuiwing";
+"SET_TRACK_CHAPTER_OFFSET" = "Stel hoofstukverskuiwing in";
 "TRACK_CHAPTER_OFFSET_TEXT" = "Pas outomatiese hoofstukopdaterings by die naspoorder vir hierdie titel aan wanneer die bron se hoofstuknommers van die naspoorder s’n verskil.";
 "TITLE_DISPLAY_MODE" = "Titelvertoonmodus";
 "STATUS_NOT_PUBLISHED" = "Nie gepubliseer nie";
@@ -937,7 +937,7 @@
 "MANHWA" = "Manhwa";
 "MANHUA" = "Manhua";
 "LIGHT_NOVEL" = "Ligte roman";
-"ONESHOT" = "Kortverhaal";
+"ONESHOT" = "One-shot";
 "OEL" = "OEL";
 "COMIC" = "Strokiesprent";
 "BOOK" = "Boek";
@@ -963,9 +963,9 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Wanneer jy nasporing vir ’n bron deaktiveer, word die nasporingskakels vir daardie bron verwyder. Wanneer jy dit aktiveer, word biblioteekitems uit daardie bron outomaties gekoppel.";
 "TRACKER_LOGOUT_INFO" = "As jy afmeld, sal gekoppelde naspoorinligting van hierdie naspoorder vir alle reekse verwyder word.";
 "CACHE_SIZE_%@" = "Kasgrootte: %@";
-"SUPPORT_VIA_KOFI" = "Ondersteuning via Ko-Fi";
-"SORT_UNREAD_CHAPTERS" = "Ongeleesde hoofstukke";
-"SET_AS_SINGLE_PAGE" = "Stel as enkelbladsy";
+"SUPPORT_VIA_KOFI" = "Ondersteun via Ko-fi";
+"SORT_UNREAD_CHAPTERS" = "Ongelese hoofstukke";
+"SET_AS_SINGLE_PAGE" = "Stel as enkelbladsy in";
 "UNSET_AS_SINGLE_PAGE" = "Verwyder enkelbladsy-instelling";
 "RELOAD" = "Herlaai";
 "RELOAD_FAILED" = "Herlaai het misluk";
@@ -981,8 +981,8 @@
 "CONTINUOUS_WITH_GAPS" = "Deurlopend met gapings";
 "REMOVE_FROM_CATEGORY" = "Verwyder uit kategorie";
 "PINNED" = "Vasgespeld";
-"%i_CHAPTERS" = "%i Hoofstukke";
-"1_CHAPTER" = "1 Hoofstuk";
+"%i_CHAPTERS" = "%i hoofstukke";
+"1_CHAPTER" = "1 hoofstuk";
 "UPCOMING" = "Komende";
 "SELECT" = "Kies";
 "ADD" = "Voeg by";
@@ -1024,11 +1024,11 @@
 "POSITION_LEFT" = "Links";
 "POSITION_RIGHT" = "Regs";
 "BOTH" = "Albei";
-"%@_TRACKER_LOGIN_NEEDED" = "%@ Aanmelding nodig";
+"%@_TRACKER_LOGIN_NEEDED" = "%@-aanmelding nodig";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Jou %@-token het verval, so die geassosieerde naspoorder sal ophou werk totdat jy weer by instellings aanmeld.";
 "BACKUP_ERROR" = "Rugsteunherstelfout";
 "BACKUP_ERROR_TEXT" = "'n Fout het voorgekom tydens die herstel: %@. Die rugsteun kan ongeldig wees.";
-"READER_ORIENTATION" = "Oriëntering";
+"READER_ORIENTATION" = "Oriëntasie";
 "FOLLOW_DEVICE" = "Volg toestel";
 "FOCUS_ITEM_LEFT" = "Fokus item na links";
 "FOCUS_ITEM_RIGHT" = "Fokus item na regs";
@@ -1067,7 +1067,7 @@
 
 // Shared image retention
 "SAVE_SHARED_IMAGES" = "Hou gedeelde prente in plaaslike lêers";
-"SAVE_SHARED_IMAGES_HELP" = "As dit af is, maak gedeelde prente tydelik oop en word uitgevee wanneer dit gesluit is. Leesgeskiedenis en OCR/vertalingkas word nie gestoor nie.";
+"SAVE_SHARED_IMAGES_HELP" = "As dit af is, word gedeelde prente tydelik oopgemaak en uitgevee wanneer hulle gesluit word. Leesgeskiedenis en OCR/vertalingkas word nie gestoor nie.";
 
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "Vertaal groot filterlyste (meer as 100 opsies)";
 

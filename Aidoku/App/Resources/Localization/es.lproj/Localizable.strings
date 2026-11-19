@@ -231,7 +231,7 @@
 "SET_AS_WIDE_PAGE" = "Establecer como página ancha";
 "AUTOMATIC" = "Automático";
 "SET_AS_NORMAL_PAGE" = "Establecer como página normal";
-"SINGLE_PAGE" = "Única página";
+"SINGLE_PAGE" = "Página única";
 "PAGED" = "Paginado";
 "PAGE_LAYOUT" = "Diseño de página";
 "DOUBLE_PAGE" = "Doble página";
@@ -260,7 +260,7 @@
 "STATUS_COLON_%@" = "Estado: %@";
 "VIEW_ON_WEBSITE" = "Ver en sitio web";
 "CLEAR_TRACKED_MANGA" = "Eliminar todos los vínculos de seguimiento";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "¿Estás seguro de que quieres borrar todas las descargas?";
+"REMOVE_ALL_DOWNLOADS_CONFIRM" = "¿Seguro que quieres eliminar todas las descargas?";
 "CACHE_SIZE_%@" = "Tamaño de caché: %@";
 "CLEAR_TRACKED_MANGA_TEXT" = "Esta acción es irreversible. Se eliminarán todos los vínculos de los mangas con los servicios de seguimiento.";
 "SUPPORT_VIA_KOFI" = "Apoya a través de Ko-Fi";
@@ -559,8 +559,8 @@
 "DEMO_KAVITA_SERVER_INFO" = "Puedes iniciar sesión en el servidor de demostración de Kavita utilizando el nombre de usuario \"demouser\" y la contraseña \"Demouser64\".";
 "FILE_IMPORT_FAIL_TEXT" = "Error al importar el archivo. Asegúrate de que sea un archivo de imagen legible o un archivo CBZ o ZIP válido que contenga imágenes.";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tu token de %@ ha caducado. El servicio de seguimiento asociado dejará de funcionar hasta que vuelvas a iniciar sesión en Configuración.";
-"HIGHEST_FIRST" = "Más alto primero";
-"LOWEST_FIRST" = "Más bajo primero";
+"HIGHEST_FIRST" = "Mayor primero";
+"LOWEST_FIRST" = "Menor primero";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "Añade una fuente con el botón más.";
 "NO_EXTERNAL_SOURCES" = "Sin fuentes externas";
 "NO_AVAILABLE_SOURCES" = "No hay fuentes disponibles";

@@ -23,7 +23,7 @@
 "LOADING_ELLIPSIS" = "Učitavam…";
 "SHARE" = "Podijeli";
 "DOWNLOADED" = "Preuzeto";
-"CANCEL_DOWNLOAD" = "Odustani od preuzimanja";
+"CANCEL_DOWNLOAD" = "Otkaži preuzimanje";
 "REMOVE_DOWNLOAD" = "Ukloni preuzimanje";
 "REMOVE_ALL_DOWNLOADS" = "Ukloni sva preuzimanja";
 "REMOVE_DOWNLOADS" = "Ukloni preuzimanja";
@@ -42,7 +42,7 @@
 
 // Categories
 "ALL" = "Sve";
-"NONE" = "Niti jedan";
+"NONE" = "Ništa";
 "CATEGORIES" = "Kategorije";
 "EDIT_CATEGORIES" = "Uredi kategorije";
 "DEFAULT_CATEGORY" = "Zadana kategorija";
@@ -89,7 +89,7 @@
 "MARK_ALL" = "Označi sve";
 "MARK_PREVIOUS" = "Označi prethodna poglavlja";
 "MARK_UNREAD" = "Označi kao nepročitano";
-"PREVIOUS_COLON" = "Prijašnje:";
+"PREVIOUS_COLON" = "Prethodno:";
 "NEXT_COLON" = "Sljedeće:";
 "FINISHED_COLON" = "Završeno:";
 // General
@@ -99,7 +99,7 @@
 "RESET" = "Resetiraj";
 "CATEGORY_ADD" = "Dodaj kategoriju";
 "REMOVE" = "Ukloni";
-"DOWNLOAD_QUEUE" = "Red čekanja za preuzimanje";
+"DOWNLOAD_QUEUE" = "Red preuzimanja";
 "ADD_TO_LIBRARY" = "Dodaj u biblioteku";
 "LIBRARY_EMPTY" = "Biblioteka je prazna";
 "REMOVE_FROM_LIBRARY" = "Ukloni iz biblioteke";
@@ -131,14 +131,14 @@
 
 // Settings
 "SETTINGS" = "Postavke";
-"AUTH_TO_ENABLE" = "Autentificiraj za omogućavanje.";
+"AUTH_TO_ENABLE" = "Autentificiraj se za omogućavanje.";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Ovo će ukloniti povijest za ovo poglavlje. Sigurno želiš nastaviti?";
 
 // Search
 "SEARCH" = "Traži";
 "VIEW_MORE" = "Prikaži više";
-"AUTH_TO_DISABLE" = "Autentificiraj za onemogućavanje.";
-"BUILD" = "Broj međuverzije";
+"AUTH_TO_DISABLE" = "Autentificiraj se za onemogućavanje.";
+"BUILD" = "Međuverzija";
 "VOL_X" = "Sv.%g";
 "CH_X" = "Pogl.%g";
 "VOL_SPACE_X" = "Sv. %g";
@@ -158,7 +158,7 @@
 "DISCORD_SERVER" = "Discord server";
 "APPEARANCE" = "Izgled";
 "APPEARANCE_LIGHT" = "Svijetlo";
-"INCOGNITO_MODE_TEXT" = "Kada je omogućeno pauzira povijest čitanja";
+"INCOGNITO_MODE_TEXT" = "Pauzira bilježenje povijesti čitanja kada je uključeno";
 "APPEARANCE_DARK" = "Tamno";
 "USE_SYSTEM_APPEARANCE" = "Koristi izgled sustava";
 "REFRESH_METADATA" = "Osvježi metapodatke";
@@ -190,7 +190,7 @@
 "IMPORT_FAIL" = "Uvoz neuspješan";
 "BACKUP_IMPORT_FAIL_TEXT" = "Uvoz sigurnosne kopije nije uspio. Provjeri format sigurnosne kopije.";
 "EXPORT" = "Izvezi";
-"RESTORE" = "Obnovi";
+"RESTORE" = "Vrati";
 "LOGS" = "Zapisi";
 "LOGGING" = "Zapisivanje";
 "LOG_SERVER" = "Server za zapise";
@@ -199,7 +199,7 @@
 "ADVANCED" = "Napredno";
 "RESET_TEXT" = "Ovo je nepovratna radnja. Svi podaci, postavke i predmemorije će se izbrisati i poništiti.";
 "CLEAR_NETWORK_CACHE" = "Očisti mrežnu predmemoriju";
-"CLEAR_READ_HISTORY" = "Obriši povijest čitanja";
+"CLEAR_READ_HISTORY" = "Očisti povijest čitanja";
 "WITH_UNREAD_CHAPTERS" = "S nepročitanim poglavljima";
 "WITH_COMPLETED_STATUS" = "S završenim statusom";
 "THAT_HAVENT_BEEN_READ" = "Bez poglavlja označenih kao pročitana";
@@ -234,7 +234,7 @@
 "TRACK_READING" = "Čitanje";
 "VIEW_LIBRARY" = "Prikaži biblioteku";
 "CATEGORY_EMPTY" = "Kategorija je prazna";
-"AUTH_TO_OPEN" = "Autentificiraj za otvaranje.";
+"AUTH_TO_OPEN" = "Autentificiraj se za otvaranje.";
 "LOCKED_CATEGORIES" = "Zaključane kategorije";
 "LOCK_LIBRARY" = "Zaključaj biblioteku";
 "SET_AS_WIDE_PAGE" = "Postavi kao široku stranicu";
@@ -262,7 +262,7 @@
 "%i_OF_%i" = "%i od %i";
 "WEBTOON" = "Webtoon";
 "%i_PAGES_LEFT" = "Preostale stranice: %i";
-"ONE_PAGE_LEFT" = "Jedna stranica preostala";
+"ONE_PAGE_LEFT" = "Preostala je 1 stranica";
 "FAILED_CHAPTER_LOAD_INFO" = "Možda si izvan mreže ili postoji problem s izvorom.";
 "SORT_TOTAL_CHAPTERS" = "Ukupno poglavlja";
 "REMOVE_FROM_CATEGORY" = "Ukloni iz kategorije";
@@ -280,7 +280,7 @@
 "MANHWA" = "Manhwa";
 "MANHUA" = "Manhua";
 "LIGHT_NOVEL" = "Light novel";
-"SUPPORT_VIA_KOFI" = "Podrži putem Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Podrži putem Ko-fi";
 "RENAME_CATEGORY_FAIL" = "Preimenovanje kategorije nije uspjelo";
 "SKIP_DUPLICATE_CHAPTERS" = "Preskoči dupla poglavlja";
 "RENAME_CATEGORY_FAIL_INFO" = "Imena kategorija moraju biti jedinstvena.";
@@ -305,7 +305,7 @@
 "FIRST_ALTERNATIVE" = "Prva alternativa";
 "MIGRATE_%i_ITEMS?" = "Migrirati odabrane stavke (broj: %i)?";
 "MIGRATE_ONE_ITEM?" = "Migrirati jednu stavku?";
-"IS_TRACKING" = "Praćenje";
+"IS_TRACKING" = "Praćeno";
 "DEFAULT_READING_MODE" = "Zadani način čitanja";
 "UPLOAD_DATE" = "Datum prijenosa";
 "ALL_CHAPTERS_READ" = "Sva poglavlja su pročitana";
@@ -325,7 +325,7 @@
 "WARNING" = "Upozorenje";
 "NO_WIFI_ALERT_TITLE" = "Nema Wi-Fi";
 "NO_WIFI_ALERT_MESSAGE" = "Moraš biti povezan na Wi-Fi za preuzimanje ovog sadržaja. Poveži se na Wi-Fi i pokušaj ponovo.";
-"DOWNLOAD_ANYWAY_MESSAGE" = "Trenutno niste na Wi-Fi mreži. Svejedno preuzeti?";
+"DOWNLOAD_ANYWAY_MESSAGE" = "Trenutno nisi na Wi-Fi mreži. Svejedno preuzeti?";
 "ONLY_DOWNLOAD_ON_WIFI" = "Preuzimaj samo putem Wi-Fi mreže";
 "READER_BG_COLOR_SYSTEM" = "Sustav";
 "READER_BG_COLOR_WHITE" = "Bijela";
@@ -368,12 +368,12 @@
 "VOLUME_CHAPTER_EMPTY_ERROR" = "Potreban je broj sveska i/ili poglavlja.";
 "USE_CHAPTERS_TEXT" = "Tretiraj knjige kao poglavlja umjesto kao sveske";
 "VOLUME" = "Svezak";
-"KOMGA_SETUP" = "Komga konfiguracija";
+"KOMGA_SETUP" = "Postavljanje Komge";
 "OTHER_SETTINGS" = "Druge postavke";
 "KEEP_READING" = "Nastavi čitati";
 "ANY" = "Bilo koji";
 "ARTIST" = "Crtač";
-"SORT" = "Razvrstaj";
+"SORT" = "Poredak";
 "SORT_NAME" = "Ime";
 "SORT_DATE_UPDATED" = "Datum aktualiziranja";
 "SORT_DATE_READ" = "Datum čitanja";
@@ -413,20 +413,20 @@
 "LOCAL_FILES_SETUP" = "Konfiguracija lokalnog izvora";
 "LOCAL_FILES" = "Lokalne datoteke";
 "LOCAL_FILES_TAGLINE" = "Čitaj iz lokalnih datoteka";
-"IMPORT" = "Uvezi";
+"IMPORT" = "Uvoz";
 "IMPORT_FILE" = "Uvezi datoteku";
 "LOCAL_FILE_IMPORT" = "Uvoz lokalne datoteke";
 "LOCAL_FILE_IMPORT_TEXT" = "Uvezi CBZ ili ZIP datoteku koja sadrži slike za čitanje.";
 "CHAPTER_TITLE" = "Naslov poglavlja";
 "SERIES_TITLE" = "Naslov serije";
 "DESCRIPTION" = "Opis";
-"SERIES" = "Serije";
+"SERIES" = "Serija";
 "NEW_SERIES" = "Nova serija";
 "NEW_SERIES_TEXT" = "Stvori novu seriju za ovu datoteku";
 "SELECT_SERIES" = "Odaberi seriju";
 "SERIES_TITLE_UNIQUE_ERROR" = "Serija s ovim naslovom već postoji.";
 "SERIES_TITLE_EMPTY_ERROR" = "Za novu seriju se mora navesti naslov.";
-"CREATE_NEW_SERIES_INFO" = "Nova serija će se stvoriti na sljedećoj stranici ili odaberi postojeću seriju kojoj ćeš dodati ovu datoteku.";
+"CREATE_NEW_SERIES_INFO" = "Nova serija stvorit će se na sljedećoj stranici, a možeš i odabrati postojeću seriju u koju ćeš dodati ovu datoteku.";
 "ADD_TO_OTHER_SERIES_INFO" = "Datoteka će se dodati odabranoj seriji.";
 "%i_PAGES" = "Stranice: %i";
 "1_PAGE" = "Jedna stranica";
@@ -436,7 +436,7 @@
 "KOMGA_TAGLINE" = "Server medija s vlastitim hostingom";
 "KOMGA_INFO" = "Komga je server medija s vlastitim hostingom za stripove i mange. Za korištenje ovog izvora ćeš morati postaviti i pokrenuti Komga server.";
 "SOURCE_NAME" = "Ime izvora";
-"SOURCE_NAME_INFO" = "Ime koje će izvor prikazati na kartici pregledavanja.";
+"SOURCE_NAME_INFO" = "Ime ovog izvora prikazano na kartici pregledavanja.";
 "SOURCE_NAME_UNIQUE_ERROR" = "Odaberi jedinstveno ime izvora.";
 "SERVER_URL" = "URL servera";
 "SERVER_URL_INFO" = "Osnovni URL servera za povezivanje.";
@@ -447,7 +447,7 @@
 "DEMO_KOMGA_SERVER" = "Demo Komga server";
 "DEMO_KOMGA_SERVER_INFO" = "Na demo Komga server se možeš prijaviti putem e-maila `demo@komga.org` i lozinke `komga-demo`.";
 "LOCKED" = "Zaključano";
-"TOGGLE_LOCK" = "Uklj./Isklj. lokot";
+"TOGGLE_LOCK" = "Zaključaj/otključaj";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Uklanjanje stavke iz biblioteke";
 "REMOVING_%i_ITEMS_FROM_LIBRARY" = "Uklanjanje iz biblioteke (broj stavki: %i)";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Uklanjanje stavke iz kategorije %@";
@@ -483,7 +483,7 @@
 "DISABLED" = "Isključeno";
 "ANIMATE_PAGE_TRANSITIONS" = "Animiraj prijelaze stranica";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Ova radnja je nepovratna. Uklonit će se sva povijest čitanja naslova koji nisu u biblioteci.";
-"OEL" = "Original na engleskom jeziku (OEL)";
+"OEL" = "OEL";
 "COMIC" = "Strip";
 "BOOK" = "Knjiga";
 "TRACK_COMPLETED" = "Dovršeno";
@@ -496,7 +496,7 @@
 "ADD" = "Dodaj";
 "MARK_DUPLICATE_CHAPTERS" = "Označi dupla poglavlja kao pročitana";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Ovaj izvor je imao promjenu koja uzrokuje nekompatibilnost i zahtijeva migraciju kako bi se tvoja biblioteka i povijest sačuvali.";
-"SOURCE_BREAKING_CHANGE" = "Izvor s promjenom koja uzrokuje nekompatibilnost";
+"SOURCE_BREAKING_CHANGE" = "Nekompatibilna promjena izvora";
 "ALL_CHAPTERS_LOCKED" = "Sva poglavlja su zaključana";
 "READER_ORIENTATION" = "Orijentacija";
 "FOLLOW_DEVICE" = "Prati orijentaciju uređaja";
@@ -523,7 +523,7 @@
 "DISPLAY_CHAPTER" = "Poglavlje";
 "DISPLAY_VOLUME" = "Svezak";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud sinkronizacija je eksperimentalna funkcija. Njeno aktiviranje ili deaktiviranje može uzrokovati gubitak podataka.";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud sinkronizacija je dostupna samo kada je instalirana putem TestFlighta.";
+"ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud sinkronizacija dostupna je samo kada je aplikacija instalirana putem TestFlighta.";
 "NO_RESULTS_FOR_%@" = "Nema rezultata za „%@”";
 "NO_RESULTS_TEXT" = "Provjeri pravopis ili pokušaj s novom pretragom.";
 "ZONE_EDGE" = "Rub";
@@ -535,13 +535,13 @@
 "NAME" = "Ime";
 "DATE" = "Datum";
 "BACKUP_INFO_TITLE" = "Informacije o sigurnosnoj kopiji";
-"TITLE_DISPLAY_MODE" = "Modus prikaza naslova";
+"TITLE_DISPLAY_MODE" = "Način prikaza naslova";
 "UPDATE_AFTER_READING" = "Aktualiziraj nakon čitanja";
 "UPDATE_AFTER_READING_INFO" = "Nakon čitanja poglavlja, aktualiziraj alat praćenja kako bi odgovarao trenutačno pročitanom poglavlju i/ili svesku.";
 "AUTO_SYNC_HISTORY" = "Automatski sinkroniziraj povijest";
 "AUTO_SYNC_HISTORY_INFO" = "Kada alat praćenja zabilježi napredak u čitanju poglavlja i/ili svezaka, lokalna povijest čitanja ažurira se da bi se s njime uskladila.";
 "SET_AS_SINGLE_PAGE" = "Postavi kao pojedinačnu stranicu";
-"%@_TRACKER_LOGIN_NEEDED" = "Potrebna je %@ prijava";
+"%@_TRACKER_LOGIN_NEEDED" = "Potrebna je prijava na %@";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Tvoj je %@ token istekao, stoga će povezani alat praćenja prestati raditi sve dok se ponovo ne prijaviš u postavkama.";
 "ON_DECK" = "Za čitanje";
 "TRACKING" = "Praćenje";
@@ -550,14 +550,14 @@
 "1_BOOK" = "1 knjiga";
 "KAVITA" = "Kavita";
 "KAVITA_TAGLINE" = "Digitalna biblioteka s vlastitim hostingom";
-"KAVITA_SETUP" = "Kavita postavljanje";
+"KAVITA_SETUP" = "Postavljanje Kavite";
 "DEMO_KAVITA_SERVER" = "Demo Kavita server";
 "DEMO_KAVITA_SERVER_INFO" = "Na demo verziju Kavita servera se možeš prijaviti koristeći korisničko ime `demouser` i lozinku `Demouser64`.";
 "MORE_IN_%@" = "Više u %@";
 "SORT_CHAPTER_ADDED" = "Datum dodavanja poglavlja";
 "SORT_TIME_TO_READ" = "Vrijeme za čitanje";
 "SORT_AVERAGE_RATING" = "Prosječna ocjena";
-"STATUS_ENDED" = "Završilo";
+"STATUS_ENDED" = "Završeno";
 "FORMAT" = "Format datoteke";
 "FORMAT_IMAGE" = "Slika";
 "FORMAT_EPUB" = "EPUB";
@@ -570,7 +570,7 @@
 "LEARN_MORE" = "Saznaj više…";
 "SPLIT_WIDE_IMAGES" = "Rastavi široke slike";
 "REVERSE_SPLIT_ORDER" = "Obrni redoslijed podijeljenih stranica";
-"TOGGLE_BARS" = "Uklj./Isklj. vidljivost trake";
+"TOGGLE_BARS" = "Prikaži/sakrij trake";
 "KAVITA_INFO" = "Kavita je samostalno hostirani medijski server za stripove i mangu. Za korištenje ovog izvora trebat ćeš postavljen i pokrenut Kavita server.";
 "DOWNLOADING" = "Preuzimanje";
 "DOWNLOADING_PAUSED" = "Preuzimanje pauzirano";
@@ -590,10 +590,10 @@
 "SOURCES" = "Izvori";
 "DOWNLOADED_CHAPTER_BADGES" = "Značke preuzetih poglavlja";
 "EVERY_6_HOURS" = "Svakih 6 sati";
-"AUTOMATIC_BACKUPS" = "Automatsko spremanje sigurnosnih kopija";
+"AUTOMATIC_BACKUPS" = "Automatske sigurnosne kopije";
 "BACKUP_INTERVAL" = "Interval spremanja sigurnosnih kopija";
-"AUTO" = "Automatski";
-"LAST_BACKED_UP_%@" = "Zadnje automatsko spremanje sigurnosnih kopija: %@";
+"AUTO" = "Auto";
+"LAST_BACKED_UP_%@" = "Zadnja automatska sigurnosna kopija: %@";
 "PROCESSING_QUEUE" = "Obrada reda čekanja…";
 "BACKGROUND_REFRESH" = "Osvježavanje u pozadini";
 "BACKGROUND_REFRESH_TEXT" = "Prilikom ručnog pokretanja osvježavanja biblioteke, dopusti da osvježavanje završi čak i ako je aplikacija u pozadini.";
@@ -630,7 +630,7 @@
 "SERIES_SINGULAR" = "Serija";
 "HOUR_PLURAL" = "Sati";
 "HOUR_SINGULAR" = "Sat";
-"ALL_TIME" = "Svo vrijeme";
+"ALL_TIME" = "Ukupno";
 "THIS_MONTH" = "Ovaj mjesec";
 "THIS_YEAR" = "Ova godina";
 "LIVE_TEXT" = "Tekst uživo";
@@ -647,7 +647,7 @@
 "CATEGORY" = "Kategorija";
 "UNCATEGORIZED" = "Nekategorizirano";
 "FILTER_GROUPS" = "Grupe filtara";
-"CLEAR_FILTERS" = "Izbriši filtre";
+"CLEAR_FILTERS" = "Očisti filtre";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Prikaži kategoriju „Nekategorizirano”";
 "MISSING_SOURCE_LIST" = "Nema na popisu izvora";
 "MISSING_SOURCE_LIST_INFO" = "Ovaj eksterni izvor nije dostupan na nijednom konfiguriranom popisu izvora. To znači da neće primati aktualiziranja i da bi se u budućnosti mogao pokvariti.";
@@ -675,7 +675,7 @@
 "EDIT_FILTER_GROUP" = "Uredi grupu filtara";
 "INCOGNITO_FILTERS_NOTICE" = "Promjene filtara ne spremaju se u inkognito modusu.";
 "MIRRORS" = "Zrcala";
-"MIRRORS_INFO" = "Dodatni URL-ovi koje možeš pokušati koristiti kao osnovni URL ako se glavni ne uspije povezati.";
+"MIRRORS_INFO" = "Dodatni URL-ovi koji se pokušavaju koristiti kao osnovni URL ako se s glavnim ne uspije povezati.";
 "API_KEY" = "API ključ";
 "OIDC" = "OIDC";
 "BASIC_LOGIN" = "Osnovna prijava";
@@ -690,7 +690,7 @@
 "LANDSCAPE_COLUMNS" = "Broj stupaca u položenom prikazu";
 "RESUME_LAST_OPENED_CHAPTER" = "Nastavi pri zadnjem otvorenom poglavlju";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Trenutačno imaš konfiguriran popis izvora u starom formatu. Ovaj format je zastario i prestat će raditi u budućoj verziji aplikacije Aidoku. Iako zasad i dalje radi, preporučuje se da pronađeš zamjenu i konfiguriraš je u Postavkama > Popisi izvora.";
-"DISABLE_DOUBLE_TAP_ZOOM" = "Deaktiviraj zumiranje dvostrukim dodirom";
+"DISABLE_DOUBLE_TAP_ZOOM" = "Isključi zumiranje dvostrukim dodirom";
 "HIDE_BARS_ON_SWIPE" = "Sakrij trake prilikom prevlačenja prstom";
 "TEXT_READER_SCROLL" = "Pomicanje";
 "TEXT_READER_PAGED" = "Prikaz u stranicama";
@@ -703,7 +703,7 @@
 "ENHANCED_TRACKERS" = "Poboljšani alati praćenja";
 "UNSET_AS_SINGLE_PAGE" = "Poništi postavku pojedinačne stranice";
 "CONTINUOUS_WITH_GAPS" = "Kontinuirano s prazninama";
-"TOGGLE_PAGE_OFFSET" = "Uklj./Isklj. odmak stranice";
+"TOGGLE_PAGE_OFFSET" = "Uključi/isključi odmak stranice";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Uklanjanjem ove serije iz biblioteke uklonit ćeš i njezine veze s alatima praćenja. Sigurno želiš nastaviti?";
 "ENHANCED_TRACKERS_INFO" = "Poboljšani alati praćenja mogu se automatski povezati sa stavkama koje su dodane u tvoju biblioteku iz podržanih izvora, prateći povijest čitanja u oba smjera.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Isključivanje praćenja za izvor uklanja veze s alatima praćenja samo za taj izvor. Uključivanje automatski povezuje stavke iz tog izvora u tvojoj biblioteci.";
@@ -721,9 +721,9 @@
 
 "TRANSLATION_TEXT" = "Prepoznat i preveden tekst";
 
-"TRANSLATION_NO_IMAGE" = "Pričekajte da se stranica sa slikom učita, a zatim pokušajte ponovno.";
+"TRANSLATION_NO_IMAGE" = "Pričekaj da se stranica sa slikom učita, a zatim pokušaj ponovno.";
 
-"TRANSLATION_NO_TEXT" = "Tekst nije prepoznat. Pokušajte s drugim OCR modelom ili jasnijom slikom.";
+"TRANSLATION_NO_TEXT" = "Tekst nije prepoznat. Pokušaj s drugim OCR modelom ili jasnijom slikom.";
 
 "TRANSLATION_WORKING" = "Prepoznavanje i prevođenje…";
 
@@ -802,7 +802,7 @@
 
 "TRANSLATION_AUTO_FIT" = "Prilagodi automatski";
 
-"TRANSLATION_FIXED" = "Fiksna veličina fonta";
+"TRANSLATION_FIXED" = "Fiksno";
 
 "TRANSLATION_OVERLAY" = "Prijevod preko slike";
 
@@ -949,7 +949,7 @@
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "Poslužitelj za čitanje manga";
 "SUWAYOMI_INFO" = "Suwayomi je poslužitelj za čitanje manga s vlastitim hostingom koji pokreće proširenja napravljena za Mihon (Tachiyomi). Trebat će ti postavljen i pokrenut Suwayomi poslužitelj za korištenje ovog izvora.";
-"SUWAYOMI_SETUP" = "Postavljanje Suwayomi";
+"SUWAYOMI_SETUP" = "Postavljanje Suwayomija";
 "STATUS_LICENSED" = "Licenciran";
 "STATUS_PUBLISHING_FINISHED" = "Objavljivanje završeno";
 "AUTHOR_NAME" = "Ime autora";
@@ -1060,7 +1060,7 @@
 
 // Translated page export
 "SAVE_TRANSLATED_IMAGE" = "Spremi sliku s prijevodom";
-"TRANSLATED_IMAGE_SAVE_FAILED" = "Nije moguće izraditi prevedenu sliku. Pokušajte ponovno nakon dovršetka prijevoda.";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Nije moguće izraditi prevedenu sliku. Pokušaj ponovno nakon dovršetka prijevoda.";
 
 "TRANSLATION_AUTHORS" = "Prevedi imena autora";
 
@@ -1101,7 +1101,7 @@
 "TRANSLATION_ERROR_HTTP" = "Poslužitelj za prijevod vratio je HTTP %d.";
 "TRANSLATION_ERROR_HTTP_REQUEST" = "Poslužitelj za prijevod vratio je HTTP %d (ID zahtjeva: %@).";
 "TRANSLATION_ERROR_NETWORK_CODE" = "Zahtjev za prijevod nije uspio (pogreška %d).";
-"TRANSLATION_ERROR_CONNECTION" = "Nije moguće povezati se s API-jem za prijevod. Provjeri mrežnu vezu, krajnju točku API-ja i stanje poslužitelja pa pokušajte ponovno.";
+"TRANSLATION_ERROR_CONNECTION" = "Nije moguće povezati se s API-jem za prijevod. Provjeri mrežnu vezu, krajnju točku API-ja i stanje poslužitelja pa pokušaj ponovno.";
 "TRANSLATION_ERROR_REFUSED" = "Pružatelj usluge prijevoda odbio je zahtjev.";
 "TRANSLATION_ERROR_KEY_ACCOUNT" = "Identifikator koji se koristi za pohranu API ključa nije valjan.";
 "TRANSLATION_ERROR_KEY_INVALID" = "API ključ je prazan, predugačak ili sadrži nepodržane znakove.";
@@ -1113,7 +1113,7 @@
 "OCR_ERROR_DICTIONARY" = "Rječnik znakova za PP-OCRv6 nedostaje ili nije valjan.";
 "OCR_ERROR_IMAGE" = "Nije moguće pripremiti sliku za prepoznavanje teksta.";
 "OCR_ERROR_OUTPUT" = "Model PP-OCRv6 vratio je nevaljan ili nepodržan izlaz.";
-"OCR_ERROR_PREDICTION" = "Prepoznavanje teksta s pomoću PP-OCRv6 nije uspjelo. Pokušajte s drugom slikom ili OCR modelom.";
+"OCR_ERROR_PREDICTION" = "Prepoznavanje teksta s pomoću PP-OCRv6 nije uspjelo. Pokušaj s drugom slikom ili OCR modelom.";
 "TRANSLATION_ERROR_CACHE_SIZE" = "Veličina predmemorije prijevoda izvan je podržanog raspona.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "Pohrana predmemorije prijevoda nije valjana ili nije dostupna.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "Predmemoriju prijevoda nije moguće spremiti.";
@@ -1135,11 +1135,11 @@
 "PAGES_%i_OF_%i" = "Stranice: %i / %i";
 "1_SERIES" = "1 serija";
 "SKIPPING_ONE_CHAPTER" = "Preskače se 1 poglavlje jer nedostaje u izvoru ili je izdvojeno filtrom";
-"BACKUP_CREATE_ERROR_TEXT" = "Sigurnosnu kopiju nije bilo moguće izraditi. Pokušajte ponovno.";
+"BACKUP_CREATE_ERROR_TEXT" = "Sigurnosnu kopiju nije bilo moguće izraditi. Pokušaj ponovno.";
 "YES" = "Da";
 "NO" = "Ne";
 "CHAPTERS_%i_OF_%i" = "Poglavlja: %i / %i";
-"TRACKING_REGISTRATION_FAILED" = "Naslov nije bilo moguće dodati u praćenje. Pokušajte ponovno.";
+"TRACKING_REGISTRATION_FAILED" = "Naslov nije bilo moguće dodati u praćenje. Pokušaj ponovno.";
 "SORT_READ_PROGRESS" = "Napredak čitanja";
 "SORT_RELEASE_YEAR" = "Godina izdanja";
 "SOURCE_INVALID_PAGE_COUNT" = "Nevažeći broj stranica";
@@ -1166,7 +1166,7 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Samo vidljive stranice";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ova aplikacija ne podržava izvor %@ verzije %d. Instalirajte podržanu verziju.";
+"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ova aplikacija ne podržava izvor %@ verzije %d. Instaliraj podržanu verziju.";
 
 "TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 podržava samo izvorni tekst na japanskom i kineskom (pojednostavljeno i tradicionalno pismo). Automatsko određivanje i odabir izvornog jezika ograničeni su na te jezike. Prijevod na korejski i druge jezike i dalje je dostupan. Odabirom modela Manga primjenjuju se pragovi otkrivanja 0,85 i 0,25; zadana veličina slike za otkrivanje je 1120 piksela.";

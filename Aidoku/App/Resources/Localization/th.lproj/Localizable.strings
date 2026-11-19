@@ -34,8 +34,8 @@
 "BROWSE" = "เรียกดู";
 "UNINSTALL" = "ถอนการติดตั้ง";
 "PIN" = "ปักหมุด";
-"UNPIN" = "ลบปักหมุด";
-"REORDER" = "จัดใหม่";
+"UNPIN" = "เลิกปักหมุด";
+"REORDER" = "จัดเรียงใหม่";
 "BUTTON_FILTER" = "กรอง";
 "LIST_HEADER" = "รายการ";
 "LIST_ALL" = "ทั้งหมด";
@@ -69,7 +69,7 @@
 "MARK_UNREAD" = "ทำเครื่องหมายว่ายังไม่อ่าน";
 "PREVIOUS_COLON" = "ก่อนหน้า:";
 "NEXT_COLON" = "ถัดไป:";
-"FINISHED_COLON" = "สิ้นสุด:";
+"FINISHED_COLON" = "อ่านจบแล้ว:";
 "CURRENT_COLON" = "ปัจจุบัน:";
 "NO_NEXT_CHAPTER" = "ไม่มีตอนต่อไป";
 "NO_PREVIOUS_CHAPTER" = "ไม่มีตอนก่อนหน้านี้";
@@ -78,7 +78,7 @@
 "VERTICAL_SCROLL" = "เลื่อนแนวตั้ง";
 "EXPERIMENTAL" = "ทดลอง";
 "INFINITE_VERTICAL_SCROLL" = "เลื่อนแนวตั้งอย่างต่อเนื่อง";
-"SAVE_TO_PHOTOS" = "บันทึกรูปเข้าเครื่อง";
+"SAVE_TO_PHOTOS" = "บันทึกลงในรูปภาพ";
 
 // History
 "HISTORY" = "ประวัติ";
@@ -95,7 +95,7 @@
 "ICLOUD_SYNC" = "ซิงค์ iCloud";
 "INCOGNITO_MODE" = "โหมดไม่ระบุตัวตน";
 "INCOGNITO_MODE_TEXT" = "หยุดประวัติการอ่านชั่วคราวเมื่อเปิด";
-"APPEARANCE" = "ธีม";
+"APPEARANCE" = "รูปลักษณ์";
 "APPEARANCE_LIGHT" = "สว่าง";
 "APPEARANCE_DARK" = "มืด";
 "USE_SYSTEM_APPEARANCE" = "ใช้ธีมตามเครื่อง";
@@ -107,10 +107,10 @@
 "LIBRARY_UPDATING" = "การอัปเดตคลัง";
 "UPDATE_INTERVAL" = "รอบเวลาอัปเดต";
 "SKIP_TITLES" = "เรื่องที่ข้าม";
-"ONLY_DOWNLOAD_ON_WIFI" = "ดาวน์โหลดตอนมี Wi-Fi เท่านั้น";
+"ONLY_DOWNLOAD_ON_WIFI" = "ดาวน์โหลดเมื่อต่อ Wi-Fi เท่านั้น";
 "EXCLUDED_CATEGORIES" = "หมวดหมู่ที่ไม่รวม";
 "REFRESH_METADATA" = "รีเฟรชข้อมูลเมตา";
-"NEVER" = "ไม่เลย";
+"NEVER" = "ไม่ใช้";
 "EVERY_12_HOURS" = "ทุก 12 ชั่วโมง";
 "THAT_HAVENT_BEEN_READ" = "ที่ยังไม่มีตอนที่ทำเครื่องหมายว่าอ่านแล้ว";
 "SOURCE_LISTS" = "รายชื่อแหล่งข้อมูล";
@@ -138,8 +138,8 @@
 "PIN_UNREAD" = "ยังไม่อ่าน";
 "ONLY_UPDATE_ON_WIFI" = "อัปเดตเมื่อต่อ Wi-Fi เท่านั้น";
 "UNKNOWN" = "ไม่รู้จัก";
-"CLEAR" = "ล้างทั้งหมด";
-"PAUSE" = "หยุดพัก";
+"CLEAR" = "ล้าง";
+"PAUSE" = "หยุดชั่วคราว";
 "LOADING_ELLIPSIS" = "กำลังโหลด…";
 "COPY" = "คัดลอก";
 "DOWNLOADED" = "ดาวน์โหลดแล้ว";
@@ -152,8 +152,8 @@
 "NEXT_UNREAD" = "ที่ยังไม่อ่านถัดไป";
 "NEXT_%i_UNREAD" = "ที่ยังไม่อ่าน %i รายการถัดไป";
 "REMOVE" = "นำออก";
-"REMOVE_DOWNLOADS" = "ล้างการดาวน์โหลด";
-"REMOVE_DOWNLOADS_CONFIRM" = "ล้างทุกการดาวน์โหลดที่เลือกหรือไม่?";
+"REMOVE_DOWNLOADS" = "ลบการดาวน์โหลด";
+"REMOVE_DOWNLOADS_CONFIRM" = "ลบการดาวน์โหลดที่เลือกทั้งหมดหรือไม่?";
 "CANCEL_DOWNLOAD" = "ยกเลิกดาวน์โหลด";
 "REMOVE_DOWNLOAD" = "ลบที่ดาวน์โหลด";
 "REMOVE_ALL_DOWNLOADS" = "ลบทุกการดาวน์โหลด";
@@ -231,7 +231,7 @@
 "SET_AS_WIDE_PAGE" = "ตั้งเป็นหน้ากว้าง";
 "AUTOMATIC" = "อัตโนมัติ";
 "SET_AS_NORMAL_PAGE" = "ตั้งเป็นหน้าธรรมดา";
-"PAGES_TO_PRELOAD" = "โหลดล่วงหน้ากี่หน้า";
+"PAGES_TO_PRELOAD" = "จำนวนหน้าที่โหลดล่วงหน้า";
 "SINGLE_PAGE" = "หน้าเดียว";
 "PAGED" = "แสดงทีละหน้า";
 "MULTI_LANGUAGE" = "หลายภาษา";
@@ -258,7 +258,7 @@
 "CLEAR_TRACKED_MANGA" = "ลบลิงก์ติดตามมังงะทั้งหมด";
 "CLEAR_TRACKED_MANGA_TEXT" = "การกระทำนี้ไม่สามารถย้อนกลับได้ ลิงก์ทั้งหมดระหว่างมังงะกับตัวติดตามจะถูกลบ";
 "CACHE_SIZE_%@" = "ขนาดแคช: %@";
-"SUPPORT_VIA_KOFI" = "สนับสนุนผ่าน Ko-Fi";
+"SUPPORT_VIA_KOFI" = "สนับสนุนผ่าน Ko-fi";
 "SORT_UNREAD_CHAPTERS" = "ตอนที่ยังไม่อ่าน";
 "RELOAD" = "โหลดใหม่";
 "%i_OF_%i" = "%i จาก %i";
@@ -270,12 +270,12 @@
 "STARTED" = "วันที่เริ่มอ่าน";
 "LIBRARY_LOCKED" = "คลังล็อคอยู่";
 "PAGE_LAYOUT" = "โครงหน้า";
-"LOGOUT_FROM_%@" = "ออกจากระบบจาก %@?";
+"LOGOUT_FROM_%@" = "ออกจากระบบ %@ หรือไม่?";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "คุณแน่ใจที่จะลบดาวน์โหลดทุกรายการไหม?";
 "LOCKED_CATEGORIES" = "หมวดหมู่ที่ถูกล็อค";
 "LOCK_LIBRARY" = "ล็อคคลัง";
 "LOGOUT" = "ออกจากระบบ";
-"BACKUP_IMPORT_SUCCESS_TEXT" = "เพื่อจะกู้การสำรองข้อมูล โปรดหามันที่หน้าการสำรองข้อมูลในการตั้งค่า";
+"BACKUP_IMPORT_SUCCESS_TEXT" = "หากต้องการกู้คืนจากข้อมูลสำรองนี้ ให้ไปที่หน้าการสำรองข้อมูลในการตั้งค่า";
 "IMPORT_FAIL" = "นำเข้าข้อมูลผิดพลาด";
 "EXPORT" = "ส่งออก";
 "RESTORE" = "กู้คืน";
@@ -314,7 +314,7 @@
 "MIGRATE" = "โอนย้าย";
 "OPTIONS" = "ตัวเลือก";
 "SELECTED" = "เลือกแล้ว";
-"AVAILABLE" = "มีอยู่";
+"AVAILABLE" = "พร้อมใช้งาน";
 "NOT_FOUND" = "ไม่พบ";
 "MOST_CHAPTERS_SLOWER" = "จำนวนตอนมากที่สุด (ช้ากว่า)";
 "FIRST_ALTERNATIVE" = "ทางเลือกทดแทนแรก";
@@ -339,7 +339,7 @@
 "ALL_CHAPTERS_READ" = "อ่านครบทุกตอนแล้ว";
 "SCANLATOR" = "ทีมแปลภาษา";
 "NO_SCANLATOR" = "ไม่มีทีมแปลภาษา";
-"DONE" = "เรียบร้อย";
+"DONE" = "เสร็จสิ้น";
 "INVALID" = "ไม่ถูกต้อง";
 "ENABLE_PERMISSION" = "เปิดใช้งานการอนุญาต";
 "PHOTOS_ACCESS_DENIED_TEXT" = "การเข้าถึงก่อนหน้าถูกปฏิเสธ โปรดอนุญาตให้ Aidoku เข้าถึงรูปภาพของคุณเพื่อบันทึกภาพลงในม้วนฟิล์ม คุณสามารถเปิดสิทธิ์การเข้าถึงได้ในการตั้งค่าความเป็นส่วนตัว";
@@ -356,7 +356,7 @@
 "TOGGLE_BARS" = "สลับการมองเห็นแถบ";
 "CLOSE_READER" = "ปิดตัวอ่าน";
 "DOWNLOADING" = "กำลังดาวน์โหลด";
-"PROCESSING_QUEUE" = "คิวกำลังประมวลผล…";
+"PROCESSING_QUEUE" = "กำลังประมวลผลคิว…";
 "DOWNLOADING_PAUSED" = "การดาวน์โหลดถูกหยุดชั่วคราว";
 "PAUSED" = "ถูกหยุดชั่วคราว";
 "CANCEL_ALL_DOWNLOADS" = "ยกเลิกการดาวน์โหลดทั้งหมด";
@@ -379,7 +379,7 @@
 "BROWSE_NO_SOURCES_TEXT_NEW" = "เพิ่มแหล่งข้อมูลโดยใช้ปุ่มบวก";
 "CONTENT_RATING" = "การจัดระดับเนื้อหา";
 "SAFE" = "ปลอดภัย";
-"CONTAINS_NSFW" = "ประกอบด้วย NSFW";
+"CONTAINS_NSFW" = "มี NSFW";
 "PRIMARILY_NSFW" = "NSFW เป็นหลัก";
 "BASE_URL" = "URL พื้นฐาน";
 "SEE_ALL" = "ดูทั้งหมด";
@@ -432,12 +432,12 @@
 "SERIES_TITLE_UNIQUE_ERROR" = "มีซีรีส์ชื่อนี้อยู่แล้ว";
 "SERIES_TITLE_EMPTY_ERROR" = "ต้องระบุชื่อสำหรับซีรีส์ใหม่";
 "ZIP_NAME" = "ไฟล์บีบอัด Zip";
-"KOMGA" = "คอมก้า (Komga)";
+"KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "เซิร์ฟเวอร์เก็บสื่อที่โฮสต์เอง";
 "KOMGA_INFO" = "Komga เป็นเซิร์ฟเวอร์เก็บสื่อที่โฮสต์เองสำหรับการ์ตูนและมังงะ คุณจำเป็นต้องตั้งเซิร์ฟเวอร์ Komga เพื่อใช้แหล่งข้อมูลนี้";
 "KOMGA_SETUP" = "ตั้งค่า Komga";
-"DEMO_KOMGA_SERVER" = "ตัวอย่างเซิร์ฟเวอร์ Komga";
-"DEMO_KOMGA_SERVER_INFO" = "คุณสามารถล็อกอินเข้าเซิร์ฟเวอร์ Komga เวอร์ชั่นตัวทดลองด้วยอีเมล `demo@komga.org` และรหัสผ่าน `komga-demo`";
+"DEMO_KOMGA_SERVER" = "เซิร์ฟเวอร์ Komga สำหรับทดลอง";
+"DEMO_KOMGA_SERVER_INFO" = "คุณสามารถล็อกอินเข้าเซิร์ฟเวอร์ Komga สำหรับทดลองด้วยอีเมล `demo@komga.org` และรหัสผ่าน `komga-demo`";
 "SOURCE_NAME" = "ชื่อแหล่งข้อมูล";
 "SOURCE_NAME_INFO" = "ชื่อแหล่งข้อมูลจะแสดงไว้ที่แท็บเรียกดู";
 "SOURCE_NAME_UNIQUE_ERROR" = "กรุณาระบุชื่อแหล่งข้อมูลที่ไม่ซ้ำใคร";
@@ -481,12 +481,12 @@
 "NOT_LOGGED_IN" = "ไม่ได้ล็อกอิน";
 "NO_SERVER_CONFIGURED" = "ไม่มีการกำหนดเซิร์ฟเวอร์";
 "INVALID_SERVER_URL" = "URL เซิร์ฟเวอร์ไม่ถูกต้อง";
-"KAVITA" = "คาวิต้า (Kavita)";
+"KAVITA" = "Kavita";
 "KAVITA_TAGLINE" = "ไลบรารีดิจิตอลที่โฮสต์ด้วยตนเอง";
 "KAVITA_INFO" = "Kavita เป็นเซิร์ฟเวอร์เก็บสื่อที่โฮสต์เองสำหรับการ์ตูนและมังงะ คุณจำเป็นต้องตั้งเซิร์ฟเวอร์ Kavita เพื่อใช้แหล่งข้อมูลนี้";
 "KAVITA_SETUP" = "ตั้งค่า Kavita";
-"DEMO_KAVITA_SERVER" = "เซิร์ฟเวอร์ Kavita เวอร์ชั่นทดลอง";
-"DEMO_KAVITA_SERVER_INFO" = "คุณสามารถล็อกอินเข้าเซิร์ฟเวอร์ Kavita เวอร์ชั่นตัวทดลองด้วยชื่อผู้ใช้ `demouser` และรหัสผ่าน `Demouser64`";
+"DEMO_KAVITA_SERVER" = "เซิร์ฟเวอร์ Kavita สำหรับทดลอง";
+"DEMO_KAVITA_SERVER_INFO" = "คุณสามารถล็อกอินเข้าเซิร์ฟเวอร์ Kavita สำหรับทดลองด้วยชื่อผู้ใช้ `demouser` และรหัสผ่าน `Demouser64`";
 "MORE_IN_%@" = "เพิ่มเติมใน %@";
 "SORT_CHAPTER_ADDED" = "วันที่เพิ่มตอน";
 "SORT_TIME_TO_READ" = "เวลาในการอ่าน";
@@ -512,7 +512,7 @@
 "NO_RECENT_SEARCHES_TEXT" = "การค้นหาล่าสุดของคุณจะปรากฏที่นี่";
 "SOURCES" = "แหล่งข้อมูล";
 "LOGIN" = "ล็อกอิน";
-"LOGOUT_CONFIRM" = "คุณต้องการลงชื่อออก?";
+"LOGOUT_CONFIRM" = "คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?";
 "USERNAME" = "ชื่อผู้ใช้";
 "EMAIL" = "อีเมล";
 "PASSWORD" = "รหัสผ่าน";
@@ -626,11 +626,11 @@
 "CREATE_FILTER_GROUP" = "สร้างกลุ่มตัวกรอง";
 "EDIT_FILTER_GROUP" = "แก้ไขกลุ่มตัวกรอง";
 "CLEAR_FILTERS" = "ลบการกรอง";
-"SHOW_UNCATEGORIZED_CATEGORY" = "แสดงหมวดหมู่ที่ไร้หมวดหมู่";
+"SHOW_UNCATEGORIZED_CATEGORY" = "แสดงหมวดหมู่ “ไร้หมวดหมู่”";
 "SAVE" = "บันทึก";
 "SAVED_SEARCHES" = "การค้นหาที่บันทึกไว้";
 "NAME_SAVED_SEARCH" = "ตั้งชื่อการค้นหาที่บันทึกไว้";
-"CATEGORY_SEARCH" = "หาในหมวดหมู่";
+"CATEGORY_SEARCH" = "ค้นหาในหมวดหมู่";
 "REFRESH_NO_WIFI" = "ไม่ได้เชื่อมต่อ Wi-Fi";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "ลบออกจากคลัง?";
 "REFRESH_ANYWAY" = "รีเฟรชต่อไป";
@@ -737,7 +737,7 @@
 
 "TRANSLATION_AUTO_FIT" = "พอดีโดยอัตโนมัติ";
 
-"TRANSLATION_FIXED" = "ขนาดตัวอักษรคงที่";
+"TRANSLATION_FIXED" = "คงที่";
 
 "TRANSLATION_OVERLAY" = "การแปลซ้อนทับ";
 
@@ -899,7 +899,7 @@
 "REFRESH_DETAILS" = "รีเฟรชรายละเอียด";
 "REFRESH_LOGIN" = "รีเฟรชการเข้าสู่ระบบ";
 "LOGIN_METHOD" = "วิธีการเข้าสู่ระบบ";
-"BASIC" = "ขั้นพื้นฐาน";
+"BASIC" = "พื้นฐาน";
 "LAYOUT" = "เค้าโครง";
 "STANDARD" = "มาตรฐาน";
 "COMPACT" = "กะทัดรัด";
@@ -909,7 +909,7 @@
 "RESUME_LAST_OPENED_CHAPTER" = "อ่านต่อจากตอนที่เปิดล่าสุด";
 "CONTINUE_READING_ON_RESELECT" = "แตะแท็บประวัติอีกครั้งเพื่ออ่านต่อ";
 "PIN_TITLES" = "ปักหมุดชื่อมังงะ";
-"PIN_DISABLED" = "ปิดการปักหมุดแล้ว";
+"PIN_DISABLED" = "ปิด";
 "PIN_UPDATED_CHAPTERS" = "ตอนที่อัปเดต";
 "NEW_CHAPTER_NOTIFICATIONS" = "การแจ้งเตือนตอนใหม่";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "ส่งการแจ้งเตือนเมื่อมีการรีเฟรชคลังในเบื้องหลัง";
@@ -941,10 +941,10 @@
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "ขณะนี้คุณได้กำหนดค่ารายการแหล่งข้อมูลแบบเดิมแล้ว รูปแบบนี้ล้าสมัยและจะหยุดทำงานใน Aidoku เวอร์ชันอนาคต แม้ว่าจะยังใช้งานได้ในตอนนี้ ขอแนะนำให้คุณค้นหารายการแหล่งข้อมูลใหม่มาแทนและกำหนดค่าในการตั้งค่า > รายชื่อแหล่งข้อมูล";
 "DISABLE_DOUBLE_TAP_ZOOM" = "ปิดใช้งานการซูมด้วยการแตะสองครั้ง";
 "LIVE_TEXT" = "ข้อความในภาพ (Live Text)";
-"HIDE_BARS_ON_SWIPE" = "ซ่อนแถบในการปัด";
+"HIDE_BARS_ON_SWIPE" = "ซ่อนแถบเมื่อปัด";
 "TEXT_READER" = "โปรแกรมอ่านข้อความ";
 "TEXT_READER_STYLE" = "รูปแบบตัวอ่าน";
-"TEXT_READER_PAGED" = "การอ่านแบบแบ่งหน้า";
+"TEXT_READER_PAGED" = "แบ่งหน้า";
 "TEXT_READER_SCROLL" = "เลื่อน";
 "TEXT_FONT_FAMILY" = "แบบอักษร";
 "TEXT_FONT_SIZE" = "ขนาดตัวอักษร";
@@ -985,7 +985,7 @@
 "KANJI_DICTIONARIES" = "พจนานุกรมคันจิ";
 "IMPORTING_DICTIONARY" = "กำลังนำเข้าพจนานุกรม...";
 "IMPORT_ERROR" = "ข้อผิดพลาดในการนำเข้า";
-"REVISION" = "การแก้ไข";
+"REVISION" = "รุ่นปรับปรุง";
 "URL" = "URL";
 "ATTRIBUTION" = "การแสดงที่มา";
 "SOURCE_LANGUAGE" = "ภาษาต้นฉบับ";
@@ -1012,7 +1012,7 @@
 "DICTIONARY_UPDATES" = "อัปเดต";
 "UPDATE_NOW" = "อัปเดตทันที";
 "LAST_UPDATED_%@" = "อัปเดตล่าสุด: %@";
-"MONTHLY" = "รายเดือน";
+"MONTHLY" = "ทุกเดือน";
 "GET_RECOMMENDED_DICTIONARIES" = "รับพจนานุกรมที่แนะนำ";
 "RECOMMENDED_DICTIONARIES" = "พจนานุกรมที่แนะนำ";
 "RECOMMENDED_DICTIONARIES_NOTE" = "พจนานุกรมด้านล่างนี้เป็นพจนานุกรมญี่ปุ่น–อังกฤษทั้งหมด สำหรับภาษาอื่น ๆ โปรดดูรายการพจนานุกรมจาก Wiktionary";

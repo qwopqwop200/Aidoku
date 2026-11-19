@@ -24,7 +24,7 @@
 
 // Library
 "LIBRARY" = "Bibliotheek";
-"LIBRARY_SEARCH" = "Vind in bibliotheek";
+"LIBRARY_SEARCH" = "Zoek in bibliotheek";
 "LIBRARY_EMPTY" = "Bibliotheek leeg";
 "ADD_TO_LIBRARY" = "Voeg toe aan bibliotheek";
 "REMOVE_FROM_LIBRARY" = "Verwijder uit bibliotheek";
@@ -114,7 +114,7 @@
 "AUTH_FOR_HISTORY" = "Verifieer om de leesgeschiedenis te bekijken.";
 
 // Search
-"SEARCH" = "Zoek";
+"SEARCH" = "Zoeken";
 "VIEW_MORE" = "Bekijk meer";
 "AUTH_TO_ENABLE" = "Verifieer om in te schakelen.";
 "AUTH_TO_DISABLE" = "Verifieer om uit te schakelen.";
@@ -192,7 +192,7 @@
 "MANHWA" = "Manhwa";
 "VIEW_ON_WEBSITE" = "Bekijk op website";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "Weet je zeker dat je alle downloads wilt verwijderen?";
-"SUPPORT_VIA_KOFI" = "Ondersteun via Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Ondersteun via Ko-fi";
 "SORT_UNREAD_CHAPTERS" = "Ongelezen hoofdstukken";
 "RELOAD" = "Herladen";
 "%i_PAGES_LEFT" = "%i pagina's te gaan";
@@ -221,7 +221,7 @@
 "FIRST_ALTERNATIVE" = "Eerste alternatief";
 "MIGRATE_ONE_ITEM?" = "1 item migreren?";
 "UPLOAD_DATE" = "Uploaddatum";
-"IS_TRACKING" = "Volgen";
+"IS_TRACKING" = "Gevolgd";
 "ALL_CHAPTERS_READ" = "Alle hoofdstukken gelezen";
 "MIGRATE_%i_ITEMS?" = "%i items migreren?";
 "DEFAULT_READING_MODE" = "Standaardleesmodus";
@@ -328,7 +328,7 @@
 "MANGA_UPDATES" = "Updates";
 "NO_UPDATES" = "Geen updates";
 "%lld_PLUS_MORE" = "+%lld meer";
-"ONLY_DOWNLOAD_ON_WIFI" = "Alleen downloaden wanneer verbonden met wifi";
+"ONLY_DOWNLOAD_ON_WIFI" = "Alleen downloaden via wifi";
 "READER_BG_COLOR" = "Achtergrondkleur";
 "READER_BG_COLOR_SYSTEM" = "Systeem";
 "READER_BG_COLOR_WHITE" = "Wit";
@@ -618,7 +618,7 @@
 "DOWNLOAD_INCOMPLETE" = "Onvolledige download";
 "TOTAL_DOWNLOADS" = "Opslaggebruik van downloads";
 "%i_SERIES" = "%i series";
-"IN_LIBRARY" = "In Bibliotheek";
+"IN_LIBRARY" = "In bibliotheek";
 "VIEW_FILES" = "Bestanden bekijken";
 "COMPRESS_DOWNLOADS" = "Downloads comprimeren";
 "PARALLEL_DOWNLOADS" = "Parallelle downloads";
@@ -747,7 +747,7 @@
 "RECENTLY_ADDED_BOOKS" = "Recent toegevoegde boeken";
 "RECENTLY_ADDED_SERIES" = "Recent toegevoegde series";
 "RECENTLY_UPDATED_SERIES" = "Recent bijgewerkte series";
-"RECENTLY_READ_BOOKS" = "Onlangs gelezen boeken";
+"RECENTLY_READ_BOOKS" = "Recent gelezen boeken";
 "ANY" = "Elke";
 "AUTHOR" = "Auteur";
 "ARTIST" = "Tekenaar";
@@ -890,7 +890,7 @@
 "ANIMATE_PAGE_TRANSITIONS" = "Animeer paginaovergangen";
 "TEXT_READER" = "Tekstlezer";
 "TEXT_READER_STYLE" = "Lezerstijl";
-"TEXT_READER_PAGED" = "Gepagineerd lezen";
+"TEXT_READER_PAGED" = "Per pagina";
 "TEXT_READER_SCROLL" = "Scrollen";
 "TEXT_FONT_FAMILY" = "Lettertype";
 "TEXT_FONT_SIZE" = "Lettergrootte";
@@ -979,7 +979,7 @@
 "BACKUP_INFO_TITLE" = "Back-upinformatie";
 "AUTOMATIC_BACKUPS" = "Automatische back-ups";
 "BACKUP_INTERVAL" = "Back-upinterval";
-"AUTO" = "Automatisch";
+"AUTO" = "Auto";
 "LAST_BACKED_UP_%@" = "Laatste automatische back-up: %@";
 "READING_SESSIONS" = "Leessessies";
 "CLEAR_SOURCE_CACHE" = "Broncache wissen";
@@ -1020,7 +1020,7 @@
 "MIGRATE_WITH_HISTORY" = "Migreer en bewaar de geschiedenis";
 "SELECT_PINNED_SOURCES" = "Selecteer vastgezette bronnen";
 "SEARCH_MANUALLY" = "Handmatig zoeken";
-"DONT_MIGRATE" = "Migreer niet";
+"DONT_MIGRATE" = "Niet migreren";
 "SELECTED_%i_OF_%i" = "Geselecteerd (%i/%i)";
 "MIGRATE_%i_OF_%i" = "Migreren (%i/%i)";
 "SHOW_ENTRY" = "Item tonen";
@@ -1032,7 +1032,7 @@
 "AUTO_SCROLL_POSITION" = "Positie van de knop voor automatisch scrollen";
 "POSITION_LEFT" = "Links";
 "POSITION_RIGHT" = "Rechts";
-"%@_TRACKER_LOGIN_NEEDED" = "%@ Inloggen vereist";
+"%@_TRACKER_LOGIN_NEEDED" = "Inloggen bij %@ vereist";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "Je %@-token is verlopen, dus de bijbehorende tracker werkt niet meer totdat je opnieuw inlogt via de instellingen.";
 "FOCUS_ITEM_LEFT" = "Verplaats focus naar het item links";
 "FOCUS_ITEM_RIGHT" = "Verplaats focus naar het item rechts";

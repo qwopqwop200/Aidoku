@@ -1,4 +1,4 @@
-"IMPORT" = "Importeren";
+"IMPORT" = "Bezig met importeren…";
 "DONE" = "Klaar";
 "FILE_IMPORT_FAIL_TEXT" = "Kan bestand niet importeren. Zorg ervoor dat het een leesbaar afbeeldingsbestand of een geldig CBZ- of ZIP-archief met afbeeldingen is.";
 "FORMAT_IMAGE" = "Afbeelding";

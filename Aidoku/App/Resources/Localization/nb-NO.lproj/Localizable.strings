@@ -84,7 +84,7 @@
 "CURRENT_COLON" = "Nåværende:";
 "NO_NEXT_CHAPTER" = "Det er ikke flere kapitler";
 "NO_PREVIOUS_CHAPTER" = "Det er ikke noe tidligere kapittel";
-"READER_SETTINGS" = "Leser-innstillinger";
+"READER_SETTINGS" = "Leserinnstillinger";
 "READING_MODE" = "Lesemodus";
 "DEFAULT" = "Standard";
 "LTR" = "Venstre til høyre →";
@@ -131,7 +131,7 @@
 "BACKUPS" = "Sikkerhetskopier";
 "BACKUP_NAME" = "Sikkerhetskopinavn";
 "MISSING_SOURCES" = "Manglende kilder";
-"RESTORE_BACKUP" = "Gjenopprett til denne sikkerhetskopien?";
+"RESTORE_BACKUP" = "Vil du gjenopprette til denne sikkerhetskopien?";
 "EXPORT_LOGS" = "Eksporter logger";
 "DISPLAY_LOGS" = "Vis logger";
 "ADVANCED" = "Avansert";
@@ -172,13 +172,13 @@
 "SELECTED" = "Valgt";
 "NOT_FOUND" = "Ikke funnet";
 "FIRST_ALTERNATIVE" = "Første alternativ";
-"MIGRATE_%i_ITEMS?" = "Migrer %i elementer?";
-"MIGRATE_ONE_ITEM?" = "Migrer ett element?";
+"MIGRATE_%i_ITEMS?" = "Vil du migrere %i elementer?";
+"MIGRATE_ONE_ITEM?" = "Vil du migrere ett element?";
 "UPLOAD_DATE" = "Opplastingsdato";
 "RELOAD" = "Last inn igjen";
 "%i_PAGES_LEFT" = "%i sider igjen";
 "ONE_PAGE_LEFT" = "1 side igjen";
-"FAILED_CHAPTER_LOAD" = "Klarte ikke å laste inn kapittel";
+"FAILED_CHAPTER_LOAD" = "Klarte ikke å laste inn kapittelet";
 "BOTH" = "Begge";
 "SORT_UNREAD_CHAPTERS" = "Uleste kapitler";
 "%i_OF_%i" = "%i av %i";
@@ -203,19 +203,19 @@
 
 "TRANSLATION_NO_TEXT" = "Ingen tekst ble gjenkjent. Prøv en annen OCR-modell eller et klarere bilde.";
 
-"TRANSLATION_WORKING" = "Gjenkjenner og oversetter...";
+"TRANSLATION_WORKING" = "Gjenkjenner og oversetter …";
 
 "TRANSLATION_OCR_WORKING" = "Gjenkjenner tekst på enheten …";
 
 "TRANSLATION_HELP" = "Oversettelsesikonet slår oversettelse på eller av. Synlige sider klargjøres først, deretter nærliggende sider. Klargjøringen følger leseposisjonen din. Lagrede OCR-resultater, oversettelser og tekstoppsett kan gjenbrukes når du åpner leseren igjen eller starter appen på nytt. Delte bilder som åpnes midlertidig, lagrer ikke denne hurtigbufferen. Når du forlater leseren, avbrytes uferdig arbeid.";
 
-"TRANSLATION_PRIVACY" = "OCR kjører på enheten din. Oversettelse sender gjenkjent tekst og instruksjonene dine til den valgte leverandøren. Hvis Inkluder sidebilde i oversettelse er aktivert, kan også et sidebilde som er tilpasset for behandling, lastes opp. Hvis bilder ikke støttes som inndata, fortsetter oversettelsen med bare tekst. API-kostnader avhenger av leverandøren din. Nøkler forblir i nøkkelring. OCR, oversettelser og tekstoppsett lagres i beskyttet applagring ekskludert fra sikkerhetskopiering.";
+"TRANSLATION_PRIVACY" = "OCR kjører på enheten din. Oversettelse sender gjenkjent tekst og instruksjonene dine til den valgte leverandøren. Hvis Inkluder sidebilde i oversettelse er aktivert, kan også et sidebilde som er tilpasset for behandling, lastes opp. Hvis bilder ikke støttes som inndata, fortsetter oversettelsen med bare tekst. API-kostnader avhenger av leverandøren din. Nøkler forblir i Nøkkelring. OCR, oversettelser og tekstoppsett lagres i beskyttet applagring ekskludert fra sikkerhetskopiering.";
 
 "TRANSLATION_KEY_REPLACE" = "Erstatt lagret API-nøkkel (valgfritt)";
 
 "TRANSLATION_KEY" = "API-nøkkel";
 
-"TRANSLATION_KEY_SAVED" = "API-nøkkel lagret i nøkkelring";
+"TRANSLATION_KEY_SAVED" = "API-nøkkel lagret i Nøkkelring";
 
 "TRANSLATION_KEY_DELETE" = "Slett API-nøkkel";
 
@@ -264,7 +264,7 @@
 
 "TRANSLATION_WHITE" = "Hvit";
 
-"TRANSLATION_DARK" = "Mørkt";
+"TRANSLATION_DARK" = "Mørk";
 
 "TRANSLATION_OPACITY" = "Bakgrunnsopasitet";
 
@@ -556,7 +556,7 @@
 "ALL_SOURCES_INSTALLED_INFO" = "Det er ingen gjenværende eksterne kilder å installere.";
 "SAVE" = "Lagre";
 "SAVED_SEARCHES" = "Lagrede søk";
-"NAME_SAVED_SEARCH" = "Gi dette lagrede søket et navn";
+"NAME_SAVED_SEARCH" = "Navngi lagret søk";
 "NAME_SAVED_SEARCH_INFO" = "Hvis du lagrer dette søket, lagres de konfigurerte filtrene og søketeksten.";
 "SAVED_SEARCH_NAME" = "Navn";
 "SAVE_SEARCH_FAIL" = "Lagring mislyktes";
@@ -619,7 +619,7 @@
 "RECENTLY_ADDED_SERIES" = "Nylig tillagte serier";
 "RECENTLY_UPDATED_SERIES" = "Nylig oppdaterte serier";
 "RECENTLY_READ_BOOKS" = "Nylig leste bøker";
-"ANY" = "Hvilken som helst";
+"ANY" = "Alle";
 "AUTHOR" = "Forfatter";
 "ARTIST" = "Kunstner";
 "SORT" = "Sorter";
@@ -715,7 +715,7 @@
 "LOGIN_FAILED" = "Innlogging mislyktes";
 "LOGIN_FAILED_TEXT" = "Kunne ikke logge på kilden. Sørg for at innloggingsopplysningene dine er angitt riktig.";
 "LOGIN_BASIC_TEXT" = "Innloggingsopplysningene du oppgir, sendes direkte til kilden. Ikke logg inn på kilder du ikke stoler på.";
-"LOGIN_WEBVIEW_WARNING" = "Logge inn via webvisning?";
+"LOGIN_WEBVIEW_WARNING" = "Vil du logge inn via webvisning?";
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Alle informasjonskapsler som er satt i den presenterte webvisningen vil bli gitt til kilden. Ikke logg inn på noen kilde du ikke stoler på.";
 "REFRESH_LOGIN" = "Oppdater pålogging";
 "LOGIN_METHOD" = "Påloggingsmetode";
@@ -758,7 +758,7 @@
 "THAT_HAVENT_BEEN_READ" = "Uten kapitler merket som lest";
 "NO_RESULTS_FOR_%@" = "Ingen resultater for “%@”";
 "NO_RESULTS_TEXT" = "Sjekk stavemåten eller prøv et nytt søk.";
-"LEARN_MORE" = "Lær mer...";
+"LEARN_MORE" = "Lær mer …";
 "INSIGHTS" = "Leseinnsikt";
 "STREAKS" = "Leserekker";
 "STATS" = "Statistikk";
@@ -780,7 +780,7 @@
 "THIS_YEAR" = "I år";
 "SOURCE_LIST_ADDED" = "Kildeliste lagt til";
 "SOURCE_LIST_ADDED_TEXT" = "Du kan nå utforske eksterne kilder i Utforsk-fanen.";
-"SOURCE_LIST_URL" = "Kildeliste URL";
+"SOURCE_LIST_URL" = "Kildeliste-URL";
 "SOURCE_LIST_ADD_TEXT" = "Skriv inn kildelistens URL";
 "SOURCE_LIST_ADD_FAIL" = "Kunne ikke legge til kildeliste";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "Den oppgitte kildelistens URL er ugyldig eller har allerede blitt lagt til.";
@@ -788,7 +788,7 @@
 "UNAVAILABLE_SOURCE_LISTS_TEXT" = "Det oppstod en feil under henting av kildelistene ovenfor.";
 "COPY_URL" = "Kopier URL";
 "LEGACY_SOURCE_LIST" = "Eldre kildeliste";
-"LEGACY_SOURCE_LIST_WARNING" = "Advarsel: Eldre kildeliste";
+"LEGACY_SOURCE_LIST_WARNING" = "Advarsel: eldre kildeliste";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "Du har for øyeblikket konfigurert en eldre kildeliste. Dette formatet er utdatert og vil slutte å fungere i en fremtidig versjon av Aidoku. Selv om det fortsatt vil fungere foreløpig, anbefales det at du finner en erstatning og konfigurerer den i Innstillinger > Kildelister.";
 "LOCK_HISTORY_TAB" = "Lås historikk-fanen";
 "DOWNSAMPLE_IMAGES" = "Reduser bildeoppløsningen";
@@ -813,7 +813,7 @@
 "TEXT_READER" = "Tekstleser";
 "TEXT_READER_STYLE" = "Leserstil";
 "TEXT_READER_PAGED" = "Paginert lesing";
-"TEXT_READER_SCROLL" = "Rull";
+"TEXT_READER_SCROLL" = "Rulling";
 "TEXT_FONT_FAMILY" = "Skrifttype";
 "TEXT_FONT_SIZE" = "Skriftstørrelse";
 "TEXT_LINE_SPACING" = "Linjeavstand";
@@ -888,10 +888,10 @@
 "RENAME_BACKUP" = "Gi nytt navn til sikkerhetskopi";
 "RENAME_BACKUP_TEXT" = "Skriv inn et nytt navn for sikkerhetskopien";
 "CORRUPTED_BACKUP" = "Ødelagt sikkerhetskopi";
-"CORRUPTED_BACKUP_TEXT" = "Denne sikkerhetskopien ser ut til å ha feilkonfigurerte data. Gi nytt navn er ikke mulig.";
+"CORRUPTED_BACKUP_TEXT" = "Denne sikkerhetskopien ser ut til å ha feilkonfigurerte data. Det er ikke mulig å gi den nytt navn.";
 "BACKUP_INFO" = "Trykk lenge på en sikkerhetskopi for å eksportere den, eller sveip til venstre for å slette.";
 "MISSING_SOURCES_TEXT" = "Den gjenopprettede sikkerhetskopien kan inneholde data fra følgende kilder, som for øyeblikket ikke er installert:";
-"RESTORE_MISSING_SOURCES" = "Gjenopprette manglende kilder?";
+"RESTORE_MISSING_SOURCES" = "Vil du gjenopprette manglende kilder?";
 "RESTORE_MISSING_SOURCES_TEXT" = "Vil du søke etter og installere manglende kilder?";
 "INSTALL_SOURCES" = "Installer kilder";
 "INSTALLING_SOURCES" = "Installerer kilder …";
@@ -982,13 +982,13 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Hvis du deaktiverer sporing for en kilde, fjernes sporingskoblingene for den kilden. Når sporing aktiveres, kobles bibliotekoppføringene fra den kilden automatisk.";
 "TRACKER_LOGOUT_INFO" = "Når du logger ut, fjernes koblet informasjon fra denne sporingstjenesten for alle serier.";
 "CACHE_SIZE_%@" = "Størrelse på hurtigbuffer: %@";
-"SUPPORT_VIA_KOFI" = "Støtte via Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Støtte via Ko-fi";
 "SET_AS_SINGLE_PAGE" = "Sett som enkeltside";
 "UNSET_AS_SINGLE_PAGE" = "Fjern innstilling som enkeltside";
 "RELOAD_FAILED" = "Ny innlasting mislyktes";
 "RELOAD_FAILED_TEXT" = "Kunne ikke laste inn bildet på nytt. Vennligst prøv igjen.";
 "SORT_LAST_UPDATED" = "Sist oppdatert";
-"SORT_TOTAL_CHAPTERS" = "Totalt kapitler";
+"SORT_TOTAL_CHAPTERS" = "Antall kapitler";
 "FAILED_CHAPTER_LOAD_INFO" = "Du kan være frakoblet eller kilden kan ha problemer.";
 "WEBTOON" = "Webtoon";
 "CONTINUOUS_WITH_GAPS" = "Kontinuerlig med gap";
@@ -1022,7 +1022,7 @@
 "PILLARBOX_ORIENTATION" = "Skjermretninger med sidemarger";
 "PILLARBOX_ORIENTATION_INFO" = "Velg hvilke skjermretninger som skal vise sidemarger.";
 "AUTO_SCROLL" = "Automatisk rulling";
-"AUTO_SCROLL_SPEED" = "Automatisk rullehastighet";
+"AUTO_SCROLL_SPEED" = "Hastighet for automatisk rulling";
 "AUTO_SCROLL_POSITION" = "Plassering av kontroll for automatisk rulling";
 "POSITION_LEFT" = "Venstre";
 "POSITION_RIGHT" = "Høyre";

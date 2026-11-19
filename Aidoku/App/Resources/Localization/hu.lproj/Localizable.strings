@@ -126,7 +126,7 @@
 "DESELECT_ALL" = "Kijelölés megszüntetése";
 "VOL_SPACE_X" = "%g. köt.";
 "CH_SPACE_X" = "%g. fej.";
-"CURRENT_COLON" = "Jelenleg:";
+"CURRENT_COLON" = "Jelenlegi:";
 "EXPERIMENTAL" = "Kísérleti";
 "SAVE_TO_PHOTOS" = "Mentés a Fotókba";
 
@@ -286,7 +286,7 @@
 "REFRESHING_LIBRARY" = "Könyvtár frissítése…";
 "PROCESSING_ENTRIES" = "Címek feldolgozása…";
 "REFRESH_NO_WIFI" = "Nincs Wi-Fi-hez csatlakozva";
-"REFRESH_NO_WIFI_TEXT" = "A ‘Frissítés csak Wi-Fi-n’ beállítás be van kapcsolva, ezért a könyvtár nem frissíthető, amíg nincs elérhető Wi-Fi kapcsolat.";
+"REFRESH_NO_WIFI_TEXT" = "A „Frissítés csak Wi-Fi-n” beállítás be van kapcsolva, ezért a könyvtár nem frissíthető, amíg nincs elérhető Wi-Fi-kapcsolat.";
 "REFRESH_ANYWAY" = "Frissítés mindenképp";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Eltávolítja a könyvtárból?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "A sorozat eltávolítása a könyvtárából a sorozat követőszolgáltatásokhoz tartozó kapcsolatait is eltávolítja. Biztosan folytatni szeretné?";
@@ -301,20 +301,20 @@
 "RENAME_CATEGORY_FAIL" = "Nem sikerült átnevezni a kategóriát";
 "RENAME_CATEGORY" = "Kategória átnevezése";
 "RENAME_CATEGORY_FAIL_INFO" = "A kategória neveknek egyediknek kell lenniük.";
-"FILTER_GROUPS" = "Szűrő csoportok";
-"CREATE_FILTER_GROUP" = "Szűrő csoport létrehozása";
-"EDIT_FILTER_GROUP" = "Szűrő csoport szerkesztése";
+"FILTER_GROUPS" = "Szűrőcsoportok";
+"CREATE_FILTER_GROUP" = "Szűrőcsoport létrehozása";
+"EDIT_FILTER_GROUP" = "Szűrőcsoport szerkesztése";
 "CLEAR_FILTERS" = "Szűrők törlése";
 "SHOW_UNCATEGORIZED_CATEGORY" = "Nem kategorizált kategória mutatása";
 "EDIT_SOURCES" = "Források szerkesztése";
 "CONTENT_RATING" = "Tartalombesorolás";
 "SAFE" = "Biztonságos";
-"CONTAINS_NSFW" = "Felnőtteknek szóló tartalmat is tartalmaz";
-"PRIMARILY_NSFW" = "Főként felnőtteknek szóló tartalom";
+"CONTAINS_NSFW" = "Felnőtt tartalmat is tartalmaz";
+"PRIMARILY_NSFW" = "Főként felnőtt tartalom";
 "REMOVE_LOCAL_SOURCE" = "Helyi forrás eltávolítása?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "Ez az összes helyi importált fájlt el fogja távolítani.";
-"MISSING_SOURCE_LIST" = "Hiányzó forrás lista";
-"MISSING_SOURCE_LIST_INFO" = "Ez a külső forrás nem elérhető egyik beállított forrás listán sem. Ez azt jelenti, hogy nem fog frissítéseket kapni, és a jövőben hibás lehet.";
+"MISSING_SOURCE_LIST" = "Nincs forráslistán";
+"MISSING_SOURCE_LIST_INFO" = "Ez a külső forrás egyik beállított forráslistán sem érhető el. Ez azt jelenti, hogy nem fog frissítéseket kapni, és a jövőben hibás lehet.";
 "SAVE" = "Mentés";
 "SAVED_SEARCHES" = "Elmentett keresések";
 "NAME_SAVED_SEARCH" = "Nevezze el a mentett keresést";
@@ -360,7 +360,7 @@
 
 "TRANSLATION_LANGUAGE" = "Nyelvek";
 
-"TRANSLATION_TARGET" = "Fordítás ide";
+"TRANSLATION_TARGET" = "Célnyelv";
 
 "TRANSLATION_SOURCE" = "Forrásnyelv";
 
@@ -380,7 +380,7 @@
 
 "TRANSLATION_REASONING" = "Gondolkodási intenzitás";
 
-"TRANSLATION_MODEL_DEFAULT" = "A modell alapértelmezése";
+"TRANSLATION_MODEL_DEFAULT" = "Modell alapértelmezése";
 
 "TRANSLATION_CONCURRENCY" = "Egyidejű kérések";
 
@@ -489,7 +489,7 @@
 
 "TRANSLATION_CHAPTER_TITLE_FILTER" = "Fejezetcímek nyelvei";
 
-"TRANSLATION_PAGE_SOURCE" = "Az oldal forrásnyelve";
+"TRANSLATION_PAGE_SOURCE" = "Oldal forrásnyelve";
 
 "TRANSLATION_TITLE_FILTER_HELP" = "Automatikusan felismeri az egyes címek forrásnyelvét, és csak a kiválasztott nyelveket fordítja le. A Minden észlelt nyelv lehetőség megszünteti a nyelvi korlátozást. Az oldalak és más címek forrásnyelvi beállításai nem befolyásolják ezt a választást.";
 
@@ -516,7 +516,7 @@
 
 "TRANSLATION_LLM_SFX_HELP" = "Ugyanabban a fordítási kérésben osztályozza a hangeffektusokat, és változatlanul hagyja őket. Oldalkép esetén a mesterséges intelligencia a nem egyértelmű OCR-töredékeket is kihagyja, kivéve, ha a kép alapján értelmes szövegről van szó. A párbeszéd, az elbeszélés, a címek és az alkotói adatok továbbra is fordításra kerülnek. Oldalkép nélkül a besorolás kevésbé megbízható.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Képbevitel nélkül a korlátozott vizuális és elrendezési környezet csökkentheti az SFX osztályozási pontosságot.";
+"TRANSLATION_LLM_SFX_NO_IMAGE" = "Képbemenet nélkül a korlátozott vizuális és elrendezési környezet csökkentheti az SFX-osztályozás pontosságát.";
 
 "TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Az eredeti szövegháttér színének megőrzése";
 
@@ -590,7 +590,7 @@
 "KOMGA_INFO" = "A Komga egy saját üzemeltetésű médiaszerver képregényekhez és mangákhoz. Ennek a forrásnak a használatához be kell állítania és futtatnia kell egy Komga-kiszolgálót.";
 "KOMGA_SETUP" = "Komga beállítás";
 "DEMO_KOMGA_SERVER" = "Demo Komga szerver";
-"DEMO_KOMGA_SERVER_INFO" = "A demó Komga szerverre a \"demo@komga.org\" e-mail címmel és a \"komga-demo\" jelszóval jelentkezhet be.";
+"DEMO_KOMGA_SERVER_INFO" = "A demó Komga szerverre a `demo@komga.org` e-mail-címmel és a `komga-demo` jelszóval jelentkezhet be.";
 "SOURCE_NAME" = "Forrás neve";
 "SOURCE_NAME_INFO" = "A forrás neve, amely a Böngészés lapon jelenik meg.";
 "SOURCE_NAME_UNIQUE_ERROR" = "Kérjük, válasszon egyedi forrásnevet.";
@@ -599,7 +599,7 @@
 "SERVER_URL_UNIQUE_ERROR" = "A kiszolgálóhoz konfigurált forrás már létezik.";
 "MIRRORS" = "Tükörszerverek";
 "MIRRORS_INFO" = "További URL-ek, amelyeket a rendszer alap URL-ként kipróbál, ha a fő URL-hez nem sikerül csatlakozni.";
-"SERVER_ERROR" = "Szerver hiba";
+"SERVER_ERROR" = "Szerverhiba";
 "SERVER_ERROR_CONNECTION" = "Nem lehet csatlakozni az adott szerverhez. Győződjön meg arról, hogy fut egy kiszolgálópéldány, és helyesen adta meg az URL-t.";
 "SERVER_ERROR_AUTHENTICATION" = "Nem sikerült bejelentkezni. Győződjön meg róla, hogy helyesen adta meg hitelesítő adatait.";
 "OTHER_SETTINGS" = "Egyéb beállítások";
@@ -658,7 +658,7 @@
 "BASIC_LOGIN" = "Alap bejelentkezés";
 "API_KEY_LOGIN_INFO" = "Az API-kulcs manuális megadása a bejelentkezéshez felülírja a többi bejelentkezési módot. Más bejelentkezési módok használatához üresen hagyhatja.";
 "SUWAYOMI" = "Suwayomi";
-"SUWAYOMI_TAGLINE" = "Manga olvasó szerver";
+"SUWAYOMI_TAGLINE" = "Mangaolvasó szerver";
 "SUWAYOMI_INFO" = "A Suwayomi egy saját üzemeltetésű mangaolvasó szerver, amely a Mihon (Tachiyomi) számára készült bővítményeket futtatja. A forrás használatához egy beállított és futó Suwayomi szerverre van szükség.";
 "SUWAYOMI_SETUP" = "Suwayomi beállítás";
 "STATUS_LICENSED" = "Licencelt";
@@ -688,7 +688,7 @@
 "SOURCES" = "Források";
 "LOGIN" = "Bejelentkezés";
 "LOGOUT_FROM_%@" = "Kijelentkezés innen: %@?";
-"LOGOUT_CONFIRM" = "Biztos, hogy ki akar jelentkezni?";
+"LOGOUT_CONFIRM" = "Biztosan ki szeretne jelentkezni?";
 "USERNAME" = "Felhasználónév";
 "EMAIL" = "E-mail";
 "PASSWORD" = "Jelszó";
@@ -734,7 +734,7 @@
 "CURRENT_STREAK" = "Jelenlegi olvasási sorozat";
 "NO_CURRENT_STREAK" = "Nincs aktuális olvasási sorozat";
 "NO_CURRENT_STREAK_TEXT" = "Olvasson minden nap, hogy sorozatot építsen.";
-"LONGEST_STREAK" = "A leghosszabb olvasási sorozat";
+"LONGEST_STREAK" = "Leghosszabb olvasási sorozat";
 "DAYS" = "Nap";
 "CHAPTER_PLURAL" = "Fejezet";
 "CHAPTER_SINGULAR" = "Fejezet";
@@ -803,21 +803,21 @@
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "A keresési gesztus miatt zárolva: hosszú érintés.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "OCR-szöveg megjelenítése";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Szövegdobozokat jelenít meg a képterületeken, ha a keresés aktiválva van. Ez hasznos lehet annak meghatározásában, hogy az OCR melyik szöveget ismerte fel megfelelően.";
-"DICTIONARY_OVERLAY_PADDING" = "A szövegfedvény belső margói";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "A szövegfedvény betűmérete";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Az OCR nyelvek korlátozása";
+"DICTIONARY_OVERLAY_PADDING" = "Szövegfedvény belső margója";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Szövegfedvény betűmérete";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "OCR-nyelvek korlátozása";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Ha engedélyezve van, csak a kiválasztott nyelvűként megjelölt fejezetek kerülnek OCR-feldolgozásra. Javasoljuk, hogy csak azokat a nyelveket válassza ki, amelyekhez szótárakat importált.";
-"DICTIONARY_OCR_LANGUAGES" = "OCR nyelvek";
+"DICTIONARY_OCR_LANGUAGES" = "OCR-nyelvek";
 "DICTIONARY_POPUP" = "Szótár előugró ablak";
 "DISPLAY_MODE" = "Megjelenítési mód";
 "DEFAULT_DISPLAY_MODE" = "Alapértelmezett";
 "FULL_WIDTH" = "Teljes szélesség";
 "DICTIONARY_POPUP_WIDTH" = "Felugró ablak szélessége";
 "DICTIONARY_POPUP_HEIGHT" = "Felugró ablak magassága";
-"TERM_DICTIONARIES" = "Kifejezés szótárak";
+"TERM_DICTIONARIES" = "Kifejezésszótárak";
 "FREQUENCY_DICTIONARIES" = "Szógyakorisági szótárak";
 "PITCH_DICTIONARIES" = "Dallamhangsúly-szótárak";
-"KANJI_DICTIONARIES" = "Kanji szótárak";
+"KANJI_DICTIONARIES" = "Kandzsiszótárak";
 "IMPORTING_DICTIONARY" = "Szótár importálása…";
 "IMPORT_ERROR" = "Importálási hiba";
 "REVISION" = "Revízió";
@@ -825,10 +825,10 @@
 "ATTRIBUTION" = "Forrásmegjelölés";
 "SOURCE_LANGUAGE" = "Forrásnyelv";
 "TARGET_LANGUAGE" = "Célnyelv";
-"TERM_COUNT" = "A szótári kifejezések száma";
-"TERM_META_COUNT" = "A kifejezések metaadat-bejegyzéseinek száma";
+"TERM_COUNT" = "Kifejezések száma";
+"TERM_META_COUNT" = "Kifejezés-metaadatok száma";
 "KANJI_COUNT" = "Kandzsik száma";
-"KANJI_META_COUNT" = "A kanji metaadat-bejegyzések száma";
+"KANJI_META_COUNT" = "Kandzsi-metaadatok száma";
 "TAG_COUNT" = "Címkeszám";
 "MEDIA_COUNT" = "Médiaszám";
 "IS_UPDATABLE" = "Frissíthető";
@@ -916,7 +916,7 @@
 "SINGLE_PAGE" = "Egyoldalas";
 "PAGED" = "Lapozva";
 "PAGE_LAYOUT" = "Oldalelrendezés";
-"DOUBLE_PAGE" = "Dupla oldal";
+"DOUBLE_PAGE" = "Kétoldalas";
 "PAGE_OFFSET" = "Oldaleltolás";
 "SPLIT_WIDE_IMAGES" = "Széles képek felosztása";
 "REVERSE_SPLIT_ORDER" = "Felosztási sorrend megfordítása";
@@ -926,7 +926,7 @@
 "VOLUMES" = "Kötetek";
 "START_TRACKING" = "Követés indítása";
 "TRACK_READING" = "Olvasás";
-"TRACK_PLANNING" = "Tervezés";
+"TRACK_PLANNING" = "Tervezett";
 "TRACK_COMPLETED" = "Befejezve";
 "TRACK_PAUSED" = "Szüneteltetve";
 "TRACK_DROPPED" = "Félbehagyva";
@@ -956,7 +956,7 @@
 "SHOW_NSFW_RESULTS" = "NSFW eredmények megjelenítése";
 "UPDATE_AFTER_READING" = "Frissítés olvasás után";
 "UPDATE_AFTER_READING_INFO" = "Egy fejezet elolvasása után frissíti a követési szolgáltatást az éppen olvasott fejezetnek és/vagy kötetnek megfelelően.";
-"AUTO_SYNC_HISTORY" = "Az előzmények automatikus szinkronizálása";
+"AUTO_SYNC_HISTORY" = "Előzmények automatikus szinkronizálása";
 "AUTO_SYNC_HISTORY_INFO" = "Ha a követési szolgáltatás előrehaladást rögzít a fejezetek és/vagy kötetek olvasásában, a helyi olvasási előzményeket ehhez igazítja.";
 "SYNC_WITH_TRACKER" = "Szinkronizálás a követési szolgáltatással";
 "SYNC_WITH_TRACKER_INFO_%i" = "A követési szolgáltatás szerint %i fejezet már el lett olvasva. Szeretné ezeket olvasottként megjelölni?";
@@ -968,7 +968,7 @@
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Egy forrás követésének letiltása eltávolítja annak követési kapcsolatait. Az engedélyezés automatikusan összekapcsolja az adott forrásból származó könyvtárelemeket.";
 "TRACKER_LOGOUT_INFO" = "A kijelentkezés az összes sorozatból eltávolítja az ehhez a követési szolgáltatáshoz kapcsolt követési adatokat.";
 "CACHE_SIZE_%@" = "Gyorsítótár mérete: %@";
-"SUPPORT_VIA_KOFI" = "Támogatás a Ko-Fi-n keresztül";
+"SUPPORT_VIA_KOFI" = "Támogatás a Ko-fin keresztül";
 "SET_AS_SINGLE_PAGE" = "Beállítás egyoldalasként";
 "UNSET_AS_SINGLE_PAGE" = "Egyoldalas beállítás megszüntetése";
 "RELOAD" = "Újratöltés";
@@ -990,7 +990,7 @@
 "UPCOMING" = "Közelgő";
 "SELECT" = "Kiválasztás";
 "ADD" = "Hozzáadás";
-"SKIP_DUPLICATE_CHAPTERS" = "Az ismétlődő fejezetek kihagyása";
+"SKIP_DUPLICATE_CHAPTERS" = "Ismétlődő fejezetek kihagyása";
 "MARK_DUPLICATE_CHAPTERS" = "Ismétlődő fejezetek megjelölése olvasottként";
 "MIGRATE_SOURCES" = "Források migrálása";
 "SYNC_LOCAL_HISTORY" = "Helyi előzmények szinkronizálása";
@@ -1023,15 +1023,15 @@
 "AUTO_SCROLL" = "Automatikus görgetés";
 "AUTO_SCROLL_SPEED" = "Automatikus görgetési sebesség";
 "AUTO_SCROLL_POSITION" = "Automatikus görgetés vezérlőjének helye";
-"POSITION_LEFT" = "Balra";
-"POSITION_RIGHT" = "Jobbra";
+"POSITION_LEFT" = "Bal oldalt";
+"POSITION_RIGHT" = "Jobb oldalt";
 "BOTH" = "Mindkettő";
 "%@_TRACKER_LOGIN_NEEDED" = "%@: bejelentkezés szükséges";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "A(z) %@ hozzáférési tokenje lejárt. A kapcsolódó követési szolgáltatás addig nem működik, amíg a beállításokban újra be nem jelentkezik hozzá.";
 "BACKUP_ERROR" = "Biztonsági mentés visszaállítási hiba";
 "BACKUP_ERROR_TEXT" = "Hiba történt a visszaállítás során: %@. A biztonsági másolat érvénytelen lehet.";
 "READER_ORIENTATION" = "Tájolás";
-"FOLLOW_DEVICE" = "Eszköz tájolásának követése";
+"FOLLOW_DEVICE" = "Eszköz szerint";
 "FOCUS_ITEM_LEFT" = "Fókusz a bal oldali elemre";
 "FOCUS_ITEM_RIGHT" = "Fókusz a jobb oldali elemre";
 "FOCUS_ITEM_ABOVE" = "Fókusz a fenti elemre";
@@ -1042,8 +1042,8 @@
 "RESET_FOCUS" = "Fókusz visszaállítása";
 "TURN_PAGE_LEFT" = "Lapozás balra";
 "TURN_PAGE_RIGHT" = "Lapozás jobbra";
-"CHAPTER_FORWARD" = "Fejezet előre";
-"CHAPTER_BACKWARD" = "Fejezet visszafelé";
+"CHAPTER_FORWARD" = "Következő fejezet";
+"CHAPTER_BACKWARD" = "Előző fejezet";
 "OPEN_CHAPTER_LIST" = "Fejezetlista megnyitása";
 "TOGGLE_BARS" = "Eszköztárak megjelenítése vagy elrejtése";
 "CLOSE_READER" = "Olvasó bezárása";

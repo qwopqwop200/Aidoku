@@ -1,4 +1,4 @@
-"IMPORT" = "Importer";
+"IMPORT" = "Importerer …";
 "DONE" = "Ferdig";
 "FILE_IMPORT_FAIL_TEXT" = "Kunne ikke importere filen. Kontroller at det er en lesbar bildefil eller et gyldig CBZ- eller ZIP-arkiv med bilder.";
 "FORMAT_IMAGE" = "Bilde";

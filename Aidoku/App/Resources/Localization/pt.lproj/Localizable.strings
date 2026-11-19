@@ -65,10 +65,10 @@
 "CH_SPACE_X" = "Cap. %g";
 "START_READING" = "Começar a ler";
 "CONTINUE_READING" = "Continuar a ler";
-"PREVIOUS_COLON" = "Anterior(es):";
-"NEXT_COLON" = "Próximo(s):";
-"FINISHED_COLON" = "Finalizado(s):";
-"CURRENT_COLON" = "Atual(is):";
+"PREVIOUS_COLON" = "Anterior:";
+"NEXT_COLON" = "Próximo:";
+"FINISHED_COLON" = "Concluído:";
+"CURRENT_COLON" = "Atual:";
 "VERTICAL_SCROLL" = "Deslocamento vertical";
 "EXPERIMENTAL" = "Experimental";
 "INFINITE_VERTICAL_SCROLL" = "Deslocamento vertical infinito";
@@ -173,7 +173,7 @@
 "AUTH_FOR_HISTORY" = "Autentique-se para ver o histórico de leitura.";
 
 // Search
-"SEARCH" = "Procurar";
+"SEARCH" = "Pesquisar";
 "VIEW_MORE" = "Ver Mais";
 
 // Settings
@@ -222,7 +222,7 @@
 "BACKUP_IMPORT_SUCCESS" = "Backup Importado";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Para restaurar para este backup, localize-o na página de backup nas definições.";
 "LOGS" = "Registos";
-"LOGGING" = "A registar";
+"LOGGING" = "Registo";
 "LOG_SERVER" = "Servidor de registos";
 "EXPORT_LOGS" = "Exportar registos";
 "DISPLAY_LOGS" = "Exibir registos";
@@ -486,7 +486,7 @@
 "HOME" = "Início";
 "RANGE_FROM" = "De";
 "RANGE_TO" = "Até";
-"SOURCE_SETTINGS" = "Configurações de fontes";
+"SOURCE_SETTINGS" = "Configurações da fonte";
 "RESET_SETTINGS_CONFIRM_%@" = "Tem a certeza de que pretende repor todas as definições de %@?";
 "DECODING_ERROR" = "Erro de decodificação";
 "BUILT_IN_SOURCES" = "Fontes integradas";
@@ -551,7 +551,7 @@
 "LOGIN" = "Entrar";
 "LOGIN_WEBVIEW_WARNING" = "Entrar via web view?";
 "BASIC" = "Básico";
-"STANDARD" = "Predefinição";
+"STANDARD" = "Padrão";
 "COMPACT" = "Compacto";
 "CUSTOM" = "Personalizado";
 "PIN_DISABLED" = "Desativado";
@@ -653,7 +653,7 @@
 
 "TRANSLATION_CLEAR_CACHE" = "Limpar cache de tradução";
 
-"TRANSLATION_CACHE_CLEARED" = "Cache de tradução limpo.";
+"TRANSLATION_CACHE_CLEARED" = "Cache de tradução limpa.";
 
 "TRANSLATION_NOTICES" = "Licenças de OCR e Tradução";
 

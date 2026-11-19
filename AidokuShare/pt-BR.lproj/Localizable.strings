@@ -1,4 +1,4 @@
-"IMPORT" = "Importar";
+"IMPORT" = "Importando…";
 "DONE" = "Feito";
 "FILE_IMPORT_FAIL_TEXT" = "Não foi possível importar o arquivo. Verifique se é um arquivo de imagem legível ou um arquivo CBZ ou ZIP válido que contém imagens.";
 "FORMAT_IMAGE" = "Imagem";

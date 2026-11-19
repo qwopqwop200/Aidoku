@@ -1,4 +1,4 @@
-"IMPORT" = "가져오기";
+"IMPORT" = "가져오는 중…";
 "DONE" = "완료";
 "FILE_IMPORT_FAIL_TEXT" = "파일을 가져오지 못했습니다. 읽을 수 있는 이미지 파일이거나 이미지가 포함된 올바른 CBZ 또는 ZIP 파일인지 확인하세요.";
 "FORMAT_IMAGE" = "이미지";

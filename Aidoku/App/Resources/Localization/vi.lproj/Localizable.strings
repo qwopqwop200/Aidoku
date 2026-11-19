@@ -86,7 +86,7 @@
 "SOURCE_ORDER" = "Thứ tự nguồn";
 "MISSING_SOURCE" = "Thiếu nguồn";
 "MISSING_SOURCE_TEXT" = "Nguồn cho truyện này không có sẵn. Vui lòng xoá truyện này khỏi thư viện hoặc cài đặt lại nguồn.";
-"SELECT_CHAPTERS" = "Lựa chọn chương";
+"SELECT_CHAPTERS" = "Chọn chương";
 "SELECT_ALL" = "Chọn tất cả";
 "DESELECT_ALL" = "Huỷ chọn tất cả";
 "LINK_COPIED" = "Liên kết đã được sao chép";
@@ -175,7 +175,7 @@
 "EVERY_2_DAYS" = "Mỗi 2 ngày";
 "WEEKLY" = "Hàng tuần";
 "WITH_UNREAD_CHAPTERS" = "Có chương chưa đọc";
-"WITH_COMPLETED_STATUS" = "Đã hoàn thành";
+"WITH_COMPLETED_STATUS" = "Có trạng thái hoàn thành";
 "THAT_HAVENT_BEEN_READ" = "Không có chương nào được đánh dấu đã đọc";
 "SOURCE_LISTS" = "Danh sách nguồn";
 "SOURCE_LIST_ADDED" = "Đã thêm danh sách nguồn";
@@ -196,7 +196,7 @@
 "BACKUP_INFO" = "Nhấn giữ một bản sao lưu để xuất nó, hoặc kéo từ phải qua để xoá.";
 "RESTORE_BACKUP" = "Khôi phục bản sao lưu này?";
 "RESTORE_BACKUP_TEXT" = "Mọi dữ liệu hiện có sẽ bị ghi đè lên bởi bản sao lưu này.";
-"BACKUP_IMPORT_SUCCESS" = "Đã thêm bản sao lưu";
+"BACKUP_IMPORT_SUCCESS" = "Đã nhập bản sao lưu";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Để khôi phục từ bản sao lưu này, hãy tìm nó trong trang Sao lưu ở mục Cài đặt.";
 "IMPORT_FAIL" = "Không thể nhập";
 "BACKUP_IMPORT_FAIL_TEXT" = "Không thể nhập bản sao lưu. Hãy đảm bảo bản sao lưu có định dạng phù hợp.";
@@ -326,7 +326,7 @@
 "READER_BG_COLOR_BLACK" = "Đen";
 "AVAILABLE" = "Có thể sử dụng";
 "UPLOAD_DATE" = "Ngày tải lên";
-"IS_TRACKING" = "Theo dõi";
+"IS_TRACKING" = "Đang theo dõi";
 "ALL_CHAPTERS_READ" = "Đã đọc xong tất cả các chương";
 "PILLARBOX_AMOUNT" = "Độ rộng khoảng trống hai bên";
 "PILLARBOX" = "Khoảng trống hai bên";
@@ -335,7 +335,7 @@
 "BACKUP_ERROR" = "Khôi phục sao lưu bị lỗi";
 "ONLY_DOWNLOAD_ON_WIFI" = "Chỉ tải về bằng Wi-Fi";
 "BOTH" = "Cả hai";
-"DELETE_DOWNLOAD_AFTER_READING" = "Xóa tải về sau khi đọc xong";
+"DELETE_DOWNLOAD_AFTER_READING" = "Xóa bản tải về sau khi đọc";
 "SKIPPING_CHAPTERS" = "Bỏ qua %i chương vì nguồn không có các chương đó hoặc chúng đã bị lọc bỏ";
 "ENABLE_PERMISSION" = "Bật quyền truy cập";
 "PHOTOS_ACCESS_DENIED_TEXT" = "Quyền truy cập đã bị từ chối trước đó. Vui lòng cho phép Aidoku truy cập vào thư viện ảnh của bạn để lưu ảnh vào Cuộn camera. Bạn có thể bật quyền truy cập trong phần cài đặt quyền riêng tư.";
@@ -353,12 +353,12 @@
 "INVALID" = "Không hợp lệ";
 "CONTENT" = "Nội dung";
 "%@_EXPERIMENTAL" = "%@ (Thử nghiệm)";
-"NO_DOWNLOADS" = "Tải về trống";
+"NO_DOWNLOADS" = "Không có bản tải về";
 "NO_DOWNLOADS_TEXT" = "Nội dung tải về sẽ hiển thị ở đây.";
 "DOWNLOADED_CHAPTERS" = "Các chương đã tải về";
 "TOTAL_DOWNLOADS" = "Tổng dung lượng tải về";
 "IN_LIBRARY" = "Trong Thư viện";
-"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Xóa mục khỏi Thư viện";
+"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Đang xóa mục khỏi Thư viện";
 "REFRESHING_LIBRARY" = "Đang làm mới Thư viện…";
 "CONTENT_RATING" = "Xếp hạng nội dung";
 "CONTAINS_NSFW" = "Chứa nội dung người lớn";
@@ -368,7 +368,7 @@
 "APPLY" = "Áp dụng";
 "RANGE_FROM" = "Từ";
 "RANGE_TO" = "Đến";
-"RESET_SETTINGS_CONFIRM_%@" = "Xác nhận thiết lập lại tất cả cài đặt cho %@ ?";
+"RESET_SETTINGS_CONFIRM_%@" = "Bạn có chắc muốn thiết lập lại tất cả cài đặt cho %@?";
 "CANCEL_CONFIRM" = "Xác nhận huỷ?";
 "CANCEL_CONFIRM_TEXT" = "Những thay đổi của bạn sẽ bị hủy bỏ.";
 "DISCARD_CHANGES" = "Hủy bỏ thay đổi";
@@ -472,7 +472,7 @@
 "UPDATE_AFTER_READING_INFO" = "Sau khi đọc một chương, cập nhật trình theo dõi để khớp với chương hoặc/và tập đang đọc.";
 "AUTO_SYNC_HISTORY" = "Tự động đồng bộ hóa lịch sử";
 "AUTO_SYNC_HISTORY_INFO" = "Khi trình theo dõi ghi nhận tiến độ đọc chương hoặc tập mới hơn, lịch sử trên thiết bị sẽ được cập nhật cho khớp.";
-"SET_AS_SINGLE_PAGE" = "Đặt làm Trang đơn";
+"SET_AS_SINGLE_PAGE" = "Đặt làm trang đơn";
 "RELOAD_FAILED" = "Tải lại không thành công";
 "RELOAD_FAILED_TEXT" = "Không tải lại được hình ảnh. Vui lòng thử lại.";
 "ADD" = "Thêm";
@@ -524,7 +524,7 @@
 "RECENTLY_ADDED_SERIES" = "Bộ sách đã thêm gần đây";
 "SERIES_SINGULAR" = "Bộ sách";
 "%i_SERIES" = "%i bộ";
-"RECENTLY_UPDATED_SERIES" = "Bộ sách vừa cập nhật gần đây";
+"RECENTLY_UPDATED_SERIES" = "Bộ sách cập nhật gần đây";
 "PROCESSING_QUEUE" = "Đang xử lý hàng đợi…";
 "DOWNLOADING_PAUSED" = "Đã tạm dừng tải về";
 "CANCEL_ALL_DOWNLOADS" = "Hủy tất cả tải về";
@@ -572,13 +572,13 @@
 "THIS_YEAR" = "Năm này";
 "TAP_ZONES" = "Khu vực chạm";
 "INVERT_TAP_ZONES" = "Đảo ngược khu vực chạm";
-"AUTOMATIC_BACKUPS" = "Các bản sao lưu tự động";
+"AUTOMATIC_BACKUPS" = "Sao lưu tự động";
 "BACKUP_INTERVAL" = "Chu kỳ sao lưu";
 "LAST_BACKED_UP_%@" = "Lần cuối sao lưu tự động: %@";
-"TRACKING" = "Đang theo dõi";
+"TRACKING" = "Theo dõi";
 "CLOSE_READER" = "Đóng trình đọc";
-"TURN_PAGE_LEFT" = "Lật trang bên trái";
-"TURN_PAGE_RIGHT" = "Lật trang bên phải";
+"TURN_PAGE_LEFT" = "Lật trang sang trái";
+"TURN_PAGE_RIGHT" = "Lật trang sang phải";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Nguồn này có thay đổi không tương thích. Bạn cần chuyển dữ liệu để giữ lại thư viện và lịch sử đọc.";
 "SOURCE_BREAKING_CHANGE" = "Thay đổi không tương thích của nguồn";
 "FOCUS_ITEM_LEFT" = "Chuyển tiêu điểm sang trái";
@@ -595,7 +595,7 @@
 "NEWEST_FIRST" = "Mới nhất trước";
 "HIGHEST_FIRST" = "Cao nhất trước";
 "LOWEST_FIRST" = "Thấp nhất trước";
-"NOT_%@" = "Không %@";
+"NOT_%@" = "Trừ %@";
 "AND_MORE" = "và các mục khác";
 "LOCAL_FILES" = "Tệp trên máy";
 "LOCAL_FILES_TAGLINE" = "Đọc từ tệp trên máy";
@@ -605,7 +605,7 @@
 "VOLUME_CHAPTER_INVALID_ERROR" = "Đã có một chương với thiết lập tương tự.";
 "VOLUME_CHAPTER_EMPTY_ERROR" = "Yêu cầu nhập số tập và/hoặc số chương.";
 "READING_SESSIONS" = "Phiên đọc";
-"CLEAR_SOURCE_CACHE" = "Dọn bộ nhớ đệm của nguồn";
+"CLEAR_SOURCE_CACHE" = "Xoá bộ nhớ đệm của nguồn";
 "CLEAR_SOURCE_CACHE_TEXT" = "Xóa cookie và dữ liệu trang web của các URL thuộc nguồn này, cùng nội dung nguồn đã lưu trong bộ nhớ đệm. Bạn có thể cần đăng nhập lại và thời gian tải có thể tạm thời lâu hơn.";
 "LIVE_TEXT" = "Văn bản trực tiếp";
 "LIBRARY_ADJUST_FILTERS" = "Điều chỉnh bộ lọc để xem thêm nội dung.";
@@ -1024,7 +1024,7 @@
 "MONTHLY" = "Hàng tháng";
 "GET_RECOMMENDED_DICTIONARIES" = "Nhận từ điển được đề xuất";
 "RECOMMENDED_DICTIONARIES" = "Từ điển được đề xuất";
-"RECOMMENDED_DICTIONARIES_NOTE" = "Các từ điển dưới đây đều là ngôn ngữ Nhật-Anh. Đối với các ngôn ngữ khác, bạn có thể kiểm tra danh sách từ điển Wiktionary.";
+"RECOMMENDED_DICTIONARIES_NOTE" = "Các từ điển dưới đây đều là từ điển Nhật–Anh. Đối với các ngôn ngữ khác, bạn có thể kiểm tra danh sách từ điển Wiktionary.";
 "RESTORE_MISSING_SOURCES" = "Khôi phục nguồn bị thiếu?";
 "RESTORE_MISSING_SOURCES_TEXT" = "Bạn có muốn tìm kiếm và cài đặt các nguồn còn thiếu không?";
 "INSTALL_SOURCES" = "Cài đặt nguồn";

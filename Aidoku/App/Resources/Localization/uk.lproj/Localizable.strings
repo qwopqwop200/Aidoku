@@ -29,8 +29,8 @@
 "MANGA_INFO" = "Інформація про мангу";
 "SORT_BY" = "Сортувати за";
 "FILTER_BY" = "Фільтрувати за";
-"SORT_LAST_OPENED" = "Останній відкритий";
-"SORT_LAST_READ" = "Останнє прочитане";
+"SORT_LAST_OPENED" = "Останнє відкриття";
+"SORT_LAST_READ" = "Останнє читання";
 "SORT_LATEST_CHAPTER" = "Останній розділ";
 "SORT_DATE_ADDED" = "Дата додавання";
 
@@ -47,7 +47,7 @@
 "BROWSE_NO_SOURCES" = "Немає джерел";
 "ADDING_SOURCES_GUIDE_BUTTON" = "Керівництво з додавання джерел";
 "UPDATES" = "Оновлення";
-"INSTALLED" = "Встановлено";
+"INSTALLED" = "Встановлені";
 "EXTERNAL" = "Зовнішні";
 "BUTTON_UPDATE" = "ОНОВИТИ";
 "BUTTON_GET" = "ОТРИМАТИ";
@@ -62,7 +62,7 @@
 
 // Manga
 "UNTITLED" = "Без назви";
-"STATUS_CANCELLED" = "Відмінено";
+"STATUS_CANCELLED" = "Скасовано";
 "STATUS_HIATUS" = "Перерва";
 "NSFW" = "NSFW";
 "SUGGESTIVE" = "Із сексуальними натяками";
@@ -77,7 +77,7 @@
 "CHAPTERS" = "Розділи";
 "VOLUME_X" = "Том %g";
 "CHAPTER_X" = "Розділ %g";
-"VOL_X" = "Том %g";
+"VOL_X" = "Т.%g";
 "CH_X" = "Розд.%g";
 "VOL_SPACE_X" = "Том %g";
 "CH_SPACE_X" = "Розд. %g";
@@ -122,13 +122,13 @@
 "ABOUT" = "Про додаток";
 "GITHUB_REPO" = "Репозиторій GitHub";
 "DISCORD_SERVER" = "Сервер Discord";
-"GENERAL" = "Головне";
+"GENERAL" = "Загальні";
 "ICLOUD_SYNC" = "Синхронізація з iCloud";
 "INCOGNITO_MODE" = "Режим інкогніто";
 "APPEARANCE" = "Зовнішній вигляд";
 "APPEARANCE_LIGHT" = "Світла";
 "APPEARANCE_DARK" = "Темна";
-"USE_SYSTEM_APPEARANCE" = "Використовувати системний зовнішній вигляд";
+"USE_SYSTEM_APPEARANCE" = "Як у системі";
 "PORTRAIT" = "Портретний";
 "LANDSCAPE" = "Горизонтальний";
 "READER" = "Рідер";
@@ -148,7 +148,7 @@
 "SOURCE_LIST_ADD" = "Додати список джерел";
 "SOURCE_LIST_ADD_TEXT" = "Введіть URL-адресу списку джерел";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "Указана URL-адреса списку джерел недійсна або вже додана.";
-"LOCK_HISTORY_TAB" = "Заблокувати вкладку «Історія»";
+"LOCK_HISTORY_TAB" = "Блокування вкладки «Історія»";
 "BACKUPS" = "Резервні копії";
 "BACKUP_NAME" = "Назва резервної копії";
 "RENAME_BACKUP" = "Перейменувати резервну копію";
@@ -177,7 +177,7 @@
 "AUTH_TO_OPEN" = "Підтвердьте особу, щоб відкрити.";
 "LOCKED_CATEGORIES" = "Заблоковані категорії";
 "AUTH_FOR_LIBRARY" = "Підтвердьте особу, щоб переглянути бібліотеку.";
-"LOCK_LIBRARY" = "Заблокувати бібліотеку";
+"LOCK_LIBRARY" = "Блокування бібліотеки";
 "AUTOMATIC" = "Автоматично";
 // General
 "CONTINUE" = "Продовжити";
@@ -206,7 +206,7 @@
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Це видалить історію читання цього розділу. Ви впевнені, що хочете продовжити?";
 "AUTH_TO_ENABLE" = "Щоб увімкнути, пройдіть аутентифікацію.";
 "INCOGNITO_MODE_TEXT" = "Призупиняє історію читання, якщо увімкнено";
-"OPEN_READER_VIEW" = "Відкрити вікно рідера";
+"OPEN_READER_VIEW" = "Одразу відкривати рідер";
 "ONLY_UPDATE_ON_WIFI" = "Оновлювати лише через Wi-Fi";
 "PIN_UNREAD" = "Непрочитане";
 "WITH_COMPLETED_STATUS" = "Із завершеним статусом";
@@ -238,7 +238,7 @@
 "MIGRATE_SOURCES" = "Мігрувати джерела";
 "MIGRATE_ONE_ITEM?" = "Перенести 1 елемент?";
 "SELECTED" = "Обрані";
-"MIGRATE_%i_ITEMS?" = "Перенести вибрані елементи (кількість: %i)?";
+"MIGRATE_%i_ITEMS?" = "Перенести елементи: %i?";
 "UPLOAD_DATE" = "Дата завантаження";
 "TRACK_DROPPED" = "Покинуто";
 "STOP_TRACKING" = "Припинити відстеження";
@@ -269,14 +269,14 @@
 "NOT_FOUND" = "Не знайдено";
 "FIRST_ALTERNATIVE" = "Перша альтернатива";
 "OPTIONS" = "Параметри";
-"IS_TRACKING" = "Відстеження";
+"IS_TRACKING" = "Відстежувані";
 "ALL_CHAPTERS_READ" = "Усі розділи прочитано";
-"SELECT" = "Обрати";
+"SELECT" = "Вибрати";
 "DESTINATION" = "Ціль";
 "DOWNSAMPLE_IMAGES" = "Зменшувати роздільну здатність зображень";
-"SET_AS_NORMAL_PAGE" = "Встановити як звичайну сторінку";
+"SET_AS_NORMAL_PAGE" = "Показувати як звичайну сторінку";
 "PAGES_TO_PRELOAD" = "Попереднє завантаження сторінок";
-"SINGLE_PAGE" = "Односторінковий";
+"SINGLE_PAGE" = "Одна сторінка";
 "PAGED" = "Посторінково";
 "PAGE_LAYOUT" = "Макет сторінки";
 "DOUBLE_PAGE" = "Дві сторінки";
@@ -295,7 +295,7 @@
 "TRACK_READING" = "Читаю";
 "TRACK_PLANNING" = "Планую";
 "MANGA" = "Манга";
-"SET_AS_WIDE_PAGE" = "Встановити як широку сторінку";
+"SET_AS_WIDE_PAGE" = "Показувати як широку сторінку";
 "CATEGORY_NAME" = "Назва категорії";
 "SORT_TOTAL_CHAPTERS" = "Кількість розділів";
 "PINNED" = "Закріплені";
@@ -308,20 +308,20 @@
 "PILLARBOX_AMOUNT" = "Ширина бічних полів";
 "PILLARBOX_ORIENTATION" = "Орієнтація для бічних полів";
 "PILLARBOX_ORIENTATION_INFO" = "Виберіть орієнтації екрана, у яких відображатимуться бічні поля.";
-"BOTH" = "Обидва";
+"BOTH" = "Обидві";
 "COPY" = "Копіювати";
 "COVER" = "Обкладинка";
 "REORDER" = "Змінити порядок";
 "PIN" = "Прикріпити";
 "UNPIN" = "Відкріпити";
-"CROP_BORDERS" = "Обрізати поля";
+"CROP_BORDERS" = "Обрізання полів";
 "BACKUP_ERROR" = "Помилка відновлення резервної копії";
 "BACKUP_ERROR_TEXT" = "Під час відновлення виникла помилка: %@. Резервна копія може бути некоректною.";
 "ONLY_DOWNLOAD_ON_WIFI" = "Завантажувати лише через Wi-Fi";
 "DELETE_DOWNLOAD_AFTER_READING" = "Видаляти завантаження після прочитання";
 "SKIPPING_CHAPTERS" = "Пропущено розділів: %i. Вони відсутні в джерелі або виключені фільтрами.";
 "PAUSE" = "Пауза";
-"NO_WIFI_ALERT_TITLE" = "Без Wi-Fi";
+"NO_WIFI_ALERT_TITLE" = "Немає Wi-Fi";
 "RESUME" = "Відновити";
 "SCANLATOR" = "Сканлейтер";
 "NO_SCANLATOR" = "Без сканлейтера";
@@ -342,8 +342,8 @@
 "OPEN_WEBSITE" = "Відкрити веб-сайт";
 "ENABLE_PERMISSION" = "Увімкнути дозвіл";
 "PHOTOS_ACCESS_DENIED_TEXT" = "Раніше у доступі було відмовлено. Будь ласка, надайте Aidoku доступ до ваших фотографій, щоб зберігати зображення у вашій фотопленці. Увімкнути доступ можна в налаштуваннях конфіденційності.";
-"FOLLOW_DEVICE" = "За орієнтацією пристрою";
-"MARK_DUPLICATE_CHAPTERS" = "Позначити повторювані розділи як прочитані";
+"FOLLOW_DEVICE" = "Як на пристрої";
+"MARK_DUPLICATE_CHAPTERS" = "Позначати повторювані розділи як прочитані";
 "READER_ORIENTATION" = "Орієнтація";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Видалення елемента з категорії %@";
 "REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Видалення %i елементів з категорії %@";
@@ -367,7 +367,7 @@
 "BUILT_IN_SOURCES" = "Вбудовані джерела";
 "EXTERNAL_SOURCES" = "Зовнішні джерела";
 "NO_RESULTS" = "Немає результатів";
-"NO_EXTERNAL_SOURCES" = "Без зовнішніх джерел";
+"NO_EXTERNAL_SOURCES" = "Немає зовнішніх джерел";
 "NO_AVAILABLE_SOURCES" = "Немає доступних джерел";
 "ALL_SOURCES_INSTALLED" = "Усі джерела встановлено";
 "LOCAL_FILES_INFO" = "Джерело локальних файлів дозволяє імпортувати твори та керувати власною бібліотекою для читання безпосередньо в Aidoku.";
@@ -382,7 +382,7 @@
 "SERIES" = "Серія";
 "NEW_SERIES" = "Нова серія";
 "NEW_SERIES_TEXT" = "Створити нову серію для цього файлу";
-"SELECT_SERIES" = "Виберіть серію";
+"SELECT_SERIES" = "Вибір серії";
 "VOLUME_CHAPTER_EMPTY_ERROR" = "Потрібно вказати номер тому та/або розділу.";
 "SERIES_TITLE_EMPTY_ERROR" = "Для нової серії необхідно вказати назву.";
 "CREATE_NEW_SERIES_INFO" = "Нова серія буде створена на наступній сторінці, або ви можете вибрати існуючу серію, до якої потрібно додати цей файл.";
@@ -402,7 +402,7 @@
 "SERVER_ERROR" = "Помилка сервера";
 "SERVER_ERROR_CONNECTION" = "Не вдається підключитися до вказаного сервера. Переконайтеся, що екземпляр сервера запущено, а URL-адресу введено правильно.";
 "KOMGA_SETUP" = "Налаштування Komga";
-"ON_DECK" = "Читати далі";
+"ON_DECK" = "На черзі";
 "KEEP_READING" = "Продовжити читання";
 "RECENTLY_ADDED_BOOKS" = "Нещодавно додані книги";
 "RECENTLY_ADDED_SERIES" = "Нещодавно додані серії";
@@ -417,7 +417,7 @@
 "SORT_DATE_READ" = "Дата прочитання";
 "SORT_FOLDER_NAME" = "Назва папки";
 "SORT_BOOKS_COUNT" = "Кількість книг";
-"SORT_RANDOM" = "Випадкове";
+"SORT_RANDOM" = "Випадково";
 "GENRE" = "Жанр";
 "TAG" = "Тег";
 "PUBLISHER" = "Видавець";
@@ -471,13 +471,13 @@
 "OTHER_SETTINGS" = "Інші налаштування";
 "USE_CHAPTERS" = "Використовувати розділи";
 "USE_CHAPTERS_TEXT" = "Вважати книги розділами, а не томами";
-"TRACK_COMPLETED" = "Завершено";
+"TRACK_COMPLETED" = "Прочитано";
 "COMIC" = "Комікс";
 "CONTENT" = "Вміст";
 "BOOK" = "Книга";
 "TOGGLE_LOCK" = "Перемкнути блокування";
 "OEL" = "OEL";
-"%@_EXPERIMENTAL" = "%@ (Експериментальний)";
+"%@_EXPERIMENTAL" = "%@ (експеримент)";
 "RELOAD_FAILED" = "Не вдалося перезавантажити";
 "RELOAD_FAILED_TEXT" = "Не вдалося перезавантажити зображення. Спробуйте ще раз.";
 "NO_DOWNLOADS" = "Немає завантажень";
@@ -518,14 +518,14 @@
 "RANGE_TO" = "До";
 "CLEAR_SOURCE_CACHE" = "Очистити кеш джерела";
 "CLEAR_SOURCE_CACHE_TEXT" = "Видаляє файли cookie та дані вебсайтів для адрес цього джерела, а також кешований вміст джерела. Може знадобитися повторний вхід до облікового запису, а завантаження тимчасово може тривати довше.";
-"INVERT_TAP_ZONES" = "Інвертувати зони дотику";
+"INVERT_TAP_ZONES" = "Інверсія зон дотику";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Синхронізація iCloud — це експериментальна функція. Її ввімкнення або вимкнення може призвести до втрати даних.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "Синхронізація iCloud доступна лише після встановлення через TestFlight.";
 "NO_RESULTS_FOR_%@" = "Немає результатів для запиту «%@»";
 "NO_RESULTS_TEXT" = "Перевірте орфографію або спробуйте новий пошук.";
 "BACKUP_%@" = "Резервна копія %@";
 "UPDATE_AFTER_READING" = "Оновлювати після прочитання";
-"SET_AS_SINGLE_PAGE" = "Встановити як одну сторінку";
+"SET_AS_SINGLE_PAGE" = "Показувати як одну сторінку";
 "CREATE_BACKUP" = "Створити резервну копію";
 "LIBRARY_ENTRIES" = "Записи в бібліотеці";
 "SENSITIVE_SETTINGS" = "Делікатні налаштування";
@@ -556,7 +556,7 @@
 "DEMO_KAVITA_SERVER_INFO" = "Ви можете увійти на демонстраційний сервер Kavita, використовуючи ім'я користувача `demouser` та пароль `Demouser64`.";
 "MORE_IN_%@" = "Більше в %@";
 "SORT_CHAPTER_ADDED" = "Дата додавання розділу";
-"SORT_TIME_TO_READ" = "Час на читання";
+"SORT_TIME_TO_READ" = "Час читання";
 "SORT_AVERAGE_RATING" = "Середній рейтинг";
 "STATUS_ENDED" = "Завершено";
 "FORMAT" = "Формат";
@@ -569,14 +569,14 @@
 "SAFE" = "Без вмісту для дорослих";
 "CONTAINS_NSFW" = "Містить NSFW";
 "PRIMARILY_NSFW" = "В основному NSFW";
-"TOGGLE_BARS" = "Перемикання видимості панелі";
+"TOGGLE_BARS" = "Перемкнути видимість панелей";
 "DOWNLOADING" = "Завантаження";
 "PROCESSING_QUEUE" = "Обробка черги…";
 "DOWNLOADING_PAUSED" = "Завантаження призупинено";
 "PAUSED" = "Призупинено";
 "CANCEL_ALL_DOWNLOADS" = "Скасувати всі завантаження";
 "DOWNLOADS" = "Завантаження";
-"COMPRESS_DOWNLOADS" = "Стиснути завантаження";
+"COMPRESS_DOWNLOADS" = "Стиснення завантажень";
 "METADATA_DETECTED" = "Виявлено застарілі метадані";
 "METADATA_DETECTED_TEXT" = "Застарілі метадані JSON будуть перенесені до файлів ComicInfo.xml.";
 "DOWNLOADED_CHAPTER_BADGES" = "Значки завантажених розділів";
@@ -597,7 +597,7 @@
 "LAST_BACKED_UP_%@" = "Остання автоматична резервна копія: %@";
 "BACKGROUND_DOWNLOADING" = "Завантаження у фоновому режимі";
 "REMOVE_FILTER" = "Вилучити фільтр";
-"AND_MORE" = "та більше";
+"AND_MORE" = "та інші";
 "NOT_%@" = "Не %@";
 "LAYOUT_GRID" = "Сітка";
 "LAYOUT_LIST" = "Список";
@@ -731,9 +731,9 @@
 
 "TRANSLATION_FONT_SIZE" = "Розмір шрифту";
 
-"TRANSLATION_AUTO_FIT" = "Припасувати автоматично";
+"TRANSLATION_AUTO_FIT" = "Підбирати автоматично";
 
-"TRANSLATION_FIXED" = "Фіксований розмір шрифту";
+"TRANSLATION_FIXED" = "Фіксований";
 
 "TRANSLATION_OVERLAY" = "Накладання перекладу";
 
@@ -927,8 +927,8 @@
 "CUSTOM" = "Користувацький";
 "PORTRAIT_COLUMNS" = "Стовпці у вертикальній орієнтації";
 "LANDSCAPE_COLUMNS" = "Стовпці в горизонтальній орієнтації";
-"RESUME_LAST_OPENED_CHAPTER" = "Відновити останній відкритий розділ";
-"CONTINUE_READING_ON_RESELECT" = "Торкнутися «Історія» ще раз, щоб продовжити читання";
+"RESUME_LAST_OPENED_CHAPTER" = "Відновлювати останній відкритий розділ";
+"CONTINUE_READING_ON_RESELECT" = "Повторне торкання «Історія» продовжує читання";
 "NEW_CHAPTER_NOTIFICATIONS" = "Сповіщення про нові розділи";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Надсилати сповіщення під час фонового оновлення бібліотеки.";
 "1_NEW_CHAPTER_AVAILABLE" = "Доступний новий розділ";
@@ -968,7 +968,7 @@
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Показує текстові поля в областях зображення, коли пошук активовано. Це може допомогти визначити, який текст було правильно розпізнано OCR.";
 "DICTIONARY_OVERLAY_PADDING" = "Відступи накладання";
 "DICTIONARY_OVERLAY_TEXT_SCALE" = "Розмір накладеного тексту";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Обмежити мови OCR";
+"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Обмеження мов OCR";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Якщо ввімкнено, OCR обробляє лише розділи, позначені вибраними мовами. Рекомендовано вибирати лише мови, для яких імпортовано словники.";
 "DICTIONARY_OCR_LANGUAGES" = "Мови OCR";
 "DICTIONARY_POPUP" = "Спливаюче вікно словника";
@@ -1032,15 +1032,15 @@
 "ENHANCED_TRACKERS_INFO" = "Розширені трекери можуть автоматично пов’язуватися з творами, доданими до бібліотеки з підтримуваних джерел, і синхронізувати історію читання в обох напрямках.";
 "ENHANCED_TRACKERS_TOGGLE_INFO" = "Вимкнення відстеження для джерела видаляє зв’язки з трекером лише для цього джерела. Увімкнення автоматично пов’язує з трекером твори з цього джерела у вашій бібліотеці.";
 "TRACKER_LOGOUT_INFO" = "Після виходу з облікового запису з Aidoku буде видалено зв’язки всіх творів із цим трекером.";
-"UNSET_AS_SINGLE_PAGE" = "Скасувати налаштування як одну сторінку";
+"UNSET_AS_SINGLE_PAGE" = "Не показувати як одну сторінку";
 "CONTINUOUS_WITH_GAPS" = "Безперервно з проміжками";
 "MIGRATE_CONFIRM_TEXT" = "Історію читання для оригінальних записів буде видалено під час переходу до іншого джерела.";
 "MIGRATE_WITH_HISTORY" = "Перенести й зберегти історію";
 "SELECT_PINNED_SOURCES" = "Вибрати закріплені джерела";
 "SEARCH_MANUALLY" = "Пошук вручну";
 "DONT_MIGRATE" = "Не переносити";
-"SELECTED_%i_OF_%i" = "Вибране (%i/%i)";
-"MIGRATE_%i_OF_%i" = "Перенести (%i/%i)";
+"SELECTED_%i_OF_%i" = "Вибрано (%i/%i)";
+"MIGRATE_%i_OF_%i" = "Перенесення (%i/%i)";
 "SHOW_ENTRY" = "Переглянути запис";
 "AUTO_SCROLL" = "Автоматичне прокручування";
 "AUTO_SCROLL_SPEED" = "Швидкість автоматичного прокручування";
@@ -1120,7 +1120,7 @@
 
 // Source-preserving inpainting
 "TRANSLATION_SOURCE_COLORS" = "Зберігати початкові кольори";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Зберігати кольори тексту й фону разом.";
+"TRANSLATION_SOURCE_COLORS_HELP" = "Зберігає кольори тексту й фону разом.";
 "TRANSLATION_INPAINTING" = "Відновлення фону";
 "TRANSLATION_INPAINTING_HELP" = "Видаляє початковий текст, зберігаючи фон. За ненадійної маски або поганої читабельності використовує блоки. Потребує початкових кольорів.";
 

@@ -68,7 +68,7 @@
 "STATUS_ONGOING" = "Sedang Berlangsung";
 "STATUS_CANCELLED" = "Dibatalkan";
 "STATUS_COMPLETED" = "Tamat";
-"STATUS_HIATUS" = "Jeda";
+"STATUS_HIATUS" = "Hiatus";
 "NSFW" = "NSFW";
 "BUILD" = "Nomor Build";
 "SOURCE_ORDER" = "Urutan Sumber";
@@ -76,7 +76,7 @@
 "SELECT_ALL" = "Pilih Semua";
 "NO_CHAPTERS" = "Tidak Ada Bab";
 "CHAPTERS" = "Bab";
-"MARK_READ" = "Tandai sudah Dibaca";
+"MARK_READ" = "Tandai Sudah Dibaca";
 "FINISHED_COLON" = "Selesai:";
 "NO_PREVIOUS_CHAPTER" = "Tidak ada bab sebelumnya";
 "READER_SETTINGS" = "Pengaturan Pembaca";
@@ -149,7 +149,7 @@
 "AUTOMATIC" = "Otomatis";
 "SET_AS_NORMAL_PAGE" = "Tetapkan sebagai Halaman Normal";
 "PAGES_TO_PRELOAD" = "Halaman untuk Pramuat";
-"SINGLE_PAGE" = "Halaman tunggal";
+"SINGLE_PAGE" = "Halaman Tunggal";
 "PAGED" = "Per Halaman";
 "PAGE_LAYOUT" = "Tata Letak Halaman";
 "TRACK_READING" = "Membaca";
@@ -179,7 +179,7 @@
 "BROWSE_NO_SOURCES" = "Tidak ada sumber";
 "UPDATES" = "Pembaruan";
 "SELECT_CHAPTERS" = "Pilih Bab";
-"MARK_UNREAD" = "Tandai belum Dibaca";
+"MARK_UNREAD" = "Tandai Belum Dibaca";
 "MORE" = "selengkapnya";
 "MISSING_SOURCE_TEXT" = "Sumber asli manga ini tidak ditemukan. Pasang ulang sumber tersebut atau hapus judul ini dari perpustakaan Anda.";
 "MARK" = "Tandai";
@@ -213,7 +213,7 @@
 "UPDATE_INTERVAL" = "Interval Pembaruan";
 "REFRESH_METADATA" = "Segarkan Metadata";
 "WEEKLY" = "Mingguan";
-"WITH_UNREAD_CHAPTERS" = "Dengan bab-bab yang belum dibaca";
+"WITH_UNREAD_CHAPTERS" = "Dengan bab belum dibaca";
 "RESTORE" = "Pulihkan";
 "NEVER" = "Tidak Pernah";
 "THAT_HAVENT_BEEN_READ" = "Tanpa bab yang ditandai sudah dibaca";
@@ -321,7 +321,7 @@
 "ALL_SOURCES_INSTALLED" = "Semua Sumber Telah Diinstal";
 "ALL_SOURCES_INSTALLED_INFO" = "Tidak ada sumber eksternal yang tersisa untuk diinstal.";
 "LOCAL_FILES_INFO" = "Sumber berkas lokal memungkinkan Anda mengimpor dan mengelola perpustakaan bacaan sendiri langsung di dalam Aidoku.";
-"LOCAL_FILES_SETUP" = "Pengaturan Berkas Lokal";
+"LOCAL_FILES_SETUP" = "Penyiapan Berkas Lokal";
 "LOCAL_FILES" = "Berkas Lokal";
 "LOCAL_FILES_TAGLINE" = "Membaca dari berkas lokal";
 "IMPORT" = "Impor";
@@ -359,7 +359,7 @@
 "SERVER_ERROR" = "Kesalahan Server";
 "SERVER_ERROR_CONNECTION" = "Tidak dapat terhubung ke server yang ditentukan. Pastikan instance server sedang berjalan dan URL dimasukkan dengan benar.";
 "SERVER_ERROR_AUTHENTICATION" = "Tidak dapat masuk. Pastikan kredensial Anda dimasukkan dengan benar.";
-"KOMGA_SETUP" = "Pengaturan Komga";
+"KOMGA_SETUP" = "Penyiapan Komga";
 "OTHER_SETTINGS" = "Pengaturan Lainnya";
 "DISPLAY_DEFAULT" = "Default";
 "DISPLAY_CHAPTER" = "Bab";
@@ -367,8 +367,8 @@
 "USE_CHAPTERS" = "Gunakan Bab";
 "USE_CHAPTERS_TEXT" = "Anggap buku sebagai bab, bukan sebagai volume";
 "ON_DECK" = "Bacaan Berikutnya";
-"KEEP_READING" = "Terus Baca";
-"RECENTLY_ADDED_BOOKS" = "Buku-buku yang Baru Ditambahkan";
+"KEEP_READING" = "Lanjutkan Membaca";
+"RECENTLY_ADDED_BOOKS" = "Buku yang Baru Ditambahkan";
 "RECENTLY_ADDED_SERIES" = "Seri yang Baru Ditambahkan";
 "RECENTLY_UPDATED_SERIES" = "Seri yang Baru Saja Diperbarui";
 "RECENTLY_READ_BOOKS" = "Buku yang Baru Saja Dibaca";
@@ -513,7 +513,7 @@
 "SOURCE_BREAKING_CHANGE" = "Perubahan Sumber yang Tidak Kompatibel";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Sumber ini mengalami perubahan yang tidak kompatibel dengan versi sebelumnya. Migrasi diperlukan untuk mempertahankan perpustakaan dan riwayat Anda.";
 "UPLOAD_DATE" = "Tanggal Unggah";
-"IS_TRACKING" = "Pelacakan";
+"IS_TRACKING" = "Dilacak";
 "ALL_CHAPTERS_READ" = "Semua Bab Telah Dibaca";
 "ALL_CHAPTERS_LOCKED" = "Semua Bab Terkunci";
 "DEFAULT_READING_MODE" = "Mode Baca Default";
@@ -551,14 +551,14 @@
 "KAVITA" = "Kavita";
 "KAVITA_TAGLINE" = "Perpustakaan digital yang dihosting sendiri";
 "KAVITA_INFO" = "Kavita adalah server media mandiri untuk komik dan manga. Anda memerlukan server Kavita yang telah diinstal dan berjalan untuk dapat menggunakan sumber ini.";
-"KAVITA_SETUP" = "Pengaturan Kavita";
+"KAVITA_SETUP" = "Penyiapan Kavita";
 "DEMO_KAVITA_SERVER" = "Demo Server Kavita";
 "DEMO_KAVITA_SERVER_INFO" = "Anda dapat masuk ke server demo Kavita menggunakan nama pengguna `demouser` dan kata sandi `Demouser64`.";
-"MORE_IN_%@" = "Lebih Banyak Di %@";
+"MORE_IN_%@" = "Lebih Banyak di %@";
 "SORT_CHAPTER_ADDED" = "Tanggal Bab Ditambahkan";
-"SORT_TIME_TO_READ" = "Waktu untuk Membaca";
+"SORT_TIME_TO_READ" = "Waktu Baca";
 "SORT_AVERAGE_RATING" = "Rating Rata-Rata";
-"STATUS_ENDED" = "Sudah berakhir";
+"STATUS_ENDED" = "Berakhir";
 "FORMAT" = "Format";
 "FORMAT_IMAGE" = "Gambar";
 "FORMAT_EPUB" = "EPUB";
@@ -597,7 +597,7 @@
 "LAYOUT_GRID" = "Kisi";
 "LAYOUT_LIST" = "Daftar";
 "PROCESSING_ENTRIES" = "Memproses Entri…";
-"EDIT_SOURCES" = "Edit Sumber";
+"EDIT_SOURCES" = "Ubah Sumber";
 "REMOVE_LOCAL_SOURCE" = "Hapus Sumber Lokal?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "Tindakan ini akan menghapus semua berkas lokal yang diimpor.";
 "NO_HISTORY" = "Tidak Ada Riwayat";
@@ -708,7 +708,7 @@
 "LANDSCAPE_COLUMNS" = "Kolom dalam Orientasi Lanskap";
 "SYNC_WITH_TRACKER_INFO_1" = "Menurut pelacak, 1 bab sudah dibaca. Apakah Anda ingin menandai bab ini sebagai sudah dibaca?";
 "CONTINUOUS_WITH_GAPS" = "Berkelanjutan dengan Celah";
-"CATEGORY_SEARCH" = "Temukan dalam Kategori";
+"CATEGORY_SEARCH" = "Cari di Kategori";
 "EPUB_NAME" = "EPUB";
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "Server pembaca manga";
@@ -1184,7 +1184,7 @@
 // Reader background translation and preparation limits
 "TRANSLATION_BACKGROUND" = "Terjemahkan sambil menampilkan halaman asli";
 "TRANSLATION_BACKGROUND_HELP" = "Terus menerjemahkan saat Anda membaca dengan tombol terjemahan dinonaktifkan. Halaman asli tetap ditampilkan. Terjemahan dijeda saat aplikasi tidak aktif.";
-"TRANSLATION_PRETRANSLATION_LIMIT" = "Jumlah halaman untuk diterjemahkan lebih awal";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Jumlah Halaman Terjemahan Awal";
 "TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Jumlah maksimum halaman yang diterjemahkan lebih awal, tidak termasuk halaman yang sedang terlihat. Halaman dipilih sesuai prioritas membaca, dengan mengutamakan halaman berikutnya.";
 "TRANSLATION_UNLIMITED" = "Tanpa batas";
 "TRANSLATION_PAGE_SETTINGS" = "Terjemahan Halaman";

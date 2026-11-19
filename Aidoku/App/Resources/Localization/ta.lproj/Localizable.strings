@@ -45,7 +45,7 @@
 "LANGUAGE" = "மொழி";
 "LANGUAGES" = "மொழிகள்";
 "INFO" = "தகவல்";
-"STATUS_ONGOING" = "நடந்து கொண்டிருக்கிறது";
+"STATUS_ONGOING" = "தொடர்கிறது";
 "STATUS_CANCELLED" = "ரத்து செய்யப்பட்டது";
 "STATUS_COMPLETED" = "முடிந்தது";
 "STATUS_HIATUS" = "இடைவெளி";
@@ -55,7 +55,7 @@
 "SOURCE_ORDER" = "மூல வரிசை";
 "MISSING_SOURCE" = "மூலம் காணவில்லை";
 "MISSING_SOURCE_TEXT" = "இந்த மங்காவின் அசல் மூலம் கிடைக்கவில்லை. மூலத்தை மீண்டும் நிறுவவும் அல்லது இந்தத் தலைப்பை உங்கள் நூலகத்திலிருந்து அகற்றவும்.";
-"SELECT_ALL" = "அனைத்தையும் தெரிவுசெய்";
+"SELECT_ALL" = "அனைத்தையும் தேர்ந்தெடு";
 "LINK_COPIED" = "இணைப்பு நகலெடுக்கப்பட்டது";
 "LINK_COPIED_TEXT" = "இணைப்பு கிளிப்போர்டுக்கு நகலெடுக்கப்பட்டுள்ளது.";
 "CHAPTER" = "அத்தியாயம்";
@@ -211,7 +211,7 @@
 "SYNC_LOCAL_HISTORY" = "உள்ளக வரலாற்றை ஒத்திசைக்கவும்";
 "OPTIONS" = "விருப்பங்கள்";
 "DESTINATION" = "இலக்கு";
-"AVAILABLE" = "கிடைக்கிறது";
+"AVAILABLE" = "கிடைப்பவை";
 "NOT_FOUND" = "கண்டுபிடிக்கப்படவில்லை";
 "MOST_CHAPTERS_SLOWER" = "அதிக அத்தியாயங்கள் (மெதுவாக)";
 "FIRST_ALTERNATIVE" = "முதல் மாற்று";
@@ -249,16 +249,16 @@
 "RESET_SETTINGS" = "அமைப்புகளை மீட்டமை";
 "START_TRACKING" = "கண்காணிக்கத் தொடங்கு";
 "CONTINUE" = "தொடர்";
-"PAUSE" = "இடைநிறுத்தம்";
+"PAUSE" = "இடைநிறுத்து";
 "RESUME" = "மீண்டும் தொடங்குங்கள்";
 "DOWNLOAD_QUEUE" = "பதிவிறக்க வரிசை";
 "SORT_LATEST_CHAPTER" = "சமீபத்திய அத்தியாயம்";
 "ALWAYS_ASK" = "எப்போதும் கேள்";
 "UPDATES" = "புதுப்பிப்புகள்";
-"INSTALLED" = "நிறுவப்பட்டது";
+"INSTALLED" = "நிறுவப்பட்டவை";
 "EXTERNAL" = "வெளிப்புறம்";
-"BUTTON_UPDATE" = "புதுப்பிப்பு";
-"BUTTON_GET" = "பெறுங்கள்";
+"BUTTON_UPDATE" = "புதுப்பி";
+"BUTTON_GET" = "பெறு";
 "BUTTON_ERROR" = "பிழை";
 "UNINSTALL" = "நிறுவல் நீக்கு";
 "PIN" = "பின் செய்";
@@ -305,14 +305,14 @@
 "FAILED_CHAPTER_LOAD_INFO" = "நீங்கள் ஆஃப்லைனில் இருக்கலாம் அல்லது மூலத்தில் சிக்கல்கள் இருக்கலாம்.";
 "WEBTOON" = "வெப்டூன்";
 "REMOVE_FROM_CATEGORY" = "வகையிலிருந்து அகற்று";
-"PINNED" = "பின் செய்யப்பட்டது";
+"PINNED" = "பின் செய்யப்பட்டவை";
 "%i_CHAPTERS" = "%i அத்தியாயங்கள்";
 "1_CHAPTER" = "1 அத்தியாயம்";
-"UPCOMING" = "வரவிருக்கும்";
+"UPCOMING" = "வரவிருப்பவை";
 "RENAME_CATEGORY_FAIL_INFO" = "வகை பெயர்கள் தனித்துவமாக இருக்க வேண்டும்.";
 "CATEGORY_NAME" = "வகை பெயர்";
 "MIGRATE" = "மாற்றவும்";
-"SELECTED" = "தேர்ந்தெடுக்கப்பட்டது";
+"SELECTED" = "தேர்ந்தெடுக்கப்பட்டவை";
 "IS_TRACKING" = "கண்காணிப்பு";
 "ALL_CHAPTERS_READ" = "அனைத்து அத்தியாயங்களும் படிக்கப்பட்டன";
 "DEFAULT_READING_MODE" = "இயல்புநிலை வாசிப்பு முறை";
@@ -324,7 +324,7 @@
 "FOLLOW_DEVICE" = "சாதனத்தின் திரைத் திசையைப் பின்பற்று";
 "READER_ORIENTATION" = "நோக்குநிலை";
 "MARK_DUPLICATE_CHAPTERS" = "நகல் அத்தியாயங்களைப் படித்ததாகக் குறி";
-"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "%@ வகையிலிருந்து உருப்படியை நீக்குகிறது";
+"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "%@ வகையிலிருந்து உருப்படியை அகற்றுகிறது";
 "REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "%2$@ வகையிலிருந்து %1$i உருப்படிகளை அகற்றுகிறது";
 "DONE" = "முடிந்தது";
 "INVALID" = "செல்லாதது";
@@ -355,7 +355,7 @@
 "NOT_%@" = "%@ அல்ல";
 "FILTER_SEPARATOR" = ", ";
 "FILTER_HAS_UNREAD" = "படிக்காதது";
-"FILTER_STARTED" = "தொடங்கப்பட்டது";
+"FILTER_STARTED" = "தொடங்கியவை";
 "ASCENDING" = "ஏறுவரிசை";
 "DESCENDING" = "இறங்குவரிசை";
 "OLDEST_FIRST" = "பழையவை முதலில்";
@@ -454,7 +454,7 @@
 "USE_CHAPTERS" = "அத்தியாயங்களைப் பயன்படுத்தவும்";
 "USE_CHAPTERS_TEXT" = "புத்தகங்களை தொகுதிகளுக்குப் பதிலாக அத்தியாயங்களாகக் கருதுங்கள்";
 "%@_BOOKS" = "%@ புத்தகங்கள்";
-"1_BOOK" = "1 நூல்";
+"1_BOOK" = "1 புத்தகம்";
 "ON_DECK" = "அடுத்து படிக்க";
 "KEEP_READING" = "தொடர்ந்து படிக்கவும்";
 "RECENTLY_ADDED_BOOKS" = "அண்மைக் காலத்தில் சேர்க்கப்பட்ட புத்தகங்கள்";
@@ -471,8 +471,8 @@
 "SORT_RELEASE_DATE" = "வெளியீட்டு தேதி";
 "SORT_FOLDER_NAME" = "கோப்புறை பெயர்";
 "SORT_BOOKS_COUNT" = "புத்தகங்கள் எண்ணிக்கை";
-"SORT_RANDOM" = "சீரற்ற";
-"GENRE" = "வகை";
+"SORT_RANDOM" = "சீரற்றது";
+"GENRE" = "வகைமை";
 "TAG" = "குறிச்சொல்";
 "PUBLISHER" = "பதிப்பாளர்";
 "AGE_RATING" = "அகவை மதிப்பீடு";
@@ -491,7 +491,7 @@
 "SORT_CHAPTER_ADDED" = "அத்தியாயம் சேர்க்கப்பட்ட தேதி";
 "SORT_TIME_TO_READ" = "படிக்க வேண்டிய நேரம்";
 "SORT_AVERAGE_RATING" = "சராசரி மதிப்பீடு";
-"STATUS_ENDED" = "முடிந்தது";
+"STATUS_ENDED" = "முடிவுற்றது";
 "FORMAT" = "வடிவம்";
 "FORMAT_IMAGE" = "படம்";
 "FORMAT_EPUB" = "EPUB";
@@ -530,12 +530,12 @@
 "NO_RESULTS_TEXT" = "எழுத்துப்பிழையைச் சரிபார்க்கவும் அல்லது புதிய தேடலை முயற்சிக்கவும்.";
 "LEARN_MORE" = "மேலும் அறிக…";
 "INSIGHTS" = "வாசிப்புப் புள்ளிவிவரங்கள்";
-"STREAKS" = "தொடர்ச்சியான வாசிப்பு நாட்கள்";
+"STREAKS" = "தொடர் வாசிப்பு";
 "STATS" = "புள்ளிவிவரங்கள்";
-"CURRENT_STREAK" = "தற்போதைய தொடர்ச்சியான வாசிப்பு நாட்கள்";
-"NO_CURRENT_STREAK" = "தற்போது தொடர்ச்சியான வாசிப்பு நாட்கள் இல்லை";
-"NO_CURRENT_STREAK_TEXT" = "தொடர்ச்சியான வாசிப்பு நாட்களைச் சேர்க்க தினமும் படிக்கவும்.";
-"LONGEST_STREAK" = "அதிகபட்ச தொடர்ச்சியான வாசிப்பு நாட்கள்";
+"CURRENT_STREAK" = "தற்போதைய தொடர் வாசிப்பு";
+"NO_CURRENT_STREAK" = "தற்போது தொடர் வாசிப்பு இல்லை";
+"NO_CURRENT_STREAK_TEXT" = "தொடர் வாசிப்பை உருவாக்க தினமும் படிக்கவும்.";
+"LONGEST_STREAK" = "நீண்ட தொடர் வாசிப்பு";
 "DAYS" = "நாட்கள்";
 "CHAPTER_PLURAL" = "அத்தியாயங்கள்";
 "CHAPTER_SINGULAR" = "அத்தியாயம்";
@@ -668,7 +668,7 @@
 "HIDE_BARS_ON_SWIPE" = "ஸ்வைப் செய்யும்போது பட்டிகளை மறை";
 "TEXT_READER" = "உரை வாசிப்பான்";
 "TEXT_READER_STYLE" = "வாசிப்பு பாணி";
-"TEXT_READER_PAGED" = "பக்கமாக்கப்பட்டது";
+"TEXT_READER_PAGED" = "பக்கங்களாக";
 "TEXT_READER_SCROLL" = "உருட்டல்";
 "TEXT_FONT_FAMILY" = "எழுத்துரு";
 "TEXT_FONT_SIZE" = "எழுத்துரு அளவு";
@@ -693,7 +693,7 @@
 "SELECT_PINNED_SOURCES" = "பின் செய்யப்பட்ட மூலங்களைத் தேர்ந்தெடுக்கவும்";
 "SEARCH_MANUALLY" = "கைமுறையாகத் தேடுங்கள்";
 "DONT_MIGRATE" = "மாற்ற வேண்டாம்";
-"SELECTED_%i_OF_%i" = "தேர்ந்தெடுக்கப்பட்டது (%i/%i)";
+"SELECTED_%i_OF_%i" = "தேர்ந்தெடுக்கப்பட்டவை (%i/%i)";
 "MIGRATE_%i_OF_%i" = "மாற்று (%i/%i)";
 "SHOW_ENTRY" = "பதிவைக் காட்டு";
 "TOGGLE_PAGE_OFFSET" = "பக்க ஆஃப்செட்டை நிலைமாற்று";
@@ -704,7 +704,7 @@
 
 "TRANSLATION_RECOGNIZE" = "உரையை அடையாளம் காணவும் (ஆஃப்லைன்)";
 
-"TRANSLATION_ORIGINAL" = "அசல் காட்டு";
+"TRANSLATION_ORIGINAL" = "அசலைக் காட்டு";
 
 "TRANSLATION_TEXT" = "அடையாளம் காணப்பட்ட மற்றும் மொழிபெயர்க்கப்பட்ட உரை";
 
@@ -937,7 +937,7 @@
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "மங்கா வாசிப்பான் சேவையகம்";
 "SUWAYOMI_INFO" = "Suwayomi என்பது Mihon (Tachiyomi)-க்காக உருவாக்கப்பட்ட நீட்டிப்புகளை இயக்கும், நீங்களே இயக்கும் மங்கா வாசிப்பான் சேவையகம். இந்த மூலத்தைப் பயன்படுத்த Suwayomi சேவையகத்தை அமைத்து இயக்க வேண்டும்.";
-"SUWAYOMI_SETUP" = "Suwayomi அமைவு";
+"SUWAYOMI_SETUP" = "Suwayomi அமைப்பு";
 "STATUS_LICENSED" = "உரிமம் பெற்றது";
 "STATUS_PUBLISHING_FINISHED" = "வெளியீடு முடிந்தது";
 "AUTHOR_NAME" = "ஆசிரியர் பெயர்";
@@ -987,7 +987,7 @@
 "IMPORT_ERROR" = "இறக்குமதி பிழை";
 "REVISION" = "திருத்தம்";
 "URL" = "URL";
-"ATTRIBUTION" = "பங்களிப்பாளர்களுக்கான அங்கீகாரம்";
+"ATTRIBUTION" = "பங்களிப்பு அங்கீகாரம்";
 "SOURCE_LANGUAGE" = "மூல மொழி";
 "TARGET_LANGUAGE" = "இலக்கு மொழி";
 "TERM_COUNT" = "அகராதி சொற்களின் எண்ணிக்கை";
@@ -1004,11 +1004,11 @@
 "1_WORD" = "1 வார்த்தை";
 "%i_WORDS" = "%i வார்த்தைகள்";
 "NO_VOCABULARY" = "சொல்லகராதி இல்லை";
-"NO_VOCABULARY_TEXT" = "சேமிக்கப்பட்ட சொற்களஞ்சியம் இங்கே தோன்றும்.";
+"NO_VOCABULARY_TEXT" = "சேமிக்கப்பட்ட சொல்லகராதி இங்கே தோன்றும்.";
 "DEFINITION" = "வரையறை";
 "VOCAB_CONTEXT" = "சூழல்";
 "VOCAB_SOURCE" = "மூலம்";
-"CLEAR_VOCABULARY_LIST" = "சேமிக்கப்பட்ட அனைத்து சொற்களஞ்சியத்தையும் நீக்கவும்";
+"CLEAR_VOCABULARY_LIST" = "சொல்லகராதிப் பட்டியலை அழி";
 "CLEAR_VOCABULARY_LIST_TEXT" = "இந்த நடவடிக்கை மீள முடியாதது. சேமிக்கப்பட்ட அனைத்து சொற்களஞ்சியங்களும் அகற்றப்படும்.";
 "DICTIONARY_UPDATES" = "புதுப்பிப்புகள்";
 "UPDATE_NOW" = "இப்போது புதுப்பிக்கவும்";

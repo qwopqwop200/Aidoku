@@ -98,9 +98,9 @@
 "UNREAD" = "Okunmamış";
 "MARK" = "İşaretle";
 "MARK_ALL" = "Hepsini işaretle";
-"MARK_UNREAD" = "Okunmamış olarak İşaretle";
-"MARK_READ" = "Okunmuş olarak İşaretle";
-"FINISHED_COLON" = "Tamamlanmış:";
+"MARK_UNREAD" = "Okunmamış Olarak İşaretle";
+"MARK_READ" = "Okunmuş Olarak İşaretle";
+"FINISHED_COLON" = "Tamamlanan:";
 "CURRENT_COLON" = "Geçerli:";
 "READER_SETTINGS" = "Okuyucu Ayarları";
 "READING_MODE" = "Okuma Modu";
@@ -127,7 +127,7 @@
 "CHAPTER_X" = "Bölüm %g";
 "RENAME_BACKUP_TEXT" = "Yedek için yeni bir isim girin";
 "SOURCE_LIST_ADD" = "Kaynak Listesi Ekle";
-"MANGA_INFO" = "Manga hakkında bilgi";
+"MANGA_INFO" = "Manga Bilgisi";
 "SORT_TITLE" = "Başlık";
 "SORT_LAST_OPENED" = "En son açılan";
 "BUTTON_GET" = "AL";
@@ -181,7 +181,7 @@
 "SOURCE_LIST_ADDED" = "Kaynak Listesi Eklendi";
 "SOURCE_LIST_ADDED_TEXT" = "Artık Gözat sekmesinde harici kaynaklara göz atabilirsiniz.";
 "SOURCE_LIST_URL" = "Kaynak Listesi URL'si";
-"SOURCE_LIST_ADD_TEXT" = "Kaynak Listesi URL'sini girin";
+"SOURCE_LIST_ADD_TEXT" = "Kaynak listesi URL'sini girin";
 "SOURCE_LIST_ADD_FAIL" = "Kaynak Listesi Eklenemedi";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "Belirtilen kaynak listesi URL'si geçersiz veya zaten eklenmiş.";
 "LOCK_HISTORY_TAB" = "Geçmiş Sekmesini Kilitle";
@@ -266,7 +266,7 @@
 "TRACK_REREADING" = "Tekrar Okunuyor";
 "CLEAR_TRACKED_MANGA" = "Tüm Takip Bağlantılarını Kaldır";
 "CLEAR_TRACKED_MANGA_TEXT" = "Bu işlem geri alınamaz. Mangalara eklenen tüm takip hizmeti bağlantıları kaldırılacak.";
-"SUPPORT_VIA_KOFI" = "Ko-Fi İle Destek Ol";
+"SUPPORT_VIA_KOFI" = "Ko-fi ile Destek Ol";
 "%i_PAGES_LEFT" = "%i sayfa kaldı";
 "ONE_PAGE_LEFT" = "1 sayfa kaldı";
 "RELOAD" = "Yenile";
@@ -300,7 +300,7 @@
 "MIGRATE_%i_ITEMS?" = "%i öğe taşınsın mı?";
 "MIGRATE_ONE_ITEM?" = "1 öğe taşınsın mı?";
 "MIGRATE_SOURCES" = "Kaynakları Taşı";
-"UPLOAD_DATE" = "Yükleme Zamanı";
+"UPLOAD_DATE" = "Yükleme Tarihi";
 "ALL_CHAPTERS_READ" = "Tüm Bölümler Okundu";
 "DEFAULT_READING_MODE" = "Varsayılan Okuma Modu";
 "IS_TRACKING" = "Takip Ediliyor";
@@ -379,10 +379,10 @@
 "FILTER_STARTED" = "Başlanan";
 "ASCENDING" = "Artan";
 "DESCENDING" = "Azalan";
-"OLDEST_FIRST" = "En Eski İlk";
-"NEWEST_FIRST" = "En Yeni İlk";
-"HIGHEST_FIRST" = "En Yüksek Olan İlk";
-"LOWEST_FIRST" = "En Düşük Olan İlk";
+"OLDEST_FIRST" = "Önce En Eski";
+"NEWEST_FIRST" = "Önce En Yeni";
+"HIGHEST_FIRST" = "Önce En Yüksek";
+"LOWEST_FIRST" = "Önce En Düşük";
 "LAYOUT_GRID" = "Izgara";
 "LAYOUT_LIST" = "Liste";
 "PROCESSING_ENTRIES" = "Girdiler İşleniyor…";
@@ -393,7 +393,7 @@
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Bu işlem geri alınamaz. Kütüphanede olmayan serilerin tüm okuma geçmişi silinir.";
 "OPEN_WEBSITE" = "Siteyi aç";
 "READER_ORIENTATION" = "Ekran Yönü";
-"FOLLOW_DEVICE" = "Cihazın Yönünü İzle";
+"FOLLOW_DEVICE" = "Cihaza Göre";
 "MARK_DUPLICATE_CHAPTERS" = "Yinelenen Bölümleri Okunmuş Olarak İşaretle";
 "BASE_URL" = "Ana URL";
 "SEE_ALL" = "Hepsini gör";
@@ -435,7 +435,7 @@
 "CONTAINS_NSFW" = "Yetişkin İçerik İçeriyor";
 "PRIMARILY_NSFW" = "Çoğunlukla Yetişkin İçerik";
 "REMOVE_LOCAL_SOURCE" = "Yerel kaynak kaldırılsın mı?";
-"REMOVE_LOCAL_SOURCE_TEXT" = "Bu içeri aktarılmış bütün yerel dosyaları kaldıracaktır.";
+"REMOVE_LOCAL_SOURCE_TEXT" = "Bu işlem, içe aktarılmış tüm yerel dosyaları kaldıracak.";
 "RANGE_FROM" = "Başlangıç";
 "RANGE_TO" = "Bitiş";
 "LOCAL_FILES_INFO" = "Yerel dosya kaynağı, kendi okuma kütüphanenizi doğrudan Aidoku içinde içe aktarmanıza ve yönetmenize olanak tanır.";
@@ -490,7 +490,7 @@
 "EDIT_FILTER_GROUP" = "Filtre Grubunu Düzenle";
 "CLEAR_FILTERS" = "Filtreleri Temizle";
 "SHOW_UNCATEGORIZED_CATEGORY" = "\"Kategorisiz\" Kategorisini Göster";
-"MISSING_SOURCE_LIST" = "Eksik Kaynak Listesi";
+"MISSING_SOURCE_LIST" = "Kaynak Listesinde Yok";
 "AUTHOR" = "Yazar";
 "AUTHOR_NAME" = "Yazar adı";
 "USERNAME" = "Kullanıcı Adı";
@@ -521,7 +521,7 @@
 "TOGGLE_BARS" = "Çubukların görünürlüğünü aç/kapat";
 "CLOSE_READER" = "Okuyucuyu kapat";
 "TOGGLE_PAGE_OFFSET" = "Sayfa kaydırmayı aç/kapat";
-"DONT_MIGRATE" = "Taşıma";
+"DONT_MIGRATE" = "Taşımayı Atla";
 "KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "Kişisel medya sunucusu";
 "KOMGA_INFO" = "Komga; çizgi romanlar ve mangalar için kişisel bir medya sunucusudur. Bu kaynağı kullanabilmek için kurulu ve çalışır durumda bir Komga sunucunuzun olması gerekir.";
@@ -559,7 +559,7 @@
 "SOURCE_BREAKING_CHANGE" = "Kaynakta Kritik Değişiklik";
 "SOURCE_BREAKING_CHANGE_TEXT" = "Bu kaynakta kritik bir değişiklik oldu; kütüphanenizi ve geçmişinizi korumak için taşıma yapılması gerekiyor.";
 "LOGIN_VIA_OIDC" = "OIDC ile Giriş Yap";
-"BASIC_LOGIN" = "Basit Giriş";
+"BASIC_LOGIN" = "Temel Giriş";
 "API_KEY_LOGIN_INFO" = "Giriş için manuel bir API anahtarı sağlamak, diğer giriş yöntemlerini geçersiz kılar. Diğer yöntemleri kullanmak için boş bırakabilirsiniz.";
 "LOGIN" = "Giriş Yap";
 "LOGIN_FAILED" = "Giriş Başarısız";
@@ -619,10 +619,10 @@
 "NO_HISTORY" = "Geçmiş Yok";
 "NO_HISTORY_TEXT" = "Okuma geçmişiniz burada görünecek.";
 "RECENTLY_SEARCHED" = "Son Arananlar";
-"NO_RECENT_SEARCHES" = "Son Aranan Bulunmuyor";
+"NO_RECENT_SEARCHES" = "Son Arama Yok";
 "NO_RECENT_SEARCHES_TEXT" = "Son aramalarınız burada görünecek.";
 "LOGOUT_CONFIRM" = "Çıkış yapmak istediğinize emin misiniz?";
-"BASIC" = "Basit";
+"BASIC" = "Temel";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Senkronizasyonu deneysel bir özelliktir. Etkinleştirmek veya devre dışı bırakmak veri kaybına yol açabilir.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Senkronizasyonu yalnızca TestFlight aracılığıyla yüklendiğinde kullanılabilir.";
 "LAYOUT" = "Düzen";
@@ -991,8 +991,8 @@
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Arama Hareketi nedeniyle değiştirilemez: Uzun Basış.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "OCR Metin Katmanı";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Bir arama etkinleştirildiğinde görüntü bölgelerinde metin kutularını gösterir. Bu, hangi metnin OCR tarafından düzgün şekilde tanındığını belirlemenize yardımcı olabilir.";
-"DICTIONARY_OVERLAY_PADDING" = "Metin Katmanının İç Boşluğu";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "Metin Katmanının Yazı Boyutu";
+"DICTIONARY_OVERLAY_PADDING" = "Katman İç Boşluğu";
+"DICTIONARY_OVERLAY_TEXT_SCALE" = "Katman Yazı Boyutu";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "OCR Dillerini Kısıtla";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Etkinleştirildiğinde, OCR için yalnızca seçilen dil(ler) olarak işaretlenen bölümler işlenecektir. Yalnızca sözlüklerini içe aktardığınız dilleri seçmeniz önerilir.";
 "DICTIONARY_OCR_LANGUAGES" = "OCR Dilleri";
@@ -1003,7 +1003,7 @@
 "DICTIONARY_POPUP_WIDTH" = "Açılır Pencere Genişliği";
 "DICTIONARY_POPUP_HEIGHT" = "Açılır Pencere Yüksekliği";
 "TERM_DICTIONARIES" = "Terim Sözlükleri";
-"FREQUENCY_DICTIONARIES" = "Kelime sıklığı sözlükleri";
+"FREQUENCY_DICTIONARIES" = "Sıklık Sözlükleri";
 "PITCH_DICTIONARIES" = "Ton Vurgusu Sözlükleri";
 "KANJI_DICTIONARIES" = "Kanji Sözlükleri";
 "IMPORTING_DICTIONARY" = "Sözlük içe aktarılıyor…";
@@ -1013,13 +1013,13 @@
 "ATTRIBUTION" = "Kaynak Atfı";
 "SOURCE_LANGUAGE" = "Kaynak Dil";
 "TARGET_LANGUAGE" = "Hedef Dil";
-"TERM_COUNT" = "Sözlük terimlerinin sayısı";
-"TERM_META_COUNT" = "Terim meta veri girişi sayısı";
+"TERM_COUNT" = "Terim Sayısı";
+"TERM_META_COUNT" = "Terim Meta Veri Sayısı";
 "KANJI_COUNT" = "Kanji Sayısı";
-"KANJI_META_COUNT" = "Kanji meta veri girişi sayısı";
+"KANJI_META_COUNT" = "Kanji Meta Veri Sayısı";
 "TAG_COUNT" = "Etiket Sayısı";
 "MEDIA_COUNT" = "Medya Sayısı";
-"IS_UPDATABLE" = "Güncellenebilir mi";
+"IS_UPDATABLE" = "Güncellenebilir";
 "SIZE" = "Boyut";
 "REMOVE_DICTIONARY" = "Sözlüğü Kaldır";
 "REMOVE_WORD" = "Kelimeyi Kaldır";
@@ -1031,13 +1031,13 @@
 "DEFINITION" = "Tanım";
 "VOCAB_CONTEXT" = "Bağlam";
 "VOCAB_SOURCE" = "Kaynak";
-"CLEAR_VOCABULARY_LIST" = "Kaydedilen tüm kelimeleri sil";
+"CLEAR_VOCABULARY_LIST" = "Kelime Listesini Temizle";
 "CLEAR_VOCABULARY_LIST_TEXT" = "Bu eylem geri döndürülemez. Kaydedilen tüm kelimeler kaldırılacak.";
 "DICTIONARY_UPDATES" = "Güncellemeler";
 "UPDATE_NOW" = "Şimdi Güncelle";
 "LAST_UPDATED_%@" = "Son güncelleme: %@";
 "MONTHLY" = "Aylık";
-"GET_RECOMMENDED_DICTIONARIES" = "Önerilen Sözlükleri Alın";
+"GET_RECOMMENDED_DICTIONARIES" = "Önerilen Sözlükleri Al";
 "RECOMMENDED_DICTIONARIES" = "Önerilen Sözlükler";
 "RECOMMENDED_DICTIONARIES_NOTE" = "Aşağıdaki sözlüklerin tümü Japonca–İngilizce sözlükleridir. Diğer diller için Vikisözlük sözlükleri listesine bakın.";
 "RESTORE_MISSING_SOURCES" = "Eksik Kaynaklar Geri Yüklensin mi?";
@@ -1148,9 +1148,9 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud Senkronizasyonu değişiklikleri, Aidoku tamamen kapatılıp yeniden açıldığında uygulanır. O zamana kadar mevcut senkronizasyon ayarı etkin kalır.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Özgün renkleri koru";
+"TRANSLATION_SOURCE_COLORS" = "Özgün Renkleri Koru";
 "TRANSLATION_SOURCE_COLORS_HELP" = "Metin ve arka plan renklerini birlikte korur.";
-"TRANSLATION_INPAINTING" = "Arka plan onarımı";
+"TRANSLATION_INPAINTING" = "Arka Plan Onarımı";
 "TRANSLATION_INPAINTING_HELP" = "Arka planı koruyarak özgün yazıyı siler. Maske veya okunabilirlik belirsizse kutular kullanır. Özgün renkleri gerektirir.";
 
 // Translation settings section
@@ -1167,8 +1167,8 @@
 "NO" = "Hayır";
 "CHAPTERS_%i_OF_%i" = "Bölümler: %i / %i";
 "TRACKING_REGISTRATION_FAILED" = "Eser takibe eklenemedi. Lütfen tekrar deneyin.";
-"SORT_READ_PROGRESS" = "Okuma ilerlemesi";
-"SORT_RELEASE_YEAR" = "Yayın yılı";
+"SORT_READ_PROGRESS" = "Okuma İlerlemesi";
+"SORT_RELEASE_YEAR" = "Yayın Yılı";
 "SOURCE_INVALID_PAGE_COUNT" = "Geçersiz sayfa sayısı";
 "SOURCE_INVALID_GENRE_ID" = "Geçersiz tür kimliği";
 "SOURCE_INVALID_LISTING" = "Geçersiz liste";
@@ -1184,9 +1184,9 @@
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe medya derlemine dayalı bir sıklık sözlüğü.";
 
 // Reader background translation and preparation limits
-"TRANSLATION_BACKGROUND" = "Özgün sayfalar gösterilirken çevir";
+"TRANSLATION_BACKGROUND" = "Özgün Sayfalar Gösterilirken Çevir";
 "TRANSLATION_BACKGROUND_HELP" = "Çeviri düğmesi kapalıyken okuma sırasında çevirmeye devam eder. Özgün sayfalar gösterilmeye devam eder. Uygulama etkin değilken çeviri duraklatılır.";
-"TRANSLATION_PRETRANSLATION_LIMIT" = "Önceden çevrilecek sayfa sayısı";
+"TRANSLATION_PRETRANSLATION_LIMIT" = "Önceden Çevrilecek Sayfa Sayısı";
 "TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Görünür sayfalar hariç, önceden çevrilecek en fazla sayfa sayısı. Sayfalar okuma önceliğine göre seçilir ve sonraki sayfalara öncelik verilir.";
 "TRANSLATION_UNLIMITED" = "Sınırsız";
 

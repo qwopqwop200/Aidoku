@@ -1,4 +1,4 @@
-"IMPORT" = "匯入";
+"IMPORT" = "正在匯入…";
 "DONE" = "完成";
 "FILE_IMPORT_FAIL_TEXT" = "檔案匯入失敗。請確保檔案是可讀取的圖片，或包含圖片的有效 CBZ 或 ZIP 壓縮檔。";
 "FORMAT_IMAGE" = "圖片";

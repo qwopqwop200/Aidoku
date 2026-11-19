@@ -25,7 +25,7 @@
 "DEFAULT_CATEGORY" = "預設類別";
 "INSTALLED" = "已安裝";
 "BUTTON_UPDATE" = "更新";
-"CATEGORY_ADD_TEXT" = "請輸入新類別標題。";
+"CATEGORY_ADD_TEXT" = "請輸入新類別的名稱。";
 "ALWAYS_ASK" = "總是詢問";
 "UPDATES" = "更新";
 "LANGUAGES" = "語言";
@@ -145,7 +145,7 @@
 "MANHWA" = "韓漫";
 "LIGHT_NOVEL" = "輕小說";
 "MANHUA" = "中漫";
-"SUPPORT_VIA_KOFI" = "透過Ko-Fi贊助開發者";
+"SUPPORT_VIA_KOFI" = "透過 Ko-fi 贊助";
 "LANDSCAPE" = "橫向";
 "UPDATE_INTERVAL" = "更新頻率";
 "SOURCE_LIST_ADDED_TEXT" = "你現在可在「瀏覽」分頁中查看外部來源。";
@@ -159,7 +159,7 @@
 "LIST_HEADER" = "列表";
 "LIST_ALL" = "全部";
 "%@_BOOKS" = "%@本書";
-"1_BOOK" = "一本書";
+"1_BOOK" = "1本書";
 
 // Manga
 "UNTITLED" = "無標題";
@@ -175,7 +175,7 @@
 "CURRENT_COLON" = "目前章節：";
 "INFINITE_VERTICAL_SCROLL" = "無限垂直捲動";
 "HISTORY_LOCKED" = "閱讀記錄已鎖定。";
-"AUTH_TO_ENABLE" = "解鎖以啟用。";
+"AUTH_TO_ENABLE" = "驗證身分以啟用。";
 "AUTH_TO_DISABLE" = "驗證身分以停用。";
 "GITHUB_REPO" = "GitHub原始碼";
 "READER" = "閱讀";
@@ -184,7 +184,7 @@
 "EXCLUDED_CATEGORIES" = "排除類別";
 "REFRESH_METADATA" = "更新漫畫資訊";
 "WITH_UNREAD_CHAPTERS" = "包含未讀章節";
-"WITH_COMPLETED_STATUS" = "已完結";
+"WITH_COMPLETED_STATUS" = "狀態為已完結";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "輸入的來源列表連結無效或已加入。";
 "LOCK_HISTORY_TAB" = "鎖定閱讀記錄標籤頁";
 "MISSING_SOURCE_TEXT" = "找不到此漫畫原本的來源。請重新安裝來源，或從書庫中移除此作品。";
@@ -193,14 +193,14 @@
 "SOURCE_INFO" = "來源資訊";
 "SOURCE_ORDER" = "來源順序";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "這會刪除此章節的閱讀記錄。確定要繼續嗎？";
-"AUTH_FOR_HISTORY" = "解鎖以查看閱讀記錄。";
+"AUTH_FOR_HISTORY" = "驗證身分以查看閱讀記錄。";
 "BUILD" = "版號";
 "MISSING_SOURCE" = "缺少來源";
 "INCOGNITO_MODE_TEXT" = "啟用時不會記住閱讀記錄";
 "SOURCE_LIST_ADD_TEXT" = "輸入來源列表連結";
 "OPEN_READER_VIEW" = "開啟閱讀介面";
 "UNREAD_CHAPTER_BADGES" = "顯示未讀章節數";
-"THAT_HAVENT_BEEN_READ" = "沒有章節標示為已讀的作品";
+"THAT_HAVENT_BEEN_READ" = "沒有已讀章節";
 "SOURCE_LIST_ADD_FAIL" = "加入來源列表失敗";
 "DOWNSAMPLE_IMAGES" = "降低圖片解析度";
 "SOURCE_LIST_ADD" = "加入來源列表";
@@ -215,7 +215,7 @@
 "INSTALL_SOURCES" = "安裝來源";
 "INSTALLING_SOURCES" = "正在安裝來源…";
 "RESTORE_BACKUP" = "用此備份回復？";
-"AUTH_FOR_LIBRARY" = "解鎖以查看書庫。";
+"AUTH_FOR_LIBRARY" = "驗證身分以查看書庫。";
 "LOCK_LIBRARY" = "鎖定書庫";
 "SET_AS_WIDE_PAGE" = "設為寬頁面";
 "AUTOMATIC" = "自動";
@@ -305,7 +305,7 @@
 "SORT_UNREAD_CHAPTERS" = "未讀章節數";
 "SET_AS_SINGLE_PAGE" = "作為單獨頁面顯示";
 "%i_OF_%i" = "%i / %i";
-"%i_PAGES_LEFT" = "剩%i頁";
+"%i_PAGES_LEFT" = "剩餘%i頁";
 "WEBTOON" = "條漫";
 "%i_CHAPTERS" = "共%i章";
 "REMOVE_FROM_CATEGORY" = "從類別中移除";
@@ -331,7 +331,7 @@
 "READER_BG_COLOR_SYSTEM" = "系統";
 "RENAME_CATEGORY_FAIL" = "無法重新命名類別";
 "SKIP_DUPLICATE_CHAPTERS" = "略過重複章節";
-"1_CHAPTER" = "共一章";
+"1_CHAPTER" = "共1章";
 "COVER" = "封面";
 "PAGE_LAYOUT" = "頁面佈局";
 "PAUSE" = "暫停";
@@ -352,12 +352,12 @@
 "COPY" = "拷貝";
 "READER_BG_COLOR_WHITE" = "白色";
 "READER_BG_COLOR_BLACK" = "黑色";
-"AUTH_TO_OPEN" = "驗證以開啟。";
+"AUTH_TO_OPEN" = "驗證身分以開啟。";
 "CLEAR_EXCLUDING_LIBRARY" = "清除不在書庫的閱讀記錄";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "此操作無法復原。將清除不在書庫中的作品的所有閱讀記錄。";
 "ENABLE_PERMISSION" = "啟用權限";
 "PHOTOS_ACCESS_DENIED_TEXT" = "先前已拒絕存取。請允許Aidoku存取您的相片，以便將圖片儲存到您的相機膠卷。您可以在隱私設定中啟用存取權限。";
-"OPEN_WEBSITE" = "打開網站";
+"OPEN_WEBSITE" = "開啟網站";
 "READER_ORIENTATION" = "螢幕顯示方向";
 "FOLLOW_DEVICE" = "跟隨裝置";
 "MARK_DUPLICATE_CHAPTERS" = "將重複章節標示為已讀";
@@ -505,12 +505,12 @@
 "REMOVE_FILTER" = "移除過濾條件";
 "AND_MORE" = "還有更多";
 "ADD" = "加入";
-"OPEN_CHAPTER_LIST" = "打開章節列表";
+"OPEN_CHAPTER_LIST" = "開啟章節列表";
 "FILTER_SEPARATOR" = "、";
 "LIVE_TEXT" = "原況文字";
 "PROCESSING_QUEUE" = "正在處理佇列…";
-"DOWNLOADING_PAUSED" = "下載已經暫停";
-"PAUSED" = "暫停";
+"DOWNLOADING_PAUSED" = "下載已暫停";
+"PAUSED" = "已暫停";
 "CANCEL_ALL_DOWNLOADS" = "取消全部下載";
 "VIEW_FILES" = "查看檔案";
 "METADATA_DETECTED" = "偵測到舊版中繼資料";
@@ -532,18 +532,18 @@
 "DAYS" = "天";
 "STATS" = "統計資料";
 "STREAKS" = "連續閱讀天數";
-"PARALLEL_DOWNLOADS" = "同時下載多個項目";
+"PARALLEL_DOWNLOADS" = "並行下載";
 "THIS_MONTH" = "本月";
 "CURRENT_STREAK" = "已連續閱讀";
 "INSIGHTS" = "閱讀分析";
 "READING_SESSIONS" = "閱讀工作階段";
-"LONGEST_STREAK" = "最高連續閱讀";
+"LONGEST_STREAK" = "最長連續閱讀";
 "ALL_TIME" = "總計";
 "NO_CURRENT_STREAK" = "未連續閱讀";
 "NO_CURRENT_STREAK_TEXT" = "每天閱讀來開啟新紀錄。";
 "PIN_TITLES" = "釘選作品";
 "PIN_DISABLED" = "已停用";
-"PIN_UPDATED_CHAPTERS" = "新章節";
+"PIN_UPDATED_CHAPTERS" = "有新章節";
 "SOURCE_NAME" = "來源名稱";
 "SORT_RANDOM" = "隨機";
 "SERVER_URL" = "伺服器網址";
@@ -615,11 +615,11 @@
 "KAVITA_SETUP" = "Kavita 設定";
 "DEMO_KAVITA_SERVER" = "範例 Kavita 伺服器";
 "DEMO_KAVITA_SERVER_INFO" = "你可以使用使用者名稱 `demouser` 和密碼 `Demouser64` 登入 Kavita 示範伺服器。";
-"MORE_IN_%@" = "更多 %@";
+"MORE_IN_%@" = "更多「%@」作品";
 "SORT_CHAPTER_ADDED" = "章節新增日期";
 "SORT_TIME_TO_READ" = "預估閱讀時間";
 "SORT_AVERAGE_RATING" = "平均評分";
-"STATUS_ENDED" = "結束";
+"STATUS_ENDED" = "已結束";
 "FORMAT" = "格式";
 "FORMAT_ARCHIVE" = "壓縮檔";
 "LOGIN_VIA_OIDC" = "透過 OIDC 登入";
@@ -759,11 +759,11 @@
 
 "TRANSLATION_HELP" = "點選翻譯圖示可開啟或關閉翻譯。優先處理可見頁面，再處理附近頁面，處理範圍隨目前閱讀位置調整。重新開啟閱讀器或重新啟動 App 後，可重複使用已儲存的 OCR 結果、翻譯與文字排版。暫時開啟的分享圖片不會儲存此快取。離開閱讀器會取消未完成的工作。";
 
-"TRANSLATION_PRIVACY" = "OCR 在裝置上執行。翻譯時會將辨識出的文字與翻譯指示傳送給所選服務商。啟用「在翻譯中包含頁面圖像」後，也可能上傳經過處理的頁面圖片。如果不支援圖片輸入，將僅使用文字繼續翻譯。API 費用取決於服務商。API 金鑰儲存在鑰匙圈中。OCR 結果、翻譯與文字排版儲存在受保護的 App 儲存空間中，不包含在備份內。";
+"TRANSLATION_PRIVACY" = "OCR 在裝置上執行。翻譯時會將辨識出的文字與翻譯指示傳送給所選服務商。啟用「在翻譯中包含頁面圖片」後，也可能上傳經過處理的頁面圖片。如果不支援圖片輸入，將僅使用文字繼續翻譯。API 費用取決於服務商。API 金鑰儲存在鑰匙圈中。OCR 結果、翻譯與文字排版儲存在受保護的 App 儲存空間中，不包含在備份內。";
 
 "TRANSLATION_KEY_REPLACE" = "取代已儲存的 API 金鑰（可選）";
 
-"TRANSLATION_KEY" = "API金鑰";
+"TRANSLATION_KEY" = "API 金鑰";
 
 "TRANSLATION_KEY_SAVED" = "API 金鑰已儲存在鑰匙圈中";
 
@@ -836,11 +836,11 @@
 
 "TRANSLATION_OVERLAY_HELP" = "在原文位置疊加譯文，避免文字重疊，並依文字系統自動換行。變更顯示設定時會重複使用既有的 OCR 結果。";
 
-"TRANSLATION_PROVIDER" = "翻譯提供者";
+"TRANSLATION_PROVIDER" = "翻譯服務商";
 
-"TRANSLATION_BASE_URL" = "伺服器位址";
+"TRANSLATION_BASE_URL" = "伺服器網址";
 
-"TRANSLATION_API_FORMAT" = "API格式";
+"TRANSLATION_API_FORMAT" = "API 格式";
 
 "TRANSLATION_CUSTOM_HELP" = "請輸入 HTTPS 基礎 URL 或完整的 API 端點網址，以及伺服器支援的模型。每個伺服器網址分別儲存 API 金鑰；變更網址會清空正在輸入的金鑰。Responses 與 Chat Completions 均使用結構化 JSON 輸出。";
 
@@ -918,7 +918,7 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "在翻譯中包含頁面圖像";
+"TRANSLATION_INCLUDE_IMAGE" = "在翻譯中包含頁面圖片";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "將頁面圖片與 OCR 文字一起傳送，為翻譯提供場景脈絡。如果不支援圖片輸入，將自動僅使用文字繼續翻譯。附加圖片可能增加流量與 API 費用。";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "不支援圖片輸入，將不附加圖片繼續翻譯。";
@@ -974,7 +974,7 @@
 "HTML_ERROR" = "HTML 錯誤";
 "JSON_ERROR" = "JSON 錯誤";
 "SOURCE_CRASHED" = "來源崩潰";
-"CONTINUE_READING_ON_RESELECT" = "再次點選已選取的閱讀記錄分頁以繼續閱讀";
+"CONTINUE_READING_ON_RESELECT" = "再次點選「閱讀記錄」以繼續閱讀";
 "TEXT_THEME" = "主題";
 "TEXT_THEME_SEPIA" = "棕褐色";
 "TEXT_THEME_PAPER" = "紙";
@@ -1033,7 +1033,7 @@
 "DEFINITION" = "釋義";
 "VOCAB_CONTEXT" = "上下文";
 "VOCAB_SOURCE" = "來源";
-"CLEAR_VOCABULARY_LIST" = "刪除所有已儲存的詞彙";
+"CLEAR_VOCABULARY_LIST" = "清除詞彙表";
 "CLEAR_VOCABULARY_LIST_TEXT" = "此操作無法復原。所有已儲存的詞彙將會被刪除。";
 "DICTIONARY_UPDATES" = "更新";
 "UPDATE_NOW" = "立即更新";
@@ -1086,7 +1086,7 @@
 "TRANSLATION_STATE_OFF" = "關閉";
 
 // Translation errors
-"TRANSLATION_ERROR_CONFIGURATION" = "翻譯設定無效。請檢查伺服器位址、模型與其他設定。";
+"TRANSLATION_ERROR_CONFIGURATION" = "翻譯設定無效。請檢查伺服器網址、模型與其他設定。";
 "TRANSLATION_ERROR_REQUEST" = "無法使用目前的文字、圖片或語言設定進行翻譯。";
 "TRANSLATION_ERROR_RESPONSE" = "翻譯伺服器傳回了無效的回應。請重試或檢查模型設定。";
 "TRANSLATION_ERROR_KEY_REQUIRED" = "需要提供翻譯 API 金鑰。";

@@ -1,4 +1,4 @@
-"IMPORT" = "Impor";
+"IMPORT" = "Mengimpor…";
 "DONE" = "Selesai";
 "FILE_IMPORT_FAIL_TEXT" = "Gagal mengimpor file. Pastikan file tersebut adalah gambar yang dapat dibaca atau arsip CBZ atau ZIP yang valid berisi gambar.";
 "FORMAT_IMAGE" = "Gambar";

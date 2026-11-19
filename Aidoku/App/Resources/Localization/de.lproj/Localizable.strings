@@ -140,7 +140,7 @@
 "CATEGORY_EMPTY" = "Kategorie leer";
 "AUTH_TO_OPEN" = "Zum Öffnen authentifizieren.";
 "AUTH_FOR_LIBRARY" = "Authentifizieren, um die Bibliothek zu sehen.";
-"DEFAULT_CATEGORY" = "Standard-Kategorie";
+"DEFAULT_CATEGORY" = "Standardkategorie";
 "INSTALLED" = "Installiert";
 "EXTERNAL" = "Extern";
 "BUTTON_UPDATE" = "AKTUALISIEREN";
@@ -158,7 +158,7 @@
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Dadurch wird der Verlauf für dieses Kapitel entfernt. Bist du sicher, dass du fortfahren willst?";
 "HISTORY_LOCKED" = "Der Verlauf ist gesperrt.";
 "VIEW_HISTORY" = "Verlauf anzeigen";
-"AUTH_FOR_HISTORY" = "Authentifizieren, um Leseverlauf anzusehen";
+"AUTH_FOR_HISTORY" = "Authentifizieren, um den Leseverlauf anzusehen.";
 
 // Settings
 "SETTINGS" = "Einstellungen";
@@ -256,7 +256,7 @@
 "RELOAD" = "Neu laden";
 "%i_OF_%i" = "%i von %i";
 "%i_PAGES_LEFT" = "%i Seiten übrig";
-"SUPPORT_VIA_KOFI" = "Unterstützung über Ko-Fi";
+"SUPPORT_VIA_KOFI" = "Über Ko-fi unterstützen";
 "REMOVE_FROM_CATEGORY" = "Aus Kategorie entfernen";
 "NOT_FOUND" = "Nicht gefunden";
 "MOST_CHAPTERS_SLOWER" = "Die meisten Kapitel (langsamer)";
@@ -320,7 +320,7 @@
 "BACKUP_ERROR" = "Fehler bei der Backup-Wiederherstellung";
 "BACKUP_ERROR_TEXT" = "Beim Wiederherstellen ist ein Fehler aufgetreten: %@. Das Backup ist möglicherweise ungültig.";
 "PAUSE" = "Pausieren";
-"RESUME" = "Fortfahren";
+"RESUME" = "Fortsetzen";
 "WARNING" = "Warnung";
 "TEXT_READER" = "Textansicht";
 "TEXT_READER_STYLE" = "Lesestil";
@@ -406,15 +406,15 @@
 "ASCENDING" = "Aufsteigend";
 "DESCENDING" = "Absteigend";
 "OLDEST_FIRST" = "Älteste zuerst";
-"NEWEST_FIRST" = "Neuste zuerst";
+"NEWEST_FIRST" = "Neueste zuerst";
 "HIGHEST_FIRST" = "Höchste zuerst";
 "LOWEST_FIRST" = "Niedrigste zuerst";
 "LAYOUT_GRID" = "Gitter";
 "LAYOUT_LIST" = "Liste";
-"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Element wird aus der Bibliothek entfernt";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "%i Inhalte werden aus der Bibliothek entfernt";
+"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Eintrag wird aus der Bibliothek entfernt";
+"REMOVING_%i_ITEMS_FROM_LIBRARY" = "%i Einträge werden aus der Bibliothek entfernt";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Eintrag wird aus Kategorie %@ entfernt";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "%i Inhalte werden aus der Kategorie %@ entfernt";
+"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "%i Einträge werden aus der Kategorie %@ entfernt";
 "REFRESHING_LIBRARY" = "Bibliothek wird neu geladen…";
 "PROCESSING_ENTRIES" = "Einträge werden verarbeitet…";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "Füge über die Plus-Taste eine Quelle hinzu.";
@@ -486,7 +486,7 @@
 "EVERY_6_HOURS" = "Alle 6 Stunden";
 "NO_RESULTS_FOR_%@" = "Keine Ergebnisse für „%@“";
 "COPY_URL" = "URL kopieren";
-"ZONE_LEFT_RIGHT" = "Links und Rechts";
+"ZONE_LEFT_RIGHT" = "Links und rechts";
 "ZONE_KINDLE" = "Kindle";
 "CREATE_BACKUP" = "Backup erstellen";
 "NAME" = "Name";
@@ -847,7 +847,7 @@
 "LOGIN_WEBVIEW_WARNING_TEXT" = "Alle in der angezeigten Webansicht gesetzten Cookies werden an die Quelle weitergegeben. Melde dich nicht bei einer Quelle an, der du nicht vertraust.";
 "REFRESH_LOGIN" = "Anmeldung aktualisieren";
 "LOGIN_METHOD" = "Anmeldemethode";
-"BASIC" = "Einfach";
+"BASIC" = "Passwort";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync ist eine experimentelle Funktion. Das Aktivieren oder Deaktivieren kann zu Datenverlust führen.";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync ist nur verfügbar, wenn es über TestFlight installiert wird.";
 "LAYOUT" = "Layout";
@@ -888,7 +888,7 @@
 "SERIES_SINGULAR" = "Serie";
 "HOUR_PLURAL" = "Stunden";
 "HOUR_SINGULAR" = "Stunde";
-"ALL_TIME" = "Allzeit";
+"ALL_TIME" = "Gesamt";
 "THIS_MONTH" = "Diesen Monat";
 "THIS_YEAR" = "Dieses Jahr";
 "UNAVAILABLE_SOURCE_LISTS" = "Nicht verfügbare Quellenlisten";
@@ -982,7 +982,7 @@
 "SENSITIVE_SETTINGS" = "Sensible Einstellungen";
 "BACKUP_INFO_TITLE" = "Backup-Informationen";
 "BACKUP_INTERVAL" = "Backup-Intervall";
-"AUTO" = "Automatisch";
+"AUTO" = "Auto";
 "CLEAR_EXCLUDING_LIBRARY" = "Leseverlauf mit Ausnahme der Bibliothek löschen";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "Diese Aktion ist unumkehrbar. Der gesamte Leseverlauf für Titel, die nicht in der Bibliothek sind, wird gelöscht.";
 "CLEAR_SOURCE_CACHE" = "Quellcache löschen";

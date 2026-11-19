@@ -25,7 +25,7 @@
 // General
 "CONTINUE" = "បន្ត";
 "OK" = "យល់ព្រម";
-"UNAVAILABLE" = "មិនមាន";
+"UNAVAILABLE" = "មិនអាចប្រើបាន";
 "RESET" = "កំណត់ឡើងវិញ";
 "DELETE" = "លុប";
 "LOADING_ELLIPSIS" = "កំពុងផ្ទុក…";
@@ -56,7 +56,7 @@
 "BUILD" = "លេខសាងសង់";
 "BUTTON_FILTER" = "ត្រង";
 "LIST_HEADER" = "បញ្ជី";
-"STATUS_ONGOING" = "បច្ចុប្បន្ន​កំពុង​បន្ត";
+"STATUS_ONGOING" = "កំពុងបន្ត";
 "SOURCE_ORDER" = "លំដាប់ប្រភព";
 "MISSING_SOURCE" = "ប្រភពដែលបាត់";
 "SELECT_CHAPTERS" = "ជ្រើសរើសជំពូក";
@@ -106,11 +106,11 @@
 "APPEARANCE_LIGHT" = "ភ្លឺ";
 "APPEARANCE_DARK" = "ងងឹត";
 "USE_SYSTEM_APPEARANCE" = "ប្រើរូបរាងដូចគ្នាទៅនឹងឧបករណ៍";
-"PORTRAIT" = "រូបបញ្ឈរ";
-"LANDSCAPE" = "រូបផ្តេក";
+"PORTRAIT" = "បញ្ឈរ";
+"LANDSCAPE" = "ផ្តេក";
 "READER" = "កម្មវិធីអាន";
 "UNREAD_CHAPTER_BADGES" = "ផ្លាកសញ្ញាជំពូកមិនទាន់អាន";
-"LIBRARY_UPDATING" = "កំពុងធ្វើការអាប់ដេតបណ្ណាល័យ";
+"LIBRARY_UPDATING" = "ការអាប់ដេតបណ្ណាល័យ";
 "UPDATE_INTERVAL" = "ចន្លោះពេលធ្វើការអាប់ដេត";
 "ONLY_UPDATE_ON_WIFI" = "អាប់ដេតតែពេលមាន Wi-Fi ប៉ុណ្ណោះ";
 "ONLY_DOWNLOAD_ON_WIFI" = "ទាញយកតែពេលមាន Wi-Fi ប៉ុណ្ណោះ";
@@ -152,9 +152,9 @@
 "STARTED" = "កាលបរិច្ឆេទចាប់ផ្តើមអាន";
 "TRACK_REREADING" = "កំពុងអានឡើងវិញ";
 "START_TRACKING" = "ចាប់ផ្តើមតាមដាន";
-"SCORE" = "ការវាយតម្លៃ";
+"SCORE" = "ពិន្ទុ";
 "TRACK_READING" = "កំពុងអាន";
-"ONESHOT" = "រឿងខ្លីចប់ក្នុងមួយភាគ";
+"ONESHOT" = "រឿងចប់ក្នុងជំពូកតែមួយ";
 "MANHWA" = "ម៉ានវ៉ា (Manhwa)";
 "MANHUA" = "ម៉ានហ័រ (Manhua)";
 "TRACK" = "តាមដាន";
@@ -162,7 +162,7 @@
 "CLEAR_TRACKED_MANGA" = "លុបតំណតាមដានម៉ានហ្គាទាំងអស់";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "តើអ្នកប្រាកដថាចង់លុបការទាញយកទាំងអស់មែនទេ?";
 "CACHE_SIZE_%@" = "ទំហំឃ្លាំងសម្ងាត់: %@";
-"SUPPORT_VIA_KOFI" = "គាំទ្រតាមរយៈ Ko-Fi";
+"SUPPORT_VIA_KOFI" = "គាំទ្រតាមរយៈ Ko-fi";
 "SORT_UNREAD_CHAPTERS" = "ជំពូកមិនទាន់អាន";
 "SORT_LAST_UPDATED" = "បានអាប់ដេតចុងក្រោយ";
 "SORT_TOTAL_CHAPTERS" = "ជំពូកសរុប";
@@ -178,7 +178,7 @@
 "MIGRATE" = "ផ្ទេរ";
 "OPTIONS" = "ជម្រើស";
 "DESTINATION" = "គោលដៅ";
-"AVAILABLE" = "មាន";
+"AVAILABLE" = "អាចប្រើបាន";
 "NOT_FOUND" = "រក​មិន​ឃើញ";
 "FIRST_ALTERNATIVE" = "ជម្រើសជំនួសទីមួយ";
 "MIGRATE_%i_ITEMS?" = "តើអ្នកចង់ផ្ទេរ %i​ ធាតុ?";
@@ -193,7 +193,7 @@
 "CANCEL" = "បោះបង់";
 "REMOVE" = "យកចេញ";
 "RENAME" = "ប្តូរឈ្មោះ";
-"CLEAR" = "សំអាតចេញ";
+"CLEAR" = "សម្អាត";
 "PAUSE" = "ផ្អាក";
 "RESUME" = "បន្ត";
 
@@ -272,7 +272,7 @@
 "VIEW_HISTORY" = "ចូលមើលប្រវត្តិ";
 "AUTH_FOR_HISTORY" = "ផ្ទៀងផ្ទាត់ដើម្បីមើលប្រវត្តិនៃការអាន។";
 "UPDATES" = "បច្ចុប្បន្នភាព";
-"BUTTON_UPDATE" = "ធ្វើបច្ចុប្បន្នភាព";
+"BUTTON_UPDATE" = "អាប់ដេត";
 
 // Settings
 "SETTINGS" = "ការកំណត់";
@@ -285,11 +285,11 @@
 "BACKUP_IMPORT_SUCCESS_TEXT" = "ដើម្បីស្ដារទៅការបម្រុងទុកនេះ សូមស្វែងរកវានៅក្នុងទំព័រការបម្រុងទុកក្នុងការកំណត់។";
 "BACKUP_IMPORT_FAIL_TEXT" = "បរាជ័យក្នុងការនាំចូលការបម្រុងទុក។ សូមប្រាកដថាការបម្រុងទុករបស់អ្នកស្ថិតក្នុងទម្រង់ត្រឹមត្រូវ។";
 "TRACK_DROPPED" = "បោះបង់ចោល";
-"TRACK_PAUSED" = "បញ្ឈប់ជាបណ្តោះអាសន្ន";
+"TRACK_PAUSED" = "បានផ្អាក";
 "FINISHED" = "កាលបរិច្ឆេទអានចប់";
 "TRACK_PLANNING" = "គ្រោងនឹងអាន";
 "STOP_TRACKING" = "បញ្ឈប់ការតាមដាន";
-"STATUS_NOT_PUBLISHED" = "មិនបានផ្សព្វផ្សាយ";
+"STATUS_NOT_PUBLISHED" = "មិនទាន់បោះពុម្ពផ្សាយ";
 "RESET_TEXT" = "ប្រតិបត្តិការនេះមិនអាចត្រឡប់វិញបានទេ។ ទិន្នន័យ ការកំណត់ និងឃ្លាំងសម្ងាត់ទាំងអស់នឹងត្រូវបានសម្អាត និងកំណត់ឡើងវិញ។";
 "CLEAR_NETWORK_CACHE_TEXT" = "ប្រតិបត្តិការនេះមិនអាចត្រឡប់វិញបានទេ។ សំណើបណ្តាញ និងរូបភាពដែលបានរក្សាទុកក្នុងឃ្លាំងសម្ងាត់នឹងត្រូវបានសម្អាត។";
 "CLEAR_READ_HISTORY" = "ជម្រះប្រវត្តិអាន";
@@ -301,7 +301,7 @@
 "LOCKED_CATEGORIES" = "ប្រភេទដែលបានចាក់សោ";
 "AUTH_FOR_LIBRARY" = "សូមផ្ទៀងផ្ទាត់ភាពត្រឹមត្រូវ ដើម្បីមើលបណ្ណាល័យរបស់អ្នក។";
 "PAGE_LAYOUT" = "ប្លង់ទំព័រ";
-"DOUBLE_PAGE" = "ទំព័រពីរទន្ទឹមគ្នា";
+"DOUBLE_PAGE" = "ទំព័រពីរ";
 "DAILY" = "ប្រចាំថ្ងៃ";
 "EVERY_2_DAYS" = "រៀងរាល់ 2 ថ្ងៃម្តង";
 "WITH_UNREAD_CHAPTERS" = "ជាមួយនឹងជំពូកមិនទាន់អាន";
@@ -336,7 +336,7 @@
 "TRACKERS" = "កម្មវិធីតាមដាន";
 "BOTH" = "ទាំងពីរ";
 "INVALID" = "មិនត្រឹមត្រូវ";
-"TRACKING" = "តាមដាន";
+"TRACKING" = "ការតាមដាន";
 "TRACK_COMPLETED" = "អានចប់";
 "DONE" = "រួចរាល់";
 "EDIT" = "កែសម្រួល";
@@ -401,7 +401,7 @@
 
 "TRANSLATION_SOURCE" = "ភាសាប្រភព";
 
-"TRANSLATION_AUTO" = "រកឃើញដោយស្វ័យប្រវត្តិ";
+"TRANSLATION_AUTO" = "កំណត់ដោយស្វ័យប្រវត្តិ";
 
 "TRANSLATION_OCR_HELP" = "PP-OCRv6 ត្រូវការ iOS 18 ឬកំណែថ្មីជាងនេះ។ Manga v0.3 ជាម៉ូដែលលំនាំដើមសម្រាប់ទាំងការរកទីតាំងអត្ថបទ និងការស្គាល់តួអក្សរ។ អ្នកនៅតែអាចជ្រើសរើសម៉ូដែល OCR ផ្សេងទៀតបាន។";
 
@@ -452,7 +452,7 @@
 
 "TRANSLATION_AUTO_FIT" = "សមដោយស្វ័យប្រវត្តិ";
 
-"TRANSLATION_FIXED" = "ទំហំពុម្ពអក្សរថេរ";
+"TRANSLATION_FIXED" = "ថេរ";
 
 "TRANSLATION_OVERLAY" = "ការបកប្រែជាន់លើ";
 
@@ -484,7 +484,7 @@
 
 "TRANSLATION_CACHE" = "ឃ្លាំងសម្ងាត់ក្រៅបណ្តាញ";
 
-"TRANSLATION_CACHE_LIMIT" = "ការផ្ទុកអតិបរមា";
+"TRANSLATION_CACHE_LIMIT" = "ទំហំផ្ទុកអតិបរមា";
 
 "TRANSLATION_CACHE_USED" = "ទំហំផ្ទុកដែលបានប្រើ";
 
@@ -634,7 +634,7 @@
 "PROCESSING_ENTRIES" = "កំពុងដំណើរការធាតុ...";
 "REFRESH_NO_WIFI" = "មិនបានភ្ជាប់ទៅ Wi-Fi ទេ";
 "REFRESH_NO_WIFI_TEXT" = "ការកំណត់ដើម្បីធ្វើបច្ចុប្បន្នភាពតែតាមរយៈ Wi-Fi ត្រូវបានបើក។ ភ្ជាប់ទៅ Wi-Fi ដើម្បីផ្ទុកបណ្ណាល័យរបស់អ្នក។";
-"REFRESH_ANYWAY" = "ផ្ទុកឡើងវិញទោះជាយ៉ាងណាក៏ដោយ";
+"REFRESH_ANYWAY" = "នៅតែផ្ទុកឡើងវិញ";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "លុបចេញពីបណ្ណាល័យ?";
 "REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "ការដកស៊េរីនេះចេញពីបណ្ណាល័យក៏នឹងលុបតំណតាមដានទាំងអស់របស់ស៊េរីនេះដែរ។ តើអ្នកប្រាកដថាចង់បន្តទេ?";
 "LIBRARY_REFRESH_INTERRUPTED" = "ការផ្ទុកបណ្ណាល័យឡើងវិញត្រូវបានរំខាន";
@@ -645,7 +645,7 @@
 "CREATE_FILTER_GROUP" = "បង្កើតក្រុមតម្រង";
 "EDIT_FILTER_GROUP" = "កែសម្រួលក្រុមតម្រង";
 "CLEAR_FILTERS" = "ជម្រះតម្រង";
-"SHOW_UNCATEGORIZED_CATEGORY" = "បង្ហាញ​ប្រភេទ​ដែល​មិន​បាន​ចាត់​ថ្នាក់";
+"SHOW_UNCATEGORIZED_CATEGORY" = "បង្ហាញប្រភេទ “មិនបានចាត់ថ្នាក់”";
 "BROWSE_NO_SOURCES_TEXT_NEW" = "បន្ថែមប្រភពដោយប្រើប៊ូតុងបូក។";
 "DISABLE" = "បិទ";
 "ENABLE" = "បើក";
@@ -666,7 +666,7 @@
 "RANGE_TO" = "ទៅ";
 "SOURCE_SETTINGS" = "ការកំណត់ប្រភព";
 "RESET_SETTINGS_CONFIRM_%@" = "តើអ្នកប្រាកដថាចង់កំណត់ការកំណត់ទាំងអស់ឡើងវិញសម្រាប់ %@?";
-"CANCEL_CONFIRM" = "តើអ្នកប្រាកដថាចង់លុបចោលទេ?";
+"CANCEL_CONFIRM" = "តើអ្នកប្រាកដថាចង់បោះបង់ទេ?";
 "CANCEL_CONFIRM_TEXT" = "ការផ្លាស់ប្តូររបស់អ្នកនឹងត្រូវបានលុបចោល។";
 "DISCARD_CHANGES" = "បោះបង់ការផ្លាស់ប្តូរ";
 "INVALID_URL" = "URL មិនត្រឹមត្រូវ";
@@ -698,7 +698,7 @@
 "SAVED_SEARCH_NAME" = "ឈ្មោះ";
 "SAVE_SEARCH_FAIL" = "ការរក្សាទុកបានបរាជ័យ";
 "SAVE_SEARCH_FAIL_INFO" = "ការស្វែងរកដែលបានរក្សាទុកជាមួយឈ្មោះនេះមានរួចហើយ។ សូមជ្រើសរើសឈ្មោះតែមួយគត់។";
-"INCOGNITO_FILTERS_NOTICE" = "តម្រងដែលបានកែប្រែមិនបន្តនៅក្នុងរបៀបអនាមិកទេ។";
+"INCOGNITO_FILTERS_NOTICE" = "តម្រងដែលបានកែប្រែនឹងមិនត្រូវបានរក្សាទុកក្នុងរបៀបអនាមិកទេ។";
 "LOCAL_FILES" = "ឯកសារលើឧបករណ៍";
 "LOCAL_FILES_TAGLINE" = "អានពីឯកសារលើឧបករណ៍";
 "LOCAL_FILES_INFO" = "ប្រភពឯកសារលើឧបករណ៍អនុញ្ញាតឱ្យអ្នកនាំចូល និងគ្រប់គ្រងបណ្ណាល័យអានផ្ទាល់ខ្លួនដោយផ្ទាល់នៅក្នុង Aidoku។";
@@ -725,7 +725,7 @@
 "KOMGA" = "Komga";
 "KOMGA_TAGLINE" = "ម៉ាស៊ីនមេមេឌៀដែលបង្ហោះដោយខ្លួនឯង";
 "KOMGA_INFO" = "Komga គឺជាម៉ាស៊ីនមេមេឌៀដែលអ្នកបង្ហោះដោយខ្លួនឯងសម្រាប់រឿងគំនូរ និងម៉ានហ្គា។ អ្នកត្រូវដំឡើង និងដំណើរការម៉ាស៊ីនមេ Komga ដើម្បីប្រើប្រភពនេះ។";
-"KOMGA_SETUP" = "ការដំឡើង Komga";
+"KOMGA_SETUP" = "ការរៀបចំ Komga";
 "DEMO_KOMGA_SERVER" = "ម៉ាស៊ីនមេ Komga សាកល្បង";
 "DEMO_KOMGA_SERVER_INFO" = "អ្នកអាចចូលទៅក្នុងម៉ាស៊ីនមេ Komga សាកល្បងដោយប្រើអ៊ីមែល `demo@komga.org` និងពាក្យសម្ងាត់ `komga-demo` ។";
 "SOURCE_NAME" = "ឈ្មោះប្រភព";
@@ -772,7 +772,7 @@
 "KAVITA" = "Kavita";
 "KAVITA_TAGLINE" = "បណ្ណាល័យឌីជីថលដែលរៀបចំដោយខ្លួនឯង";
 "KAVITA_INFO" = "Kavita គឺជាម៉ាស៊ីនមេមេឌៀដែលអ្នកបង្ហោះដោយខ្លួនឯងសម្រាប់រឿងគំនូរ និងម៉ានហ្គា។ អ្នកត្រូវដំឡើង និងដំណើរការម៉ាស៊ីនមេ Kavita ដើម្បីប្រើប្រភពនេះ។";
-"KAVITA_SETUP" = "ការដំឡើង Kavita";
+"KAVITA_SETUP" = "ការរៀបចំ Kavita";
 "DEMO_KAVITA_SERVER" = "ម៉ាស៊ីនមេ Kavita សាកល្បង";
 "DEMO_KAVITA_SERVER_INFO" = "អ្នកអាចចូលទៅក្នុងម៉ាស៊ីនមេ Kavita សាកល្បងដោយប្រើឈ្មោះអ្នកប្រើ `demouser` និងពាក្យសម្ងាត់ `Demouser64` ។";
 "MORE_IN_%@" = "ច្រើនទៀតនៅក្នុង %@";
@@ -789,11 +789,11 @@
 "API_KEY" = "សោ API";
 "OIDC" = "OIDC";
 "BASIC_LOGIN" = "ការចូលមូលដ្ឋាន";
-"API_KEY_LOGIN_INFO" = "ការផ្តល់សោ API ដោយដៃសម្រាប់ការចូលនឹងបដិសេធវិធីសាស្ត្រចូលផ្សេងទៀត។ អ្នកអាចទុកវាឱ្យនៅទទេ ដើម្បីប្រើវិធីសាស្ត្រចូលផ្សេងទៀត។";
+"API_KEY_LOGIN_INFO" = "ការផ្តល់សោ API ដោយដៃសម្រាប់ការចូលនឹងជំនួសវិធីសាស្ត្រចូលផ្សេងទៀត។ អ្នកអាចទុកវាឱ្យនៅទទេ ដើម្បីប្រើវិធីសាស្ត្រចូលផ្សេងទៀត។";
 "SUWAYOMI" = "Suwayomi";
 "SUWAYOMI_TAGLINE" = "ម៉ាស៊ីនមេសម្រាប់អានម៉ានហ្គា";
 "SUWAYOMI_INFO" = "Suwayomi គឺជាម៉ាស៊ីនមេសម្រាប់អានម៉ានហ្គាដែលអ្នកបង្ហោះដោយខ្លួនឯង ហើយដំណើរការផ្នែកបន្ថែមដែលបង្កើតសម្រាប់ Mihon (Tachiyomi)។ អ្នកត្រូវដំឡើង និងដំណើរការម៉ាស៊ីនមេ Suwayomi ដើម្បីប្រើប្រភពនេះ។";
-"SUWAYOMI_SETUP" = "ការដំឡើង Suwayomi";
+"SUWAYOMI_SETUP" = "ការរៀបចំ Suwayomi";
 "STATUS_LICENSED" = "មានអាជ្ញាប័ណ្ណ";
 "STATUS_PUBLISHING_FINISHED" = "ការបោះពុម្ពបានបញ្ចប់";
 "INVALID_KEY" = "សោមិនត្រឹមត្រូវ";
@@ -801,7 +801,7 @@
 "NO_SCANLATOR" = "គ្មានក្រុមបកប្រែរឿងគំនូរ";
 "LOCKED" = "ចាក់សោ";
 "TOGGLE_LOCK" = "បិទបើកចាក់សោ";
-"REFRESH_DETAILS" = "ធ្វើឱ្យព័ត៌មានលម្អិតឡើងវិញ";
+"REFRESH_DETAILS" = "ផ្ទុកព័ត៌មានលម្អិតឡើងវិញ";
 "VOLUME" = "ភាគ";
 "SKIPPING_CHAPTERS" = "កំពុងរំលង %i ជំពូក ព្រោះប្រភពមិនមានជំពូកទាំងនោះ ឬជំពូកទាំងនោះត្រូវបានត្រងចេញ";
 "OPEN_WEBSITE" = "បើកគេហទំព័រ";
@@ -813,18 +813,18 @@
 "RECENTLY_SEARCHED" = "ស្វែងរកថ្មីៗ";
 "NO_RECENT_SEARCHES" = "គ្មានការស្វែងរកថ្មីៗទេ";
 "NO_RECENT_SEARCHES_TEXT" = "ការស្វែងរកថ្មីៗរបស់អ្នកនឹងបង្ហាញនៅទីនេះ។";
-"SOURCES" = "ប្រភពមាតិកា";
+"SOURCES" = "ប្រភព";
 "LOGIN" = "ចូល";
-"LOGOUT_CONFIRM" = "តើ​អ្នក​ប្រាកដ​ជា​ចង់​ចេញ?";
+"LOGOUT_CONFIRM" = "តើអ្នកប្រាកដថាចង់ចាកចេញទេ?";
 "USERNAME" = "ឈ្មោះអ្នកប្រើប្រាស់";
 "EMAIL" = "អ៊ីមែល";
 "PASSWORD" = "ពាក្យសម្ងាត់";
-"LOGIN_FAILED" = "ចូលបានបរាជ័យ";
+"LOGIN_FAILED" = "ការចូលបានបរាជ័យ";
 "LOGIN_FAILED_TEXT" = "បរាជ័យក្នុងការចូលទៅប្រភព។ សូមប្រាកដថាព័ត៌មានចូលគណនីរបស់អ្នកត្រូវបានបញ្ចូលត្រឹមត្រូវ។";
 "LOGIN_BASIC_TEXT" = "រាល់ព័ត៌មានដែលបានបញ្ចូលនឹងត្រូវបានផ្តល់ដោយផ្ទាល់ទៅប្រភព។ កុំចូលទៅក្នុងប្រភពណាមួយដែលអ្នកមិនទុកចិត្ត។";
 "LOGIN_WEBVIEW_WARNING" = "ចូលតាមរយៈទិដ្ឋភាពគេហទំព័រ?";
 "LOGIN_WEBVIEW_WARNING_TEXT" = "ខូគីទាំងអស់ដែលបានកំណត់នៅក្នុងទិដ្ឋភាពបណ្តាញដែលបានបង្ហាញនឹងត្រូវបានផ្តល់ទៅឱ្យប្រភព។ កុំចូលទៅក្នុងប្រភពណាមួយដែលអ្នកមិនទុកចិត្ត។";
-"REFRESH_LOGIN" = "ធ្វើឱ្យការចូលឡើងវិញ";
+"REFRESH_LOGIN" = "ចូលឡើងវិញ";
 "LOGIN_METHOD" = "វិធីសាស្រ្តចូល";
 "BASIC" = "មូលដ្ឋាន";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "ការធ្វើសមកាលកម្ម iCloud គឺជាមុខងារពិសោធន៍។ ការបើក ឬបិទវាអាចបណ្តាលឱ្យបាត់បង់ទិន្នន័យ។";
@@ -839,15 +839,15 @@
 "CONTINUE_READING_ON_RESELECT" = "ចុចផ្ទាំងប្រវត្តិម្តងទៀត ដើម្បីបន្តការអាន";
 "DOWNLOADED_CHAPTER_BADGES" = "ផ្លាកសញ្ញាជំពូកដែលបានទាញយក";
 "PIN_TITLES" = "ខ្ទាស់ចំណងជើង";
-"PIN_DISABLED" = "បានបិទការខ្ទាស់";
+"PIN_DISABLED" = "បិទ";
 "PIN_UPDATED_CHAPTERS" = "ជំពូកដែលបានធ្វើបច្ចុប្បន្នភាព";
 "BACKGROUND_REFRESH" = "ការផ្ទុកឡើងវិញនៅផ្ទៃខាងក្រោយ";
 "BACKGROUND_REFRESH_TEXT" = "នៅពេលចាប់ផ្តើមផ្ទុកបណ្ណាល័យឡើងវិញដោយដៃ អនុញ្ញាតឱ្យដំណើរការនេះបញ្ចប់ ទោះបីជាកម្មវិធីកំពុងដំណើរការនៅផ្ទៃខាងក្រោយក៏ដោយ។";
 "NEW_CHAPTER_NOTIFICATIONS" = "ការជូនដំណឹងជំពូកថ្មី";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "ផ្ញើការជូនដំណឹងនៅពេលដែលបណ្ណាល័យត្រូវបានផ្ទុកឡើងវិញនៅក្នុងផ្ទៃខាងក្រោយ។";
 "1_NEW_CHAPTER_AVAILABLE" = "មានជំពូកថ្មី";
-"X_NEW_CHAPTERS_AVAILABLE" = "%d ជំពូកថ្មីអាចរកបាន";
-"NEW_CHAPTERS_AVAILABLE" = "ជំពូកថ្មីដែលមាន";
+"X_NEW_CHAPTERS_AVAILABLE" = "មានជំពូកថ្មី %d";
+"NEW_CHAPTERS_AVAILABLE" = "មានជំពូកថ្មី";
 "X_SERIES_HAVE_NEW_CHAPTERS" = "ស៊េរី %d មានជំពូកថ្មី";
 "DELETE_DOWNLOAD_AFTER_READING" = "លុបការទាញយកបន្ទាប់ពីអាន";
 "EVERY_6_HOURS" = "រៀងរាល់ 6 ម៉ោងម្តង";
@@ -893,13 +893,13 @@
 "ANIMATE_PAGE_TRANSITIONS" = "ការផ្លាស់ប្តូរទំព័រមានចលនា";
 "TEXT_READER" = "កម្មវិធីអានអត្ថបទ";
 "TEXT_READER_STYLE" = "រចនាប័ទ្មកម្មវិធីអាន";
-"TEXT_READER_PAGED" = "ការ​អាន​តាម​ទំព័រ";
+"TEXT_READER_PAGED" = "តាមទំព័រ";
 "TEXT_READER_SCROLL" = "រមូរ";
 "TEXT_FONT_FAMILY" = "ពុម្ពអក្សរ";
 "TEXT_FONT_SIZE" = "ទំហំពុម្ពអក្សរ";
 "TEXT_LINE_SPACING" = "គម្លាតបន្ទាត់";
 "TEXT_HORIZONTAL_PADDING" = "រឹមផ្តេក";
-"TEXT_THEME" = "រូបរាង";
+"TEXT_THEME" = "ធីម";
 "TEXT_THEME_SEPIA" = "ស៊ីភីយ៉ា";
 "TEXT_THEME_PAPER" = "ក្រដាស";
 "TEXT_THEME_GRAY" = "ប្រផេះ";
@@ -960,7 +960,7 @@
 "CLEAR_VOCABULARY_LIST" = "លុបវាក្យសព្ទដែលបានរក្សាទុកទាំងអស់";
 "CLEAR_VOCABULARY_LIST_TEXT" = "សកម្មភាពនេះគឺមិនអាចត្រឡប់វិញបានទេ។ វាក្យសព្ទដែលបានរក្សាទុកទាំងអស់នឹងត្រូវដកចេញ។";
 "DICTIONARY_UPDATES" = "បច្ចុប្បន្នភាព";
-"UPDATE_NOW" = "ធ្វើបច្ចុប្បន្នភាពឥឡូវនេះ";
+"UPDATE_NOW" = "អាប់ដេតឥឡូវនេះ";
 "LAST_UPDATED_%@" = "ធ្វើបច្ចុប្បន្នភាពចុងក្រោយ៖ %@";
 "MONTHLY" = "ប្រចាំខែ";
 "GET_RECOMMENDED_DICTIONARIES" = "ទទួលបានវចនានុក្រមដែលបានណែនាំ";
@@ -1025,9 +1025,9 @@
 "SHOW_ENTRY" = "មើលធាតុ";
 "SOURCE_BREAKING_CHANGE" = "ការផ្លាស់ប្តូរប្រភពដែលមិនត្រូវគ្នានឹងកំណែចាស់";
 "SOURCE_BREAKING_CHANGE_TEXT" = "ប្រភពនេះមានការផ្លាស់ប្តូរដែលមិនត្រូវគ្នានឹងកំណែចាស់ ហើយត្រូវការផ្ទេរទិន្នន័យដើម្បីរក្សាបណ្ណាល័យ និងប្រវត្តិរបស់អ្នក។";
-"AUTO_SCROLL" = "រំកិលដោយស្វ័យប្រវត្តិ";
+"AUTO_SCROLL" = "រមូរដោយស្វ័យប្រវត្តិ";
 "AUTO_SCROLL_SPEED" = "ល្បឿនរមូរដោយស្វ័យប្រវត្តិ";
-"AUTO_SCROLL_POSITION" = "ទីតាំងប៊ូតុងរំកិលដោយស្វ័យប្រវត្តិ";
+"AUTO_SCROLL_POSITION" = "ទីតាំងប៊ូតុងរមូរដោយស្វ័យប្រវត្តិ";
 "POSITION_LEFT" = "ឆ្វេង";
 "POSITION_RIGHT" = "ស្តាំ";
 "%@_TRACKER_LOGIN_NEEDED" = "ត្រូវការចូល %@";
@@ -1161,7 +1161,7 @@
 // Download page counts and single-series totals.
 "PAGES_%i_OF_%i" = "ទំព័រ៖ %i / %i";
 "1_SERIES" = "1 ស៊េរី";
-"SKIPPING_ONE_CHAPTER" = "រំលង 1 ជំពូក ព្រោះវាមិនមាននៅក្នុងប្រភព ឬត្រូវបានដកចេញដោយតម្រង";
+"SKIPPING_ONE_CHAPTER" = "កំពុងរំលង 1 ជំពូក ព្រោះវាមិនមាននៅក្នុងប្រភព ឬត្រូវបានត្រងចេញ";
 "BACKUP_CREATE_ERROR_TEXT" = "មិនអាចបង្កើតឯកសារបម្រុងទុកបានទេ។ សូមព្យាយាមម្តងទៀត។";
 "YES" = "បាទ/ចាស";
 "NO" = "ទេ";
