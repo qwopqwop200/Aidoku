@@ -819,25 +819,15 @@
 
 "TRANSLATION_TITLE" = "OCR & Terjemahan";
 
-"TRANSLATION_TRANSLATE" = "Terjemahkan Halaman yang Terlihat";
 
-"TRANSLATION_RECOGNIZE" = "Kenali Teks (Offline)";
 
-"TRANSLATION_ORIGINAL" = "Tampilkan Asli";
 
-"TRANSLATION_TEXT" = "Teks yang Dikenali & Diterjemahkan";
 
-"TRANSLATION_NO_IMAGE" = "Tunggu hingga halaman gambar dimuat, lalu coba lagi.";
 
-"TRANSLATION_NO_TEXT" = "Tidak ada teks yang dikenali. Coba model OCR lain atau gambar yang lebih jelas.";
 
-"TRANSLATION_WORKING" = "Mengenali dan menerjemahkan…";
 
-"TRANSLATION_OCR_WORKING" = "Mengenali teks di perangkat…";
 
-"TRANSLATION_HELP" = "Ikon terjemahan mengaktifkan atau menonaktifkan terjemahan. Halaman yang terlihat dipersiapkan terlebih dahulu, lalu halaman di sekitarnya. Persiapan mengikuti posisi baca Anda. Hasil OCR, terjemahan, dan tata letak teks yang tersimpan dapat digunakan kembali setelah membuka ulang pembaca atau memulai ulang aplikasi. Gambar yang dibagikan dan dibuka sementara tidak menyimpan cache ini. Keluar dari pembaca akan membatalkan pekerjaan yang belum selesai.";
 
-"TRANSLATION_PRIVACY" = "OCR berjalan di perangkat Anda. Terjemahan mengirimkan teks yang dikenali dan instruksi Anda ke penyedia yang dipilih. Jika Sertakan Gambar Halaman dalam Terjemahan diaktifkan, gambar halaman yang telah diproses juga dapat diunggah. Jika input gambar tidak didukung, terjemahan dilanjutkan hanya dengan teks. Biaya API bergantung pada penyedia Anda. Kunci API disimpan di Keychain. OCR, terjemahan, dan tata letak teks disimpan di penyimpanan aplikasi terlindungi dan tidak termasuk dalam cadangan.";
 
 "TRANSLATION_KEY_REPLACE" = "Ganti kunci API yang disimpan (opsional)";
 
@@ -855,11 +845,9 @@
 
 "TRANSLATION_TARGET" = "Terjemahkan Ke";
 
-"TRANSLATION_SOURCE" = "Bahasa Sumber";
 
 "TRANSLATION_AUTO" = "Deteksi Secara Otomatis";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 memerlukan iOS 18 atau lebih baru. Manga v0.3 adalah model bawaan untuk deteksi dan pengenalan teks. Model OCR lainnya tetap tersedia.";
 
 
 
@@ -877,42 +865,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Permintaan Bersamaan";
 
-"TRANSLATION_DETECTOR_SIZE" = "Panjang Sisi Maksimum Detektor";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Lebar Maksimum Pengenal";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Ambang Piksel Deteksi OCR";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Keyakinan Minimum Area Deteksi OCR";
-"TRANSLATION_CONFIDENCE" = "Keyakinan Minimum Pengenalan OCR";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "Ambang piksel memilih piksel teks. Keyakinan deteksi menyaring area teks. Keyakinan pengenalan menyaring teks yang dibaca dari setiap area. Nilai yang lebih rendah menerima lebih banyak hasil yang tidak pasti.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Ukuran Minimum Deteksi OCR";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Panjang minimum sisi pendek calon area teks, diukur dalam piksel peta deteksi. Default: 3 px. Nilai yang lebih rendah dapat mendeteksi teks yang lebih kecil, tetapi juga dapat menangkap lebih banyak derau.";
 
-"TRANSLATION_SURFACE" = "Warna Latar Belakang";
 
-"TRANSLATION_WHITE" = "Putih";
 
-"TRANSLATION_DARK" = "Gelap";
 
-"TRANSLATION_OPACITY" = "Opasitas Latar Belakang";
 
-"TRANSLATION_EXPANSION" = "Perluasan Bingkai Teks";
 
-"TRANSLATION_PANEL_BOUNDS" = "Dalam Batas Gambar";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Dalam Bingkai Teks Asli";
 
-"TRANSLATION_UNRESTRICTED" = "Tidak dibatasi";
 
-"TRANSLATION_FONT_SIZE" = "Ukuran Huruf";
 
-"TRANSLATION_AUTO_FIT" = "Sesuaikan Secara Otomatis";
 
-"TRANSLATION_FIXED" = "Ukuran Huruf Tetap";
 
-"TRANSLATION_OVERLAY" = "Lapisan Terjemahan";
 
-"TRANSLATION_OVERLAY_HELP" = "Mengganti teks di atas kotak teks asli dengan tata letak yang menghindari tumpang tindih dan pemenggalan baris sesuai sistem tulisan. Perubahan tampilan menggunakan kembali hasil OCR yang sudah ada.";
 
 "TRANSLATION_PROVIDER" = "Penyedia Terjemahan";
 
@@ -984,7 +951,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Bahasa Sumber Halaman";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Secara otomatis mendeteksi bahasa sumber setiap judul dan hanya menerjemahkan bahasa yang dipilih. Semua Bahasa Terdeteksi menghilangkan batasan bahasa. Pengaturan bahasa sumber halaman dan judul lainnya tidak memengaruhi pilihan ini.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Terjemahkan Deskripsi Manga";
 
@@ -996,32 +962,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Sertakan Gambar Halaman dalam Terjemahan";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Kirim gambar halaman bersama teks OCR untuk memberikan konteks adegan. Jika input gambar tidak didukung, terjemahan otomatis dilanjutkan hanya dengan teks. Melampirkan gambar dapat meningkatkan penggunaan data dan biaya API.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Input gambar tidak didukung. Terjemahan dilanjutkan tanpa gambar.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Pertahankan Warna Teks Asli";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Perkirakan warna teks asli tanpa model tambahan. Gunakan warna default bila tidak yakin atau bila kontras terlalu rendah.";
 
-"TRANSLATION_LLM_SFX" = "Penyaringan Efek Suara dengan LLM (Semua Bahasa)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Mengklasifikasikan efek suara dalam permintaan terjemahan yang sama dan membiarkannya tidak berubah. Jika gambar halaman disertakan, AI juga melewati fragmen OCR yang tidak jelas, kecuali gambar menunjukkan bahwa fragmen tersebut merupakan teks bermakna. Dialog, narasi, judul, dan kredit tetap diterjemahkan. Klasifikasi kurang andal tanpa gambar halaman.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Tanpa masukan gambar, konteks visual dan tata letak yang terbatas dapat mengurangi akurasi klasifikasi SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Pertahankan Warna Latar Belakang Asli";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Sesuaikan warna panel terjemahan dengan latar belakang di sekitar teks asli. Gunakan panel bawaan jika warna tidak dapat dipastikan atau teks tidak terbaca. Pengaturan opasitas Anda tetap berlaku.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Kustom (Kompatibel dengan OpenAI)";
 
-"TRANSLATION_OCR_MEDIUM" = "Sedang";
 
-"TRANSLATION_OCR_SMALL" = "Kecil";
 
-"TRANSLATION_OCR_TINY" = "Sangat Kecil";
 
 "TRANSLATION_REASONING_NONE" = "Tidak ada";
 
@@ -1079,8 +1034,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Unduh dengan terjemahan";
 
-"TRANSLATION_LLM_BACKGROUND" = "Lewati Teks Latar Belakang (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "AI penerjemah membiarkan tulisan pada papan biasa, poster, dan benda dalam adegan tetap tidak berubah, meskipun terkait dengan adegan atau disebut dalam dialog. Dialog, narasi, judul, kredit, tulisan yang penting bagi alur cerita, dan teks yang perannya tidak pasti tetap diterjemahkan. Tidak ada permintaan tambahan, tetapi pemrosesan mungkin memerlukan waktu lebih lama. Klasifikasi kurang andal tanpa gambar halaman.";
 
 "TRANSLATION_STATE_ON" = "Aktif";
 "TRANSLATION_STATE_OFF" = "Nonaktif";
@@ -1147,13 +1100,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Perubahan sinkronisasi iCloud berlaku setelah Anda menutup Aidoku sepenuhnya lalu membukanya kembali. Hingga saat itu, pengaturan sinkronisasi saat ini tetap aktif.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Pertahankan warna asli";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Pertahankan warna teks dan latar bersama-sama.";
-"TRANSLATION_INPAINTING" = "Pemulihan latar";
-"TRANSLATION_INPAINTING_HELP" = "Hapus teks asli dengan mempertahankan latar. Menggunakan kotak jika mask atau keterbacaan tidak pasti. Memerlukan warna asli.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Penyaringan Teks";
 
 "TRANSLATION_TARGETS" = "Konten yang Diterjemahkan";
 
@@ -1194,10 +1142,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sumber %@ versi %d tidak didukung oleh aplikasi ini. Pasang versi yang didukung.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 hanya mendukung teks sumber dalam bahasa Jepang dan bahasa Tionghoa (aksara sederhana dan tradisional). Deteksi otomatis bahasa sumber dan pilihan bahasa sumber juga terbatas pada bahasa-bahasa tersebut. Anda tetap dapat menerjemahkan ke bahasa tujuan apa pun. Memilih Manga menerapkan ambang deteksi 0.85 dan 0.25; ukuran deteksi bawaannya adalah 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Semua bahasa OCR yang didukung";
-"TRANSLATION_PIPELINE_V2" = "Pipeline Cepat (Beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Menggunakan pipeline terjemahan halaman baru yang mengutamakan kecepatan. Halaman dikenali, dihapus, dan digambar ulang sebagai satu gambar jadi, biasanya jauh lebih cepat. Hasil disimpan di cache terpisah dari pipeline standar. Memerlukan iOS 18.";

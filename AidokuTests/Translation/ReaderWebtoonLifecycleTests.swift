@@ -57,22 +57,6 @@ struct ReaderWebtoonLifecycleTests {
         #expect(node.imageView?.image === replacement)
     }
 
-    @Test func splitPagePreservesSuppressedRubyInkAndOrderingEvidence() throws {
-        var region = ReaderTranslationRegion(id: "split", rect: CGRect(x: 0.6, y: 0.2, width: 0.2, height: 0.3),
-            source: "本文", translation: "본문")
-        region.translationOrder = 2
-        region.translationOrderVersion = "current"
-        region.auxiliaryInkRects = [CGRect(x: 0.8, y: 0.2, width: 0.04, height: 0.3),
-                                    CGRect(x: 0.1, y: 0.2, width: 0.04, height: 0.3)]
-        let cropped = try #require(region.cropped(to: CGRect(x: 0.5, y: 0, width: 0.5, height: 1)))
-        #expect(cropped.translationOrder == 2)
-        #expect(cropped.translationOrderVersion == "current")
-        #expect(cropped.auxiliaryInkRects.count == 1)
-        let auxiliary = try #require(cropped.auxiliaryInkRects.first)
-        #expect(abs(auxiliary.minX - 0.6) < 0.0001)
-        #expect(abs(auxiliary.width - 0.08) < 0.0001)
-    }
-
     @Test func changingTextPageToImageReleasesHostingController() {
         let parent = UIViewController()
         let page = ReaderPageView(parent: parent, temporaryPageStore: ReaderTemporaryPageStore())

@@ -31,7 +31,6 @@ actor ReaderTranslationDiskCache {
     private var database: ReaderCacheDatabase?
     private var generation: UInt64 = 0
     private var metadataGeneration: UInt64 = 0
-    private var translationWriteEpoch: UInt64 = 0
     private let tracksSavedSettings: Bool
     private var activePolicy: ReaderTranslationCachePolicy?
     private var pendingTouches: [String] = []
@@ -79,67 +78,6 @@ actor ReaderTranslationDiskCache {
         return generation
     }
 
-    struct TranslationWriteToken: Sendable {
-        fileprivate let epoch: UInt64
-        fileprivate let policy: String
-        fileprivate let capabilityRevision: Int
-        fileprivate let wasUnsupported: Bool
-    }
-
-    struct TranslationWriteDestination: Sendable {
-        let key: String
-        let generation: UInt64
-    }
-
-    /// Capture before the provider request. A text-only capability fallback may
-    /// change the key, but must not invalidate the successful response itself.
-    func captureTranslationWrite(settings: ReaderTranslationSettings) -> TranslationWriteToken? {
-        do {
-            try prepare()
-            let requested = ReaderTranslationCachePolicy(settings)
-            if activePolicy == nil { try applyPolicy(requested) }
-            guard activePolicy?.writePolicy == requested.writePolicy else { return nil }
-            let capability = TranslationImageSupport.shared.snapshot(for: settings.configuration)
-            return TranslationWriteToken(
-                epoch: translationWriteEpoch,
-                policy: requested.writePolicy,
-                capabilityRevision: capability.revision,
-                wasUnsupported: capability.status == .unsupported
-            )
-        } catch { return nil }
-    }
-
-    /// Clear and real settings changes fence writers even when settings later
-    /// return to their original values. Only one transition to unsupported is
-    /// accepted; restoring image support requires a fresh image-backed response.
-    func resolveTranslationWrite(page: String, settings: ReaderTranslationSettings,
-                                 token: TranslationWriteToken) -> TranslationWriteDestination? {
-        do {
-            try prepare()
-            let requested = ReaderTranslationCachePolicy(settings)
-            guard token.epoch == translationWriteEpoch,
-                  token.policy == requested.writePolicy,
-                  activePolicy?.writePolicy == requested.writePolicy else { return nil }
-            let capability = TranslationImageSupport.shared.snapshot(for: settings.configuration)
-            if settings.includePageImage {
-                let same = capability.revision == token.capabilityRevision
-                let fallback = !token.wasUnsupported && capability.revision == token.capabilityRevision + 1 &&
-                    capability.status == .unsupported
-                guard same || fallback else { return nil }
-            }
-            let key = ReaderTranslationCacheIdentity.translation(page: page, settings: settings)
-            // Refresh after deriving the destination so its generation includes
-            // a capability change that raced the initial prepare().
-            try prepare()
-            guard token.epoch == translationWriteEpoch, activePolicy?.writePolicy == requested.writePolicy else { return nil }
-            if settings.includePageImage {
-                let after = TranslationImageSupport.shared.snapshot(for: settings.configuration)
-                guard after.revision == capability.revision, after.status == capability.status else { return nil }
-            }
-            return TranslationWriteDestination(key: key, generation: generation)
-        } catch { return nil }
-    }
-
     private func storageGeneration(for kind: Kind) -> UInt64 {
         kind == .metadata ? metadataGeneration : generation
     }
@@ -154,7 +92,6 @@ actor ReaderTranslationDiskCache {
     private func applyPolicy(_ policy: ReaderTranslationCachePolicy) throws {
         guard activePolicy != policy, let database else { return }
         let changed = try database.applyPolicy(policy)
-        if let activePolicy, activePolicy.writePolicy != policy.writePolicy { translationWriteEpoch &+= 1 }
         if changed.page { generation &+= 1 }
         if changed.metadata { metadataGeneration &+= 1 }
         activePolicy = policy
@@ -174,7 +111,6 @@ actor ReaderTranslationDiskCache {
             // must stay invalid after a later re-enable, including metadata.
             generation &+= 1
             metadataGeneration &+= 1
-            translationWriteEpoch &+= 1
         }
         byteLimit = nextLimit
         try prepare()
@@ -184,7 +120,6 @@ actor ReaderTranslationDiskCache {
     func clear() throws {
         generation &+= 1
         metadataGeneration &+= 1
-        translationWriteEpoch &+= 1
         activePolicy = nil
         touchFlushTask?.cancel(); touchFlushTask = nil
         pendingTouches.removeAll()
@@ -209,18 +144,6 @@ actor ReaderTranslationDiskCache {
         try prepare()
         try flushAccesses()
         try database?.touch(fileName(key, kind: kind))
-    }
-
-    func storeImageSize(_ size: CGSize, page: String, generation: UInt64) throws {
-        guard size.width > 0, size.height > 0, size.width.isFinite, size.height.isFinite else { return }
-        try store(JSONEncoder().encode(size), for: "processed-image-size-v1-" + page, kind: .layout, generation: generation)
-    }
-
-    func imageSize(page: String) throws -> CGSize? {
-        guard let data = try data(for: "processed-image-size-v1-" + page, kind: .layout),
-              let size = try? JSONDecoder().decode(CGSize.self, from: data),
-              size.width > 0, size.height > 0, size.width.isFinite, size.height.isFinite else { return nil }
-        return size
     }
 
     func contains(_ key: String, kind: Kind) throws -> Bool {
@@ -267,51 +190,6 @@ actor ReaderTranslationDiskCache {
         return record
     }
 
-    /// A legacy all-language translation can be narrowed without another OCR/API
-    /// request. Never treat a filtered subset as a complete all-language page.
-    func translatedRegions(page: String, settings: ReaderTranslationSettings) throws -> [ReaderTranslationRegion]? {
-        try translatedRegionRecord(page: page, settings: settings)?.regions
-    }
-
-    func containsTranslationCandidate(page: String, settings: ReaderTranslationSettings) throws -> Bool {
-        if try contains(ReaderTranslationCacheIdentity.translation(page: page, settings: settings), kind: .translation) {
-            return true
-        }
-        guard !settings.rightToLeftPanelOrder, ReaderTranslationLanguageFilter.identity(settings: settings) != nil else { return false }
-        return try contains(ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings), kind: .translation)
-    }
-
-    func translatedRegionRecord(page: String, settings: ReaderTranslationSettings,
-                                matching sourceRasterClaim: ReaderTranslationSourceRasterClaim? = nil,
-                                persistDerived: Bool = true)
-        throws -> ReaderTranslationRegionArchive.Record? {
-        let key = ReaderTranslationCacheIdentity.translation(page: page, settings: settings)
-        if let record = try regionRecord(for: key, kind: .translation, matching: sourceRasterClaim) {
-            let cached = record.regions
-            guard !cached.contains(where: { $0.translationRecoveryFailure != nil }) else { return nil }
-            let eligible = ReaderTranslationLanguageFilter.apply(cached, settings: settings)
-            guard !ReaderTranslationLanguageFilter.containsUntranslatedJapaneseReply(eligible, target: settings.targetLanguage) else {
-                ReaderTranslationDiagnostics.record("translation_cache_wrong_language")
-                return nil
-            }
-            return record
-        }
-        guard !settings.rightToLeftPanelOrder, ReaderTranslationLanguageFilter.identity(settings: settings) != nil,
-              let record = try regionRecord(for: ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings),
-                                           kind: .translation, matching: sourceRasterClaim) else { return nil }
-        let cached = record.regions
-        guard !cached.contains(where: { $0.translationRecoveryFailure != nil }) else { return nil }
-        let eligible = ReaderTranslationLanguageFilter.apply(cached, settings: settings)
-        guard !ReaderTranslationLanguageFilter.containsUntranslatedJapaneseReply(eligible, target: settings.targetLanguage) else { return nil }
-        let preserved = ReaderTranslationLanguageFilter.preservingExcludedSource(
-            original: cached, translated: eligible, eligibleIDs: Set(eligible.map(\.id)))
-        try Task.checkCancellation()
-        if persistDerived {
-            try storeRegions(preserved, for: key, kind: .translation, generation: generation, sourceRasterClaim: record.sourceRasterClaim)
-        }
-        return .init(regions: preserved, sourceRasterClaim: record.sourceRasterClaim)
-    }
-
     func storeRegions(_ regions: [ReaderTranslationRegion], for key: String, kind: Kind, generation: UInt64,
                       sourceRasterClaim: ReaderTranslationSourceRasterClaim? = nil) throws {
         try Task.checkCancellation()
@@ -343,6 +221,54 @@ actor ReaderTranslationDiskCache {
     func remove(_ key: String, kind: Kind) throws {
         try prepare()
         try database?.delete(fileName(key, kind: kind))
+    }
+
+    static let legacyPipelinePurgeMarker = "legacy-pipeline-purge-v1"
+
+    /// Whether a page row was written by the V2 pipeline (kept by the purge):
+    /// `.layout` rows hold the rendered page JPEG, `.translation` rows the V2
+    /// block JSON. OCR rows, region archives and every other payload belong to
+    /// the retired legacy page pipeline.
+    static func isV2PageRow(kind: Kind, unpacked data: Data, linkedToRegionBase: Bool) -> Bool {
+        guard !linkedToRegionBase else { return false }
+        switch kind {
+        case .layout: return data.starts(with: [0xFF, 0xD8, 0xFF])
+        case .translation: return (try? JSONDecoder().decode([V2Block].self, from: data)) != nil
+        case .metadata: return true
+        case .ocr, .snapshot: return false
+        }
+    }
+
+    /// One-time launch cleanup: deletes the rows of the retired legacy page
+    /// pipeline (OCR, region translations/layouts, snapshots). Metadata rows
+    /// and V2 page rows are kept. Returns the number of deleted rows.
+    @discardableResult
+    func purgeLegacyPipelineRows() async throws -> Int {
+        try prepare()
+        guard let database else { return 0 }
+        let marker = Self.legacyPipelinePurgeMarker
+        guard try database.integer("SELECT COUNT(*) FROM cache_policy WHERE name='\(marker)'") == 0 else { return 0 }
+        var cursor = ""
+        var deleted = 0
+        var visited = 0
+        while let row = try database.nextPagePipelineRow(after: cursor) {
+            try Task.checkCancellation()
+            cursor = row.name
+            let kind = Kind.allCases.first { row.name.hasPrefix($0.rawValue + "-") } ?? .ocr
+            let unpacked = (try? ReaderTranslationCacheCodec.unpack(row.data)) ?? Data()
+            if !Self.isV2PageRow(kind: kind, unpacked: unpacked, linkedToRegionBase: row.linked) {
+                try database.delete(row.name)
+                deleted += 1
+            }
+            visited += 1
+            if visited.isMultiple(of: 64) {
+                await Task.yield()
+                guard self.database === database else { return deleted }
+            }
+        }
+        try database.execute("INSERT OR IGNORE INTO cache_policy(name,value) VALUES('\(marker)','1')")
+        try trim()
+        return deleted
     }
 
     /// Upgrade old region records without changing their LRU order. Each row is atomic,
@@ -696,6 +622,18 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         }
     }
 
+    /// Page-pipeline rows (never metadata) in name order, with their region-base link state.
+    func nextPagePipelineRow(after name: String) throws -> (name: String, data: Data, linked: Bool)? {
+        try statement("SELECT name,data,EXISTS(SELECT 1 FROM region_links WHERE region_links.name=cache.name) FROM cache "
+            + "WHERE name>? AND (name GLOB 'ocr-*' OR name GLOB 'translation-*' OR name GLOB 'layout-*' OR name GLOB 'snapshot-*') "
+            + "ORDER BY name LIMIT 1", name: name) { pointer in
+            let result = sqlite3_step(pointer)
+            if result == SQLITE_DONE { return nil }
+            guard result == SQLITE_ROW else { throw failure() }
+            return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1), sqlite3_column_int(pointer, 2) != 0)
+        }
+    }
+
     func nextCompressionCandidate(after name: String) throws -> (name: String, data: Data)? {
         try statement("SELECT name,data FROM cache WHERE name>? ORDER BY name LIMIT 1", name: name) { pointer in
             let result = sqlite3_step(pointer)
@@ -989,9 +927,9 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             throw error
         }
     }
-
 }
 
+/// One stored region row. Older rows may carry retired keys; decoding ignores them.
 struct ReaderTranslationStoredRegion: Codable {
     let id: String
     let rect: CGRect
@@ -1001,11 +939,6 @@ struct ReaderTranslationStoredRegion: Codable {
     let confidence: Double
     let orientation: String
     let singleColumn: Bool?
-    let auxiliaryInkRects: [CGRect]?
-    let auxiliaryInkPolygons: [[CGPoint]]?
-    let sourceOCRAlternatives: [ReaderTranslationSourceOCRAlternative]?
-    let sourceRoleEvidence: NativeTranslationRoleEvidence?
-    let postLLMContentEvidence: NativePostLLMContentReclassifier.Evidence?
     let sourceImageAspectRatio: Double?
     let translationOrder: Int?
     let translationOrderVersion: String?
@@ -1014,21 +947,11 @@ struct ReaderTranslationStoredRegion: Codable {
     let translationRecoveryFailure: String?
     let keepsClassifiedSFXSource: Bool?
     let rendersUnchangedSymbols: Bool?
-    let balloonInterior: ReaderTranslationBalloonInterior?
-    let occludedFinePrint: Bool?
-    let unitMemberRects: [CGRect]?
-    let recoveredLine: Bool?
-    let sourceMemberPolygons: [[CGPoint]]?
 
     init(_ value: ReaderTranslationRegion) {
         id = value.id; rect = value.rect; source = value.source; translation = value.translation
         polygon = value.polygon; confidence = value.confidence; orientation = value.sourceOrientation.rawValue
         singleColumn = value.sourceSingleVerticalColumn
-        auxiliaryInkRects = value.auxiliaryInkRects.isEmpty ? nil : value.auxiliaryInkRects
-        auxiliaryInkPolygons = value.auxiliaryInkPolygons.isEmpty ? nil : value.auxiliaryInkPolygons
-        sourceOCRAlternatives = value.sourceOCRAlternatives.isEmpty ? nil : value.sourceOCRAlternatives
-        sourceRoleEvidence = value.sourceRoleEvidence
-        postLLMContentEvidence = value.postLLMContentEvidence
         sourceImageAspectRatio = value.sourceImageAspectRatio
         translationOrder = value.translationOrder
         translationOrderVersion = value.translationOrderVersion
@@ -1036,22 +959,11 @@ struct ReaderTranslationStoredRegion: Codable {
         translationRecoveryFailure = value.translationRecoveryFailure
         keepsClassifiedSFXSource = value.keepsClassifiedSFXSource ? true : nil
         rendersUnchangedSymbols = value.rendersUnchangedSymbols ? true : nil
-        balloonInterior = value.balloonInterior
-        occludedFinePrint = value.isOccludedFinePrint ? true : nil
-        unitMemberRects = value.unitMemberRects.isEmpty ? nil : value.unitMemberRects
-        recoveredLine = value.isRecoveredLine ? true : nil
-        sourceMemberPolygons = value.sourceMemberPolygons.isEmpty ? nil : value.sourceMemberPolygons
     }
     var region: ReaderTranslationRegion {
         var region = ReaderTranslationRegion(id: id, rect: rect, source: source, translation: translation, polygon: polygon,
                                              confidence: confidence, sourceOrientation: .init(tolerantRawValue: orientation),
                                              sourceSingleVerticalColumn: singleColumn)
-        region.auxiliaryInkRects = auxiliaryInkRects ?? []
-        region.auxiliaryInkPolygons = auxiliaryInkPolygons ?? []
-        region.sourceOCRAlternatives = sourceOCRAlternatives ?? []
-        region.sourceRoleEvidence = sourceRoleEvidence
-        region.postLLMContentEvidence = postLLMContentEvidence
-        region.cachedSourceMemberPolygons = sourceMemberPolygons ?? []
         region.sourceImageAspectRatio = sourceImageAspectRatio
         region.translationOrder = translationOrder
         region.translationOrderVersion = translationOrderVersion
@@ -1059,10 +971,6 @@ struct ReaderTranslationStoredRegion: Codable {
         region.translationRecoveryFailure = translationRecoveryFailure
         region.keepsClassifiedSFXSource = keepsClassifiedSFXSource ?? false
         region.rendersUnchangedSymbols = rendersUnchangedSymbols ?? false
-        region.balloonInterior = balloonInterior
-        region.isOccludedFinePrint = occludedFinePrint ?? false
-        region.unitMemberRects = unitMemberRects ?? []
-        region.isRecoveredLine = recoveredLine ?? false
         return region
     }
 }
@@ -1072,28 +980,26 @@ private struct ReaderTranslationCachePolicy: Equatable {
     let translation: String
     let metadata: String
     let layout: String
-    let writePolicy: String
 
     init(_ settings: ReaderTranslationSettings) {
-        var persisted = settings
-        persisted.rightToLeftPanelOrder = false
-        translation = ReaderTranslationCacheIdentity.translation(page: "cache-policy", settings: persisted)
+        // Page rows (V2 blocks and bitmaps) are dropped when the provider,
+        // languages or source filter change; their keys carry the same inputs.
+        let config = settings.configuration
+        translation = ReaderTranslationCacheIdentity.encoded([
+            "page-cache-policy-v2", config.provider.rawValue, config.apiProtocol.rawValue, config.baseURL, config.model,
+            config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
+            config.instructions, settings.sourceLanguage, settings.targetLanguage,
+            TranslationHTTPCodec.letteringPolicy, TranslationHTTPCodec.sfxPolicy, TranslationHTTPCodec.backgroundPolicy,
+            ReaderTranslationCacheIdentity.encoded(ReaderTranslationLanguageFilter.identity(settings: settings) ?? [])
+        ])
         metadata = ReaderTranslationCacheIdentity.encoded(TitleTranslationKind.allCases.map {
             TitleTranslation.cacheKey("cache-policy", kind: $0, settings: settings)
         })
-        layout = ReaderTranslationCacheIdentity.renderVariantIdentity(ReaderTranslationCacheIdentity.encoded([ReaderTranslationCacheIdentity.renderRevision,
-            NativeSourceSegmentationExecution.policySHA256,
-            ReaderTranslationCacheIdentity.encoded(settings.overlay)]))
-        // Page translation has one image-required content identity. Fence the
-        // user image setting separately from that already-derived identity.
-        writePolicy = ReaderTranslationCacheIdentity.encoded([translation, String(settings.includePageImage), layout])
+        layout = ReaderTranslationCacheIdentity.encoded(["page-layout-policy-v2"])
     }
 }
 
 enum ReaderTranslationCacheIdentity {
-    // Old layouts may erase and repaint unchanged source symbols.
-    // OCR/provider/translation identities stay unchanged; only render/layout is invalidated.
-    static let renderRevision = "reader-render-v316-unchanged-symbol-source-preservation"
     static func digest(_ value: String) -> String { digest(Data(value.utf8)) }
     private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
     static func digest(_ value: Data) -> String {
@@ -1109,149 +1015,5 @@ enum ReaderTranslationCacheIdentity {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
         return digest((try? encoder.encode(value)) ?? Data())
-    }
-    static func ocr(page: String, settings: ReaderTranslationSettings,
-                    rawCanonicalRevision: String = NativeOCRRawCanonicalPolicy.version) -> String {
-        // OCR entries contain merged regions. A merger change must also
-        // invalidate derived translations/layouts instead of replaying old boxes.
-        // A detector content/padding ABI change invalidates OCR and its
-        // derived translations/layouts, not just the transient DB capability.
-        let detectorPreprocessingABI: String
-        if #available(iOS 18.0, *) {
-            detectorPreprocessingABI = NativeCoreMLDetectionPreprocessor.provenanceABI
-        } else { detectorPreprocessingABI = "native-db-unavailable-before-ios18" }
-        let base = encoded(["reader-ocr-" + NativeParagraphFragmentGrouping.policyVersion,
-            detectorPreprocessingABI,
-            NativeOCRPremergePolicyBundle.cacheVersion, NativeFinalOutputDuplicateResolver.policyVersion,
-            NativeFinalOutputContentFilter.admissionPolicyVersion, NativePostMergeSignalFilter.policyVersion,
-            rawCanonicalRevision,
-            NativePostLLMContentReclassifier.policyVersion,
-            page, encoded(settings.ocrConfiguration)])
-        // Cached merged OCR predates the route and has no transient primary
-        // ancestry. Enabling it must obtain fresh native sources exactly once;
-        // translation/render identities already derive from this OCR identity.
-        let nomination = NativeCausalRFNominationPolicy.configured()
-        let nominationBase = nomination == .legacy ? base : encoded([base, nomination.cacheVersion])
-        let samplingBase = NativeCausalRFLongitudinalSampling.configuredFraction == 0 ? nominationBase
-            : encoded([nominationBase, NativeCausalRFLongitudinalSampling.cacheVersion])
-        let acceptance = NativeCausalRFParagraphRecognition.Policy.configured()
-        let gridBase = acceptance.parameterGrid
-            ? encoded([samplingBase, "rf-padded-actual-read-grid-v1", String(acceptance.minimumConfidence)]) : samplingBase
-        let componentBase = NativeCausalRFComponentParagraphRequests.runtimeEnabled
-            ? encoded([gridBase, NativeCausalRFComponentParagraphRequests.cacheVersion]) : gridBase
-        let adaptiveBase = NativeCausalRFAdaptiveSampling.runtimeEnabled
-            ? encoded([componentBase, NativeCausalRFAdaptiveSampling.cacheVersion]) : componentBase
-        let freshContextBase = NativeCausalRFOriginalContextRecovery.runtimeEnabled
-            ? encoded([adaptiveBase, NativeCausalRFOriginalContextRecovery.policy]) : adaptiveBase
-        // Experimental source readers must never replay merged OCR produced
-        // under different sampling/affiliation parameters. Absent flags retain
-        // the existing default identity byte-for-byte.
-        let sourceReaderKeys = ["AIDOKU_OCR_RF_CLOSED_COLUMN_NOMINATION",
-            "AIDOKU_OCR_UNRETAINED_READ_SUPPORT", "AIDOKU_OCR_ORIGINAL_PACKET_EXTENT",
-            "AIDOKU_OCR_ORIGINAL_PACKET_CROSS_EXTENT", "AIDOKU_OCR_ORIGINAL_PACKET_SEGMENTS",
-            "AIDOKU_OCR_ORIGINAL_PRIMARY_SOURCE_JOIN",
-            "AIDOKU_OCR_ORIGINAL_PACKET_MIN_CONFIDENCE", "AIDOKU_OCR_CAUSAL_UNOWNED_CONTEXT",
-            "AIDOKU_OCR_CAUSAL_UNOWNED_COMPETITION",
-            "AIDOKU_OCR_RF_GAP_RECOVERY", "AIDOKU_OCR_RECOVERY_BUDGET", "AIDOKU_OCR_SEQUENCE_CONTEXT_RECOVERY",
-            "AIDOKU_OCR_RF_ENDPOINT_COMPLETION", "AIDOKU_OCR_ENDPOINT_INK_REFINEMENT", "AIDOKU_OCR_RF_ENDPOINT_LEGACY_AXES",
-            "AIDOKU_OCR_CLIPPED_EDGE_INK",
-            "AIDOKU_OCR_RF_LANE_GAP",
-            "AIDOKU_OCR_SOURCE_INK_COLUMNS",
-            "AIDOKU_OCR_SOURCE_INK_PARTITIONS",
-            "AIDOKU_OCR_INK_ANNOTATION_BANDS",
-            "AIDOKU_OCR_RF_ORIENTED_PIXEL", "AIDOKU_OCR_RF_ORIENTED_REREAD", "AIDOKU_OCR_RF_ORIENTED_WIDTH",
-            "AIDOKU_OCR_ORIENTED_PATHS"]
-        let environment = ProcessInfo.processInfo.environment
-        let sourceReaderValues = sourceReaderKeys.compactMap { key in environment[key].map { key + "=" + $0 } }
-        let rfPrimaryBase: String
-        if #available(iOS 18.0, *) {
-            // Unclip is a model-profile default, not a persisted OCR setting.
-            // Bind it explicitly so a wider detector cannot replay old boxes.
-            rfPrimaryBase = encoded([freshContextBase, NativeOCRRFPrimaryEnsemble.policyVersion,
-                settings.ocrConfiguration.modelTier == .manga
-                    ? NativeOCRDirectionGeometry.policyVersion : "direction-profile-legacy",
-                settings.ocrConfiguration.modelTier == .manga
-                    ? NativeCoreMLRecognitionPreprocessor.mangaWidthPolicyVersion : "recognition-width-legacy",
-                settings.ocrConfiguration.modelTier == .manga
-                    ? NativeOCRIndependentLanes.policyVersion : "independent-lanes-disabled",
-                "db-unclip=" + String(settings.ocrConfiguration.detectorPostprocessConfiguration.unclipRatio)])
-        } else {
-            rfPrimaryBase = freshContextBase
-        }
-        let readerBase = sourceReaderValues.isEmpty ? rfPrimaryBase
-            : encoded([rfPrimaryBase, "original-source-readers-v214", encoded(sourceReaderValues)])
-        let roleEvidenceBase = encoded([readerBase, "quoted-dot-enclosed-components-v246", TranslationBackgroundRolePolicy.version])
-        let sourceAnchorBase: String
-        if #available(iOS 18.0, *), NativeOCRRawCanonicalRuntime.sourceAnchorMode != .disabled {
-            sourceAnchorBase = encoded([roleEvidenceBase, "raw-source-anchor-mode-v1",
-                NativeOCRRawCanonicalRuntime.sourceAnchorMode.rawValue])
-        } else { sourceAnchorBase = roleEvidenceBase }
-        let deduplicationBase: String
-        if #available(iOS 18.0, *), let configuration = NativeOCRRawCanonicalRuntime.simpleDeduplication {
-            deduplicationBase = encoded([sourceAnchorBase, NativeSimpleOCRDedup.policyVersion, encoded(configuration)])
-        } else { deduplicationBase = sourceAnchorBase }
-        let recognitionAdmissionBase: String
-        if let configuration = NativeSimpleRecognitionAdmission.configuration {
-            recognitionAdmissionBase = encoded([deduplicationBase, NativeSimpleRecognitionAdmission.policyVersion,
-                encoded(configuration)])
-        } else { recognitionAdmissionBase = deduplicationBase }
-        let geometryBase: String
-        if let configuration = NativeSimpleOCRBoundaryExpansionRuntime.configuration {
-            geometryBase = encoded([recognitionAdmissionBase, NativeSimpleOCRBoundaryExpansion.policyVersion,
-                encoded(configuration)])
-        } else { geometryBase = recognitionAdmissionBase }
-        let alternateBase: String
-        if #available(iOS 18.0, *), NativeCoreMLDBPostprocessor.alternateCellEnvelopeEnabled {
-            alternateBase = encoded([geometryBase, NativeOCRRawCanonicalPolicy.detectorAlternatePolicyVersion])
-        } else { alternateBase = geometryBase }
-        return ReaderTranslationOrderedSourceRoute.anyEnabled
-            ? encoded([alternateBase, ReaderTranslationOrderedSourceRoute.activeCacheVersion]) : alternateBase
-    }
-    static func translation(page: String, settings: ReaderTranslationSettings) -> String {
-        let previous = unfilteredTranslation(page: page, settings: settings)
-        let base = settings.rightToLeftPanelOrder ? encoded([previous, ReaderTranslationPanelOrder.cacheVersion]) : previous
-        guard let filter = ReaderTranslationLanguageFilter.identity(settings: settings) else { return base }
-        return encoded([base] + filter)
-    }
-    static func unfilteredTranslation(page: String, settings: ReaderTranslationSettings) -> String {
-        let config = settings.configuration
-        let base = encoded([
-            "reader-translation-v7-symbol-preservation-state", NativePostLLMContentReclassifier.policyVersion,
-            ocr(page: page, settings: settings), config.provider.rawValue, config.apiProtocol.rawValue,
-            config.baseURL, config.model, config.credentialAccount, String(config.credentialGeneration), config.reasoningEffort.rawValue,
-            config.instructions, settings.sourceLanguage, settings.targetLanguage, TranslationHTTPCodec.letteringPolicy,
-            // Existing page translations include this retired recovery version in their keys.
-            "literal-recovery-v1-preserve-filters-bounded-isolation",
-            "page-image-required-v1", TranslationHTTPCodec.sfxPolicy, TranslationHTTPCodec.backgroundPolicy
-        ])
-        // Stored variants contain already-corrected translations/kept-SFX
-        // state. Rekey those derived results, never OCR or raw HTTP responses.
-        // Established rollback retains its exact historical cache identity.
-        let policy = NativePostLLMContentReclassifier.activePolicy
-        return policy == .established ? base
-            : encoded([base, "post-llm-derived-translation-v1", policy.version])
-    }
-    // Every geometry/appearance input must be included to reject stale pixels after a reader change.
-    // swiftlint:disable:next function_parameter_count
-    static func render(page: String, settings: ReaderTranslationSettings, imageSize: CGSize, viewport: CGSize,
-                       scale: CGFloat, aspectFit: Bool, crop: CGRect, dark: Bool,
-                       letteringFontKey: String = NativeTranslationTypography.availabilityKey) -> String {
-        // Auto Layout rounds view edges to display pixels. Mathematical prefetch
-        // sizes differ by tiny fractions (568.016 pt vs 568 pt); those are one raster.
-        let pixelScale = max(1, scale)
-        let viewport = CGSize(width: (viewport.width * pixelScale).rounded() / pixelScale,
-                              height: (viewport.height * pixelScale).rounded() / pixelScale)
-        return renderVariantIdentity(encoded([
-            renderRevision, NativeSourceSegmentationExecution.policySHA256,
-            translation(page: page, settings: settings), encoded(settings.overlay),
-            encoded(imageSize), encoded(viewport), String(Double(scale)), String(aspectFit), encoded(crop), String(dark),
-            "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", letteringFontKey,
-            ProcessInfo.processInfo.operatingSystemVersionString
-        ]))
-    }
-
-    static func renderVariantIdentity(_ base: String) -> String {
-        let variants = NativeRenderVariantPolicy.projection
-        return variants.isEmpty ? base : encoded([base, encoded(variants)])
     }
 }

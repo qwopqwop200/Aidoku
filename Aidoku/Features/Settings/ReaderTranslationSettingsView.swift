@@ -20,13 +20,9 @@ struct ReaderTranslationSettingsView: View {
         List {
             languageSection
             pageTranslationSection
-            pipelineSection
             translationTargetsSection
             providerSection
             translationOptionsSection
-            overlaySection
-            ocrSection
-            ocrAdvancedSection
             cacheSection
             aboutSection
         }
@@ -52,7 +48,8 @@ struct ReaderTranslationSettingsView: View {
     }
 
     private var allOCRSourceLanguagesTitle: String {
-        NSLocalizedString(settings.modelTier == .manga ? "TRANSLATION_OCR_SUPPORTED_LANGUAGES" : "TRANSLATION_FILTER_ALL")
+        // The page pipeline always uses the manga recognizer and its language set.
+        NSLocalizedString("TRANSLATION_OCR_SUPPORTED_LANGUAGES")
     }
 
     private var languageSection: some View {
@@ -65,18 +62,13 @@ struct ReaderTranslationSettingsView: View {
                 ForEach(ReaderTranslationLanguageOptions.codes.filter { settings.supportedOCRSourceLanguageCodes.contains($0) }, id: \.self) { code in
                     Text(ReaderTranslationLanguageOptions.name(code)).tag(code == "zh" ? "zh-Hans" : code)
                 }
-                // Preserve a legacy source choice until the user changes it.
-                if settings.modelTier != .manga, settings.sourceLanguage != "auto", !AutomaticSourceLanguageDetector.supportedLanguageCodes
-                    .contains(ReaderTranslationLanguageFilter.canonical(settings.sourceLanguage)) {
-                    Text(ReaderTranslationLanguageOptions.name(settings.sourceLanguage)).tag(settings.sourceLanguage)
-                }
             }
             if settings.sourceLanguage == "auto" {
                 NavigationLink {
                     ReaderTranslationLanguageFilterView(selection: persistedSettings.translationSourceLanguages,
-                        help: NSLocalizedString(settings.modelTier == .manga ? "TRANSLATION_OCR_MANGA_HELP" : "TRANSLATION_FILTER_HELP"),
+                        help: NSLocalizedString("TRANSLATION_OCR_MANGA_HELP"),
                         allowedCodes: settings.supportedOCRSourceLanguageCodes,
-                        allTitle: NSLocalizedString(settings.modelTier == .manga ? "TRANSLATION_OCR_SUPPORTED_LANGUAGES" : "TRANSLATION_FILTER_ALL"))
+                        allTitle: allOCRSourceLanguagesTitle)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("TRANSLATION_SOURCE_FILTER"))
@@ -157,73 +149,6 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    private var pipelineSection: some View {
-        Section {
-            Toggle(NSLocalizedString("TRANSLATION_PIPELINE_V2"), isOn: persistedSettings.pipelineV2)
-                .accessibilityIdentifier("translation.pipelineV2")
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_PIPELINE_V2_HELP"))
-        }
-    }
-
-    private var ocrSection: some View {
-        Section {
-            Picker("PP-OCRv6", selection: persistedSettings.modelTier) {
-                Text(NSLocalizedString("TRANSLATION_OCR_MEDIUM")).tag(IPhoneOCRModelTier.medium)
-                Text(NSLocalizedString("TRANSLATION_OCR_SMALL")).tag(IPhoneOCRModelTier.small)
-                Text(NSLocalizedString("TRANSLATION_OCR_TINY")).tag(IPhoneOCRModelTier.tiny)
-                Text(NSLocalizedString("TRANSLATION_OCR_MANGA")).tag(IPhoneOCRModelTier.manga)
-            }
-        } header: {
-            Text("OCR")
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_OCR_HELP"))
-            if settings.modelTier == .manga {
-                Text(NSLocalizedString("TRANSLATION_OCR_MANGA_HELP"))
-            }
-        }
-    }
-
-    private var ocrAdvancedSection: some View {
-        Section {
-            ocrThresholdSlider(
-                title: NSLocalizedString("TRANSLATION_DETECTOR_PIXEL_THRESHOLD"),
-                value: persistedSettings.ocr.detectorPixelThreshold,
-                identifier: "translation.detectorPixelThreshold"
-            )
-            ocrThresholdSlider(
-                title: NSLocalizedString("TRANSLATION_DETECTOR_CONFIDENCE"),
-                value: persistedSettings.ocr.detectorConfidenceThreshold,
-                identifier: "translation.detectorConfidence"
-            )
-            VStack(alignment: .leading) {
-                HStack {
-                    Text(NSLocalizedString("TRANSLATION_DETECTOR_MINIMUM_SIZE"))
-                    Spacer()
-                    Text(settings.ocr.detectorMinimumBoxSide.formatted(.number.precision(.fractionLength(0))) + " px")
-                        .foregroundStyle(.secondary)
-                        .fixedSize()
-                }
-                Slider(value: persistedSettings.ocr.detectorMinimumBoxSide, in: 0...20, step: 1)
-                    .accessibilityLabel(NSLocalizedString("TRANSLATION_DETECTOR_MINIMUM_SIZE"))
-                    .accessibilityValue(settings.ocr.detectorMinimumBoxSide.formatted(.number.precision(.fractionLength(0))) + " px")
-                    .accessibilityIdentifier("translation.detectorMinimumSize")
-                Text(NSLocalizedString("TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            ocrThresholdSlider(
-                title: NSLocalizedString("TRANSLATION_CONFIDENCE"),
-                value: persistedSettings.ocr.confidenceThreshold,
-                identifier: "translation.recognitionConfidence"
-            )
-        } header: {
-            Text("OCR · " + NSLocalizedString("ADVANCED"))
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_OCR_CONFIDENCE_HELP"))
-        }
-    }
-
     private var translationOptionsSection: some View {
         Section {
             Picker(NSLocalizedString("TRANSLATION_REASONING"), selection: persistedSettings.reasoningEffort) {
@@ -248,22 +173,6 @@ struct ReaderTranslationSettingsView: View {
                 }
                 .navigationTitle(NSLocalizedString("TRANSLATION_NOTICES"))
             }
-        }
-    }
-
-    private func ocrThresholdSlider(title: String, value: Binding<Double>, identifier: String) -> some View {
-        VStack(alignment: .leading) {
-            HStack {
-                Text(title)
-                Spacer()
-                Text(value.wrappedValue, format: .percent.precision(.fractionLength(0)))
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-            }
-            Slider(value: value, in: 0...1, step: 0.05)
-                .accessibilityLabel(title)
-                .accessibilityValue(value.wrappedValue.formatted(.percent.precision(.fractionLength(0))))
-                .accessibilityIdentifier(identifier)
         }
     }
 
@@ -313,10 +222,9 @@ struct ReaderTranslationSettingsView: View {
                 Task {
                     defer { clearingCache = false }
                     do {
-                        ReaderTranslationRenderCache.shared.clearMemory()
                         try await ReaderTranslationDiskCache.shared.clear()
                         try await ReaderTranslationService.shared.clearCache()
-                        ReaderTranslationRenderCache.shared.clearMemory()
+                        if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.clearMemory() }
                         cachedBytes = (try? await ReaderTranslationDiskCache.shared.statistics().bytes) ?? 0
                         message = NSLocalizedString("TRANSLATION_CACHE_CLEARED")
                     } catch { message = error.localizedDescription }
@@ -435,14 +343,6 @@ struct ReaderTranslationSettingsView: View {
             case .failure(let error):
                 ReaderTranslationAPIValidator.shared.recordFailure(error, settings: testedSettings)
             }
-        }
-    }
-
-    private var overlaySection: some View {
-        Section {
-            Text(NSLocalizedString("TRANSLATION_OVERLAY_HELP"))
-        } header: {
-            Text(NSLocalizedString("TRANSLATION_OVERLAY"))
         }
     }
 

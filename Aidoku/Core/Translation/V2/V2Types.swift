@@ -10,8 +10,16 @@ import Foundation
 struct V2Page: Sendable {
     let id: String
     let image: CGImage
+    /// The book's reading direction; S4 orders blocks and panels by it.
+    var readingDirection: V2ReadingDirection = .rightToLeft
     var width: Int { image.width }
     var height: Int { image.height }
+}
+
+/// Block/panel reading order for S4. Manga reads right-to-left, comics and
+/// LTR books left-to-right, and vertical strips (webtoon) top-to-bottom.
+enum V2ReadingDirection: String, Sendable, Codable, CaseIterable {
+    case rightToLeft, leftToRight, topToBottom
 }
 
 /// A detected and (after S3) recognized text line.

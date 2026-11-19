@@ -866,16 +866,6 @@
 
 // OCR and translation
 "TRANSLATION_TITLE" = "OCR & Translation";
-"TRANSLATION_TRANSLATE" = "Translate Visible Pages";
-"TRANSLATION_RECOGNIZE" = "Recognize Text (Offline)";
-"TRANSLATION_ORIGINAL" = "Show Original";
-"TRANSLATION_TEXT" = "Recognized & Translated Text";
-"TRANSLATION_NO_IMAGE" = "Wait for an image page to load, then try again.";
-"TRANSLATION_NO_TEXT" = "No text was recognized. Try another OCR model or a clearer image.";
-"TRANSLATION_WORKING" = "Recognizing and translating…";
-"TRANSLATION_OCR_WORKING" = "Recognizing text on device…";
-"TRANSLATION_HELP" = "The translation icon turns translation on or off. Visible pages are prepared first, then nearby pages. Preparation follows your reading position. Saved OCR, translations and text layout can be reused after reopening the reader or restarting the app. Temporary shared images do not save this cache. Leaving the reader cancels unfinished work.";
-"TRANSLATION_PRIVACY" = "OCR runs on your device. Translation sends recognized text and your instructions to the selected provider. If Include Page Image in Translation is enabled, a processed page image may also be uploaded. If image input is unsupported, translation continues with text only. API charges depend on your provider. Keys stay in Keychain. OCR, translations and text layout are saved in protected app storage excluded from backups.";
 "TRANSLATION_KEY_REPLACE" = "Replace saved API key (optional)";
 "TRANSLATION_KEY" = "API key";
 "TRANSLATION_KEY_SAVED" = "API key saved in Keychain";
@@ -884,9 +874,7 @@
 "TRANSLATION_GET_KEY" = "Open OpenAI API Keys";
 "TRANSLATION_LANGUAGE" = "Languages";
 "TRANSLATION_TARGET" = "Translate To";
-"TRANSLATION_SOURCE" = "Source Language";
 "TRANSLATION_AUTO" = "Detect Automatically";
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 requires iOS 18 or later. Manga v0.3 is the default model for both text detection and recognition. Other OCR models remain available.";
 "TRANSLATION_CLEAR_CACHE" = "Clear Translation Cache";
 "TRANSLATION_CACHE_CLEARED" = "Translation cache cleared.";
 "TRANSLATION_NOTICES" = "OCR & Translation Licenses";
@@ -896,27 +884,6 @@
 "TRANSLATION_REASONING" = "Reasoning Effort";
 "TRANSLATION_MODEL_DEFAULT" = "Model Default";
 "TRANSLATION_CONCURRENCY" = "Concurrent Requests";
-"TRANSLATION_DETECTOR_SIZE" = "Detector Maximum Side";
-"TRANSLATION_RECOGNIZER_SIZE" = "Recognizer Maximum Width";
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR Detection Pixel Threshold";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimum OCR Detection Region Confidence";
-"TRANSLATION_CONFIDENCE" = "Minimum OCR Recognition Confidence";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "The pixel threshold selects text pixels. Detection confidence filters text regions. Recognition confidence filters the text read from each region. Lower values accept more uncertain results.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimum OCR Detection Size";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimum short-side length of text candidates, measured in detection-map pixels. Default: 3 px. Lower values can detect smaller text but may also include more noise.";
-"TRANSLATION_SURFACE" = "Background Color";
-"TRANSLATION_WHITE" = "White";
-"TRANSLATION_DARK" = "Dark";
-"TRANSLATION_OPACITY" = "Background Opacity";
-"TRANSLATION_EXPANSION" = "Box Expansion";
-"TRANSLATION_PANEL_BOUNDS" = "Within Image Bounds";
-"TRANSLATION_SOURCE_BOUNDS" = "Within Original Box";
-"TRANSLATION_UNRESTRICTED" = "Unrestricted";
-"TRANSLATION_FONT_SIZE" = "Font Size";
-"TRANSLATION_AUTO_FIT" = "Fit Automatically";
-"TRANSLATION_FIXED" = "Fixed";
-"TRANSLATION_OVERLAY" = "Translation Overlay";
-"TRANSLATION_OVERLAY_HELP" = "Replaces text over its source box using collision-aware layout and script-specific wrapping. Display changes reuse existing OCR.";
 
 "TRANSLATION_PROVIDER" = "Translation Provider";
 "TRANSLATION_BASE_URL" = "Server URL";
@@ -971,7 +938,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Page Source Language";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Automatically detect each title’s source language and translate only the selected languages. All Detected Languages removes the language restriction. Page and other title source-language settings do not affect this selection.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Translate Manga Descriptions";
 
@@ -981,26 +947,15 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Include Page Image in Translation";
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Send the page image with OCR text to provide scene context. If image input is unsupported, translation automatically continues with text only. Attaching images may increase data usage and API cost.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Image input is not supported. Translation continues without images.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Preserve Original Text Color";
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estimate the original text color without an additional model. Use the default color when uncertain or when contrast is too low.";
 
-"TRANSLATION_LLM_SFX" = "LLM SFX Filtering (All Languages)";
-"TRANSLATION_LLM_SFX_HELP" = "Classify sound effects in the same translation request and leave them unchanged. With a page image, the AI also skips unclear OCR fragments unless the image establishes meaningful text. Dialogue, narration, titles, and credits are preserved for translation. Classification is less reliable without a page image.";
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Without image input, limited visual and layout context may reduce SFX classification accuracy.";
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Preserve Original Background Color";
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Match the translation panel to the background around the original text. Use the default panel when uncertain or unreadable. Your opacity setting still applies.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Custom (OpenAI-Compatible)";
 
-"TRANSLATION_OCR_MEDIUM" = "Medium";
 
-"TRANSLATION_OCR_SMALL" = "Small";
 
-"TRANSLATION_OCR_TINY" = "Tiny";
 
 "TRANSLATION_REASONING_NONE" = "None";
 
@@ -1051,8 +1006,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Download with Translation";
 
-"TRANSLATION_LLM_BACKGROUND" = "Skip Background Lettering (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "The translation AI leaves ordinary signs, posters, and lettering on objects in the scene unchanged, even when related to the scene or mentioned in dialogue. Dialogue, narration, titles, credits, plot-critical writing, and text whose role is uncertain are translated. No extra request is made, but processing may take longer. Classification is less reliable without a page image.";
 
 "TRANSLATION_STATE_ON" = "On";
 
@@ -1095,13 +1048,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Changes to iCloud Sync take effect the next time you fully close and reopen Aidoku. Until then, the current sync setting remains active.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Preserve Original Colors";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Keep the original text and background colors together.";
-"TRANSLATION_INPAINTING" = "Inpainting";
-"TRANSLATION_INPAINTING_HELP" = "Erase original lettering while preserving the background. Uses boxes when masks or readability are uncertain. Requires original colors.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Text Filtering";
 
 "TRANSLATION_TARGETS" = "What to Translate";
 
@@ -1142,10 +1090,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Source %@ version %d is not supported by this app. Install a supported version.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 supports only Japanese and Chinese (Simplified and Traditional) source text. Automatic source detection and source-language choices are limited to these languages. You can still translate into any target language. Choosing Manga applies detector thresholds of 0.85 and 0.25; its default detection size is 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "All Supported OCR Languages";
-"TRANSLATION_PIPELINE_V2" = "Fast Pipeline (Beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Uses the new speed-first page translation pipeline. Pages are recognized, erased and redrawn as one finished image, usually much faster. Results are cached separately from the standard pipeline. Requires iOS 18.";

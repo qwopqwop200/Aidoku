@@ -6,7 +6,7 @@ import tempfile
 root = Path(__file__).resolve().parents[2]
 source = (root / "Aidoku/Core/Translation/ReaderTranslationLanguageFilter.swift").read_text()
 start = source.index("    static func preservingExcludedSource(")
-end = source.index("    /// NaturalLanguage classification", start)
+end = source.index("\n    }\n", start) + len("\n    }\n")
 fixture = r'''
 import Foundation
 struct ReaderTranslationRegion: Equatable {

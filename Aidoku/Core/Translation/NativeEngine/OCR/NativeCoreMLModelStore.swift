@@ -139,9 +139,35 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         cleanLegacyOnce()
     }
 
+    /// Model tiers the page pipeline no longer loads. Their content-addressed
+    /// copies in the store are removed at launch (never a leased copy).
+    static let retiredModelPrefixes = ["PP-OCRv6-Medium-", "PP-OCRv6-Small-", "PP-OCRv6-Tiny-"]
+
+    static func isRetiredModelCopy(_ name: String) -> Bool {
+        name.hasSuffix(".mlmodelc") && retiredModelPrefixes.contains { name.hasPrefix($0) }
+    }
+
+    private func removeRetiredModelCopies() {
+        let manager = FileManager.default
+        guard let entries = try? manager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey]) else { return }
+        let leaseDirectory = root.appendingPathComponent(".leases", isDirectory: true)
+        for entry in entries where Self.isRetiredModelCopy(entry.lastPathComponent) {
+            guard (try? entry.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false else { continue }
+            let leasePath = leaseDirectory.appendingPathComponent(entry.lastPathComponent + ".lock").path
+            let lease = open(leasePath, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+            guard lease >= 0 else { continue }
+            defer { close(lease) }
+            // Another process may still hold this model; leave it for a later launch.
+            guard flock(lease, LOCK_EX | LOCK_NB) == 0 else { continue }
+            try? manager.removeItem(at: entry)
+            try? manager.removeItem(atPath: leasePath)
+        }
+    }
+
     private func cleanLegacyOnce() {
         guard !cleaned else { return }
         cleaned = true
+        removeRetiredModelCopies()
         guard let runtimeCache else { return }
         // Inspect only known app-owned OCR graphs. Unknown packages and all
         // current stable-path packages are retained; no private API is called.
@@ -166,7 +192,8 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
     }
 
     static func isLegacyOCRGraph(_ data: Data) -> Bool {
-        let names = ["PP-OCRv6-Medium-RecWidths", "PP-OCRv6-Medium-DetShapes"]
+        let names = ["PP-OCRv6-Medium-RecWidths", "PP-OCRv6-Medium-DetShapes", "PP-OCRv6-Small-RecWidths",
+                     "PP-OCRv6-Small-DetShapes", "PP-OCRv6-Tiny-RecWidths", "PP-OCRv6-Tiny-DetShapes"]
         let text = String(decoding: data, as: UTF8.self)
         return names.contains { name in
             let pattern = #"/Bundle/Application/[0-9A-Fa-f-]{36}/Aidoku\.app/"# + name + #"\.mlmodelc/model\.mil"#

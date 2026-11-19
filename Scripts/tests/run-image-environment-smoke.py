@@ -1,182 +1,161 @@
 #!/usr/bin/env python3
-"""Focused dotenv and actual CLI option-default parsing; no model or network calls."""
+"""V2 host .env and settings resolution: the real V2HostSettings.swift and production
+translation model types, compiled standalone. No model, image decode or network call."""
 import json
+import os
 from pathlib import Path
+import runpy
 import subprocess
 import tempfile
-import os
-import runpy
 
 ROOT = Path(__file__).resolve().parents[2]
-source = (ROOT / 'Scripts/image-translation/PipelineMain.swift').read_text().split('@MainActor\n@main', 1)[0]
-start = source.index('    func makeTranslationService(')
-end = source.index('    var configuration:', start)
-source = source[:start] + source[end:]  # Runtime cache/transport assembly has independent service tests.
-settings = (ROOT / 'Aidoku/Core/Translation/ReaderTranslationSettings.swift').read_text()
-source += 'enum IPhoneOCRModelTier' + settings.split('enum IPhoneOCRModelTier', 1)[1].split('struct ReaderOCRConfiguration', 1)[0]
-stubs = '''
-enum RemoteTranslationProtocol: String { case responses, chatCompletions }
-enum RemoteTranslationProvider { case custom }
-enum OpenAIReasoningEffort: String { case modelDefault, none }
-struct ReaderOCRConfiguration {
-    let modelTier: IPhoneOCRModelTier; let detectorMaximumSide: Int; let recognizerMaximumWidth: Int
-    let confidenceThreshold: Double; let detectorPixelThreshold: Double?; let detectorConfidenceThreshold: Double?
-    let detectorMinimumBoxSide: Double
-}
-struct RemoteTranslationRequest {
-    let sourceLanguage: String; let targetLanguage: String; let sourceText: String
-    func validate() throws {}
-}
-struct RemoteTranslationConfiguration {
-    let provider: RemoteTranslationProvider; let apiProtocol: RemoteTranslationProtocol
-    let baseURL: String; let model: String; let credentialAccount: String
-    let credentialGeneration: UInt64; let reasoningEffort: OpenAIReasoningEffort; let timeout: Double
-    let allowsInsecureLocalhostForDevelopment: Bool
-    func validatedEndpoint() throws -> URL { URL(string: baseURL)! }
-}
-enum HostError: Error { case message(String) }
-// Geometry rendering itself has a separate regression. These dependencies are
-// never invoked here; parseViewport is the actual host implementation.
-enum ReaderTranslationBackgroundImage {
-    static func pixelSize(for size: CGSize) -> CGSize { size }
-}
-enum HostProductionExportSizing {
-    static func outputSize(for size: CGSize) -> CGSize { size }
-}
-enum ReaderTranslationGeometry {
-    static func displayRect(_ rect: CGRect, imageSize: CGSize, bounds: CGRect, aspectFit: Bool) -> CGRect { bounds }
-}
+TRANSLATION = ROOT / 'Aidoku/Core/Translation/NativeEngine/Translation'
+SOURCES = [ROOT / 'Scripts/image-translation-v2/V2HostSettings.swift',
+           ROOT / 'Aidoku/Extensions/Foundation/NSLocalizedString.swift'] + [
+    TRANSLATION / f'{name}.swift' for name in (
+        'TranslationModels', 'TranslationEndpointPolicy', 'TranslationHTTPCodec', 'TranslationImageSupport',
+        'TranslationStreamDecoder', 'TranslationBackgroundRolePolicy', 'TranslationSFXEvidencePolicy',
+        'TranslationRoleVerificationPlanner', 'KeychainTranslationCredentialStore')]
+CHECK = r'''
+import Foundation
 @main struct Check {
     static func main() {
         do {
             let root = URL(fileURLWithPath: CommandLine.arguments[1])
-            try HostEnvironment.load(root: root)
-            let o = try HostOptions(root: root, arguments: Array(CommandLine.arguments.dropFirst(2)))
-            let data = try JSONSerialization.data(withJSONObject: ["base":o.baseURL,"model":o.model,"protocol":o.apiProtocol.rawValue,
-                "source":o.source,"target":o.target,"tier":o.tier.rawValue,"confidence":o.confidence,
-                "detector":o.detectorSide,"recognizer":o.recognizerWidth,"image":o.includeImage,
-                "sfx":o.filterSFX,"background":o.filterBackground,"rtl":o.rtl,
-                "keyPresent":!(ProcessInfo.processInfo.environment[o.keyEnv] ?? "").isEmpty,
-                "pixelThreshold":o.detectorPixelThreshold ?? -1,"boxThreshold":o.detectorConfidenceThreshold ?? -1,
-                "minimumBoxSide":o.detectorMinimumBoxSide,"reasoning":o.reasoningEffort.rawValue,"timeout":o.timeout,
-                "languages":o.translationSourceLanguages,"appearance":o.appearance,
-                "jobs":o.jobs,"viewport":[o.viewport.width,o.viewport.height]])
-            print(String(decoding:data,as:UTF8.self))
-        } catch { fputs("\\(error)\\n",stderr);exit(2) }
+            let environment = try V2DotEnv.merged(root: root, environment: ProcessInfo.processInfo.environment)
+            let settings = try V2HostSettings.parse(Array(CommandLine.arguments.dropFirst(2)),
+                                                    environment: environment, root: root)
+            var value = settings.describe()
+            // Exposes only whether the resolved key equals the fixture, never the key itself.
+            value["credentialMatchesFixture"] = (try? settings.credentialStore.secret(for: settings.keyEnv))
+                == ProcessInfo.processInfo.environment["FIXTURE_EXPECTED_KEY"]
+            let data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
+            print(String(decoding: data, as: UTF8.self))
+        } catch { fputs("\(error)\n", stderr); exit(2) }
     }
 }
 '''
+
 with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
     directory = Path(temporary)
-    main = directory / 'Check.swift'; main.write_text(source + stubs)
+    main = directory / 'Check.swift'
+    main.write_text(CHECK)
     binary = directory / 'check'
-    subprocess.run(['xcrun','swiftc','-parse-as-library',
-        str(ROOT/'Scripts/image-translation/HostEnvironment.swift'),
-        str(ROOT/'Scripts/image-translation/HostLetterFonts.swift'),
-        str(ROOT/'Scripts/image-translation/HostRenderGeometry.swift'),
-        str(ROOT/'Aidoku/Core/Translation/NativeEngine/Overlay/IPhoneOverlaySettings.swift'),
-        str(ROOT/'Aidoku/Core/Translation/NativeEngine/Overlay/NativeTextBoxGeometryParameters.swift'),
-        str(main),'-o',str(binary)],check=True)
-    profile = directory / 'profile'; profile.mkdir()
+    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-target', 'arm64-apple-macos15.0',
+                    '-module-cache-path', str(directory / 'module-cache'),
+                    *map(str, SOURCES), str(main), '-o', str(binary)], check=True)
+    profile = directory / 'profile'
+    profile.mkdir()
+    image = profile / 'page.png'
+    image.write_bytes(b'not decoded here')
     secret = 'env-fixture-secret-$(touch should-not-exist)'
-    settings = f'''# defaults\nexport AIDOKU_TRANSLATION_BASE_URL="https://example.test/v1" # url\nAIDOKU_TRANSLATION_MODEL='fixture model'\nAIDOKU_TRANSLATION_API_KEY='{secret}'\nAIDOKU_TRANSLATION_PROTOCOL=responses\nAIDOKU_TRANSLATION_SOURCE=ja\nAIDOKU_TRANSLATION_TARGET=en\nAIDOKU_OCR_TIER=tiny\nAIDOKU_OCR_CONFIDENCE=0.87\nAIDOKU_OCR_DETECTOR_SIDE=960\nAIDOKU_OCR_RECOGNIZER_WIDTH=800\nAIDOKU_TRANSLATION_INCLUDE_IMAGE=true\nAIDOKU_TRANSLATION_FILTER_SFX=1\nAIDOKU_TRANSLATION_FILTER_BACKGROUND=yes\nAIDOKU_TRANSLATION_RTL=on\n'''
-    (profile/'.env').write_text(settings)
-    with (profile/'.env').open('a') as fixture:
-        fixture.write('AIDOKU_RENDER_VIEWPORT=390x844\nAIDOKU_IMAGE_JOBS=4\n')
-    environment = {key:value for key,value in os.environ.items() if not key.startswith('AIDOKU_')}
-    def run(args=(), extra=None, expected=0):
-        result = subprocess.run([str(binary),str(profile),*args],env={**environment,**(extra or {})},cwd=directory,capture_output=True,text=True)
-        assert result.returncode==expected,result.stdout+result.stderr
-        assert secret not in result.stdout+result.stderr
-        return json.loads(result.stdout) if expected==0 else result.stderr
-    defaults=run()
-    expected={'base':'https://example.test/v1','model':'fixture model','protocol':'responses','source':'ja','target':'en',
-        'tier':'tiny','confidence':.87,'detector':960,'recognizer':800,'image':True,'sfx':True,'background':True,'rtl':True,'keyPresent':True}
-    assert {key:defaults[key] for key in expected}==expected,defaults
-    assert defaults['viewport']==[390,844] and defaults['jobs']==4
-    shell=run(extra={'AIDOKU_TRANSLATION_MODEL':'shell','AIDOKU_TRANSLATION_TARGET':'ko','AIDOKU_RENDER_VIEWPORT':'414x896'})
-    assert shell['model']=='shell' and shell['target']=='ko'
-    assert shell['viewport']==[414,896]
-    cli=run(['--model','cli','--tier','small','--confidence','.5','--source','auto','--target','ko','--protocol','chatCompletions',
-             '--no-rtl'],{'AIDOKU_TRANSLATION_MODEL':'shell'})
-    assert cli['model']=='cli' and cli['tier']=='small' and cli['confidence']==.5 and cli['protocol']=='chatCompletions'
-    assert not cli['rtl'] and all(cli[k] for k in ['image','sfx','background'])
-    for retired in ['--no-include-image', '--no-filter-sfx', '--no-filter-background']:
-        assert 'Unknown option' in run([retired], expected=2)
-    cli_viewport=run(['--viewport','430x932','--jobs','2'],{'AIDOKU_RENDER_VIEWPORT':'414x896'})
-    assert cli_viewport['viewport']==[430,932] and cli_viewport['jobs']==2
-    for invalid in ['0x932','430x-1','nanx932','430xinf','16385x932','430x932x2']:
-        assert 'Viewport' in run(['--viewport',invalid],expected=2)
-    assert run(['--viewport','430×932'])['viewport']==[430,932]
-    assert not (directory/'should-not-exist').exists()
-    (profile/'.env').write_text("AIDOKU_TRANSLATION_API_KEY='unclosed-secret-value\n")
-    error=run(expected=2);assert 'line 1' in error and 'unclosed-secret-value' not in error
-    (profile/'.env').unlink()
-    defaults=run(['--ocr-only']);assert defaults['tier']=='manga' and defaults['confidence']==.30 and not defaults['keyPresent']
-    assert defaults['detector']==1120 and defaults['recognizer']==2400
-    manga=run(['--ocr-only','--tier','manga'])
-    assert manga['tier']=='manga' and manga['detector']==1120 and manga['recognizer']==2400
-    assert run(['--ocr-only','--tier','manga','--detector-side','1120'])['detector']==1120
-    assert run(['--ocr-only','--tier','manga'],{'AIDOKU_OCR_DETECTOR_SIDE':'800'})['detector']==800
-    assert 'Manga OCR supports only' in run(['--ocr-only','--source','en'],expected=2)
-    assert run(['--ocr-only','--tier','medium','--source','en'])['source']=='en'
-    for source_language in ['auto','ja','zh','zh-Hans','zh-Hant']:
-        assert run(['--ocr-only','--source',source_language])['source']==source_language
-    assert 'Manga OCR supports only' in run(['--ocr-only'],{'AIDOKU_TRANSLATION_SOURCE_LANGUAGES':'["en"]'},expected=2)
-    for size in [1, 32, 800, 1184, 1280, 1600, 2400, 3000]:
-        detector = min(1184, max(32, size))
-        recognizer = min(2400, max(32, size))
-        cli=run(['--ocr-only','--detector-side',str(size),'--recognizer-width',str(size)])
-        shell=run(['--ocr-only'],{'AIDOKU_OCR_DETECTOR_SIDE':str(size),'AIDOKU_OCR_RECOGNIZER_WIDTH':str(size)})
-        assert cli['detector']==detector and cli['recognizer']==recognizer,cli
-        assert shell['detector']==detector and shell['recognizer']==recognizer,shell
-    for flag, key in [('--detector-side','AIDOKU_OCR_DETECTOR_SIDE'),('--recognizer-width','AIDOKU_OCR_RECOGNIZER_WIDTH')]:
-        for invalid in ['0','-1','nan','infinity','1.5']:
-            assert 'positive integer' in run(['--ocr-only',flag,invalid],expected=2)
-            assert key in run(['--ocr-only'],{key:invalid},expected=2)
-    assert 'AIDOKU_TRANSLATION_RTL' in run(['--ocr-only'],{'AIDOKU_TRANSLATION_RTL':'invalid'},expected=2)
-    # A saved phone profile is input data, not the developer's private .env.
-    # Exercise all imported fields from a deterministic profile on every checkout.
-    imported_settings = {
-        'AIDOKU_TRANSLATION_PROTOCOL': 'responses',
-        'AIDOKU_TRANSLATION_SOURCE': 'ja', 'AIDOKU_TRANSLATION_TARGET': 'ko',
-        'AIDOKU_TRANSLATION_API_KEY': secret,
-        'AIDOKU_OCR_CONFIDENCE': '0.81', 'AIDOKU_OCR_DETECTOR_SIDE': '1280',
-        'AIDOKU_OCR_RECOGNIZER_WIDTH': '960',
-        'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': '0.3',
-        'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': '0.3',
-        'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': '3',
-        'AIDOKU_TRANSLATION_INCLUDE_IMAGE': 'true',
-        'AIDOKU_TRANSLATION_FILTER_SFX': 'true',
-        'AIDOKU_TRANSLATION_FILTER_BACKGROUND': 'true',
-        'AIDOKU_TRANSLATION_REASONING': 'none', 'AIDOKU_TRANSLATION_TIMEOUT': '120',
-        'AIDOKU_TRANSLATION_SOURCE_LANGUAGES': json.dumps(['zh', 'ja']),
-        'AIDOKU_IPHONE_OVERLAY_JSON': json.dumps({
-            'inpaintingEnabled': True, 'preserveSourceTextColor': True,
-            'preserveSourceBackgroundColor': True}),
-    }
-    (profile / '.env').write_text(''.join(f"{key}='{value}'\n" for key, value in imported_settings.items()))
-    actual = run(['--ocr-only'])
-    assert actual['protocol'] == 'responses' and actual['source'] == 'ja' and actual['target'] == 'ko'
-    assert actual['confidence'] == .81 and actual['detector'] == 1184 and actual['recognizer'] == 960
-    assert actual['pixelThreshold'] == .3 and actual['boxThreshold'] == .3 and actual['minimumBoxSide'] == 3
-    assert actual['image'] and actual['sfx'] and actual['background'] and actual['keyPresent']
-    assert actual['reasoning'] == 'none' and actual['timeout'] == 120 and actual['languages'] == ['zh', 'ja']
-    # The current opaque text-box renderer disables the retired inpainting/color toggles.
-    assert not actual['appearance']['inpaintingEnabled'] and not actual['appearance']['preserveSourceTextColor']
+    (profile / '.env').write_text(
+        '# defaults\n'
+        'export AIDOKU_TRANSLATION_BASE_URL="https://example.test/v1" # url\n'
+        "AIDOKU_TRANSLATION_MODEL='fixture model'\n"
+        f"AIDOKU_TRANSLATION_API_KEY='{secret}'\n"
+        'AIDOKU_TRANSLATION_PROTOCOL=responses\n'
+        'AIDOKU_TRANSLATION_SOURCE=ja\nAIDOKU_TRANSLATION_TARGET=en\n'
+        'AIDOKU_TRANSLATION_REASONING=none\nAIDOKU_TRANSLATION_TIMEOUT=120\n'
+        'AIDOKU_TRANSLATION_CREDENTIAL_GENERATION=4\nAIDOKU_TRANSLATION_CONCURRENCY=8\n'
+        'AIDOKU_IMAGE_JOBS=4\nAIDOKU_READING_DIRECTION=leftToRight\n'
+        # Retired legacy keys stay harmless.
+        'AIDOKU_OCR_TIER=tiny\nAIDOKU_RENDER_VIEWPORT=390x844\n')
+    base = {key: value for key, value in os.environ.items() if not key.startswith('AIDOKU_')}
+    base['FIXTURE_EXPECTED_KEY'] = secret
 
-phone_profile = runpy.run_path(str(ROOT / 'Scripts/image-translation/sync-iphone-settings.py'))['profile']
-for size in [1, 800, 1184, 1280, 1600, 2400, 3000]:
-    imported = phone_profile({
-        'Reader.translation.provider': 'custom',
-        'Reader.translation.custom': {'baseURL':'https://example.test/v1','model':'fixture','apiProtocol':'responses'},
-        'Reader.translation.ocr': {'confidenceThreshold':.75,'detectorMaximumSide':size,'recognizerMaximumWidth':size},
-        'Reader.translation.overlay': {},
-    })
-    assert imported['AIDOKU_OCR_DETECTOR_SIDE'] == min(1184, max(32, size))
-    assert imported['AIDOKU_OCR_RECOGNIZER_WIDTH'] == min(2400, max(32, size))
+    def run(args=(), extra=None, expected=0, cwd=directory):
+        result = subprocess.run([str(binary), str(profile), *map(str, args)], env={**base, **(extra or {})},
+                                cwd=cwd, capture_output=True, text=True)
+        assert result.returncode == expected, result.stdout + result.stderr
+        assert secret not in result.stdout + result.stderr
+        return json.loads(result.stdout) if expected == 0 else result.stderr
 
-assert subprocess.run(['git','check-ignore','-q','.env'],cwd=ROOT).returncode==0
-assert subprocess.run(['git','check-ignore','-q','.env.example'],cwd=ROOT).returncode==1
-assert subprocess.run(['git','ls-files','--error-unmatch','.env'],cwd=ROOT,capture_output=True).returncode!=0
-print('PASS: dotenv parsing, cwd independence, .env/shell/CLI precedence, OCR limits and phone import, viewport validation, flags, no evaluation/secret output, Git exclusion')
+    defaults = run([image])
+    provider = defaults['provider']
+    assert defaults['mode'] == 'live' and defaults['jobs'] == 4 and defaults['readingDirection'] == 'leftToRight'
+    assert defaults['sourceLanguage'] == 'ja' and defaults['targetLanguage'] == 'en'
+    assert provider['endpoint'] == 'https://example.test' and provider['model'] == 'fixture model', provider
+    assert provider['protocol'] == 'responses' and provider['reasoning'] == 'none' and provider['timeout'] == 120
+    assert provider['keyPresent'] and defaults['credentialMatchesFixture'] and provider['credentialGeneration'] == 4
+    assert provider['concurrency'] == 3, 'provider calls are capped at three like the app'
+    assert provider['includePageImage'] and provider['filterSFX'] and provider['filterBackground']
+    assert 'fixture-secret' not in json.dumps(defaults)
+    # The working directory does not matter: .env is read from the root.
+    assert run([image], cwd=profile)['provider']['model'] == 'fixture model'
+    # Shell > .env (including an explicitly empty shell value); CLI > shell.
+    shell = run([image], {'AIDOKU_TRANSLATION_MODEL': 'shell', 'AIDOKU_TRANSLATION_TARGET': 'ko', 'AIDOKU_IMAGE_JOBS': '2'})
+    assert shell['provider']['model'] == 'shell' and shell['targetLanguage'] == 'ko' and shell['jobs'] == 2
+    cli = run(['--model', 'cli', '--protocol', 'chatCompletions', '--target', 'ja', '--jobs', '6',
+               '--reading-direction', 'topToBottom', '--source', 'auto', image], {'AIDOKU_TRANSLATION_MODEL': 'shell'})
+    assert cli['provider']['model'] == 'cli' and cli['provider']['protocol'] == 'chatCompletions'
+    assert cli['targetLanguage'] == 'ja' and cli['jobs'] == 6 and cli['readingDirection'] == 'topToBottom'
+    assert 'Missing API key' in run([image], {'AIDOKU_TRANSLATION_API_KEY': ''}, expected=2)
+    renamed = run(['--key-env', 'OTHER_KEY', image], {'OTHER_KEY': secret})
+    assert renamed['provider']['keyEnv'] == 'OTHER_KEY' and renamed['credentialMatchesFixture']
+    # Offline modes need no provider settings or key.
+    offline = run(['--ocr-only', image], {'AIDOKU_TRANSLATION_BASE_URL': '', 'AIDOKU_TRANSLATION_API_KEY': ''})
+    assert offline['mode'] == 'ocr-only' and 'provider' not in offline
+    replay = run(['--replay-translations', profile, image], {'AIDOKU_TRANSLATION_MODEL': ''})
+    assert replay['mode'] == 'replay' and 'provider' not in replay
+    # Validation before any work; messages never carry the value.
+    assert 'base-url' in run([image], {'AIDOKU_TRANSLATION_BASE_URL': ''}, expected=2)
+    assert 'Unknown option' in run(['--no-include-image', image], expected=2)
+    assert 'Unknown option' in run(['--viewport', '430x932', image], expected=2)
+    assert 'AIDOKU_TRANSLATION_PROTOCOL' in run([image], {'AIDOKU_TRANSLATION_PROTOCOL': 'smtp'}, expected=2)
+    assert 'AIDOKU_IMAGE_JOBS' in run([image], {'AIDOKU_IMAGE_JOBS': '0'}, expected=2)
+    assert 'AIDOKU_TRANSLATION_ALLOW_LOCAL_HTTP' in run([image], {'AIDOKU_TRANSLATION_ALLOW_LOCAL_HTTP': 'maybe'}, expected=2)
+    assert 'manga recognizer' in run(['--source', 'en', image], expected=2)
+    assert 'either --ocr-only or --replay-translations' in run(['--ocr-only', '--replay-translations', profile, image], expected=2)
+    run(['--base-url', 'http://example.test/v1', image], expected=2)  # insecure remote endpoint
+    run(['--timeout', 'nan', image], expected=2)
+    assert not (directory / 'should-not-exist').exists() and not (profile / 'should-not-exist').exists()
+    # AIDOKU_ENV_FILE selects another file; empty disables .env entirely.
+    other = directory / 'other.env'
+    other.write_text("AIDOKU_TRANSLATION_MODEL=other\nAIDOKU_TRANSLATION_BASE_URL=https://other.test/v1\n"
+                     f"AIDOKU_TRANSLATION_API_KEY='{secret}'\n")
+    assert run([image], {'AIDOKU_ENV_FILE': str(other)})['provider']['model'] == 'other'
+    disabled = run(['--ocr-only', image], {'AIDOKU_ENV_FILE': ''})
+    assert disabled['sourceLanguage'] == 'auto' and disabled['jobs'] == 3 and disabled['readingDirection'] == 'rightToLeft'
+    # Malformed .env: the line number is reported, the value is not.
+    (profile / '.env').write_text("AIDOKU_TRANSLATION_API_KEY='unclosed-secret-value\n")
+    error = run(['--ocr-only', image], expected=2)
+    assert 'line 1' in error and 'unclosed-secret-value' not in error
+    (profile / '.env').unlink()
+    assert run(['--ocr-only', image])['sourceLanguage'] == 'auto'
+    # Inputs: folders, lists, repeated files and page ids.
+    folder = profile / 'folder'
+    folder.mkdir()
+    for name in ['b.png', 'a.jpg', 'notes.txt', '.hidden.png']:
+        (folder / name).write_bytes(b'x')
+    (profile / 'pages.json').write_text(json.dumps(['folder/a.jpg', {'page_id': 'custom', 'image_path': 'folder/b.png'}]))
+    (profile / 'pages.txt').write_text('# comment\nfolder/b.png\n\npage.png\n')
+    listed = run(['--ocr-only', folder, '--list', profile / 'pages.json', '--list', profile / 'pages.txt', image])
+    assert [item['pageID'] for item in listed['images']] == ['a', 'b', 'page'], listed['images']
+    duplicates = run(['--ocr-only', image, profile / 'folder/../page.png', folder / 'a.jpg', '--', profile / 'pages.json'])
+    assert [item['pageID'] for item in duplicates['images']] == ['page', 'a', 'pages'], duplicates['images']
+    assert run(['--ocr-only', '--limit', '1', folder])['images'] == [{'pageID': 'a', 'path': str(folder / 'a.jpg')}]
+    assert 'does not exist' in run(['--ocr-only', profile / 'missing.png'], expected=2)
+
+# The phone import keeps only settings the V2 host reads and never touches the key.
+profile = runpy.run_path(str(ROOT / 'Scripts/image-translation/sync-iphone-settings.py'))['profile']
+imported = profile({
+    'Reader.translation.provider': 'custom',
+    'Reader.translation.custom': {'baseURL': 'https://example.test/v1', 'model': 'fixture', 'apiProtocol': 'responses',
+                                  'reasoningEffort': 'none'},
+    'Reader.translation.concurrency': 16, 'Reader.translation.sourceLanguage': 'ja',
+    'Reader.translation.ocr': {'detectorMaximumSide': 960}, 'Reader.translation.overlay': {},
+})
+assert imported['AIDOKU_TRANSLATION_BASE_URL'] == 'https://example.test/v1' and imported['AIDOKU_TRANSLATION_MODEL'] == 'fixture'
+assert imported['AIDOKU_TRANSLATION_PROTOCOL'] == 'responses' and imported['AIDOKU_TRANSLATION_REASONING'] == 'none'
+assert imported['AIDOKU_TRANSLATION_CONCURRENCY'] == 3 and imported['AIDOKU_TRANSLATION_SOURCE'] == 'ja'
+assert not any(key.startswith(('AIDOKU_OCR_', 'AIDOKU_IPHONE_OVERLAY')) or 'API_KEY' in key for key in imported), imported
+
+# .env stays out of Git; .env.example carries no credential.
+ignore = (ROOT / '.gitignore').read_text().splitlines()
+assert '.env' in ignore or '/.env' in ignore, 'the repository .gitignore must exclude .env'
+example = (ROOT / '.env.example').read_text()
+assert all(line.split('=', 1)[1].strip() in ('', "''", '""') for line in example.splitlines()
+           if line.startswith('AIDOKU_TRANSLATION_API_KEY='))
+print('PASS: dotenv parsing, AIDOKU_ENV_FILE, cwd independence, .env < shell < CLI precedence, provider cap, '
+      'offline modes, validation without secret output, input lists/dedup, phone import, .env exclusion')

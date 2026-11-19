@@ -1,7 +1,7 @@
 import CryptoKit
 import UIKit
 
-/// Proof that a displayed half derives from one exact processed full raster.
+/// Identity of a displayed half of one processed full raster (wide-page splits).
 /// A page key, crop rectangle, and matching point dimensions are only locators.
 final class ReaderTranslationSplitSource: Sendable, Equatable {
     struct Half {
@@ -29,63 +29,9 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
         init(_ image: UIImage) { self.image = image }
     }
 
-    private final class ClaimSlot: @unchecked Sendable {
-        private let lock = NSLock()
-        private var value: ReaderTranslationSourceRasterClaim?
-
-        init(_ value: ReaderTranslationSourceRasterClaim?) { self.value = value }
-
-        func read() -> ReaderTranslationSourceRasterClaim? { lock.withLock { value } }
-        func store(_ claim: ReaderTranslationSourceRasterClaim?) { lock.withLock { value = claim } }
-    }
-
     private final class FullSource: Sendable {
-        // Cap queued raster claims as well as active hashing. The normal split
-        // path itself can have two in-flight saves plus two chapter previews.
-        private final class QueueBound: @unchecked Sendable {
-            private let lock = NSLock()
-            private var count = 0
-
-            func reserve() -> Bool {
-                lock.withLock {
-                    guard count < 4 else { return false }
-                    count += 1
-                    return true
-                }
-            }
-
-            func release() { lock.withLock { count -= 1 } }
-        }
-
-        private static let queue = QueueBound()
-        private static let hashGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
         let key: String
-        let slot: ClaimSlot
-        let task: Task<Void, Never>?
-
-        init(image: UIImage, key: String) {
-            self.key = key
-            let prior = ReaderTranslationSourceRasterClaim.memoized(fullProcessedSource: image)
-            let result = ClaimSlot(prior)
-            slot = result
-            guard prior == nil, let pixels = image.cgImage, Self.queue.reserve() else {
-                task = nil
-                return
-            }
-            let decodedBytes = UInt64(pixels.bytesPerRow) * UInt64(pixels.height)
-            task = Task.detached(priority: .utility) { [result, image] in
-                defer { Self.queue.release() }
-                try? await Self.hashGate.withPermit {
-                    try Task.checkCancellation()
-                    // Unlike general OCR admission, this optional claim must
-                    // not wait on reclamation or retain a decoded page in a loop.
-                    try TranslationImageWorkBudget.shared.checkHeadroom(decodedBytes: decodedBytes)
-                    result.store(.observe(fullProcessedSource: image))
-                }
-            }
-        }
-
-        deinit { task?.cancel() }
+        init(image: UIImage, key: String) { self.key = key }
     }
 
     private final class StoredSide: @unchecked Sendable {
@@ -164,23 +110,11 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
         return UIImage(data: data)
     }
 
-    private func matches(_ image: UIImage, originalKey: String, crop: CGRect) -> Bool {
+    func matches(_ image: UIImage, originalKey: String, crop: CGRect) -> Bool {
         guard crop == self.crop, originalKey == full.key else { return false }
         switch binding {
         case .inline(let expected): return expected.image === image
         case .png(let expected): return expected.contains(image)
         }
-    }
-
-    func memoizedClaim(for image: UIImage, originalKey: String, crop: CGRect) -> ReaderTranslationSourceRasterClaim? {
-        guard matches(image, originalKey: originalKey, crop: crop) else { return nil }
-        return full.slot.read()
-    }
-
-    func claim(for image: UIImage, originalKey: String, crop: CGRect) async -> ReaderTranslationSourceRasterClaim? {
-        guard !Task.isCancelled, matches(image, originalKey: originalKey, crop: crop) else { return nil }
-        await full.task?.value
-        guard !Task.isCancelled else { return nil }
-        return memoizedClaim(for: image, originalKey: originalKey, crop: crop)
     }
 }

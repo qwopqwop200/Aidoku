@@ -4,8 +4,6 @@ import UIKit
 
 @Suite(.serialized) @MainActor
 struct ReaderTranslationLanguageFilterTests {
-    private nonisolated static let fixtureSourceProof =
-        ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "a", count: 64))!
     @Test func languageNeutralSymbolsReachTheExistingMangaRequest() {
         let fixture = LanguageFilterFixture()
         var settings = fixture.settings
@@ -15,93 +13,6 @@ struct ReaderTranslationLanguageFilterTests {
         let region = ReaderTranslationRegion(id: "symbols", rect: .zero, source: "『…?』")
         #expect(ReaderTranslationLanguageFilter.allowsModelSource(region.source, tier: .manga))
         #expect(ReaderTranslationLanguageFilter.apply([region], settings: settings).map(\.id) == [region.id])
-    }
-
-    @Test func recoveredQuotedStackDoesNotSilentlyAcceptCopiedJapanese() {
-        var quote = ReaderTranslationRegion(id: "quoted", rect: CGRect(x: 0.4, y: 0.1, width: 0.04, height: 0.3),
-            source: "「はい…っ」", sourceOrientation: .vertical)
-        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(quote, translation: quote.source, target: "ko"))
-        quote.unitMemberRects = [CGRect(x: 0.4, y: 0.1, width: 0.04, height: 0.1),
-                                 CGRect(x: 0.4, y: 0.3, width: 0.04, height: 0.1)]
-        #expect(ReaderTranslationLanguageFilter.requiresBalloonTranslation(quote, translation: quote.source, target: "ko"))
-        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(quote, translation: "네…", target: "ko"))
-        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(quote, translation: quote.source, target: "ja"))
-        var effect = ReaderTranslationRegion(id: "effect", rect: quote.rect, source: "どん", sourceOrientation: .vertical)
-        effect.unitMemberRects = quote.unitMemberRects
-        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(effect, translation: effect.source, target: "ko"))
-    }
-
-    @Test func stripsOnlyDetachedForeignTailFromKoreanSentence() {
-        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
-            "가슴이 팽팽하게 부풀어 올라서...! 毛岁七", target: "ko") ==
-            "가슴이 팽팽하게 부풀어 올라서...!")
-        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
-            "서울 漢字 공부를 했어!", target: "ko") == "서울 漢字 공부를 했어!")
-        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
-            "오늘은 漢字", target: "ko") == "오늘은 漢字")
-        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
-            "한국어 문장입니다! 毛岁七", target: "ja") == "한국어 문장입니다! 毛岁七")
-        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
-            "「자ー 기억 안 난다면서」", target: "ko") == "「자~ 기억 안 난다면서」")
-        #expect(ReaderTranslationLanguageFilter.removingForeignScriptTail(
-            "「ほらー 기억 안 난다면서」", target: "ko") == "「ほらー 기억 안 난다면서」")
-    }
-
-    @Test func copiedBalloonSentenceNeedsTranslationButSignsAndShortNamesDoNot() {
-        var region = ReaderTranslationRegion(id: "dialogue", rect: CGRect(x: 0.2, y: 0.2, width: 0.1, height: 0.2),
-            source: "このびちゃびちゃの下着は貰うぞ")
-        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(region, translation: region.source, target: "ko"))
-        region.balloonInterior = .init(rect: CGRect(x: 0.1, y: 0.1, width: 0.3, height: 0.4),
-            center: CGPoint(x: 0.25, y: 0.3), spans: [0.1, 0.4], contourVerified: true)
-        #expect(ReaderTranslationLanguageFilter.requiresBalloonTranslation(region, translation: region.source, target: "ko"))
-        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(region, translation: "이 젖은 속옷은 가져가지", target: "ko"))
-        #expect(!ReaderTranslationLanguageFilter.requiresBalloonTranslation(region, translation: region.source, target: "ja"))
-    }
-    // Page lettering is single-pass: a copied balloon is diagnosed locally, never re-requested.
-    @Test func copiedBalloonIsDiagnosedWithoutASecondProviderRequest() async throws {
-        let fixture = LanguageFilterFixture(), client = CopiedBalloonClient()
-        var settings = fixture.settings
-        settings.sourceLanguage = "ja"
-        settings.targetLanguage = "ko"
-        var dialogue = ReaderTranslationRegion(id: "dialogue", rect: CGRect(x: 0.2, y: 0.2, width: 0.1, height: 0.2),
-            source: "この大切な本は私が貰うぞ")
-        dialogue.balloonInterior = .init(rect: CGRect(x: 0.1, y: 0.1, width: 0.3, height: 0.4),
-            center: CGPoint(x: 0.25, y: 0.3), spans: [0.1, 0.4], contourVerified: true)
-        let other = ReaderTranslationRegion(id: "other", rect: CGRect(x: 0.6, y: 0.2, width: 0.1, height: 0.2), source: "ありがとう")
-        let output = try await ReaderTranslationService(client: client).translate(regions: [dialogue, other], settings: settings,
-            preparedImageJPEG: Data([0xff, 0xd8, 0xff, 0xd9]))
-        let copied = try #require(output.first(where: { $0.id == "dialogue" }))
-        #expect(copied.translationRecoveryFailure == "primary_untranslated")
-        #expect(copied.translationReuseIdentity == nil)
-        #expect(output.first(where: { $0.id == "other" })?.translation == "고마워")
-        let requests = await client.requests
-        #expect(requests.count == 1)
-        #expect(requests.first?.imageJPEG != nil)
-        #expect(requests.first?.filtersSFX == true)
-        #expect(requests.first?.filtersBackground == true)
-    }
-
-    @Test func JapaneseDialogueCannotBecomeAKoreanCompletedCache() async throws {
-        let fixture = LanguageFilterFixture()
-        let source = "これからも毎日おいしいパンを作ってみんなに届けます"
-        let wrong = "「" + source + "」"
-        #expect(ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: wrong, target: "ko"))
-        for value in [source, "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다", "スタジオジブリ", "「ドンドン」"] {
-            #expect(!ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: value, target: "ko"))
-        }
-        #expect(!ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: source, translation: wrong, target: "ja"))
-        let bad = [ReaderTranslationRegion(id: "dialogue", rect: .zero, source: source, translation: wrong)]
-        let pageKey = fixture.page.translationCacheKey
-        let settings = fixture.settings
-        let key = ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings)
-        try await fixture.disk.storeRegions(bad, for: key, kind: .translation, generation: 0)
-        #expect(try await fixture.disk.translatedRegions(page: pageKey, settings: settings) == nil)
-        // A failed language check is a targeted cache miss, never a purge of OCR or user data.
-        #expect(try await fixture.disk.regions(for: key, kind: .translation) == bad)
-        var valid = bad
-        valid[0].translation = "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다"
-        try await fixture.disk.storeRegions(valid, for: key, kind: .translation, generation: 0)
-        #expect(try await fixture.disk.translatedRegions(page: pageKey, settings: settings) == valid)
     }
 
     @Test func mixedKoreanDoesNotCertifyCopiedJapaneseClause() {
@@ -141,107 +52,6 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(await client.calls == 2)
     }
 
-    @Test func correctedKanaEvidenceReusesRawOCRButRejectsOldFilteredSubset() async throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        settings.sourceLanguage = "zh-Hant"
-        let page = fixture.page.translationCacheKey
-        let raw = [ReaderTranslationRegion(id: "dialogue",
-            rect: CGRect(x: 0.1, y: 0.1, width: 0.7, height: 0.2), source: "你・現在有什麼打算？")]
-        let rawKey = ReaderTranslationCacheIdentity.ocr(page: page, settings: settings)
-        try await fixture.disk.storeRegions(raw, for: rawKey, kind: .ocr, generation: 0, sourceRasterClaim: Self.fixtureSourceProof)
-        let oldKey = ReaderTranslationCacheIdentity.encoded([
-            ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings),
-            "source-filter-v1", "fixed", "zh-Hant"
-        ])
-        try await fixture.disk.storeRegions([], for: oldKey, kind: .translation, generation: 0)
-        let reopened = ReaderTranslationPreloader(diskCache: ReaderTranslationDiskCache(directory: fixture.root),
-            translator: { regions, _, _ in regions }, recognizer: { _, _ in
-                Issue.record("Corrected language filtering must reuse the unfiltered OCR cache")
-                return []
-            }, fixtureSourceRasterClaim: { _ in Self.fixtureSourceProof })
-        #expect(try await reopened.translate(fixture.page, settings: settings).map(\.id) == ["dialogue"])
-        #expect(try await fixture.disk.regions(for: rawKey, kind: .ocr)?.map(\.id) == ["dialogue"])
-    }
-
-    @Test func excludedOwnerRevisionRejectsOldSubsetAndReusesRawOCR() async throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        settings.translationSourceLanguages = ["ja"]
-        let page = fixture.page.translationCacheKey
-        let rawKey = ReaderTranslationCacheIdentity.ocr(page: page, settings: settings)
-        try await fixture.disk.storeRegions(Self.mixed, for: rawKey, kind: .ocr, generation: 0, sourceRasterClaim: Self.fixtureSourceProof)
-        let oldKey = ReaderTranslationCacheIdentity.encoded([
-            ReaderTranslationCacheIdentity.unfilteredTranslation(page: page, settings: settings),
-            "source-filter-v2-kana-evidence", "auto", "ja"
-        ])
-        try await fixture.disk.storeRegions([Self.mixed[1]], for: oldKey, kind: .translation, generation: 0)
-        #expect(try await fixture.disk.translatedRegions(page: page, settings: settings) == nil)
-        let reopened = ReaderTranslationPreloader(diskCache: fixture.disk,
-            translator: { eligible, _, _ in
-                #expect(eligible.map(\.id) == ["ja"])
-                return eligible
-            }, recognizer: { _, _ in Issue.record("Must reuse raw OCR owners"); return [] },
-            fixtureSourceRasterClaim: { _ in Self.fixtureSourceProof })
-        let result = try await reopened.translate(fixture.page, settings: settings)
-        #expect(result.map(\.id) == Self.mixed.map(\.id))
-        #expect(result.filter { $0.id != "ja" }.allSatisfy { $0.translation == $0.source })
-    }
-
-    @Test func deliberatelyExcludedJapaneseOwnerDoesNotInvalidateCache() async throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        settings.translationSourceLanguages = ["en"]
-        let source = ReaderTranslationRegion(id: "kept-ja", rect: CGRect(x: 0.1, y: 0.2, width: 0.6, height: 0.1),
-            source: "これからも毎日おいしいパンを作ってみんなに届けます",
-            translation: "これからも毎日おいしいパンを作ってみんなに届けます")
-        let key = ReaderTranslationCacheIdentity.translation(page: fixture.page.translationCacheKey, settings: settings)
-        try await fixture.disk.storeRegions([source], for: key, kind: .translation, generation: 0)
-        #expect(try await fixture.disk.translatedRegions(page: fixture.page.translationCacheKey, settings: settings) == [source])
-    }
-
-    @Test func mixedPageOnlySendsSelectedSourcesAndPublishesMatchingIDs() async throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        settings.translationSourceLanguages = ["ja"]
-        let client = LanguageFilterClient()
-        let progress = LanguageFilterProgress()
-        let service = ReaderTranslationService(client: client)
-        let output = try await service.translate(regions: Self.mixed, settings: settings,
-            preparedImageJPEG: Data([0xff, 0xd8, 0xff, 0xd9])) { await progress.record($0) }
-        #expect(output.map(\.id) == Self.mixed.map(\.id))
-        #expect(output.filter { $0.id != "ja" }.allSatisfy { $0.translation == $0.source })
-        let requests = await client.requests
-        let wireSegment = try #require(requests.first?.segments.first)
-        #expect(output.first { $0.id == "ja" }?.translation == "translated-" + wireSegment.id)
-        #expect(requests.flatMap(\.segments).count == 1)
-        #expect(requests.flatMap(\.segments).map(\.text) == [Self.mixed[1].source])
-        #expect(await progress.snapshots.allSatisfy {
-            $0.map(\.id) == Self.mixed.map(\.id) && $0.filter { $0.id != "ja" }.allSatisfy { $0.translation == $0.source }
-        })
-        #expect(try ReaderTranslationService.requests(regions: Self.mixed, settings: settings).flatMap(\.segments).map(\.id) == ["ja"])
-    }
-
-    @Test func allExcludedPageCompletesWithoutAnAPIRequestOrOverlay() async throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        settings.translationSourceLanguages = ["fr"]
-        let client = LanguageFilterClient()
-        let kept = try await ReaderTranslationService(client: client).translate(regions: Self.mixed, settings: settings)
-        #expect(kept.map(\.id) == Self.mixed.map(\.id))
-        #expect(kept.allSatisfy { $0.translation == $0.source })
-        #expect(ReaderTranslationRegion.overlayItems(kept, imageSize: CGSize(width: 100, height: 100)).isEmpty)
-        #expect(ReaderTranslationRegion.layoutItems(kept, imageSize: CGSize(width: 100, height: 100)).count == kept.count)
-        #expect(await client.requests.isEmpty)
-        let preloader = ReaderTranslationPreloader(translator: { _, _, _ in
-            Issue.record("An empty filtered page must not call the translator")
-            return []
-        }, recognizer: { _, _ in Self.mixed })
-        let preloaded = try await preloader.translate(fixture.page, settings: settings)
-        #expect(preloaded.map(\.id) == Self.mixed.map(\.id))
-        #expect(preloaded.allSatisfy { $0.translation == $0.source })
-    }
-
     @Test func fixedJapaneseKeepsSharedHanAndChineseAliasFiltersEnglish() {
         let fixture = LanguageFilterFixture()
         var settings = fixture.settings
@@ -250,130 +60,53 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["ja", "han"])
         settings.sourceLanguage = "zh-Hans"
         #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["zh", "han"])
+        // An unclassifiable fixed source keeps the permissive language rule, but the
+        // manga recognizer's Japanese/Chinese policy still excludes Latin text.
         settings.sourceLanguage = "az"
-        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == Self.mixed.map(\.id))
+        #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["ja", "zh", "han"])
     }
 
-    @Test func restartingWithExpandedFilterUsesUnfilteredOCRFromDisk() async throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
+    @Test func v2SourceRuleAdmitsSharedHanDialogueOnlyForHanLanguages() {
+        var settings = LanguageFilterFixture().settings
+        settings.targetLanguage = "ko"
+        settings.sourceLanguage = "auto"
         settings.translationSourceLanguages = ["ja"]
-        let preloader = ReaderTranslationPreloader(diskCache: fixture.disk, translator: { regions, _, _ in regions },
-            recognizer: { _, _ in Self.mixed }, fixtureSourceRasterClaim: { _ in Self.fixtureSourceProof })
-        #expect(try await preloader.translate(fixture.page, settings: settings).map(\.id) == Self.mixed.map(\.id))
-        let rawKey = ReaderTranslationCacheIdentity.ocr(page: fixture.page.translationCacheKey, settings: settings)
-        #expect(try await fixture.disk.regions(for: rawKey, kind: .ocr)?.map(\.id) == Self.mixed.map(\.id))
-        preloader.cancel()
+        // Short Han-only dialogue that NaturalLanguage cannot split between ja/zh.
+        #expect(ReaderTranslationLanguageFilter.allowsV2Source("本当", settings: settings))
+        #expect(ReaderTranslationLanguageFilter.allowsV2Source("！？", settings: settings))
+        #expect(!ReaderTranslationLanguageFilter.allowsV2Source("이미 한국어", settings: settings))
+        settings.sourceLanguage = "en"
         settings.translationSourceLanguages = []
-        let reopened = ReaderTranslationPreloader(diskCache: ReaderTranslationDiskCache(directory: fixture.root),
-                                                  translator: { regions, _, _ in regions }, recognizer: { _, _ in
-            Issue.record("Changing the language filter must reuse raw OCR")
-            return []
-        }, fixtureSourceRasterClaim: { _ in Self.fixtureSourceProof })
-        #expect(try await reopened.translate(fixture.page, settings: settings).map(\.id) == Self.mixed.map(\.id))
+        #expect(!ReaderTranslationLanguageFilter.allowsV2Source("本当", settings: settings))
     }
 
-    @Test(arguments: ["auto", "ja"])
-    func legacyTranslationIsFilteredAfterRestartWithoutProcessingAgain(source: String) async throws {
-        // These are separate pre-filter cache histories. Sharing a database
-        // would intentionally invalidate the first source-language policy when
-        // the second session opens, obscuring the legacy-key reuse contract.
-        let fixture = LanguageFilterFixture()
-        let originals = Self.mixed.map { var region = $0; region.translation = "saved-" + region.id; return region }
-        var settings = fixture.settings
-        settings.sourceLanguage = source
-        settings.translationSourceLanguages = ["ja"]
-        let key = ReaderTranslationCacheIdentity.unfilteredTranslation(page: fixture.page.translationCacheKey, settings: settings)
-        try await fixture.disk.storeRegions(originals, for: key, kind: .translation, generation: 0)
-        #expect(try await fixture.disk.regions(for: key, kind: .translation) == originals)
-        let view = UIImageView(image: Self.image())
-        let page = ReaderTranslationPage(imageView: view)
-        page.sourcePage = fixture.page
-        let session = ReaderTranslationSession(validate: { _ in }, process: { _, _, _ in
-            Issue.record("Saved all-language results must not trigger OCR or API again")
-            return []
-        }, diskCache: ReaderTranslationDiskCache(directory: fixture.root))
-        defer { session.close() }
-        session.update(items: [.init(fixture.page)], visible: [page], context: "chapter")
-        session.enable(settings: settings)
-        try await waitUntil { page.hasCompletedTranslation(settings: settings) }
-        #expect(page.regions.map(\.id) == Self.mixed.map(\.id))
-        let eligible = Set(source == "auto" ? ["ja"] : ["ja", "han"])
-        #expect(page.regions.allSatisfy { $0.translation == (eligible.contains($0.id) ? "saved-" + $0.id : $0.source) })
-    }
-
-    @Test func filteredSubsetNeverPoisonsAnExpandedOrAllLanguageCache() async throws {
-        let fixture = LanguageFilterFixture()
-        var settings = fixture.settings
-        settings.translationSourceLanguages = ["ja"]
-        let key = ReaderTranslationCacheIdentity.translation(page: fixture.page.translationCacheKey, settings: settings)
-        try await fixture.disk.storeRegions([Self.mixed[1]], for: key, kind: .translation, generation: 0)
-        #expect(try await fixture.disk.translatedRegions(page: fixture.page.translationCacheKey, settings: settings)?.count == 1)
-        settings.translationSourceLanguages = ["ja", "en"]
-        #expect(try await fixture.disk.translatedRegions(page: fixture.page.translationCacheKey, settings: settings) == nil)
+    @Test func v2SourceRuleKeepsTheSourceFilterInTheV2CacheIdentity() {
+        var settings = LanguageFilterFixture().settings
+        let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
         settings.translationSourceLanguages = []
-        #expect(try await fixture.disk.translatedRegions(page: fixture.page.translationCacheKey, settings: settings) == nil)
-    }
-
-    @Test func filterChangesInvalidatePixelsButKeepRawOCRAndIgnoreSelectionOrder() {
-        let fixture = LanguageFilterFixture()
-        let original = fixture.settings
-        var filtered = original
-        filtered.translationSourceLanguages = ["ja", "en"]
-        #expect(!original.hasSameTranslation(as: filtered))
-        #expect(ReaderTranslationCacheIdentity.ocr(page: "page", settings: original) ==
-                ReaderTranslationCacheIdentity.ocr(page: "page", settings: filtered))
-        #expect(renderKey(original) != renderKey(filtered))
-        var reordered = filtered
-        reordered.translationSourceLanguages.reverse()
-        #expect(filtered.hasSameTranslation(as: reordered))
-        #expect(renderKey(filtered) == renderKey(reordered))
-        filtered.sourceLanguage = "ja"
-        reordered = filtered
-        reordered.translationSourceLanguages = ["fr"]
-        #expect(filtered.hasSameTranslation(as: reordered))
-    }
-
-    @Test func filterChangeImmediatelyHidesOldBoxesAndReusesRawPageOCR() async throws {
-        let fixture = LanguageFilterFixture()
-        let view = UIImageView(image: Self.image())
-        view.frame.size = CGSize(width: 320, height: 480)
-        let calls = LanguageFilterProgress()
-        let page = ReaderTranslationPage(imageView: view, recognize: { _, _ in
-            await calls.record(Self.mixed)
-            return Self.mixed
-        }, translate: { regions, _ in regions.map { var region = $0; region.translation = "translated"; return region } })
-        defer { page.reset() }
-        var settings = fixture.settings
-        _ = try await page.process(translate: true, settings: settings)
-        #expect(!view.subviews.isEmpty)
+        let all = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
         settings.translationSourceLanguages = ["ja"]
-        page.applySettings(settings)
-        #expect(view.subviews.isEmpty)
-        #expect(page.regions.isEmpty)
-        #expect(!page.hasCompletedTranslation(settings: settings))
-        _ = try await page.process(translate: true, settings: settings)
-        #expect(page.regions.map(\.id) == Self.mixed.map(\.id))
-        #expect(page.regions.filter { $0.id != "ja" }.allSatisfy { $0.translation == $0.source })
-        settings.translationSourceLanguages = []
-        page.applySettings(settings)
-        _ = try await page.process(translate: false, settings: settings, renderOverlay: false)
-        #expect(page.regions.map(\.id) == Self.mixed.map(\.id))
-        #expect(await calls.snapshots.count == 1)
+        let japanese = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        settings.translationSourceLanguages = ["ja", "zh"]
+        let han = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        #expect(Set([all, japanese, han]).count == 3)
+        settings.translationSourceLanguages = ["zh", "ja"]
+        #expect(ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings) == han)
     }
 
     @Test func filterPersistsAndRejectsInvalidSelectionsWithoutChangingSavedPreferences() throws {
         let fixture = LanguageFilterFixture()
         var settings = fixture.settings
         #expect(settings.translationSourceLanguages.isEmpty)
-        settings.translationSourceLanguages = ["ja", "en"]
+        // The V2 manga recognizer reads Japanese and Chinese only.
+        settings.translationSourceLanguages = ["zh", "ja"]
         try settings.save(defaults: fixture.defaults)
-        #expect(fixture.settings.translationSourceLanguages == ["en", "ja"])
+        #expect(fixture.settings.translationSourceLanguages == ["ja", "zh"])
         #expect(fixture.settings.hasSameTranslation(as: settings))
-        for invalid in [["xx"], ["ja", "ja"], ["ko"]] {
+        for invalid in [["xx"], ["ja", "ja"], ["ko"], ["ja", "en"]] {
             settings.translationSourceLanguages = invalid
             #expect(throws: RemoteTranslationError.self) { try settings.save(defaults: fixture.defaults) }
-            #expect(fixture.settings.translationSourceLanguages == ["en", "ja"])
+            #expect(fixture.settings.translationSourceLanguages == ["ja", "zh"])
         }
     }
 
@@ -397,24 +130,6 @@ struct ReaderTranslationLanguageFilterTests {
     ].enumerated().map { index, pair in
         ReaderTranslationRegion(id: pair.0, rect: CGRect(x: 0.1, y: 0.1 + Double(index) * 0.2, width: 0.7, height: 0.12), source: pair.1)
     }
-    private func renderKey(_ settings: ReaderTranslationSettings) -> String {
-        ReaderTranslationCacheIdentity.render(page: "page", settings: settings, imageSize: CGSize(width: 600, height: 900),
-                                              viewport: CGSize(width: 320, height: 480), scale: 3, aspectFit: true,
-                                              crop: CGRect(x: 0, y: 0, width: 1, height: 1), dark: false)
-    }
-    private static func image() -> UIImage {
-        UIGraphicsImageRenderer(size: CGSize(width: 600, height: 900)).image { context in
-            UIColor.white.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 600, height: 900))
-        }
-    }
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = Date().addingTimeInterval(5)
-        while !condition() {
-            if Date() > deadline { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(10))
-        }
-    }
 }
 
 private actor LanguageFilterClient: RemoteTranslating {
@@ -425,24 +140,13 @@ private actor LanguageFilterClient: RemoteTranslating {
                                             source: .network, providerRequestID: nil)
     }
 }
-private actor LanguageFilterProgress {
-    private(set) var snapshots: [[ReaderTranslationRegion]] = []
-    func record(_ regions: [ReaderTranslationRegion]) { snapshots.append(regions) }
-}
 @MainActor private final class LanguageFilterFixture {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("language-filter-" + UUID().uuidString)
     let suite = "language-filter-" + UUID().uuidString
     var defaults: UserDefaults { UserDefaults(suiteName: suite)! }
     var settings: ReaderTranslationSettings {
-        // This suite exercises the unified model's multilingual policy.
-        var settings = ReaderTranslationSettings(defaults: defaults)
-        settings.modelTier = .medium
-        return settings
+        ReaderTranslationSettings(defaults: defaults)
     }
-    lazy var disk = ReaderTranslationDiskCache(directory: root)
-    var page: Page { Page(sourceId: "filter-test", chapterId: "chapter", index: 0, imageURL: "https://example.invalid/page") }
     deinit {
-        try? FileManager.default.removeItem(at: root)
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
     }
 }
@@ -453,16 +157,6 @@ private actor WrongLanguageThenKoreanClient: RemoteTranslating {
         calls += 1
         return .init(translations: request.segments.map {
             .init(id: $0.id, text: calls == 1 ? "「" + $0.text + "」" : "앞으로도 매일 맛있는 빵을 만들어 모두에게 전하겠습니다")
-        }, source: .network, providerRequestID: nil)
-    }
-}
-
-private actor CopiedBalloonClient: RemoteTranslating {
-    private(set) var requests: [RemoteTranslationRequest] = []
-    func translate(_ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
-        requests.append(request)
-        return .init(translations: request.segments.map {
-            .init(id: $0.id, text: $0.text == "ありがとう" ? "고마워" : requests.count == 1 ? $0.text : "이 소중한 책은 내가 가져가지")
         }, source: .network, providerRequestID: nil)
     }
 }

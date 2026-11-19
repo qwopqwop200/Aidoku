@@ -35,7 +35,6 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     private var preparedTranslation: ReaderTranslationPreparedImage?
     // GIFImageNode consumes animatedData before its asynchronous decoder
     // has necessarily installed any frames. Keep the loader's evidence.
-    private var preparedSourceIsKnownStatic = false
     private var hasLoadFailure = false
     private var lastTranslationLayoutSize = CGSize.zero
     var text: String?
@@ -104,15 +103,13 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
                 self._translationPage?.reset()
                 return true
             }
-            let isKnownStatic = self.preparedSourceIsKnownStatic && node.animatedData == nil
-            if !isKnownStatic { self._translationPage?.disallowSettledHighlight() }
             if let prepared = self.preparedTranslation {
                 guard prepared.isCurrent(for: image) else {
                     self._translationPage?.reset()
                     self.refreshPreparedImage(image)
                     return false
                 }
-                self.translationPage?.displayLoadedImage(prepared, isKnownStatic: isKnownStatic)
+                self.translationPage?.displayLoadedImage(prepared)
             }
             return true
         }
@@ -647,7 +644,7 @@ extension ReaderWebtoonPageNode {
     @MainActor
     @discardableResult
     private func prepareAndDisplayImage(
-        _ sourceImage: UIImage?, gifData: Data? = nil, refreshingSourceIsKnownStatic: Bool = true
+        _ sourceImage: UIImage?, gifData: Data? = nil
     ) async -> Bool {
         guard !Task.isCancelled else { return false }
         guard let sourceImage else {
@@ -674,7 +671,6 @@ extension ReaderWebtoonPageNode {
                 // receives them together with this source-aspect translated canvas.
                 _translationPage?.reset()
                 preparedTranslation = prepared.flatMap { $0.matchesSourceImage(sourceImage) ? $0 : nil }
-                preparedSourceIsKnownStatic = refreshingSourceIsKnownStatic && gifData == nil
                 imageNode.animatedData = gifData
                 image = sourceImage
                 imageNode.image = sourceImage
@@ -715,8 +711,7 @@ extension ReaderWebtoonPageNode {
             let refresh = pageLoadGeneration
             pageLoadTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                await prepareAndDisplayImage(image, gifData: imageNode.animatedData,
-                                             refreshingSourceIsKnownStatic: preparedSourceIsKnownStatic)
+                await prepareAndDisplayImage(image, gifData: imageNode.animatedData)
                 if pageLoadGeneration == refresh { pageLoadTask = nil }
             }
         }

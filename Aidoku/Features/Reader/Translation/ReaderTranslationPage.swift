@@ -1,5 +1,8 @@
 import UIKit
 
+/// The translation presentation of one reader image view. Every page renders
+/// through V2 (`processV2`): the result is a complete page bitmap attached
+/// through the cached-page canvas above the source image.
 @MainActor
 final class ReaderTranslationPage {
     static let sourceImageReady = Notification.Name("Reader.translation.sourceImageReady")
@@ -12,11 +15,6 @@ final class ReaderTranslationPage {
         NotificationCenter.default.post(name: sourceImageReady, object: LoadedSource(page: page, image: image))
     }
     static let imageChanged = Notification.Name("Reader.translation.imageChanged")
-    typealias Recognizer = @Sendable (CGImage, ReaderOCRConfiguration) async throws -> [ReaderTranslationRegion]
-    typealias Translator = @Sendable ([ReaderTranslationRegion], ReaderTranslationSettings) async throws -> [ReaderTranslationRegion]
-    typealias ProgressiveTranslator = @Sendable (
-        [ReaderTranslationRegion], ReaderTranslationSettings, ReaderTranslationService.Progress?
-    ) async throws -> [ReaderTranslationRegion]
     weak var imageView: UIImageView?
     var sourcePage: Page? {
         didSet {
@@ -29,168 +27,33 @@ final class ReaderTranslationPage {
         }
     }
     var diagnosticContext: ReaderTranslationDiagnostics.Context?
-    var renderCache: ReaderTranslationRenderCache?
-    private weak var analyzedImage: UIImage?
-    private var preparedEvidence: ReaderTranslationPreparedEvidence?
-    private var analyzedConfiguration: ReaderOCRConfiguration?
-    private weak var recognizedImage: UIImage?
-    private var recognizedConfiguration: ReaderOCRConfiguration?
-    private var recognizedRegions: [ReaderTranslationRegion]?
-    private var lastSettings: ReaderTranslationSettings?
-    private var completedTranslation = false
-    private var sourceObservation: Task<Void, Never>?
-    private weak var observingImage: UIImage?
-    private var isExportingTranslation = false
-    private(set) var regions: [ReaderTranslationRegion] = []
     private var generation = UUID()
-    private var task: Task<[ReaderTranslationRegion], Error>?
-    private var overlay: ReaderTranslationOverlayView?
-    private var isPreparingEmptyOverlay = false
     private var cachedOverlay: ReaderTranslationCachedPageView?
-    private var renderLookupTask: Task<Void, Never>?
-    private var renderLookupKey: String?
-    private var preview: (original: [ReaderTranslationRegion], crop: CGRect, displayed: [ReaderTranslationRegion])?
-    /// Streamed, not yet validated translation shown on the visible page. It
-    /// only ever uses the live overlay without a snapshot target, so it never
-    /// writes render/layout caches, and the completed result replaces it.
-    private var showsProvisional = false
-    private var provisionalShown: [ReaderTranslationRegion]?
-    private var provisionalPending: [ReaderTranslationRegion]?
-    private var provisionalTask: Task<Void, Never>?
-    private var provisionalRenderedAt: TimeInterval = -.infinity
-    private var provisionalCommitPending = false
-    static let provisionalRenderInterval: TimeInterval = 0.2
-    /// A render that never commits must not stall later provisional updates.
-    static let provisionalCommitTimeout: TimeInterval = 2
-    private(set) var provisionalRenderCount = 0
-    var isShowingProvisionalTranslation: Bool { showsProvisional }
     var isUsingCachedRendering: Bool { cachedOverlay != nil }
     private(set) var hasLoadedCachedPresentation = false
-    private let recognize: Recognizer
-    private let translateRegions: Translator?
-    private let progressiveTranslate: ProgressiveTranslator?
-    private var settingsObserver: NSObjectProtocol?
-    private var memoryObserver: NSObjectProtocol?
-    // Opt-in V2 pipeline: one fully rendered page bitmap per source image.
+    // One fully rendered V2 page bitmap per source image.
     private var v2Task: Task<Void, Never>?
     private var v2Identity: String?
     private weak var v2Source: UIImage?
     private var v2Failed = false
     private(set) var isPresentingV2 = false
 
-    init(
-        imageView: UIImageView,
-        recognize: @escaping Recognizer = { image, configuration in
-            guard #available(iOS 18.0, *) else { return [] }
-            return try await TranslationImageWorkBudget.shared.withPermit(
-                decodedBytes: UInt64(image.bytesPerRow) * UInt64(image.height)) {
-                try await ReaderOCRService.shared.recognize(image: image, configuration: configuration)
-            }
-        },
-        translate: Translator? = nil,
-        progressiveTranslate: ProgressiveTranslator? = nil
-    ) {
+    init(imageView: UIImageView) {
         self.imageView = imageView
-        self.recognize = recognize
-        self.translateRegions = translate
-        self.progressiveTranslate = progressiveTranslate
-        settingsObserver = NotificationCenter.default.addObserver(
-            forName: ReaderTranslationSettings.changed, object: nil, queue: .main
-        ) { [weak self] _ in Task { @MainActor in
-            guard let self else { return }
-            var saved = ReaderTranslationSettings()
-            saved.rightToLeftPanelOrder = self.lastSettings?.rightToLeftPanelOrder ?? false
-            self.applySettings(saved)
-        } }
-        memoryObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
-        ) { [weak self] _ in Task { @MainActor in self?.discardRecognitionCache() } }
     }
 
     deinit {
-        task?.cancel()
         v2Task?.cancel()
-        sourceObservation?.cancel()
-        renderLookupTask?.cancel()
-        if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }
-        if let memoryObserver { NotificationCenter.default.removeObserver(memoryObserver) }
-    }
-
-    // Memory pressure must not erase a visible translation or interrupt its render.
-    private func discardRecognitionCache() {
-        discardPendingOverlayNavigation()
-        recognizedImage = nil
-        recognizedConfiguration = nil
-        recognizedRegions = nil
     }
 
     func reset() {
-        sourceObservation?.cancel()
-        sourceObservation = nil
-        observingImage = nil
         cancel()
-        preparedEvidence = nil
-        discardProvisionalTranslation()
-        preview = nil
-        regions = []
-        recognizedImage = nil
-        recognizedConfiguration = nil
-        recognizedRegions = nil
-        analyzedImage = nil
-        analyzedConfiguration = nil
-        lastSettings = nil
-        completedTranslation = false
         releaseOverlay()
     }
 
-    func observeCurrentSource(_ finished: @escaping @MainActor () -> Void) {
-        guard let source = sourcePage, let image = imageView?.image,
-              observingImage !== image else { return }
-        sourceObservation?.cancel()
-        observingImage = image
-        sourceObservation = Task { [weak self] in
-            let claim = await source.observeTranslationSource(for: image)
-            guard !Task.isCancelled, let self, imageView?.image === image,
-                  sourcePage?.translationCacheKey == source.translationCacheKey,
-                  sourcePage?.translationSourceRect == source.translationSourceRect,
-                  sourcePage?.translationSplitSource == source.translationSplitSource else { return }
-            sourceObservation = nil
-            observingImage = nil
-            if claim != nil { finished() }
-        }
-    }
-
-    func cancel(preservingPendingOverlayNavigation: Bool = false) {
-        if !preservingPendingOverlayNavigation { discardPendingOverlayNavigation() }
+    func cancel() {
         generation = UUID()
-        task?.cancel()
-        task = nil
         cancelV2Work()
-        // Keep a provisional frame until its replacement commits; only stop
-        // scheduling further provisional renders.
-        provisionalTask?.cancel()
-        provisionalTask = nil
-        provisionalPending = nil
-        renderLookupTask?.cancel()
-        renderLookupTask = nil
-        renderLookupKey = nil
-        // The snapshot callback belongs to the generation just invalidated.
-        // A pending cache-targeted renderer has no visible frame to reuse: keeping it would
-        // leave ON showing an empty wrapper whose bitmap can never attach.
-        // Preserve committed live frames and cached bitmaps for cheap toggles.
-        if let overlay, overlay.canCacheRendering, overlay.renderedImageView.isHidden {
-            releaseOverlay()
-        } else {
-            overlay?.cancelWork()
-        }
-    }
-
-    func hidePreparedTranslation(preservingLoadedPresentation: Bool = false) {
-        if preservingLoadedPresentation, hasLoadedCachedPresentation { return }
-        cancel()
-        discardProvisionalTranslation()
-        overlay?.isHidden = true
-        cachedOverlay?.setPresentationHidden(true)
     }
 
     func showOriginal() {
@@ -198,46 +61,10 @@ final class ReaderTranslationPage {
         releaseOverlay()
     }
 
-    /// Reserve the future native presentation view without allocating pixels
-    /// or preparing layout before the completed-result publication path.
-    @discardableResult
-    func preparePendingOverlayNavigation(settings: ReaderTranslationSettings) -> Bool {
-        guard settings.overlay.visible, let imageView, imageView.image != nil,
-              imageView.window != nil, imageView.bounds.width > 0, imageView.bounds.height > 0,
-              !completedTranslation, cachedOverlay == nil else { return false }
-        if isPreparingEmptyOverlay { return true }
-        guard overlay == nil else { return false }
-        let pending = ReaderTranslationOverlayView(frame: imageView.bounds)
-        pending.isHidden = true
-        pending.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        imageView.insertSubview(pending, at: 0)
-        overlay = pending
-        isPreparingEmptyOverlay = true
-        ReaderTranslationDiagnostics.record("visible_navigation_prepared", page: (sourcePage?.index ?? -2) + 1)
-        return true
-    }
-
-    func discardPendingOverlayNavigation() {
-        guard isPreparingEmptyOverlay else { return }
-        releaseOverlay()
-    }
-
     func releaseOverlay() {
-        preparedEvidence = nil
-        isPreparingEmptyOverlay = false
         hasLoadedCachedPresentation = false
-        showsProvisional = false
-        provisionalShown = nil
-        provisionalCommitPending = false
-        renderLookupTask?.cancel()
-        renderLookupTask = nil
-        renderLookupKey = nil
-        cachedOverlay?.releaseHighlight()
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
-        overlay?.cancelWork()
-        overlay?.removeFromSuperview()
-        overlay = nil
         isPresentingV2 = false
         if v2Task == nil {
             v2Identity = nil
@@ -245,387 +72,27 @@ final class ReaderTranslationPage {
         }
     }
 
-    func process(translate: Bool, settings: ReaderTranslationSettings, renderOverlay: Bool = true) async throws -> Int {
-        guard #available(iOS 18.0, *), let image = imageView?.image else { return 0 }
-        cancel()
-        completedTranslation = false
-        let issued = generation
-        let cached = recognizedImage === image && recognizedConfiguration == settings.ocrConfiguration ? recognizedRegions : nil
-        let recognize = recognize
-        let translateRegions = translateRegions
-        let progressiveTranslate = progressiveTranslate
-        let task = Task<[ReaderTranslationRegion], Error> {
-            let recognized: [ReaderTranslationRegion]
-            if let cached {
-                recognized = cached
-            } else {
-                // UIImage orientation must be applied before computing OCR coordinates.
-                let pixels = await Task.detached(priority: .userInitiated) { () -> CGImage? in
-                    ReaderTranslationImagePreparation.uprightSourceImage(image).cgImage
-                }.value
-                try Task.checkCancellation()
-                guard let pixels else { throw NativeCoreMLDetectorError.imageConversionFailed }
-                guard generation == issued, imageView?.image === image else { throw CancellationError() }
-                let evidence = ReaderTranslationPreparedEvidence()
-                defer { withExtendedLifetime(evidence) {} }
-                try evidence.bind(original: pixels)
-                preparedEvidence = evidence
-                recognized = try await NativeRFOCRSourceReuse.$leasedIdentity.withValue(evidence.verifiedIdentity(for: pixels)) {
-                    try await recognize(pixels, settings.ocrConfiguration)
-                }
-            }
-            try Task.checkCancellation()
-            guard generation == issued, imageView?.image === image else { throw CancellationError() }
-            recognizedImage = image
-            recognizedConfiguration = settings.ocrConfiguration
-            recognizedRegions = recognized
-            let filteringTask = Task.detached(priority: .utility) {
-                try Task.checkCancellation()
-                let prepared = ReaderTranslationImagePreparation.apply(recognized, image: image, settings: settings)
-                let eligible = ReaderTranslationLanguageFilter.apply(prepared, settings: settings)
-                try Task.checkCancellation()
-                return (prepared, eligible)
-            }
-            let selection = try await withTaskCancellationHandler {
-                try await filteringTask.value
-            } onCancel: { filteringTask.cancel() }
-            try Task.checkCancellation()
-            let (sourceOwners, eligible) = selection
-            let eligibleIDs = Set(eligible.map(\.id))
-            let preservingOwners: @Sendable ([ReaderTranslationRegion]) -> [ReaderTranslationRegion] = { translated in
-                ReaderTranslationLanguageFilter.preservingExcludedSource(
-                    original: sourceOwners, translated: translated, eligibleIDs: eligibleIDs)
-            }
-            if translate && !eligible.isEmpty {
-                if let translateRegions { return preservingOwners(try await translateRegions(eligible, settings)) }
-                let progress: ReaderTranslationService.Progress = { [weak self] _ in
-                    try Task.checkCancellation()
-                    try await self?.validateProgress(image: image, generation: issued)
-                }
-                if let progressiveTranslate { return preservingOwners(try await progressiveTranslate(eligible, settings, progress)) }
-                return try await ReaderTranslationService.shared.translate(
-                    regions: sourceOwners, settings: settings, image: image, onProgress: progress
-                )
-            }
-            let untranslated = eligible.map {
-                var region = $0
-                region.translation = nil
-                region.translationReuseIdentity = nil
-                return region
-            }
-            return preservingOwners(untranslated)
-        }
-        self.task = task
-        defer { if generation == issued { self.task = nil } }
-        let result: [ReaderTranslationRegion]
-        do {
-            result = try await withTaskCancellationHandler {
-                try await task.value
-            } onCancel: {
-                task.cancel()
-            }
-        } catch {
-            if generation == issued { preparedEvidence = nil }
-            throw error
-        }
-        try Task.checkCancellation()
-        guard generation == issued, let imageView, imageView.image === image else { throw CancellationError() }
-        completedTranslation = translate
-        try publish(result, image: image, settings: settings, generation: issued, renderOverlay: renderOverlay)
-        return result.count
-    }
-
+    /// Only a presented V2 page bitmap can be saved; it is the finished page.
     var canExportTranslation: Bool {
-        if isPresentingV2 { return !isExportingTranslation && cachedOverlay?.snapshotImage != nil }
-        return !isExportingTranslation && completedTranslation && analyzedImage != nil && analyzedImage === imageView?.image &&
-            regions.contains { !($0.translation?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true) }
+        isPresentingV2 && cachedOverlay?.snapshotImage != nil
     }
 
     func exportTranslatedImage(host: UIView) async throws -> UIImage {
-        if isPresentingV2 {
-            guard let snapshot = cachedOverlay?.snapshotImage else { throw ReaderTranslationImageExporter.ExportError.unavailable }
-            return snapshot
-        }
-        guard canExportTranslation, let imageView, let image = imageView.image, let settings = lastSettings else {
+        guard isPresentingV2, let snapshot = cachedOverlay?.snapshotImage else {
             throw ReaderTranslationImageExporter.ExportError.unavailable
         }
-        isExportingTranslation = true
-        defer { isExportingTranslation = false }
-        // Freeze the tapped page, including its already-cropped regions, before any await.
-        return try await ReaderTranslationImageExporter.render(
-            image: image, regions: regions, settings: settings, viewport: imageView.bounds.size,
-            aspectFit: imageView.contentMode == .scaleAspectFit, host: host
-        )
-    }
-
-    func hasCompletedTranslation(settings: ReaderTranslationSettings) -> Bool {
-        completedTranslation && analyzedImage != nil && analyzedImage === imageView?.image &&
-            lastSettings?.hasSameTranslation(as: settings) == true
-    }
-
-    func showCompletedTranslation(settings: ReaderTranslationSettings) {
-        preview = nil
-        guard hasCompletedTranslation(settings: settings) else { return }
-        // A completed native frame remains valid when optional cache storage
-        // is unavailable. Repeated session publication must reuse that frame.
-        let needsRender = overlay.map { $0.needsRendering && !$0.isRendering } ?? false
-        if (overlay == nil && cachedOverlay == nil) || lastSettings?.overlay != settings.overlay ||
-            overlay?.hasFailedRendering == true || needsRender,
-            !regions.isEmpty, let image = imageView?.image {
-            try? publish(regions, image: image, settings: settings, generation: generation)
-        }
-        overlay?.isHidden = !settings.overlay.visible
-        cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
-    }
-
-    private func publish(
-        _ result: [ReaderTranslationRegion], image: UIImage, settings: ReaderTranslationSettings, generation issued: UUID,
-        renderOverlay: Bool = true
-    ) throws {
-        guard generation == issued, let imageView, imageView.image === image else { throw CancellationError() }
-        regions = result
-        analyzedImage = image
-        analyzedConfiguration = settings.ocrConfiguration
-        lastSettings = settings
-        guard renderOverlay else { return }
-        // OCR and partial batches have different geometry after SFX filtering.
-        // Leave the source image untouched until the whole translation is ready.
-        guard completedTranslation, !result.isEmpty else { releaseOverlay(); return }
-        if completedTranslation, let renderCache, let sourcePage, imageView.bounds.width > 0, imageView.bounds.height > 0 {
-            let viewport = imageView.bounds.size
-            let dark = imageView.traitCollection.userInterfaceStyle == .dark
-            let renderKey = ReaderTranslationCacheIdentity.render(
-                page: sourcePage.translationCacheKey, settings: settings, imageSize: image.size, viewport: imageView.bounds.size,
-                scale: imageView.traitCollection.displayScale, aspectFit: imageView.contentMode == .scaleAspectFit,
-                crop: sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1),
-                dark: imageView.traitCollection.userInterfaceStyle == .dark
-            )
-            let regionsDigest = ReaderTranslationRenderAsset.digest(result)
-            let key = ReaderTranslationRenderCache.snapshotKey(renderKey: renderKey, regionsDigest: regionsDigest)
-            if let cached = renderCache.cachedSnapshot(for: key, source: image) {
-                ReaderTranslationDiagnostics.record("visible_bitmap_hit", page: sourcePage.index + 1, count: result.count)
-                displaySnapshot(cached, source: image, settings: settings)
-                return
-            }
-            if renderLookupKey == key, renderLookupTask != nil { return }
-            renderLookupTask?.cancel()
-            renderLookupKey = key
-            // Native composition can run while the cache actor is busy.
-            // Generation is required for persistence, not attaching UI.
-            let diskGeneration = Task { await renderCache.disk.currentGeneration(settings: settings) }
-            let pageIdentity = ReaderTranslationCacheIdentity.translation(page: sourcePage.translationCacheKey, settings: settings)
-            renderCache.cancelPreparation(for: key)
-            ReaderTranslationDiagnostics.record("visible_bitmap_miss", page: sourcePage.index + 1, count: result.count)
-            let layoutKey = ReaderTranslationRenderCache.layoutKey(renderKey: renderKey, regionsDigest: regionsDigest)
-            let target = ReaderTranslationSnapshotTarget(
-                cache: renderCache, key: key, pageIdentity: pageIdentity,
-                diskGeneration: nil, viewport: viewport, dark: dark,
-                preparedLayout: renderCache.cachedLayout(for: layoutKey).map { data in Task { data } },
-                pendingDiskGeneration: diskGeneration, renderKey: renderKey, layoutKey: layoutKey
-            )
-            displayLive(result, image: image, settings: settings, target: target, retainsFrame: showsProvisional)
-            showsProvisional = false
-            provisionalShown = nil
-            renderLookupTask = Task { [weak self] in
-                let storedGeneration = await diskGeneration.value
-                guard !Task.isCancelled, let self, generation == issued, imageView.image === image, renderLookupKey == key else { return }
-                let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-                // Split images round to whole pixels; reversing their crop can
-                // invent a different full-page width. Only record exact sizes.
-                if crop == CGRect(x: 0, y: 0, width: 1, height: 1) {
-                    try? await renderCache.disk.storeImageSize(image.size,
-                        page: sourcePage.translationCacheKey, generation: storedGeneration)
-                }
-                // storeImageSize suspends too: a cancelled lookup must not
-                // clear a replacement for the same render key on resumption.
-                guard !Task.isCancelled, generation == issued, imageView.image === image,
-                      renderLookupKey == key else { return }
-                renderLookupTask = nil
-            }
-            return
-        }
-        displayLive(result, image: image, settings: settings, target: nil, retainsFrame: showsProvisional)
-        showsProvisional = false
-        provisionalShown = nil
-    }
-
-    /// Shows streamed translations of the visible page while its batch is
-    /// still running. Untranslated regions keep the original image (no item,
-    /// so no cleanup). Updates are coalesced: at most one render per
-    /// `provisionalRenderInterval`, never while the previous one is still
-    /// committing. A completed presentation is never replaced.
-    func displayProvisional(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
-                            evidence: ReaderTranslationPreparedEvidence? = nil) {
-        if let evidence { preparedEvidence = evidence }
-        guard settings.overlay.visible, let image = imageView?.image, cachedOverlay == nil,
-              !(completedTranslation && analyzedImage === image), overlay == nil || showsProvisional else { return }
-        let rect = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-        let displayed = result.filter { $0.translation != nil }.compactMap { $0.cropped(to: rect) }
-        guard !displayed.isEmpty, displayed != provisionalShown else { return }
-        provisionalPending = displayed
-        scheduleProvisionalRender(image: image, settings: settings)
-    }
-
-    /// Removes a provisional presentation after failure or cancellation.
-    func discardProvisionalTranslation() {
-        provisionalTask?.cancel()
-        provisionalTask = nil
-        provisionalPending = nil
-        if showsProvisional { releaseOverlay() }
-    }
-
-    private func scheduleProvisionalRender(image: UIImage, settings: ReaderTranslationSettings) {
-        guard provisionalTask == nil else { return }
-        let now = ProcessInfo.processInfo.systemUptime
-        let committing = provisionalCommitPending && now - provisionalRenderedAt < Self.provisionalCommitTimeout
-        let delay = committing ? Self.provisionalCommitTimeout - (now - provisionalRenderedAt)
-            : max(0, provisionalRenderedAt + Self.provisionalRenderInterval - now)
-        let issued = generation
-        provisionalTask = Task { [weak self, weak image] in
-            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
-            guard !Task.isCancelled, let self else { return }
-            provisionalTask = nil
-            guard generation == issued, let image, imageView?.image === image else { provisionalPending = nil; return }
-            renderPendingProvisional(image: image, settings: settings)
-        }
-    }
-
-    private func renderPendingProvisional(image: UIImage, settings: ReaderTranslationSettings) {
-        guard let pending = provisionalPending else { return }
-        let now = ProcessInfo.processInfo.systemUptime
-        if provisionalCommitPending, now - provisionalRenderedAt < Self.provisionalCommitTimeout {
-            // The commit callback (or the timeout) renders the latest state.
-            scheduleProvisionalRender(image: image, settings: settings)
-            return
-        }
-        guard cachedOverlay == nil, !(completedTranslation && analyzedImage === image), overlay == nil || showsProvisional else {
-            provisionalPending = nil
-            return
-        }
-        provisionalPending = nil
-        provisionalShown = pending
-        provisionalRenderedAt = now
-        provisionalCommitPending = true
-        provisionalRenderCount += 1
-        let retains = showsProvisional
-        showsProvisional = true
-        ReaderTranslationDiagnostics.record("visible_provisional_render", page: diagnosticContext?.page ?? -1, count: pending.count)
-        displayLive(pending, image: image, settings: settings, target: nil, retainsFrame: retains)
-        let committed = overlay?.onRenderCommitted
-        overlay?.onRenderCommitted = { [weak self] in
-            committed?()
-            guard let self, showsProvisional else { return }
-            provisionalCommitPending = false
-            // Replace a timeout wait with the normal render interval.
-            provisionalTask?.cancel()
-            provisionalTask = nil
-            if provisionalPending != nil, let image = imageView?.image { scheduleProvisionalRender(image: image, settings: settings) }
-        }
-    }
-
-    private func validateProgress(image: UIImage, generation issued: UUID) throws {
-        guard generation == issued, imageView?.image === image else { throw CancellationError() }
-    }
-
-    private func displayLive(_ result: [ReaderTranslationRegion], image: UIImage, settings: ReaderTranslationSettings,
-                             target: ReaderTranslationSnapshotTarget?, retainsFrame: Bool = false) {
-        hasLoadedCachedPresentation = false
-        guard let imageView else { return }
-        cachedOverlay?.releaseHighlight()
-        cachedOverlay?.removeFromSuperview()
-        cachedOverlay = nil
-        let overlay = overlay ?? ReaderTranslationOverlayView()
-        isPreparingEmptyOverlay = false
-        // Reused overlays must follow the new image viewport too. Otherwise a
-        // geometry invalidation republishes the same stale bounds forever.
-        overlay.diagnosticContext = diagnosticContext
-        overlay.frame = imageView.bounds
-        if overlay.superview == nil {
-            overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            // Keep dictionary selection and Live Text controls above the translated image.
-            imageView.insertSubview(overlay, at: 0)
-        }
-        self.overlay = overlay
-        ReaderTranslationDiagnostics.record("visible_live_attached", page: diagnosticContext?.page ?? -1,
-                                            count: Int(imageView.bounds.width), code: Int(imageView.bounds.height), context: diagnosticContext)
-        overlay.onRenderCommitted = { [weak self, weak overlay] in
-            guard let self, self.overlay === overlay else { return }
-            ReaderTranslationDiagnostics.record("visible_live_committed", page: diagnosticContext?.page ?? -1,
-                                                count: regions.count, context: diagnosticContext)
-        }
-        overlay.onRenderFailed = { [weak self, weak overlay, weak imageView] in
-            guard let self, let overlay, self.overlay === overlay, imageView?.image === image else { return }
-            ReaderTranslationDiagnostics.record("visible_live_failed", context: diagnosticContext)
-            if showsProvisional {
-                provisionalCommitPending = false
-                provisionalTask?.cancel()
-                provisionalTask = nil
-                if provisionalPending != nil { scheduleProvisionalRender(image: image, settings: settings) }
-            } else if overlay.renderedImage == nil {
-                // Keep the reader's original page visible and permit a later completed
-                // publication to retry, rather than retaining an empty failed wrapper.
-                releaseOverlay()
-            }
-        }
-        let issued = generation
-        overlay.onSnapshotStored = { [weak self, weak overlay, weak imageView] snapshot in
-            guard let self, let overlay, self.overlay === overlay, generation == issued,
-                  imageView?.image === image, completedTranslation, lastSettings == settings,
-                  let target, imageView.map { ReaderTranslationGeometry.sameViewport($0.bounds.size, target.viewport) } == true,
-                  (imageView?.traitCollection.userInterfaceStyle == .dark) == target.dark else { return }
-            displaySnapshot(snapshot, source: image, settings: settings)
-        }
-        overlay.onCacheGeometryChanged = { [weak self, weak overlay] in
-            guard let self, let overlay, self.overlay === overlay, self.imageView?.image === image else { return }
-            // Hidden presentations are rebuilt on demand after ON. A layout
-            // callback while OFF must not resurrect a visible renderer.
-            guard !overlay.isHidden else { releaseOverlay(); return }
-            // An invalidated native viewport needs a fresh target even while the
-            // previous target still waits for its disk generation. Its cancelled
-            // lookup cannot clear or publish over the replacement after suspension.
-            renderLookupTask?.cancel()
-            renderLookupTask = nil
-            renderLookupKey = nil
-            try? publish(regions, image: image, settings: settings, generation: generation)
-        }
-        overlay.isHidden = !settings.overlay.visible
-        overlay.update(
-            regions: result, imageSize: image.size, aspectFit: imageView.contentMode == .scaleAspectFit,
-            settings: settings, image: image, snapshotTarget: target, retainsCommittedFrame: retainsFrame,
-            evidence: preparedEvidence
-        )
-        overlay.layoutIfNeeded()
+        return snapshot
     }
 
     /// Called inside the loader's synchronous source + presentation commit.
-    func displayLoadedImage(_ prepared: ReaderTranslationPreparedImage, isKnownStatic: Bool = false) {
-        guard !Task.isCancelled, let source = imageView?.image, prepared.isCurrent(for: source) else { return }
-        if hasLoadedCachedPresentation, analyzedImage === source, cachedOverlay?.snapshotImage === prepared.image,
-           lastSettings == prepared.settings {
-            if !isKnownStatic { disallowSettledHighlight() }
-            cachedOverlay?.setPresentationHidden(!prepared.settings.overlay.visible)
-            return
-        }
-        reset()
-        if let diagnostic = prepared.diagnosticContext { diagnosticContext = diagnostic }
-        let crop = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-        regions = prepared.regions.compactMap { $0.cropped(to: crop) }
-        analyzedImage = source
-        analyzedConfiguration = prepared.settings.ocrConfiguration
-        lastSettings = prepared.settings
-        completedTranslation = true
-        displaySnapshot(prepared.image, source: source, settings: prepared.settings, sourceSized: true,
-                        settledGeometry: isKnownStatic ? prepared.freshSettledGeometry : nil)
-        hasLoadedCachedPresentation = true
-    }
-
-    func disallowSettledHighlight() {
-        cachedOverlay?.disallowHighlight()
+    func displayLoadedImage(_ prepared: ReaderTranslationPreparedImage) {
+        guard !Task.isCancelled, let source = imageView?.image, prepared.isCurrent(for: source),
+              let key = prepared.v2CacheKey else { return }
+        displayLoadedV2(prepared.image, key: key, source: source, settings: prepared.settings)
     }
 
     private func displaySnapshot(
-        _ snapshot: UIImage, source: UIImage, settings: ReaderTranslationSettings, sourceSized: Bool = false,
-        settledGeometry: ReaderTranslationImageGeometry? = nil
+        _ snapshot: UIImage, source: UIImage, settings: ReaderTranslationSettings, sourceSized: Bool = false
     ) {
         guard let imageView else { return }
         releaseOverlay()
@@ -633,7 +100,6 @@ final class ReaderTranslationPage {
         canvas.snapshotImage = snapshot
         canvas.sourceImage = source
         canvas.sourceView = imageView
-        canvas.settledGeometry = settledGeometry
         canvas.frame = imageView.bounds
         canvas.initialSize = imageView.bounds.size
         canvas.initialStyle = imageView.traitCollection.userInterfaceStyle
@@ -642,25 +108,6 @@ final class ReaderTranslationPage {
         canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         canvas.setPresentationHidden(!settings.overlay.visible)
         canvas.accessibilityIdentifier = "reader.translation.cachedOverlay"
-        canvas.onGeometryChanged = { [weak self, weak canvas, weak imageView] in
-            guard let self, let canvas, cachedOverlay === canvas, imageView?.image === source else { return }
-            guard !canvas.isHidden else { releaseOverlay(); return }
-            // This bitmap contains the page itself, not a viewport/letterbox.
-            // The original and translated image keep the same content transform
-            // when a preloaded page joins the reader or its bounds change.
-            if sourceSized, imageView?.traitCollection.userInterfaceStyle == canvas.initialStyle {
-                canvas.initialSize = canvas.bounds.size
-                canvas.initialScale = canvas.traitCollection.displayScale
-                canvas.setPresentationHidden(false)
-                return
-            }
-            releaseOverlay()
-            if let preview {
-                displayPreparedSnapshot(preview.original, settings: settings)
-            } else {
-                try? publish(regions, image: source, settings: settings, generation: generation)
-            }
-        }
         if imageView.bounds.width <= 0 || imageView.bounds.height <= 0 {
             ReaderTranslationDiagnostics.record("bitmap_attached_before_layout", context: diagnosticContext)
         }
@@ -669,159 +116,13 @@ final class ReaderTranslationPage {
         ReaderTranslationDiagnostics.record("visible_bitmap_attached", page: diagnosticContext?.page ?? -1,
                                             count: Int(imageView.bounds.width), code: Int(imageView.bounds.height), context: diagnosticContext)
     }
-
-    func displayPrepared(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, completed: Bool = true,
-                         evidence: ReaderTranslationPreparedEvidence? = nil) {
-        guard completed else { return }
-        if let evidence { preparedEvidence = evidence }
-        preview = nil
-        guard let image = imageView?.image else { return }
-        let rect = sourcePage?.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-        let displayed = result.compactMap { $0.cropped(to: rect) }
-        if hasCompletedTranslation(settings: settings), regions == displayed {
-            showCompletedTranslation(settings: settings)
-            return
-        }
-        if analyzedImage === image, regions == displayed, lastSettings == settings, completedTranslation == completed,
-           overlay != nil || cachedOverlay != nil {
-            // OFF retains a hidden renderer. Restore the completed presentation
-            // after ON even when its content has not changed.
-            overlay?.isHidden = !settings.overlay.visible
-            cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
-            return
-        }
-        cancel(preservingPendingOverlayNavigation: true)
-        completedTranslation = completed
-        try? publish(displayed, image: image, settings: settings, generation: generation)
-    }
-
-    /// Attach a finished composite to an adjacent reader view before a swipe.
-    /// A cache miss leaves the source alone; only the session's bounded renderer
-    /// may create missing pixels. Preloaded pages only attach completed cached bitmaps.
-    func displayPreparedSnapshot(_ result: [ReaderTranslationRegion], settings: ReaderTranslationSettings, memoryOnly: Bool = false) {
-        guard let imageView, let image = imageView.image, let sourcePage, let renderCache,
-              imageView.bounds.width > 0, imageView.bounds.height > 0 else { return }
-        let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-        let displayed: [ReaderTranslationRegion]
-        if let preview, preview.crop == crop, preview.original == result {
-            displayed = preview.displayed
-        } else {
-            displayed = result.compactMap { $0.cropped(to: crop) }
-        }
-        if isUsingCachedRendering, analyzedImage === image, lastSettings == settings, regions == displayed {
-            cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
-            return
-        }
-        if isUsingCachedRendering {
-            // A new final result invalidates the old preview even if its new
-            // bitmap is not ready. Empty results will never have a bitmap.
-            cancel()
-            releaseOverlay()
-            preview = nil
-            completedTranslation = false
-        }
-        let viewport = imageView.bounds.size
-        let dark = imageView.traitCollection.userInterfaceStyle == .dark
-        let renderKey = ReaderTranslationCacheIdentity.render(page: sourcePage.translationCacheKey, settings: settings,
-            imageSize: image.size, viewport: viewport, scale: imageView.traitCollection.displayScale,
-            aspectFit: imageView.contentMode == .scaleAspectFit, crop: crop, dark: dark)
-        let key = ReaderTranslationRenderCache.snapshotKey(renderKey: renderKey, regions: displayed)
-        if let snapshot = renderCache.cachedSnapshot(for: key, source: image) {
-            acceptPreview(snapshot, result: result, displayed: displayed, image: image, crop: crop, settings: settings)
-            return
-        }
-        guard !memoryOnly else { return }
-        guard renderLookupKey != key || renderLookupTask == nil else { return }
-        renderLookupTask?.cancel()
-        renderLookupKey = key
-        let issued = generation
-        renderLookupTask = Task { [weak self, weak imageView] in
-            let snapshot = await renderCache.loadSnapshot(key, source: image)
-            guard !Task.isCancelled, let self, let imageView, generation == issued,
-                  imageView.image === image, renderLookupKey == key else { return }
-            renderLookupTask = nil
-            guard let snapshot, ReaderTranslationGeometry.sameViewport(imageView.bounds.size, viewport),
-                  (imageView.traitCollection.userInterfaceStyle == .dark) == dark else { return }
-            acceptPreview(snapshot, result: result, displayed: displayed, image: image, crop: crop, settings: settings)
-        }
-    }
-
-    private func acceptPreview(_ snapshot: UIImage, result: [ReaderTranslationRegion], displayed: [ReaderTranslationRegion],
-                               image: UIImage, crop: CGRect, settings: ReaderTranslationSettings) {
-        cancel()
-        preview = (result, crop, displayed)
-        regions = displayed
-        analyzedImage = image
-        analyzedConfiguration = settings.ocrConfiguration
-        lastSettings = settings
-        completedTranslation = true
-        displaySnapshot(snapshot, source: image, settings: settings)
-    }
-
-    func applySettings(_ settings: ReaderTranslationSettings) {
-        let hadPresentation = overlay != nil || cachedOverlay != nil
-        let wasHidden = overlay?.isHidden ?? cachedOverlay?.isHidden ?? true
-        cancel()
-        guard let old = lastSettings, let image = imageView?.image, analyzedImage === image else { return }
-        if old.automaticallyTranslate != settings.automaticallyTranslate,
-           old.hasSameTranslation(as: settings), old.overlay == settings.overlay {
-            // Do not start a hidden export while OFF or replace a reusable
-            // bitmap. ON may arrive after the session already started rendering;
-            // rebind that presentation if cancellation invalidated its snapshot.
-            lastSettings = settings
-            if !settings.automaticallyTranslate {
-                overlay?.isHidden = true
-                cachedOverlay?.setPresentationHidden(true)
-            } else if hadPresentation {
-                showCompletedTranslation(settings: settings)
-            }
-            return
-        }
-        if let preview {
-            releaseOverlay()
-            if old.hasSameTranslation(as: settings), settings.automaticallyTranslate {
-                displayPreparedSnapshot(preview.original, settings: settings)
-            } else {
-                self.preview = nil
-                completedTranslation = false
-                lastSettings = settings
-            }
-            return
-        }
-        guard old.ocrConfiguration == settings.ocrConfiguration else { reset(); return }
-        if old.rightToLeftPanelOrder != settings.rightToLeftPanelOrder || old.sourceLanguage != settings.sourceLanguage ||
-            ReaderTranslationLanguageFilter.identity(settings: old) != ReaderTranslationLanguageFilter.identity(settings: settings) {
-            completedTranslation = false
-            regions = []
-            lastSettings = settings
-            releaseOverlay()
-            return
-        }
-        if old.includePageImage != settings.includePageImage || old.configuration != settings.configuration || old.sourceLanguage != settings.sourceLanguage ||
-            old.targetLanguage != settings.targetLanguage {
-            completedTranslation = false
-            regions = regions.map {
-                var region = $0
-                region.translation = nil
-                region.translationReuseIdentity = nil
-                return region
-            }
-        }
-        guard hadPresentation else { lastSettings = settings; return }
-        try? publish(regions, image: image, settings: settings, generation: generation)
-        if wasHidden || !settings.automaticallyTranslate {
-            overlay?.isHidden = true
-            cachedOverlay?.setPresentationHidden(true)
-        }
-    }
 }
 
 // MARK: - V2 pipeline presentation
 
 extension ReaderTranslationPage {
     /// Starts (or keeps) V2 translation of the displayed image. The result is a
-    /// complete page bitmap presented through the cached-page canvas; legacy
-    /// OCR/overlay state is never involved. Repeated calls for the same source
+    /// complete page bitmap presented through the cached-page canvas. Repeated calls for the same source
     /// and identity are free, and a failure is not retried until `retryV2()`.
     func processV2(settings: ReaderTranslationSettings, persistsCache: Bool,
                    onPresented: @escaping @MainActor () -> Void = {},
@@ -846,7 +147,7 @@ extension ReaderTranslationPage {
                 try Task.checkCancellation()
                 guard let pixels else { throw NativeCoreMLDetectorError.imageConversionFailed }
                 let output = try await ReaderTranslationV2Service.shared.translatePage(
-                    pixels, cacheKey: persistsCache ? key : nil, settings: settings, priority: .foreground)
+                    pixels, cacheKey: key, persists: persistsCache, settings: settings, priority: .foreground)
                 try Task.checkCancellation()
                 guard let self, generation == issued, v2Identity == key, self.imageView?.image === image else { return }
                 v2Task = nil
@@ -890,6 +191,21 @@ extension ReaderTranslationPage {
         v2Identity = nil
     }
 
+    /// A cached V2 bitmap attached in the loader's source commit (no source flash).
+    /// The later `processV2` call for the same key and source is then free.
+    private func displayLoadedV2(_ output: UIImage, key: String, source: UIImage, settings: ReaderTranslationSettings) {
+        if isPresentingV2, v2Identity == key, v2Source === source {
+            cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
+            return
+        }
+        reset()
+        v2Identity = key
+        v2Source = source
+        v2Failed = false
+        displayV2(output, source: source, settings: settings)
+        hasLoadedCachedPresentation = true
+    }
+
     private func displayV2(_ output: UIImage, source: UIImage, settings: ReaderTranslationSettings) {
         let identity = v2Identity
         displaySnapshot(output, source: source, settings: settings, sourceSized: true)
@@ -897,7 +213,7 @@ extension ReaderTranslationPage {
         v2Source = source
         isPresentingV2 = true
         // The bitmap is the whole source-aspect page: geometry or appearance
-        // changes never require a re-render (unlike viewport-sized legacy frames).
+        // changes never require a re-render.
         cachedOverlay?.onGeometryChanged = { [weak canvas = cachedOverlay] in
             guard let canvas else { return }
             canvas.initialSize = canvas.bounds.size
@@ -911,8 +227,6 @@ extension ReaderTranslationPage {
     var snapshotImage: UIImage?
     weak var sourceImage: UIImage?
     weak var sourceView: UIImageView?
-    var settledGeometry: ReaderTranslationImageGeometry?
-    private let highlight = ReaderTranslationSettledHighlight()
     var initialSize = CGSize.zero
     var initialStyle: UIUserInterfaceStyle = .unspecified
     var initialScale: CGFloat = 0
@@ -920,44 +234,15 @@ extension ReaderTranslationPage {
 
     func setPresentationHidden(_ hidden: Bool) {
         isHidden = hidden
-        if settledGeometry != nil, sourceView?.image !== sourceImage {
-            releaseHighlight()
-            // A stale typed bitmap must not cover a replacement source.
-            if image != nil { image = nil }
-            return
-        }
-        let visibleAlternate: Bool
-        if !hidden, let sourceView, let sourceImage, sourceView.image === sourceImage,
-           let snapshotImage, let settledGeometry, ReaderTranslationSettledHighlight.matches(settledGeometry, in: sourceView) {
-            visibleAlternate = highlight.isActive(in: sourceView) ||
-                highlight.acquire(view: sourceView, source: sourceImage, settled: snapshotImage,
-                                  geometry: settledGeometry, isKnownStatic: true)
-        } else {
-            visibleAlternate = false
-        }
-        if !visibleAlternate { releaseHighlight() }
-        // Remain attached as a geometry watcher, but never draw both planes.
-        let next = visibleAlternate ? nil : snapshotImage
-        if image !== next { image = next }
-    }
-
-    func disallowHighlight() {
-        settledGeometry = nil
-        setPresentationHidden(isHidden)
-    }
-
-    func releaseHighlight() {
-        highlight.release()
+        if image !== snapshotImage { image = snapshotImage }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        if settledGeometry != nil, !isHidden { setPresentationHidden(false) }
         if !ReaderTranslationGeometry.sameViewport(bounds.size, initialSize) { onGeometryChanged?() }
     }
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        if settledGeometry != nil, !isHidden { setPresentationHidden(false) }
         if traitCollection.userInterfaceStyle != initialStyle || traitCollection.displayScale != initialScale { onGeometryChanged?() }
     }
 }

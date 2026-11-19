@@ -5,127 +5,80 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-// Mac host entry for the V2 pipeline:
-//   swift Scripts/image-translation.swift --pipeline v2 [options] [images...]
-// Options:
-//   --list FILE                JSON array of image paths or {"page_id","image_path"} objects
-//   --split dev|train|test     pages of one canonical split (test: run only, never for selection)
-//   --manifest FILE            split manifest (default: canonical grouped-source manifest)
-//   --limit N                  first N pages after selection
-//   --output DIR               output root (default ../output/image-translation-v2/run-<UUID>)
-//   --jobs N                   pages in flight (default 3); models stay resident
-//   --replay-translations DIR  fill S5 from a saved legacy run (page-index.json); no LLM
-//   --replay-fill-unmatched    replay: give blocks with no legacy counterpart a synthetic Korean
-//                              placeholder of similar length so S6-S10 exercise every block
-//   --no-png                   skip final PNG encoding
-//   --translate-delay-ms N     replay: hold S5 for N ms (models a live LLM wait; no CPU used)
-//   --writers N                concurrent PNG/JSON writers off the page slots (default 2)
-// Live LLM translation is intentionally not wired in this host yet.
+// Mac host entry for the V2 page-translation pipeline (Docs/translation-v2.md):
+//   swift Scripts/image-translation.swift [options] <image|folder ...> [--list FILE]
+// Options and settings: Scripts/image-translation/help.txt and V2HostSettings.swift.
+// Modes: live (default; real provider through V2Translation), --replay-translations
+// (saved translations, no provider call) and --ocr-only (S1-S4, no LLM/render).
 
-struct V2HostError: Error, CustomStringConvertible {
-    let description: String
-    init(_ text: String) { description = text }
+/// Bounds concurrent provider calls (the app's shared limiter caps page calls at three).
+actor V2ProviderGate {
+    private var available: Int
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    init(_ count: Int) { available = max(1, count) }
+
+    func acquire() async {
+        if available > 0 { available -= 1; return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        if waiters.isEmpty { available += 1 } else { waiters.removeFirst().resume() }
+    }
+
+    func with<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
+        await acquire()
+        do {
+            let value = try await body()
+            release()
+            return value
+        } catch {
+            release()
+            throw error
+        }
+    }
 }
 
-struct V2HostOptions {
-    var images: [(id: String, path: String)] = []
-    var output: URL?
-    var jobs = 3
-    var replay: URL?
-    var fillUnmatched = false
-    var writePNG = true
-    var split: String?
-    var limit: Int?
-    var translateDelay: UInt64 = 0
-    var writers = 2
+/// Saved translations for `--replay-translations`: a legacy run (`page-index.json`) or a V2 run (`pages/*.json`).
+struct V2HostReplay: Sendable {
+    private let legacy: V2TranslationReplay?
+    private let pages: URL?
+
+    init(root: URL) throws {
+        if FileManager.default.fileExists(atPath: root.appendingPathComponent("page-index.json").path) {
+            legacy = try V2TranslationReplay(root: root)
+            pages = nil
+        } else if FileManager.default.fileExists(atPath: root.appendingPathComponent("pages").path) {
+            legacy = nil
+            pages = root.appendingPathComponent("pages")
+        } else {
+            throw V2HostError("--replay-translations needs a saved run with page-index.json or pages/")
+        }
+    }
+
+    /// Saved regions in page pixels, or nil when the page was not saved.
+    func entries(pageID: String) -> [V2TranslationReplay.Entry]? {
+        if let legacy { return legacy.entries(pageID: pageID) }
+        guard let pages, let data = try? Data(contentsOf: pages.appendingPathComponent(pageID + ".json")),
+              let record = try? JSONDecoder().decode(V2Main.PageRecord.self, from: data) else { return nil }
+        return record.blocks.map { block in
+            V2TranslationReplay.Entry(id: String(block.id), source: block.sourceText, rect: block.bounds,
+                                      translation: block.translation, role: block.role.rawValue)
+        }
+    }
 }
 
 @main
 @available(macOS 15.0, *)
 enum V2Main {
-    static let defaultManifest = "pipeline-generalization-20261117/evaluation-audit/CANONICAL-GROUPED-SOURCE-MANIFEST.json"
-
     static func main() async {
-        do { try await execute() } catch {
-            FileHandle.standardError.write(Data("image-translation-v2: \(error)\n".utf8))
-            exit(1)
+        do { exit(try await execute()) } catch {
+            FileHandle.standardError.write(Data("image-translation: \(error)\n".utf8))
+            exit(2)
         }
     }
 
     static func log(_ text: String) { FileHandle.standardError.write(Data((text + "\n").utf8)) }
-
-    static func parse(_ arguments: [String], root: URL) throws -> V2HostOptions {
-        var options = V2HostOptions()
-        var manifest = root.deletingLastPathComponent().appendingPathComponent(defaultManifest)
-        var listFile: String?
-        var iterator = arguments.makeIterator()
-        func value(_ flag: String) throws -> String {
-            guard let next = iterator.next() else { throw V2HostError("\(flag) needs a value") }
-            return next
-        }
-        while let argument = iterator.next() {
-            switch argument {
-            case "--list": listFile = try value(argument)
-            case "--output": options.output = URL(fileURLWithPath: try value(argument)).standardizedFileURL
-            case "--jobs": options.jobs = max(1, Int(try value(argument)) ?? 3)
-            case "--replay-translations": options.replay = URL(fileURLWithPath: try value(argument))
-            case "--split": options.split = try value(argument)
-            case "--manifest": manifest = URL(fileURLWithPath: try value(argument))
-            case "--limit": options.limit = Int(try value(argument))
-            case "--no-png": options.writePNG = false
-            case "--replay-fill-unmatched": options.fillUnmatched = true
-            case "--translate-delay-ms": options.translateDelay = UInt64(max(0, Int(try value(argument)) ?? 0))
-            case "--writers": options.writers = max(1, Int(try value(argument)) ?? 2)
-            default:
-                guard !argument.hasPrefix("--") else { throw V2HostError("unknown option \(argument)") }
-                options.images += try expand(argument)
-            }
-        }
-        if let listFile {
-            let data = try Data(contentsOf: URL(fileURLWithPath: listFile))
-            for item in (try JSONSerialization.jsonObject(with: data)) as? [Any] ?? [] {
-                if let path = item as? String {
-                    options.images.append((pageID(for: path), path))
-                } else if let object = item as? [String: Any], let path = object["image_path"] as? String {
-                    options.images.append(((object["page_id"] as? String) ?? pageID(for: path), path))
-                }
-            }
-        }
-        if let split = options.split {
-            guard ["dev", "train", "test"].contains(split) else { throw V2HostError("--split must be dev, train or test") }
-            if split == "test" { log("WARNING: TEST split. Run once at the end; never use for fitting or selection.") }
-            let data = try Data(contentsOf: manifest)
-            let pages = ((try JSONSerialization.jsonObject(with: data)) as? [String: Any])?["pages"] as? [[String: Any]] ?? []
-            for page in pages where page["split"] as? String == split {
-                if let id = page["page_id"] as? String, let path = page["image_path"] as? String {
-                    options.images.append((id, path))
-                }
-            }
-        }
-        if let limit = options.limit { options.images = Array(options.images.prefix(max(0, limit))) }
-        guard !options.images.isEmpty else { throw V2HostError("no input pages") }
-        return options
-    }
-
-    static func pageID(for path: String) -> String {
-        let url = URL(fileURLWithPath: path)
-        let stem = url.deletingPathExtension().lastPathComponent
-        return stem == "input" ? url.deletingLastPathComponent().lastPathComponent : stem
-    }
-
-    static func expand(_ path: String) throws -> [(id: String, path: String)] {
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) else {
-            throw V2HostError("missing input \(path)")
-        }
-        guard isDirectory.boolValue else { return [(pageID(for: path), path)] }
-        let names = try FileManager.default.contentsOfDirectory(atPath: path).sorted()
-        return names.filter { ["png", "jpg", "jpeg", "webp"].contains(($0 as NSString).pathExtension.lowercased()) }
-            .map { name in
-                let full = (path as NSString).appendingPathComponent(name)
-                return (pageID(for: full), full)
-            }
-    }
 
     /// Compiles the V2 model set into a private bundle (cached by package path/size/mtime).
     static func prepareBundle(root: URL, cache: URL) throws -> Bundle {
@@ -185,15 +138,45 @@ enum V2Main {
         guard CGImageDestinationFinalize(destination) else { throw V2HostError("cannot write \(url.path)") }
     }
 
+    /// The page JPEG sent with the provider request; same policy as the app's
+    /// `ReaderTranslationImagePreparation.translationJPEG` (long side <= 2048, white matte, q 0.85, <= 4 MiB).
+    static func translationJPEG(_ image: CGImage) throws -> Data {
+        guard image.width > 0, image.height > 0 else { throw RemoteTranslationError.invalidRequest("The page image is empty.") }
+        let ratio = min(1, 2048 / Double(max(image.width, image.height)))
+        let width = max(1, Int((Double(image.width) * ratio).rounded()))
+        let height = max(1, Int((Double(image.height) * ratio).rounded()))
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
+            throw RemoteTranslationError.invalidRequest("The page image could not be prepared for translation.")
+        }
+        context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let data = NSMutableData()
+        guard let normalized = context.makeImage(),
+              let destination = CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil) else {
+            throw RemoteTranslationError.invalidRequest("The page image could not be prepared for translation.")
+        }
+        CGImageDestinationAddImage(destination, normalized, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
+        guard CGImageDestinationFinalize(destination), data.length <= 4 * 1024 * 1024 else {
+            throw RemoteTranslationError.invalidRequest("The page image could not be prepared for translation.")
+        }
+        return data as Data
+    }
+
     struct PageRecord: Codable {
         var pageID: String
         var image: String
+        var mode: String?
         var width: Int
         var height: Int
         var blocks: [V2Block]
         var placed: [V2PlacedText]
         var timings: [String: Double]
         var failure: String?
+        var translatedBlocks: Int?
         var replayMatched: Int?
         var replayAvailable: Bool?
         var replayLegacyRegions: Int?
@@ -210,90 +193,135 @@ enum V2Main {
         return sorted[low] + (sorted[high] - sorted[low]) * (position - Double(low))
     }
 
-    static func execute() async throws {
-        let environment = ProcessInfo.processInfo.environment
-        guard let rootPath = environment["AIDOKU_PIPELINE_ROOT"] else { throw V2HostError("AIDOKU_PIPELINE_ROOT not set") }
+    static func syntheticTranslation(_ block: V2Block) -> String {
+        let syllables = Array("가나다라마바사아자차카타파하")
+        let count = max(1, Int((Double(block.sourceText.count) * 0.8).rounded()))
+        return String((0..<count).map { syllables[$0 % syllables.count] })
+    }
+
+    /// Returns the process exit status: 0 when every page finished without a failure, 1 otherwise.
+    static func execute() async throws -> Int32 {
+        let shell = ProcessInfo.processInfo.environment
+        guard let rootPath = shell["AIDOKU_PIPELINE_ROOT"] else { throw V2HostError("AIDOKU_PIPELINE_ROOT not set") }
         let root = URL(fileURLWithPath: rootPath)
-        let cache = URL(fileURLWithPath: environment["AIDOKU_V2_CACHE"] ?? root.appendingPathComponent("build/image-translation-v2").path)
-        let options = try parse(Array(CommandLine.arguments.dropFirst()), root: root)
-        let output = options.output ?? root.deletingLastPathComponent()
-            .appendingPathComponent("output/image-translation-v2/run-\(UUID().uuidString)")
+        let environment = try V2DotEnv.merged(root: root, environment: shell)
+        let settings = try V2HostSettings.parse(Array(CommandLine.arguments.dropFirst()), environment: environment, root: root)
+        if settings.printSettings {
+            let data = try JSONSerialization.data(withJSONObject: settings.describe(), options: [.prettyPrinted, .sortedKeys])
+            print(String(decoding: data, as: UTF8.self))
+            return 0
+        }
+        let mode = settings.mode
+        let cache = URL(fileURLWithPath: shell["AIDOKU_V2_CACHE"] ?? root.appendingPathComponent("build/image-translation-v2").path)
+        let output = settings.output ?? root.deletingLastPathComponent()
+            .appendingPathComponent("output/image-translation/run-\(UUID().uuidString)")
         let pagesDirectory = output.appendingPathComponent("pages")
         try FileManager.default.createDirectory(at: pagesDirectory, withIntermediateDirectories: true)
         V2Layout.registerFont(at: root.appendingPathComponent("Aidoku/Resources/Translation/\(V2Layout.fontName).woff2"))
+        let replay = try settings.replay.map { try V2HostReplay(root: $0) }
+        let direction = V2ReadingDirection(rawValue: settings.readingDirection) ?? .rightToLeft
 
         let loadStart = DispatchTime.now().uptimeNanoseconds
         let bundle = try prepareBundle(root: root, cache: cache)
         // AIDOKU_V2_DETECTORS / AIDOKU_V2_INPAINTERS override the resident pool sizes (default 2/2).
-        let pool = { (name: String) in max(1, Int(environment[name] ?? "") ?? 2) }
+        let pool = { (name: String) in max(1, Int(shell[name] ?? "") ?? 2) }
         let models = try V2Models.load(bundle: bundle, detectorInstances: pool("AIDOKU_V2_DETECTORS"),
                                        inpainterInstances: pool("AIDOKU_V2_INPAINTERS"))
         try await models.warmUp()
         let loadMilliseconds = V2Pipeline.milliseconds(since: loadStart)
-        log("Models resident in \(Int(loadMilliseconds)) ms; \(options.images.count) page(s), jobs \(options.jobs)")
+        log("Models resident in \(Int(loadMilliseconds)) ms; \(settings.images.count) page(s), jobs \(settings.jobs), mode \(mode.rawValue)")
 
-        let replay = try options.replay.map { try V2TranslationReplay(root: $0) }
-        let fillUnmatched = options.fillUnmatched
-        let delay = options.translateDelay
-        let translator: V2Translator = { page, blocks in
-            if delay > 0 { try await Task.sleep(nanoseconds: delay * 1_000_000) }
-            guard let replay else { return blocks }
-            let matched = V2TranslationReplay.apply(replay.entries(pageID: page.id) ?? [], to: blocks)
-            guard fillUnmatched else { return matched }
-            return matched.map { block in
-                guard block.translation == nil, block.role != .background else { return block }
-                var output = block
-                let syllables = Array("가나다라마바사아자차카타파하")
-                let count = max(1, Int((Double(block.sourceText.count) * 0.8).rounded()))
-                output.translation = String((0..<count).map { syllables[$0 % syllables.count] })
-                return output
+        let client = RemoteTranslationClient(credentialStore: settings.credentialStore)
+        let configuration = settings.configuration
+        let gate = V2ProviderGate(settings.providerConcurrency)
+        let sourceLanguage = settings.sourceLanguage, targetLanguage = settings.targetLanguage
+        let fillUnmatched = settings.fillUnmatched
+        let delay = settings.translateDelay
+        let writePNGs = settings.writePNG && mode != .ocrOnly
+
+        /// S5 for one page. `jpeg` is encoded concurrently with S1-S4 (live mode only).
+        func translator(for jpeg: Task<Data, Error>?) -> V2Translator {
+            { page, blocks in
+                switch mode {
+                case .ocrOnly:
+                    return blocks
+                case .replay:
+                    if delay > 0 { try await Task.sleep(nanoseconds: delay * 1_000_000) }
+                    let matched = V2TranslationReplay.apply(replay?.entries(pageID: page.id) ?? [], to: blocks)
+                    guard fillUnmatched else { return matched }
+                    return matched.map { block in
+                        guard block.translation == nil, block.role != .background else { return block }
+                        var output = block
+                        output.translation = syntheticTranslation(block)
+                        return output
+                    }
+                case .live:
+                    guard !V2Translation.translatable(blocks).isEmpty else { return blocks }
+                    let image = try await jpeg?.value
+                    return try await gate.with {
+                        try await V2Translation.translate(blocks, pageSize: CGSize(width: page.width, height: page.height),
+                            client: client, configuration: configuration, sourceLanguage: sourceLanguage,
+                            targetLanguage: targetLanguage, imageJPEG: image)
+                    }
+                }
             }
         }
-        if replay == nil { log("No --replay-translations: S5 leaves translations empty (no LLM in this host).") }
+        // OCR-only: S6/S7 never speculate and nothing becomes paintable, so no erase/inpaint/render runs.
+        let hooks = mode == .ocrOnly ? V2PipelineHooks(predictTranslated: { _ in [] }) : V2PipelineHooks()
 
         let runStart = DispatchTime.now().uptimeNanoseconds
-        var records: [PageRecord] = []
+        var records = [PageRecord?](repeating: nil, count: settings.images.count)
+        var completed = 0
         // PNG/JSON writes run on their own executors, so a finished page frees its slot at once.
-        let writers = V2InstancePool((0..<options.writers).map { V2SerialExecutor(label: "Aidoku.V2.Writer\($0)") })
-        var writes: [Task<Double, Error>] = []
-        var writeMilliseconds: [String: Double] = [:]
-        try await withThrowingTaskGroup(of: (PageRecord, CGImage?).self) { group in
+        let writers = V2InstancePool((0..<settings.writers).map { V2SerialExecutor(label: "Aidoku.V2.Writer\($0)") })
+        var writes: [(Int, Task<Double, Error>)] = []
+        try await withThrowingTaskGroup(of: (Int, PageRecord, CGImage?).self) { group in
             var next = 0
             func submit() {
-                guard next < options.images.count else { return }
-                let item = options.images[next]
+                guard next < settings.images.count else { return }
+                let index = next
+                let item = settings.images[index]
                 next += 1
                 group.addTask {
                     let image: CGImage
                     do { image = try loadImage(item.path) } catch {
-                        return (PageRecord(pageID: item.id, image: item.path, width: 0, height: 0, blocks: [], placed: [],
-                                           timings: [:], failure: "load: \(error)"), nil)
+                        return (index, PageRecord(pageID: item.id, image: item.path, mode: mode.rawValue, width: 0, height: 0,
+                                                  blocks: [], placed: [], timings: [:], failure: "load: \(error)"), nil)
                     }
-                    let page = V2Page(id: item.id, image: image)
-                    let result = await V2Pipeline.run(page, models: models, translate: translator)
-                    let entries = replay?.entries(pageID: item.id)
-                    var record = PageRecord(pageID: item.id, image: item.path, width: page.width, height: page.height,
-                        blocks: result.blocks, placed: result.placed, timings: result.timings.stages,
-                        failure: result.failure,
-                        replayAvailable: replay == nil ? nil : entries != nil)
-                    if let entries {
-                        let cleared = result.blocks.map { block -> V2Block in var b = block; b.translation = nil; return b }
-                        let legacy = V2TranslationReplay.match(entries, to: cleared)
-                        let legacyIDs = Set(legacy.blocks.filter { $0.translation != nil }.map(\.id))
-                        record.replayMatched = legacyIDs.count
-                        record.replayLegacyRegions = entries.count
-                        record.replayLegacyRegionsUsed = legacy.used.count
-                        record.replaySyntheticBlocks = result.blocks.filter { $0.translation != nil && !legacyIDs.contains($0.id) }
-                            .map(\.id)
+                    let jpeg: Task<Data, Error>? = mode == .live ? Task.detached(priority: .userInitiated) {
+                        try translationJPEG(image)
+                    } : nil
+                    defer { jpeg?.cancel() }
+                    let page = V2Page(id: item.id, image: image, readingDirection: direction)
+                    let result = await V2Pipeline.run(page, models: models, translate: translator(for: jpeg), hooks: hooks)
+                    var record = PageRecord(pageID: item.id, image: item.path, mode: mode.rawValue,
+                        width: page.width, height: page.height, blocks: result.blocks, placed: result.placed,
+                        timings: result.timings.stages, failure: result.failure,
+                        translatedBlocks: result.blocks.filter { $0.translation != nil }.count)
+                    if mode == .ocrOnly { record.translatedBlocks = nil }
+                    if mode == .replay {
+                        let entries = replay?.entries(pageID: item.id)
+                        record.replayAvailable = entries != nil
+                        if let entries {
+                            let cleared = result.blocks.map { block -> V2Block in var b = block; b.translation = nil; return b }
+                            let saved = V2TranslationReplay.match(entries, to: cleared)
+                            let savedIDs = Set(saved.blocks.filter { $0.translation != nil }.map(\.id))
+                            record.replayMatched = savedIDs.count
+                            record.replayLegacyRegions = entries.count
+                            record.replayLegacyRegionsUsed = saved.used.count
+                            record.replaySyntheticBlocks = result.blocks
+                                .filter { $0.translation != nil && !savedIDs.contains($0.id) }.map(\.id)
+                        }
                     }
-                    return (record, result.output)
+                    return (index, record, mode == .ocrOnly ? nil : result.output)
                 }
             }
-            for _ in 0..<options.jobs { submit() }
-            while let (record, finalImage) = try await group.next() {
-                records.append(record)
-                let encodesPNG = options.writePNG
-                writes.append(Task.detached(priority: .utility) {
+            for _ in 0..<settings.jobs { submit() }
+            while let (index, record, finalImage) = try await group.next() {
+                records[index] = record
+                completed += 1
+                let encodesPNG = writePNGs && record.failure?.hasPrefix("load:") != true
+                writes.append((index, Task.detached(priority: .utility) {
                     try await writers.with { writer in
                         try await writer.run { () -> Double in
                             let start = DispatchTime.now().uptimeNanoseconds
@@ -306,46 +334,67 @@ enum V2Main {
                             return V2Pipeline.milliseconds(since: start)
                         }
                     }
-                })
+                }))
                 let total = record.timings[V2Pipeline.Stage.nonLLM] ?? 0
-                log("[\(records.count)/\(options.images.count)] \(record.pageID) blocks \(record.blocks.count) "
+                log("[\(completed)/\(settings.images.count)] \(record.pageID) blocks \(record.blocks.count) "
                     + "non-LLM \(Int(total)) ms" + (record.failure.map { " FAIL \($0)" } ?? ""))
                 submit()
             }
         }
         let pagesWall = V2Pipeline.milliseconds(since: runStart)
-        for (record, write) in zip(records, writes) { writeMilliseconds[record.pageID] = try await write.value }
+        var writeMilliseconds: [Double] = []
+        for (index, write) in writes {
+            let elapsed = try await write.value
+            records[index]?.writeMilliseconds = elapsed
+            writeMilliseconds.append(elapsed)
+        }
         let wall = V2Pipeline.milliseconds(since: runStart)
+        let finished = records.compactMap { $0 }
 
         var stages: [String: [String: Double]] = [:]
-        let names = Set(records.flatMap { $0.timings.keys })
-        for name in names.sorted() {
-            let values = records.compactMap { $0.timings[name] }
+        for name in Set(finished.flatMap { $0.timings.keys }).sorted() {
+            let values = finished.compactMap { $0.timings[name] }
             stages[name] = ["median": percentile(values, 0.5), "p90": percentile(values, 0.9),
                             "mean": values.reduce(0, +) / Double(max(1, values.count)), "count": Double(values.count)]
         }
-        let summary: [String: Any] = [
-            "schema": "aidoku-v2-run-summary-v1",
-            "pages": records.count,
-            "failedPages": records.filter { $0.failure != nil }.map(\.pageID),
-            "jobs": options.jobs,
-            "split": options.split as Any? ?? NSNull(),
-            "replay": options.replay?.path as Any? ?? NSNull(),
+        let pageResults: [[String: Any]] = finished.map { record in
+            var row: [String: Any] = ["pageID": record.pageID, "image": record.image, "json": "pages/\(record.pageID).json",
+                                      "blocks": record.blocks.count, "status": record.failure == nil ? "success" : "failed"]
+            if let failure = record.failure { row["failure"] = failure }
+            if let translated = record.translatedBlocks { row["translatedBlocks"] = translated }
+            if FileManager.default.fileExists(atPath: pagesDirectory.appendingPathComponent(record.pageID + ".png").path) {
+                row["png"] = "pages/\(record.pageID).png"
+            }
+            return row
+        }
+        let failed = finished.filter { $0.failure != nil }.map(\.pageID)
+        var summary: [String: Any] = [
+            "schema": "aidoku-v2-run-summary-v2",
+            "mode": mode.rawValue,
+            "pages": finished.count,
+            "pageResults": pageResults,
+            "failedPages": failed,
+            "jobs": settings.jobs,
+            "readingDirection": settings.readingDirection,
+            "sourceLanguage": sourceLanguage,
+            "targetLanguage": targetLanguage,
+            "split": settings.split as Any? ?? NSNull(),
+            "replay": settings.replay?.path as Any? ?? NSNull(),
             "modelLoadMilliseconds": loadMilliseconds,
             "modelLoadByModel": models.loadMilliseconds,
             "runWallMilliseconds": wall,
             "pagesWallMilliseconds": pagesWall,
-            "writeMilliseconds": ["median": percentile(Array(writeMilliseconds.values), 0.5),
-                                  "p90": percentile(Array(writeMilliseconds.values), 0.9)],
-            "throughputPagesPerSecond": Double(records.count) / max(wall / 1000, 0.001),
+            "writeMilliseconds": ["median": percentile(writeMilliseconds, 0.5), "p90": percentile(writeMilliseconds, 0.9)],
+            "throughputPagesPerSecond": Double(finished.count) / max(wall / 1000, 0.001),
             "stageMilliseconds": stages,
-            "stubs": V2HostStubs.active,
         ]
+        if mode == .live { summary["provider"] = settings.describe()["provider"] }
         let data = try JSONSerialization.data(withJSONObject: summary, options: [.prettyPrinted, .sortedKeys])
         try data.write(to: output.appendingPathComponent("summary.json"))
         let nonLLM = stages[V2Pipeline.Stage.nonLLM] ?? [:]
-        log("Done: \(records.count) pages in \(Int(wall)) ms wall; non-LLM median \(Int(nonLLM["median"] ?? 0)) ms, "
-            + "p90 \(Int(nonLLM["p90"] ?? 0)) ms")
+        log("Done: \(finished.count) pages (\(failed.count) failed) in \(Int(wall)) ms wall; non-LLM median "
+            + "\(Int(nonLLM["median"] ?? 0)) ms, p90 \(Int(nonLLM["p90"] ?? 0)) ms")
         print(output.path)
+        return failed.isEmpty ? 0 : 1
     }
 }

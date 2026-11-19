@@ -319,25 +319,15 @@
 
 "TRANSLATION_TITLE" = "OCR & Përkthim";
 
-"TRANSLATION_TRANSLATE" = "Përkthe faqet e dukshme";
 
-"TRANSLATION_RECOGNIZE" = "Njohja e tekstit (jashtë linje)";
 
-"TRANSLATION_ORIGINAL" = "Shfaq origjinalin";
 
-"TRANSLATION_TEXT" = "Tekst i njohur dhe i përkthyer";
 
-"TRANSLATION_NO_IMAGE" = "Prisni që një faqe imazhi të ngarkohet, më pas provoni përsëri.";
 
-"TRANSLATION_NO_TEXT" = "Asnjë tekst nuk u njoh. Provoni një model tjetër OCR ose një imazh më të qartë.";
 
-"TRANSLATION_WORKING" = "Duke njohur dhe përkthyer…";
 
-"TRANSLATION_OCR_WORKING" = "Teksti në pajisje po njihet…";
 
-"TRANSLATION_HELP" = "Ikona e përkthimit aktivizon ose çaktivizon përkthimin. Fillimisht përgatiten faqet e dukshme, pastaj faqet pranë tyre. Përgatitja ndjek pozicionin tuaj të leximit. Rezultatet e ruajtura të OCR-së, përkthimet dhe faqosja e tekstit mund të ripërdoren pas rihapjes së lexuesit ose rinisjes së aplikacionit. Imazhet e shpërndara që hapen përkohësisht nuk e ruajnë këtë memorie të përkohshme. Dalja nga lexuesi anulon përpunimin e papërfunduar.";
 
-"TRANSLATION_PRIVACY" = "OCR funksionon në pajisjen tuaj. Përkthimi dërgon tekstin e njohur dhe udhëzimet tuaja te ofruesi i zgjedhur. Nëse aktivizohet përfshirja e imazhit të faqes në përkthim, mund të ngarkohet edhe një imazh i përpunuar i faqes. Nëse imazhet nuk mbështeten si hyrje, përkthimi vazhdon vetëm me tekst. Tarifat e API varen nga ofruesi juaj. Çelësat qëndrojnë në Keychain. OCR, përkthimet dhe faqosja e tekstit ruhen në hapësirën e mbrojtur të aplikacionit të përjashtuar nga kopjet rezervë.";
 
 "TRANSLATION_KEY_REPLACE" = "Zëvendëso çelësin e ruajtur API (opsionale)";
 
@@ -355,11 +345,9 @@
 
 "TRANSLATION_TARGET" = "Përkthe në";
 
-"TRANSLATION_SOURCE" = "Gjuha burimore";
 
 "TRANSLATION_AUTO" = "Zbulo automatikisht";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 kërkon iOS 18 ose një version më të ri. Manga v0.3 është modeli i paracaktuar si për zbulimin, ashtu edhe për njohjen e tekstit. Mund të zgjidhni edhe modele të tjera OCR.";
 
 
 
@@ -377,42 +365,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Kërkesat e njëkohshme";
 
-"TRANSLATION_DETECTOR_SIZE" = "Gjatësia maksimale e brinjës për zbulimin e tekstit";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Gjerësia maksimale e imazhit për njohjen e tekstit";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Pragu i pikselëve për zbulimin OCR";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Besueshmëria minimale e zonave të zbuluara me OCR";
-"TRANSLATION_CONFIDENCE" = "Besueshmëria minimale e njohjes OCR";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "Pragu i pikselëve zgjedh pikselët e tekstit. Besueshmëria e zbulimit filtron zonat e tekstit. Besueshmëria e njohjes filtron tekstin e lexuar nga çdo zonë. Vlerat më të ulëta pranojnë më shumë rezultate të pasigurta.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Madhësia minimale e zbulimit OCR";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Gjatësia minimale e anës së shkurtër të zonave të mundshme të tekstit, në pikselë të hartës së zbulimit. Parazgjedhja: 3 px. Vlerat më të ulëta mund të zbulojnë tekst më të vogël, por edhe më shumë zhurmë.";
 
-"TRANSLATION_SURFACE" = "Ngjyra e sfondit";
 
-"TRANSLATION_WHITE" = "E bardha";
 
-"TRANSLATION_DARK" = "E errët";
 
-"TRANSLATION_OPACITY" = "Opaciteti i sfondit";
 
-"TRANSLATION_EXPANSION" = "Zgjerimi i kornizës së tekstit";
 
-"TRANSLATION_PANEL_BOUNDS" = "Brenda kufijve të imazhit";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Brenda kornizës origjinale të tekstit";
 
-"TRANSLATION_UNRESTRICTED" = "I pakufizuar";
 
-"TRANSLATION_FONT_SIZE" = "Madhësia e shkronjave";
 
-"TRANSLATION_AUTO_FIT" = "Përshtat automatikisht";
 
-"TRANSLATION_FIXED" = "Madhësia fikse e shkronjave";
 
-"TRANSLATION_OVERLAY" = "Mbivendosja e përkthimit";
 
-"TRANSLATION_OVERLAY_HELP" = "Zëvendëson tekstin në kornizën origjinale, duke shmangur mbivendosjet dhe duke përshtatur ndarjen e rreshtave me sistemin e shkrimit. Ndryshimet e paraqitjes ripërdorin rezultatet ekzistuese të OCR-së.";
 
 "TRANSLATION_PROVIDER" = "Ofruesi i Përkthimit";
 
@@ -484,7 +451,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Gjuha burimore e faqes";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Zbulon automatikisht gjuhën burimore të secilit titull dhe përkthen vetëm gjuhët e zgjedhura. Opsioni Të gjitha gjuhët e zbuluara heq kufizimin gjuhësor. Cilësimet e gjuhës burimore për faqet dhe llojet e tjera të titujve nuk ndikojnë në këtë zgjedhje.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Përkthe përshkrimet e mangave";
 
@@ -496,32 +462,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Përfshi imazhin e faqes në përkthim";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Dërgon imazhin e faqes bashkë me tekstin OCR për të dhënë kontekstin e skenës. Nëse imazhet nuk mbështeten si hyrje, përkthimi vazhdon automatikisht vetëm me tekst. Bashkëngjitja e imazheve mund të rrisë përdorimin e të dhënave dhe koston e API-së.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Futja e imazheve nuk mbështetet. Përkthimi vazhdon pa imazhe.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Ruaj ngjyrën origjinale të tekstit";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Vlerëson ngjyrën origjinale të tekstit pa një model shtesë. Përdor ngjyrën e paracaktuar kur vlerësimi është i pasigurt ose kontrasti është shumë i ulët.";
 
-"TRANSLATION_LLM_SFX" = "Filtrimi LLM SFX (Të gjitha gjuhët)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikon efektet zanore në të njëjtën kërkesë për përkthim dhe i lë të pandryshuara. Kur ka imazh të faqes, inteligjenca artificiale anashkalon edhe fragmentet e paqarta OCR, përveç rasteve kur imazhi vërteton se janë tekst me kuptim. Dialogu, rrëfimi, titujt dhe të dhënat e kontribuesve mbeten për t’u përkthyer. Klasifikimi është më pak i besueshëm pa imazhin e faqes.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Pa futjen e imazhit, konteksti i kufizuar vizual dhe i paraqitjes mund të zvogëlojë saktësinë e klasifikimit SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Ruaj ngjyrën origjinale të sfondit të tekstit";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Përshtat sfondin e përkthimit me sfondin përreth tekstit origjinal. Përdor sfondin e paracaktuar kur vlerësimi është i pasigurt ose teksti është i palexueshëm. Cilësimi i opacitetit vazhdon të zbatohet.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "I personalizuar (i përputhshëm me OpenAI)";
 
-"TRANSLATION_OCR_MEDIUM" = "I mesëm";
 
-"TRANSLATION_OCR_SMALL" = "I vogël";
 
-"TRANSLATION_OCR_TINY" = "Shumë i vogël";
 
 "TRANSLATION_REASONING_NONE" = "Asnjë";
 
@@ -1058,8 +1013,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Shkarko me përkthim";
 
-"TRANSLATION_LLM_BACKGROUND" = "Anashkalo shkrimet në sfond (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Inteligjenca artificiale e përkthimit lë të pandryshuara tabelat e zakonshme, posterat dhe shkrimet mbi objektet në skenë, edhe kur lidhen me skenën ose përmenden në dialog. Dialogu, rrëfimi, titujt, të dhënat e kontribuesve, shkrimet vendimtare për rrjedhën e ngjarjeve dhe teksti me rol të pasigurt përkthehen. Nuk dërgohet kërkesë shtesë, por përpunimi mund të zgjasë më shumë. Klasifikimi është më pak i besueshëm pa imazhin e faqes.";
 
 "TRANSLATION_STATE_ON" = "Aktiv";
 "TRANSLATION_STATE_OFF" = "Joaktiv";
@@ -1126,13 +1079,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Ndryshimet e sinkronizimit iCloud zbatohen pasi ta mbyllni plotësisht dhe ta rihapni Aidoku. Deri atëherë, cilësimi aktual mbetet aktiv.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Ruaj ngjyrat origjinale";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Ruan së bashku ngjyrat origjinale të tekstit dhe të sfondit.";
-"TRANSLATION_INPAINTING" = "Rindërtimi i sfondit";
-"TRANSLATION_INPAINTING_HELP" = "Fshin tekstin origjinal duke ruajtur sfondin. Përdor kuti kur maska ose lexueshmëria janë të pasigurta. Kërkon ngjyrat origjinale.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Filtrimi i tekstit";
 
 "TRANSLATION_TARGETS" = "Çfarë të përkthehet";
 
@@ -1175,10 +1123,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Burimi %@ versioni %d nuk mbështetet nga ky aplikacion. Instaloni një version të mbështetur.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 mbështet vetëm tekst burimor në japonisht dhe kinezisht (të thjeshtuar dhe tradicionale). Zbulimi automatik i gjuhës burimore dhe përzgjedhja e saj kufizohen në këto gjuhë. Përkthimi në çdo gjuhë të synuar mbetet i mundur. Zgjedhja e modelit Manga vendos pragjet e zbulimit në 0,85 dhe 0,25; madhësia e paracaktuar për zbulimin është 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Të gjitha gjuhët e mbështetura nga OCR";
-"TRANSLATION_PIPELINE_V2" = "Proces i shpejtë (beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Përdor procesin e ri të përkthimit të faqeve të përqendruar te shpejtësia. Faqet njihen, fshihen dhe rivizatohen si një imazh i vetëm i përfunduar, zakonisht shumë më shpejt. Rezultatet ruhen në memorie të veçantë nga procesi standard. Kërkon iOS 18.";

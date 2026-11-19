@@ -270,128 +270,6 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await !reopened.contains("new", kind: .snapshot))
     }
 
-    @Test(arguments: [
-        "reader-render-v110-unit-parts-frame-guard-tilted-gloss",
-        "reader-render-v109-unit-clip-grid-wide-gloss",
-        "reader-render-v108-readable-floor-units",
-        "reader-render-v107-light-lettering",
-        "reader-render-v106-paper-outline",
-        "reader-render-v97-observed-texture",
-        "reader-render-v96-one-pixel-fringe",
-        "reader-render-v95-pattern-art-guard",
-        "reader-render-v94-codec-surface",
-        "reader-render-v92-multicolor-fringe",
-        "reader-render-v88-expanded-segmentation",
-        "reader-render-v81-glyph-color-ownership",
-        "reader-render-v68-halo-surface-and-ink",
-        "reader-render-v67-observed-panel-colors",
-        "reader-render-v70-faithful-ink-interior-panel",
-        "reader-render-v66-source-palette-text-box-reflow",
-        "reader-render-v65-outline-free-readable-ink",
-        "reader-render-v64-thin-source-outlines",
-        "reader-render-v63-preserved-source-ink",
-        "reader-render-v62-source-color-modes",
-        "reader-render-v61-calm-source-panels",
-        "reader-render-v32-neutral-readable-edge",
-        "reader-render-v31-readable-source-role-coverage",
-        "reader-render-v30-readable-paragraph-ink-coverage",
-        "reader-render-v29-source-role-cleanup-geometry",
-        "reader-render-v28-short-paragraph-guard",
-        "reader-render-v27-readable-palette-ink",
-        "reader-render-v26-horizontal-caption-anchors",
-        "reader-render-v24-readable-paragraph-contours",
-        "reader-render-v25-source-anchored-captions",
-        "reader-render-v23-source-stroke-opaque-ink",
-        "reader-render-v21-korean-punctuation",
-        "reader-render-v22-korean-orphans",
-        "reader-render-v20-readable-source-colors",
-        "reader-render-v19-faithful-source-colors",
-        "reader-render-v18-neutral-ink-fringe",
-        "reader-render-v17-chroma-emergency-wrap",
-        "reader-render-v16-contrast-preserved-chroma",
-        "reader-render-v15-korean-small-text",
-        "reader-render-v3-source-coverage",
-        "reader-render-v4-visible-source-bands",
-        "reader-render-v5-normal-font-floor",
-        "reader-render-v6-korean-balanced-wrap",
-        "reader-render-v7-resolved-font",
-        "reader-render-v8-source-ink",
-        "reader-render-v9-small-text",
-        "reader-render-v9-word-safe-small-text",
-        "reader-render-v10-fragment-line-profile",
-        "reader-render-v11-balloon-contained-type"
-    ])
-    func earlierLayoutsCannotBeReusedAfterRendererRevision(revision: String) async throws {
-        let root = directory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let cache = ReaderTranslationDiskCache(directory: root)
-        let settings = ReaderTranslationSettings()
-        let size = CGSize(width: 390, height: 780)
-        let crop = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let legacyKey = ReaderTranslationCacheIdentity.encoded([
-            revision,
-            ReaderTranslationCacheIdentity.translation(page: "real-comic", settings: settings),
-            ReaderTranslationCacheIdentity.encoded(settings.overlay),
-            ReaderTranslationCacheIdentity.encoded(size), ReaderTranslationCacheIdentity.encoded(size),
-            String(Double(3)), String(true), ReaderTranslationCacheIdentity.encoded(crop), String(false),
-            ProcessInfo.processInfo.operatingSystemVersionString
-        ])
-        try await cache.store(Data("[{\"x\":-205}]".utf8), for: legacyKey, kind: .layout, generation: 0)
-        let currentKey = ReaderTranslationCacheIdentity.render(page: "real-comic", settings: settings,
-            imageSize: size, viewport: size, scale: 3, aspectFit: true, crop: crop, dark: false)
-        #expect(currentKey != legacyKey)
-        #expect(try await cache.data(for: legacyKey, kind: .layout) != nil)
-        #expect(try await cache.data(for: currentKey, kind: .layout) == nil)
-    }
-
-    @Test(arguments: ["reader-ocr-v42-phonetic-kimi", "reader-ocr-v41-cross-panel-separator", "reader-ocr-v43-centered-phrases", "reader-ocr-v44-leaf-reading-bands"])
-    func earlierMergedRubyRegionsCannotBeReused(revision: String) {
-        let settings = ReaderTranslationSettings()
-        let oldKey = ReaderTranslationCacheIdentity.encoded([
-            revision, "page", ReaderTranslationCacheIdentity.encoded(settings.ocrConfiguration)
-        ])
-        #expect(oldKey != ReaderTranslationCacheIdentity.ocr(page: "page", settings: settings))
-    }
-
-    @Test(arguments: ["reader-render-v113-protected-lettering-groups", "reader-render-v114-disjoint-caption-panels"])
-    func disjointPanelsRejectPreviousRenderIdentity(revision: String) {
-        let settings = ReaderTranslationSettings()
-        let size = CGSize(width: 390, height: 780)
-        let crop = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let previous = ReaderTranslationCacheIdentity.encoded([
-            revision,
-            ReaderTranslationCacheIdentity.translation(page: "panel-page", settings: settings),
-            ReaderTranslationCacheIdentity.encoded(settings.overlay),
-            ReaderTranslationCacheIdentity.encoded(size), ReaderTranslationCacheIdentity.encoded(size),
-            String(Double(3)), String(true), ReaderTranslationCacheIdentity.encoded(crop), String(false),
-            "balanced-columns-v15-visible-balloon-fit", "source-rotation-v7-native-balloon-fit", "fixture-font",
-            ProcessInfo.processInfo.operatingSystemVersionString
-        ])
-        let current = ReaderTranslationCacheIdentity.render(page: "panel-page", settings: settings,
-            imageSize: size, viewport: size, scale: 3, aspectFit: true, crop: crop, dark: false,
-            letteringFontKey: "fixture-font")
-        #expect(current != previous)
-    }
-
-    @Test func letteringFontAvailabilityInvalidatesPersistentRender() async throws {
-        let root = directory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let cache = ReaderTranslationDiskCache(directory: root)
-        let settings = ReaderTranslationSettings()
-        let size = CGSize(width: 390, height: 780)
-        func key(_ fonts: String) -> String {
-            ReaderTranslationCacheIdentity.render(page: "font-page", settings: settings, imageSize: size,
-                viewport: size, scale: 3, aspectFit: true, crop: CGRect(x: 0, y: 0, width: 1, height: 1),
-                dark: false, letteringFontKey: fonts)
-        }
-        let fallback = key("letter-styles-v1:")
-        let serif = key("letter-styles-v1:serif")
-        try await cache.store(Data("fallback layout".utf8), for: fallback, kind: .layout, generation: 0)
-        #expect(serif != fallback)
-        #expect(try await cache.data(for: serif, kind: .layout) == nil)
-        #expect(try await cache.data(for: fallback, kind: .layout) != nil)
-    }
-
     @Test func durableRegionsSurviveANewCacheInstanceAndPreserveGeometry() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -599,38 +477,6 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try Data(contentsOf: unrelated) == Data("keep".utf8))
     }
 
-    @Test func translationSettingsAndRenderGeometryHaveSeparateIdentities() {
-        let defaults = UserDefaults(suiteName: UUID().uuidString)!
-        let settings = ReaderTranslationSettings(defaults: defaults)
-        let key = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
-        let ocrKey = ReaderTranslationCacheIdentity.ocr(page: "page", settings: settings)
-        for change in 0..<5 {
-            var changed = settings
-            switch change {
-            case 0: changed.targetLanguage = "en"
-            case 1: changed.model = "different-model"
-            case 2: changed.reasoningEffort = .high
-            case 3: changed.metadataInstructions = "different prompt"
-            default: changed.credentialGeneration += 1
-            }
-            #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: changed) != key)
-            #expect(ReaderTranslationCacheIdentity.ocr(page: "page", settings: changed) == ocrKey)
-        }
-        var changed = settings
-        changed.overlay.opacity = 0.5
-        changed.cacheLimitBytes = 10_000_000_000
-        #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: changed) == key)
-        changed.ocr.detectorPixelThreshold = 0.25
-        #expect(ReaderTranslationCacheIdentity.ocr(page: "page", settings: changed) != ocrKey)
-        func render(_ settings: ReaderTranslationSettings, width: CGFloat = 390, crop: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) -> String {
-            ReaderTranslationCacheIdentity.render(page: "page", settings: settings, imageSize: CGSize(width: 600, height: 800),
-                                                  viewport: CGSize(width: width, height: 800), scale: 3, aspectFit: true, crop: crop, dark: false)
-        }
-        #expect(render(settings) != render(settings, width: 430))
-        #expect(render(settings) != render(settings, crop: CGRect(x: 0, y: 0, width: 0.5, height: 1)))
-        #expect(render(settings) != render(changed))
-    }
-
     @Test func corruptRegionsAreDiscardedWithoutPoisoningFutureWrites() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -663,98 +509,6 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await reopened.regions(for: "legacy", kind: .translation) == regions)
         try await reopened.store(Data("ATZ1invalid".utf8), for: "broken", kind: .layout, generation: 0)
         #expect(try await reopened.data(for: "broken", kind: .layout) == nil)
-    }
-
-    @Test @MainActor func renderedVariantsStayOnlyInMemoryAndKeepDurableLayouts() async throws {
-        let root = directory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let disk = ReaderTranslationDiskCache(directory: root)
-        let render = ReaderTranslationRenderCache(disk: disk)
-        let image = ReaderTranslationPersistentPipelineTests.image()
-        for index in 0..<5 {
-            try await disk.store(Data("[]".utf8), for: String(index), kind: .layout, generation: 0)
-            await render.store(image, key: String(index), pageIdentity: "page", diskGeneration: 0)
-        }
-        for index in 0..<3 { #expect(render.cachedImage(for: String(index)) == nil) }
-        #expect(render.cachedImage(for: "4") != nil)
-        #expect(render.cachedImage(for: "3") != nil)
-        #expect(try await disk.statistics().payloadBytes == 10)
-        #expect(try await disk.statistics().entries == 5)
-        let reopened = ReaderTranslationRenderCache(disk: ReaderTranslationDiskCache(directory: root))
-        #expect(await reopened.load("4") == nil)
-        for index in 0..<5 { #expect(try await disk.data(for: String(index), kind: .layout) != nil) }
-    }
-
-    @Test @MainActor func preparingFarPagesKeepsOnlyNeighborsInMemory() async throws {
-        let root = directory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let disk = ReaderTranslationDiskCache(directory: root)
-        let render = ReaderTranslationRenderCache(disk: disk)
-        let settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        render.setNearbyPages(pageKeys: ["near"], settings: settings)
-        let near = ReaderTranslationCacheIdentity.translation(page: "near", settings: settings)
-        let far = ReaderTranslationCacheIdentity.translation(page: "far", settings: settings)
-        let image = ReaderTranslationPersistentPipelineTests.image()
-        await render.store(image, key: "near-render", pageIdentity: near, diskGeneration: 0)
-        await render.store(image, key: "far-render", pageIdentity: far, diskGeneration: 0)
-        #expect(render.cachedImage(for: "near-render") != nil)
-        #expect(render.cachedImage(for: "far-render") == nil)
-        #expect(try await disk.statistics().payloadBytes == 0)
-        render.setNearbyPages(pageKeys: ["far"], settings: settings)
-        #expect(await render.load("far-render") == nil)
-        #expect(render.needsImage(for: far))
-        #expect(render.cachedImage(for: "near-render") == nil)
-        await render.store(image, key: "far-render", pageIdentity: far, diskGeneration: 0)
-        #expect(render.cachedImage(for: "far-render") != nil)
-        render.clearMemory()
-        await render.store(image, key: "late-render", pageIdentity: far, diskGeneration: 0)
-        #expect(render.cachedImage(for: "far-render") == nil)
-        #expect(render.cachedImage(for: "late-render") == nil)
-    }
-
-    @Test @MainActor func distantSnapshotCannotEvictNearestPages() async throws {
-        let root = directory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let disk = ReaderTranslationDiskCache(directory: root)
-        let render = ReaderTranslationRenderCache(disk: disk)
-        let settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        render.setNearbyPages(pageKeys: ["current", "next", "previous"], settings: settings,
-                              availableMemory: 1_280 * 1_024 * 1_024)
-        let context = try #require(CGContext(data: nil, width: 2048, height: 2048, bitsPerComponent: 8,
-            bytesPerRow: 2048 * 4, space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-        let image = UIImage(cgImage: try #require(context.makeImage()))
-        for key in ["current", "next", "previous"] {
-            await render.store(image, key: key,
-                pageIdentity: ReaderTranslationCacheIdentity.translation(page: key, settings: settings), diskGeneration: 0)
-        }
-        #expect(render.cachedImage(for: "current") != nil)
-        #expect(render.cachedImage(for: "next") != nil)
-        #expect(render.cachedImage(for: "previous") == nil)
-        #expect(render.bitmapBytes <= render.currentBitmapByteLimit)
-    }
-
-    @Test @MainActor func bitmapWindowExpandsAndShrinksWithHeadroom() async throws {
-        let root = directory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let disk = ReaderTranslationDiskCache(directory: root)
-        let render = ReaderTranslationRenderCache(disk: disk)
-        let settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        let keys = (0..<9).map(String.init)
-        render.setNearbyPages(pageKeys: keys, settings: settings, availableMemory: 2_048 * 1_024 * 1_024)
-        #expect(render.nearbyPageCount == 7)
-        for key in keys.prefix(7) {
-            await render.store(ReaderTranslationPersistentPipelineTests.image(), key: key,
-                pageIdentity: ReaderTranslationCacheIdentity.translation(page: key, settings: settings), diskGeneration: 0)
-        }
-        #expect(render.cachedImage(for: "6") != nil)
-        render.setNearbyPages(pageKeys: keys, settings: settings, availableMemory: 1_280 * 1_024 * 1_024)
-        #expect(render.nearbyPageCount == 3)
-        #expect(render.cachedImage(for: "0") != nil)
-        #expect(render.cachedImage(for: "1") != nil)
-        #expect(render.cachedImage(for: "2") != nil)
-        #expect(render.cachedImage(for: "3") == nil)
-        #expect(render.bitmapBytes <= render.currentBitmapByteLimit)
     }
 
     @Test func migrationRemovesOnlyLegacyImagesBeforeEnforcingTheMetadataQuota() async throws {
@@ -965,8 +719,7 @@ struct ReaderTranslationDiskCacheTests {
         print("CACHE_NORMALIZED variants=\(variants) realPages=\(pages.count) entries=\(after.entries) oldPayload=\(before.payloadBytes) newPayload=\(after.payloadBytes) oldAllocated=\(before.bytes) newAllocated=\(after.bytes) migratedAllocated=\(migrated.bytes)")
     }
 
-    @Test(arguments: ["model", "language", "prompt", "credentials", "provider", "filter",
-                      "ocrPixel", "ocrRegion", "ocrRecognition", "ocrMinimumSize"])
+    @Test(arguments: ["model", "language", "prompt", "credentials", "provider", "filter"])
     func changingTranslationSettingsDeletesOldResultsButKeepsOCR(change: String) async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -986,10 +739,6 @@ struct ReaderTranslationDiskCacheTests {
         case "prompt": settings.metadataInstructions += " Translate differently."
         case "credentials": settings.credentialGeneration += 1
         case "provider": settings.provider = .custom; settings.custom.baseURL = "https://example.invalid/v1"; settings.model = "custom-model"
-        case "ocrPixel": settings.ocr.detectorPixelThreshold = 0.25
-        case "ocrRegion": settings.ocr.detectorConfidenceThreshold = 0.55
-        case "ocrRecognition": settings.ocr.confidenceThreshold = 0.8
-        case "ocrMinimumSize": settings.ocr.detectorMinimumBoxSide = 2
         default: settings.translationSourceLanguages = ["ja"]
         }
         try await cache.synchronizeSettings(settings)
@@ -1014,7 +763,7 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await reopened.contains("ocr", kind: .ocr))
     }
 
-    @Test func appearanceChangesOnlyRemoveLayoutsAndOperationalSettingsKeepAllResults() async throws {
+    @Test func appearanceAndOperationalSettingsKeepAllResults() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
         let cache = ReaderTranslationDiskCache(directory: root)
@@ -1032,17 +781,17 @@ struct ReaderTranslationDiskCacheTests {
         try await cache.synchronizeSettings(settings)
         #expect(await cache.currentGeneration(settings: settings) == generation)
         #expect(try await cache.statistics().entries == 4) // OCR, translation, metadata and layout; no persisted raster.
+        // V2 page bitmaps do not depend on the retired overlay appearance options.
         settings.overlay.opacity = 0.5
         try await cache.synchronizeSettings(settings)
-        #expect(try await cache.statistics().entries == 3)
+        #expect(await cache.currentGeneration(settings: settings) == generation)
+        #expect(try await cache.statistics().entries == 4)
         #expect(try await cache.contains("keep", kind: .translation))
         #expect(try await cache.contains("keep", kind: .metadata))
-        #expect(try await cache.contains("keep", kind: .ocr))
-        #expect(try await cache.contains("keep", kind: .layout) == false)
+        #expect(try await cache.contains("keep", kind: .layout))
     }
 
-    @Test(arguments: ["ocrPixel", "ocrRegion", "ocrRecognition", "ocrMinimumSize", "ocrModel", "ocrResolution", "pageFilter"])
-    func pageSettingsPreserveMetadataAndItsPendingWriters(change: String) async throws {
+    @Test func pageSettingsPreserveMetadataAndItsPendingWriters() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
         let cache = ReaderTranslationDiskCache(directory: root)
@@ -1054,15 +803,7 @@ struct ReaderTranslationDiskCacheTests {
         let metadata = [ReaderTranslationRegion(id: "title", rect: .zero, source: "Title", translation: "제목")]
         try await cache.storeRegions(metadata, for: "title", kind: .metadata, generation: metadataGeneration)
         try await cache.store(Data("page".utf8), for: "page", kind: .translation, generation: pageGeneration)
-        switch change {
-        case "ocrPixel": settings.ocr.detectorPixelThreshold = 0.25
-        case "ocrRegion": settings.ocr.detectorConfidenceThreshold = 0.55
-        case "ocrRecognition": settings.ocr.confidenceThreshold = 0.8
-        case "ocrMinimumSize": settings.ocr.detectorMinimumBoxSide = 2
-        case "ocrModel": settings.ocr.modelTier = .tiny
-        case "ocrResolution": settings.ocr.detectorMaximumSide = 800; settings.ocr.recognizerMaximumWidth = 2000
-        default: settings.translationSourceLanguages = ["ja"]
-        }
+        settings.translationSourceLanguages = ["ja"]
         try await cache.synchronizeSettings(settings)
         #expect(try await cache.regions(for: "title", kind: .metadata) == metadata)
         #expect(try await cache.contains("page", kind: .translation) == false)

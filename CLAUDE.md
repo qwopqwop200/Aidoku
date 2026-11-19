@@ -37,9 +37,8 @@ fixtures, and isolated VM contexts with cached compilation. The default AidokuFa
 external-fixture suites; keep their full coverage in opt-in AidokuFull. Do not
 weaken assertions or silently omit explicitly requested tests.
 
-For routine edits, start with `python3 Scripts/test_quick.py`. This runs the host
-smoke regressions (core source-color/readability, column layout,
-typography, inferred ruby, dictionary popup, Python tests and localization validation) with a **55-second
+For routine edits, start with `python3 Scripts/test_quick.py`. This runs the Python
+tooling tests, localization validation and the model-free V2 host settings check with a **55-second
 host-only deadline**. iOS compilation and testing have no default deadline. It does not compile or validate Swift/iOS behavior. A timeout is
 an incomplete run (exit 124), never a pass. Full tests remain available below.
 
@@ -81,7 +80,7 @@ swiftlint lint
 Other test suites, each run from the repository root:
 
 - **Localization** (CI): `python3 -m unittest discover -s Scripts -v` and `python3 Scripts/validate_localizations.py`. See `Scripts/LOCALIZATION.md`.
-Native renderer regression tests run through `Scripts/test_quick.py`; see `Scripts/TESTING.md`. Previous Web renderer and JS/WASM comparison harnesses have been removed.
+- **Host matrix**: `python3 Scripts/test_quick.py --full-host` runs `Scripts/tests/full-host-matrix.json` (V2 host smokes, OCR/translation contracts, Hoshi, blocking priority); see `Scripts/TESTING.md`.
 - **Vendored packages**: `swift test --package-path Vendor/Nuke --jobs 2` and `swift test --package-path Vendor/AidokuRunner --jobs 2`. Hoshi native regressions are `Scripts/tests/run-hoshi-*.py`. The blocking-task priority check is `python3 Scripts/tests/run-blocking-priority-regression.py`.
 
 ## Lint conventions (`.swiftlint.yml`)
@@ -104,12 +103,11 @@ Native renderer regression tests run through `Scripts/test_quick.py`; see `Scrip
 
 **Vendored dependencies.** `Vendor/` contains the native-only AidokuRunner, Nuke, and HoshiDicts (a native dictionary library). These are **locally patched forks**, not pristine upstream copies. Read `Vendor/README.md` before editing or updating them. Keep C headers and implementations in sync. For changes to a vendored package, run its affected package tests and relevant fast app checks. Run full app tests only under the verification-scope exceptions above.
 
-**Translation pipeline** (`Core/Translation`, `Features/Reader/Translation`):
-- `ReaderTranslationService` orchestrates per-page work: image preparation, OCR, balloon merging and panel ordering, remote translation, and disk caching (`ReaderTranslationDiskCache`, `ReaderTranslationCacheCodec`). `TranslationImageWorkBudget` bounds the image work.
-- `NativeEngine/OCR` runs PP-OCRv6 Core ML detection and recognition. The models and character dictionaries are in `Aidoku/Resources/Translation`.
-- `NativeEngine/Translation` handles remote OpenAI-compatible clients, batching, reuse identity, endpoint policy, and Keychain-stored credentials.
-- `NativeEngine/Overlay` uses `NativeTranslationRenderer` for native text layout, source appearance, AOT restoration and text composition. Core Text/Core Graphics draw text and image exports; bounded Core Animation/Metal and UIKit capture helpers reproduce supported live paint operations. Original Rust pixel kernels link through a C ABI as a native static library. `ReaderTranslationOverlayView` and `ReaderTranslationImageExporter` consume the same native pipeline; caches include the renderer version. `NativeDictionaryPopupView` renders dictionary content with UIKit.
-Native renderer regression tests run through `Scripts/test_quick.py`; see `Scripts/TESTING.md`. Previous Web renderer and JS/WASM comparison harnesses have been removed.
+**Translation pipeline** (`Core/Translation`, `Features/Reader/Translation`): page translation has one pipeline, V2 (`Core/Translation/V2`, `Docs/translation-v2.md`).
+- `ReaderTranslationV2Service` runs pages and translated downloads through `V2Pipeline`: S1 RF-DETR layout || S2 PP-OCRv6 manga detection, S3 recognition, S4 grouping/roles, S5 one provider request per page, S6 removal mask, S7 AOT inpainting, S8 style, S9 layout, S10 Core Text paint. Models load lazily and are released on memory warnings; results are cached under `v2-` keys in `ReaderTranslationDiskCache`.
+- `NativeEngine/OCR` supplies the Core ML detector and recognizer V2 reuses; models and dictionaries are in `Aidoku/Resources/Translation`.
+- `NativeEngine/Translation` handles remote OpenAI-compatible clients, batching, endpoint policy and Keychain-stored credentials; `ReaderTranslationService.translateV2` applies the mandatory page settings and shared provider limit. Metadata (title/description/menu) translation uses the same client.
+- `NativeDictionaryPopupView` renders dictionary content with UIKit (independent of page translation).
 
 **Share extension.** `AidokuShare` hands images to the app through an app group and URL scheme defined in `Aidoku/Aidoku.xcconfig`. The xcconfig also sets bundle IDs and the `CANONICAL_BUILD` Swift flag.
 
@@ -119,33 +117,18 @@ Any new UI string must use `NSLocalizedString`, with an English entry in `en.lpr
 
 ## Image translation pipeline CLI
 
-For quick image translation/OCR analysis, use `Scripts/image-translation.swift` directly on Apple Silicon macOS 15+ with Xcode command-line tools and Rust (`rustc`). From this Git root, passing only an image, image list, or folder runs the production Core ML OCR, recovery/grouping, remote translation and native Core Graphics/Core Text renderer:
+`swift Scripts/image-translation.swift` runs the app's only page-translation pipeline, V2 (`Aidoku/Core/Translation/V2`, `Docs/translation-v2.md`), on Apple Silicon macOS 15+ with the Xcode command-line tools. It compiles the same V2 stage files as the app plus an explicit list of shared app files into an incremental `-O` binary in `build/image-translation-v2`:
 
 ```sh
-swift Scripts/image-translation.swift /path/to/page.png
-swift Scripts/image-translation.swift /path/to/images
+swift Scripts/image-translation.swift /path/to/page.png                 # live translation (default)
+swift Scripts/image-translation.swift /path/to/images --jobs 3
 swift Scripts/image-translation.swift --list /path/to/images.json
-swift Scripts/image-translation.swift --ocr-only /path/to/page.png
+swift Scripts/image-translation.swift --ocr-only /path/to/page.png       # S1-S4, recognized blocks only
+swift Scripts/image-translation.swift --split dev --limit 5 --replay-translations RUN_DIR   # no LLM
 ```
 
-The runner automatically reads this repository's ignored `.env`, including the API key and the actual installed iPhone settings imported into it. Defaults are a saved phone snapshot, not the app's factory settings or a live phone query on every run. Precedence is CLI arguments > shell environment > `.env` > built-in fallbacks. Keep credentials in `.env`; never commit, print, or copy them into reports. `.env.example` contains no credential. Refresh the snapshot from a connected phone with:
+`--pipeline v2` is accepted as a no-op alias. Live mode calls the real provider through `V2Translation` and `RemoteTranslationClient` with the app's mandatory page settings (page image attached, SFX/background filtering on, at most three concurrent page requests). Replay reads saved translations from a legacy `page-index.json` run or a V2 run. The runner reads this repository's ignored `.env`; precedence is CLI arguments > shell environment > `.env` > defaults (`AIDOKU_ENV_FILE=` disables it). Keep credentials in `.env`; never commit, print, or copy them into reports. `.env.example` contains no credential. `python3 Scripts/image-translation/sync-iphone-settings.py --device <DEVICE_ID> --bundle-id <BUNDLE_ID>` copies the installed app's provider/language settings into `.env` and preserves the key.
 
-```sh
-python3 Scripts/image-translation/sync-iphone-settings.py --device <DEVICE_ID> --bundle-id <INSTALLED_AIDOKU_BUNDLE_ID>
-```
+Each run writes `pages/<page>.json` (blocks, lines, translations, placement, timings, failure), `pages/<page>.png` (not in `--ocr-only`) and `summary.json` under `../output/image-translation/run-<UUID>/`. Exit status 1 means a page failed; 2 means invalid settings. Score runs with `python3 Scripts/v2/eval.py RUN_DIR --split dev`. Never view page images; process pixels in code only.
 
-This reads the installed app's preferences and preserves the existing local API key. It imports protocol/reasoning, languages, image/filter flags, OCR model/sizes/confidence/detector thresholds, and supported overlay appearance settings. Scheduling/cache preferences are retained as provenance; this CLI uses bounded image workers (default `AIDOKU_IMAGE_JOBS=8`, overridden by `--jobs N`), overlaps translation across images, and uses the production layout planner with AppKit/Core Text font metrics. OCR and rendering each retain one admission slot. Supply the actual reader container with `--viewport WIDTHxHEIGHT` or `AIDOKU_RENDER_VIEWPORT`; the 430x932 default is portrait screen geometry, not a live reader measurement. Image-attached provider calls are capped at three. Bundled serif fonts are registered with Core Text; AOT restoration and PDF composition use the production native renderer; Rust pixel kernels are compiled as a native static library; macOS font metrics and iPhone performance/pixel output can still differ.
-
-Runs save numbered intermediate JSON, OCR/stage PNGs, detector probability maps, native render diagnostics, final JSON/PDF/PNG and a static HTML preview, and an interactive `analysis-index.html` under `../output/image-translation/run-<UUID>/`. Open the analysis report to inspect OCR text/confidence, reading direction, geometric angles, recovery/merging, balloon interiors and final text-box rendering. The diagnostics available for a page depend on its render path. `final.html` displays the saved PNG; opening it does not execute an overlay renderer.
-
-The production renderer restores text through the segmentation mask and composites the translated text at source-near positions. Verify the mask, restored image and final paint when investigating rendering faults. The cleanup and validation guidelines are in AGENTS.md.
-
-Rebuild reports from existing output without running OCR or a server:
-
-```sh
-swift Scripts/image-translation.swift --visualize-run /path/to/run-UUID
-```
-
-Final composites are also collected in `RUN_DIRECTORY/final/`. Use `swift Scripts/image-translation.swift --render-run RUN_DIRECTORY` to recompose completed results from saved render payloads without OCR/API calls. Use `--resume-run RUN_DIRECTORY` with the same image inputs/order/settings to retain completed native results and continue an interrupted run. Completed historical browser renders are recomposed from saved inputs with the native renderer, without OCR/API calls.
-
-See `Scripts/image-translation/README.md` and `swift Scripts/image-translation.swift --help` for all options. Focused checks are `python3 Scripts/tests/run-image-environment-smoke.py`, `python3 Scripts/tests/run-image-analysis-smoke.py`, and `python3 Scripts/tests/run-image-translation-smoke.py` (real host OCR/rendering and a local mock server). Apply the existing verification-scope rules; documentation-only changes need no build or test run. The launcher reuses its incremental Swift/Core ML cache in `build/image-translation-host`.
+See `Scripts/image-translation/README.md` and `swift Scripts/image-translation.swift --help`. Focused checks are `python3 Scripts/tests/run-image-environment-smoke.py` (settings, no models) and `python3 Scripts/tests/run-image-translation-smoke.py` (real Core ML OCR and a loopback mock provider). Apply the existing verification-scope rules; documentation-only changes need no build or test run.

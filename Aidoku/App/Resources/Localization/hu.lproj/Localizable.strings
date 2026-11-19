@@ -326,25 +326,15 @@
 
 "TRANSLATION_TITLE" = "OCR és fordítás";
 
-"TRANSLATION_TRANSLATE" = "Látható oldalak fordítása";
 
-"TRANSLATION_RECOGNIZE" = "Szöveg felismerése (offline)";
 
-"TRANSLATION_ORIGINAL" = "Eredeti megjelenítése";
 
-"TRANSLATION_TEXT" = "Felismert és lefordított szöveg";
 
-"TRANSLATION_NO_IMAGE" = "Várja meg, amíg egy képoldal betöltődik, majd próbálja újra.";
 
-"TRANSLATION_NO_TEXT" = "Nem ismert fel szöveget. Próbáljon ki egy másik OCR-modellt vagy egy tisztább képet.";
 
-"TRANSLATION_WORKING" = "Felismerés és fordítás…";
 
-"TRANSLATION_OCR_WORKING" = "Szöveg felismerése az eszközön…";
 
-"TRANSLATION_HELP" = "A fordítás ikonja be- vagy kikapcsolja a fordítást. Először a látható oldalak készülnek elő, majd a közeliek. Az előkészítés követi az olvasási pozíciót. A mentett OCR-eredmények, fordítások és szövegelrendezések az olvasó újbóli megnyitása vagy az alkalmazás újraindítása után is felhasználhatók. Az ideiglenesen megnyitott megosztott képek nem mentik ezt a gyorsítótárat. Az olvasó elhagyása megszakítja a befejezetlen feldolgozást.";
 
-"TRANSLATION_PRIVACY" = "Az OCR az eszközön fut. A fordítás elküldi a felismert szöveget és az utasításait a kiválasztott szolgáltatónak. Ha az Oldalkép belefoglalása a fordításba beállítás aktív, az oldal feldolgozott képe is feltöltésre kerülhet. Ha a képbemenet nem támogatott, a fordítás csak szöveggel folytatódik. Az API-költségek a szolgáltatótól függenek. A kulcsok a Kulcskarikában maradnak. Az OCR-eredmények, a fordítások és a szövegelrendezés az alkalmazás védett, biztonsági mentésekből kizárt tárhelyén kerülnek mentésre.";
 
 "TRANSLATION_KEY_REPLACE" = "Mentett API-kulcs cseréje (opcionális)";
 
@@ -362,11 +352,9 @@
 
 "TRANSLATION_TARGET" = "Célnyelv";
 
-"TRANSLATION_SOURCE" = "Forrásnyelv";
 
 "TRANSLATION_AUTO" = "Automatikus észlelés";
 
-"TRANSLATION_OCR_HELP" = "A PP-OCRv6 használatához iOS 18 vagy újabb verzió szükséges. A szöveg észlelésének és felismerésének alapértelmezett modellje a Manga v0.3. Más OCR-modellek is választhatók.";
 
 
 
@@ -384,42 +372,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Egyidejű kérések";
 
-"TRANSLATION_DETECTOR_SIZE" = "Szövegdetektálás maximális oldalhossza";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "A szövegfelismeréshez használt kép maximális szélessége";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR-szövegészlelés pixelküszöbe";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "OCR-szövegterületek észlelésének minimális megbízhatósága";
-"TRANSLATION_CONFIDENCE" = "OCR-szövegfelismerés minimális megbízhatósága";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "A pixelküszöb kiválasztja a szöveg képpontjait. Az észlelés megbízhatósága a szövegterületeket szűri. A felismerés megbízhatósága az egyes területekről kiolvasott szöveget szűri. Alacsonyabb értékek több bizonytalan eredményt engednek át.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "OCR-észlelés minimális mérete";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "A lehetséges szövegterületek rövidebb oldalának minimális hossza, az észlelési térkép képpontjaiban. Alapérték: 3 px. Az alacsonyabb értékek kisebb szöveget, de több képzajt is észlelhetnek.";
 
-"TRANSLATION_SURFACE" = "Háttérszín";
 
-"TRANSLATION_WHITE" = "Fehér";
 
-"TRANSLATION_DARK" = "Sötét";
 
-"TRANSLATION_OPACITY" = "Háttér átlátszatlansága";
 
-"TRANSLATION_EXPANSION" = "Szövegkeret bővítése";
 
-"TRANSLATION_PANEL_BOUNDS" = "A kép határain belül";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Az eredeti szövegkereten belül";
 
-"TRANSLATION_UNRESTRICTED" = "Korlátlan";
 
-"TRANSLATION_FONT_SIZE" = "Betűméret";
 
-"TRANSLATION_AUTO_FIT" = "Automatikus illeszkedés";
 
-"TRANSLATION_FIXED" = "Fix betűméret";
 
-"TRANSLATION_OVERLAY" = "Fordítási fedvény";
 
-"TRANSLATION_OVERLAY_HELP" = "Az eredeti szövegkeretben cseréli le a szöveget, elkerülve az átfedéseket és az írásrendszerhez igazítva a sortöréseket. A megjelenítési módosítások újra felhasználják a meglévő OCR-eredményeket.";
 
 "TRANSLATION_PROVIDER" = "Fordításszolgáltató";
 
@@ -491,7 +458,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Oldal forrásnyelve";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Automatikusan felismeri az egyes címek forrásnyelvét, és csak a kiválasztott nyelveket fordítja le. A Minden észlelt nyelv lehetőség megszünteti a nyelvi korlátozást. Az oldalak és más címek forrásnyelvi beállításai nem befolyásolják ezt a választást.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Mangaleírások fordítása";
 
@@ -503,32 +469,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Oldalkép belefoglalása a fordításba";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Az oldal képét az OCR-szöveggel együtt küldi el a jelenet kontextusához. Ha a képbemenet nem támogatott, a fordítás automatikusan csak szöveggel folytatódik. A képek csatolása növelheti az adatforgalmat és az API-költséget.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "A képbemenet nem támogatott. A fordítás képek nélkül folytatódik.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Az eredeti szöveg színének megőrzése";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "További modell nélkül megbecsüli az eredeti szöveg színét. Bizonytalan becslés vagy túl alacsony kontraszt esetén az alapértelmezett színt használja.";
 
-"TRANSLATION_LLM_SFX" = "LLM SFX szűrés (minden nyelven)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Ugyanabban a fordítási kérésben osztályozza a hangeffektusokat, és változatlanul hagyja őket. Oldalkép esetén a mesterséges intelligencia a nem egyértelmű OCR-töredékeket is kihagyja, kivéve, ha a kép alapján értelmes szövegről van szó. A párbeszéd, az elbeszélés, a címek és az alkotói adatok továbbra is fordításra kerülnek. Oldalkép nélkül a besorolás kevésbé megbízható.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Képbemenet nélkül a korlátozott vizuális és elrendezési környezet csökkentheti az SFX-osztályozás pontosságát.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Az eredeti szövegháttér színének megőrzése";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "A fordítás hátterét az eredeti szöveg körüli háttérhez igazítja. Bizonytalan becslés vagy rossz olvashatóság esetén az alapértelmezett hátteret használja. Az átlátszatlanság beállítása továbbra is érvényes.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Egyéni (OpenAI-kompatibilis)";
 
-"TRANSLATION_OCR_MEDIUM" = "Közepes";
 
-"TRANSLATION_OCR_SMALL" = "Kicsi";
 
-"TRANSLATION_OCR_TINY" = "Apró";
 
 "TRANSLATION_REASONING_NONE" = "Nincs gondolkodás";
 
@@ -1079,8 +1034,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Letöltés fordítással";
 
-"TRANSLATION_LLM_BACKGROUND" = "Háttérfeliratok kihagyása (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "A fordító mesterséges intelligencia változatlanul hagyja a jelenetben látható szokásos táblákat, plakátokat és a tárgyakon lévő feliratokat, akkor is, ha kapcsolódnak a jelenethez vagy megemlítik őket a párbeszédben. Lefordítja a párbeszédet, az elbeszélést, a címeket, az alkotói adatokat, a cselekmény szempontjából kulcsfontosságú írott szövegeket és a bizonytalan szerepű szövegeket. Nem küld további kérést, de a feldolgozás hosszabb ideig tarthat. Oldalkép nélkül a besorolás kevésbé megbízható.";
 
 "TRANSLATION_STATE_ON" = "Bekapcsolva";
 "TRANSLATION_STATE_OFF" = "Kikapcsolva";
@@ -1147,13 +1100,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Az iCloud-szinkronizálás módosításai az Aidoku teljes bezárása és újbóli megnyitása után lépnek érvénybe. Addig a jelenlegi beállítás marad aktív.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Eredeti színek megőrzése";
-"TRANSLATION_SOURCE_COLORS_HELP" = "A szöveg és a háttér színének együttes megőrzése.";
-"TRANSLATION_INPAINTING" = "Háttér helyreállítása";
-"TRANSLATION_INPAINTING_HELP" = "Törli az eredeti szöveget, megőrizve a hátteret. Bizonytalan maszk vagy olvashatóság esetén dobozokat használ. Eredeti színek szükségesek.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Szövegszűrés";
 
 "TRANSLATION_TARGETS" = "Fordítandó tartalom";
 
@@ -1194,10 +1142,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "A(z) %@ forrás %d verzióját ez az alkalmazás nem támogatja. Telepítsen támogatott verziót.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "A Manga v0.3 kizárólag japán és kínai (egyszerűsített és hagyományos) forrásszöveget támogat. A forrásnyelv automatikus felismerése és a választható forrásnyelvek köre is ezekre a nyelvekre korlátozódik. Bármely célnyelvre továbbra is lehet fordítani. A Manga kiválasztása 0,85 és 0,25 értékre állítja az észlelési küszöbértékeket; az alapértelmezett észlelési méret 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Az OCR által támogatott összes nyelv";
-"TRANSLATION_PIPELINE_V2" = "Gyors feldolgozás (béta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Az új, sebességre optimalizált oldalfordítási folyamatot használja. Az oldalak felismerése, törlése és újrarajzolása egyetlen kész képként történik, általában sokkal gyorsabban. Az eredmények a normál folyamattól külön kerülnek gyorsítótárba. iOS 18 szükséges.";

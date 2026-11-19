@@ -1,80 +1,64 @@
 #!/usr/bin/env python3
-"""Focused opt-in native host smoke: real OCR, HTTP codec, render, lists and failures.
+"""V2 host smoke: real Core ML OCR, live provider request shape through the production
+RemoteTranslationClient against a loopback mock, ordering, replay, OCR-only, failures,
+output files and credential exclusion.
 
 Run: python3 Scripts/tests/run-image-translation-smoke.py
-No external provider or API key is used; the mock server binds only to loopback.
+No external provider or real API key is used; the mock server binds only to loopback.
+The developer's .env is never read (AIDOKU_ENV_FILE is set empty).
 """
 import base64
 import http.server
 import json
 import os
-import re
 from pathlib import Path
+import re
 import shutil
-import sys
 import subprocess
 import tempfile
 import threading
 
 ROOT = Path(__file__).resolve().parents[2]
 ENTRY = ROOT / 'Scripts/image-translation.swift'
-FIXTURE = ROOT / 'AidokuTests/Translation/Fixtures/VerticalSingleGlyphBalloon.png'
+FIXTURE = ROOT / 'Scripts/tests/fixtures/v2-host/VerticalSingleGlyphBalloon.png'
 SECRET = 'image-translation-smoke-secret'
+TRANSLATION = '어서! 빨리 움직여!'
 requests = []
+request_lock = threading.Lock()
 parallel_probe = False
 active_requests = 0
 peak_requests = 0
-request_lock = threading.Lock()
 overlap = threading.Event()
-# Run all cases against one compiled snapshot while other chats may edit app sources.
-use_binary = '--reuse-built' in sys.argv
-BINARY = ROOT / 'build/image-translation-host/image-translation'
 
 
-def mock_translations(body):
+def requested_ids(body):
+    """Segment ids from the structured-output schema the production codec sent."""
     if 'structured_outputs' in body:
         pattern = body['structured_outputs']['regex']
-        ids = [key.replace(r'\.', '.') for key in re.findall(r'"id":"([^"]+)"', pattern)]
-        required = {field for field in ('text_role',) if f'"{field}":' in pattern}
-    else:
-        schema = body['response_format']['json_schema']['schema']
-        item = schema['properties']['translations']['items']
-        branches = item.get('anyOf', [item])
-        assert branches
+        return [key.replace(r'\.', '.') for key in re.findall(r'"id":"([^"]+)"', pattern)], set()
+    schema = body['response_format']['json_schema']['schema']
+    item = schema['properties']['translations']['items']
+    branch = item.get('anyOf', [item])[0]
+    definition = branch['properties']['id']
+    if '$ref' in definition:
+        definition = schema
+        for component in branch['properties']['id']['$ref'][2:].split('/'):
+            definition = definition[component]
+    return definition['enum'], set(branch['required'])
 
-        def id_values(branch):
-            definition = branch['properties']['id']
-            if '$ref' in definition:
-                reference = definition['$ref']
-                assert reference.startswith('#/'), reference
-                definition = schema
-                for component in reference[2:].split('/'):
-                    definition = definition[component.replace('~1', '/').replace('~0', '~')]
-            return definition['enum']
 
-        ids = id_values(branches[0])
-        required = set(branches[0]['required'])
-        for branch in branches:
-            assert id_values(branch) == ids
-            assert set(branch['required']) == required == set(branch['properties'])
-            assert branch['additionalProperties'] is False
-    assert ids, body
-    # Emit an ordinary dialogue branch, including all requested classification fields.
-    translations = []
-    for key in ids:
-        item = {'id': key}
-        if 'text_role' in required: item['text_role'] = 'dialogue'
-        item['text'] = '어서! 빨리 움직여!'
-        translations.append(item)
-    return translations
+def user_content(body):
+    for message in body['messages']:
+        if message['role'] == 'user':
+            return message['content']
+    raise AssertionError('no user message')
 
 
 class Provider(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
+        response = b'{"data": [{"id": "smoke-fixture"}]}'
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('X-vLLM-Version', '0.11.0')
-        response = b'{"data": [{"id": "smoke-fixture"}]}'
         self.send_header('Content-Length', str(len(response)))
         self.end_headers()
         self.wfile.write(response)
@@ -85,223 +69,172 @@ class Provider(http.server.BaseHTTPRequestHandler):
             with request_lock:
                 active_requests += 1
                 peak_requests = max(peak_requests, active_requests)
-                if active_requests >= 2: overlap.set()
+                if active_requests >= 2:
+                    overlap.set()
             overlap.wait(4)
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         assert self.headers['Authorization'] == f'Bearer {SECRET}'
-        requests.append(body)
-        content = json.dumps({'translations': mock_translations(body)}, ensure_ascii=False, separators=(',', ':'))
-        if body.get('stream'):
-            chunk = {'choices': [{'index': 0, 'delta': {'content': content}, 'finish_reason': None}]}
-            terminal = {'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}]}
-            response = (f'data: {json.dumps(chunk, ensure_ascii=False)}\n\n'
-                        f'data: {json.dumps(terminal)}\n\ndata: [DONE]\n\n').encode()
-        else:
-            response = json.dumps({'choices': [{'index': 0, 'finish_reason': 'stop', 'message': {'content': content}}]}, ensure_ascii=False).encode()
+        with request_lock:
+            requests.append(body)
+        ids, required = requested_ids(body)
+        assert ids, body
+        translations = [{'id': key, **({'text_role': 'dialogue'} if 'text_role' in required else {}),
+                         'text': TRANSLATION} for key in ids]
+        content = json.dumps({'translations': translations}, ensure_ascii=False, separators=(',', ':'))
+        response = json.dumps({'choices': [{'index': 0, 'finish_reason': 'stop',
+                                            'message': {'content': content}}]}, ensure_ascii=False).encode()
         self.send_response(200)
-        self.send_header('Content-Type', 'text/event-stream' if body.get('stream') else 'application/json')
+        self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(response)))
         self.end_headers()
         self.wfile.write(response)
         if parallel_probe:
-            with request_lock: active_requests -= 1
+            with request_lock:
+                active_requests -= 1
 
     def log_message(self, *args):
         pass
 
 
-def run(arguments, expected=0):
-    global use_binary
-    command = [str(BINARY)] if use_binary else ['swift', str(ENTRY)]
+def run(arguments, expected=0, extra=None):
     environment = {key: value for key, value in os.environ.items() if not key.startswith('AIDOKU_')}
-    # Override every persisted option so a developer's ignored phone profile
-    # cannot change this test's model, endpoint, geometry, filters or credentials.
-    environment.update({
-        'AIDOKU_PIPELINE_ROOT': str(ROOT), 'AIDOKU_TRANSLATION_API_KEY': SECRET,
-        'AIDOKU_TRANSLATION_KEY_ENV': 'AIDOKU_TRANSLATION_API_KEY',
-        'AIDOKU_TRANSLATION_BASE_URL': '', 'AIDOKU_TRANSLATION_MODEL': '',
-        'AIDOKU_TRANSLATION_PROTOCOL': 'chatCompletions',
-        'AIDOKU_TRANSLATION_SOURCE': 'ja', 'AIDOKU_TRANSLATION_TARGET': 'ko',
-        'AIDOKU_TRANSLATION_REASONING': 'modelDefault', 'AIDOKU_TRANSLATION_TIMEOUT': '60',
-        'AIDOKU_TRANSLATION_SOURCE_LANGUAGES': '[]', 'AIDOKU_TRANSLATION_ALLOW_LOCAL_HTTP': 'false',
-        'AIDOKU_TRANSLATION_INCLUDE_IMAGE': 'false', 'AIDOKU_TRANSLATION_FILTER_SFX': 'false',
-        'AIDOKU_TRANSLATION_FILTER_BACKGROUND': 'false', 'AIDOKU_TRANSLATION_RTL': 'false',
-        'AIDOKU_OCR_TIER': 'medium', 'AIDOKU_OCR_CONFIDENCE': '0.75',
-        'AIDOKU_OCR_DETECTOR_SIDE': '1184', 'AIDOKU_OCR_RECOGNIZER_WIDTH': '1184',
-        'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': '0.3', 'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': '0.3',
-        'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': '3', 'AIDOKU_RENDER_VIEWPORT': '430x932', 'AIDOKU_IMAGE_JOBS': '2',
-        'AIDOKU_IPHONE_OVERLAY_JSON': json.dumps({'visible': True, 'opacity': 1,
-            'preserveSourceTextColor': True, 'preserveSourceBackgroundColor': True, 'inpaintingEnabled': True}),
-    })
-    fingerprint = ROOT / 'build/image-translation-host/fingerprint'
-    if fingerprint.exists():
-        environment['AIDOKU_PIPELINE_FINGERPRINT'] = fingerprint.read_text()
-    result = subprocess.run([*command, *map(str, arguments)], cwd=ROOT,
-                            env=environment, capture_output=True, text=True)
-    assert result.returncode == expected, result.stdout + result.stderr
+    environment.update({'AIDOKU_ENV_FILE': '', 'AIDOKU_TRANSLATION_API_KEY': SECRET, **(extra or {})})
+    result = subprocess.run(['swift', str(ENTRY), *map(str, arguments)], cwd=ROOT, env=environment,
+                            capture_output=True, text=True)
+    assert result.returncode == expected, f'exit {result.returncode}\n{result.stdout}{result.stderr}'
     assert SECRET not in result.stdout + result.stderr
-    use_binary = True
     return result
 
 
-def latest_summary(output):
-    runs = list(output.glob('run-*'))
-    assert len(runs) == 1, runs
-    summary = json.loads((runs[0] / 'summary.json').read_text())
-    progress = json.loads((runs[0] / 'progress.json').read_text())
-    failures = sum(row['status'] == 'failed' for row in summary)
-    assert progress['status'] == 'finished' and progress['pending'] == 0, progress
-    assert progress['completed'] == progress['total'] == len(summary), progress
-    assert progress['failed'] == failures and progress['succeeded'] == len(summary) - failures, progress
-    assert (runs[0] / 'progress.html').exists()
-    assert 'http-equiv="refresh"' not in (runs[0] / 'progress.html').read_text()
-    assert len(json.loads((runs[0] / 'input-manifest.json').read_text())) == len(summary)
-    return runs[0], summary
+def summary(output):
+    value = json.loads((output / 'summary.json').read_text())
+    assert value['schema'] == 'aidoku-v2-run-summary-v2', value
+    assert value['pages'] == len(value['pageResults'])
+    for row in value['pageResults']:
+        assert (output / row['json']).exists(), row
+    return value
+
+
+def page(output, page_id):
+    return json.loads((output / 'pages' / f'{page_id}.json').read_text())
+
+
+def assert_no_secret(directory):
+    for file in directory.rglob('*'):
+        if file.is_file():
+            assert SECRET.encode() not in file.read_bytes(), file
 
 
 with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     directory = Path(temporary)
     first = directory / 'first/page.png'
     second = directory / 'second/page.png'
-    first.parent.mkdir()
-    second.parent.mkdir()
-    shutil.copyfile(FIXTURE, first)
-    shutil.copyfile(FIXTURE, second)
+    for path in (first, second):
+        path.parent.mkdir()
+        shutil.copyfile(FIXTURE, path)
     (directory / 'broken.png').write_bytes(b'invalid image data')
-    # Same basename, spaces in parent path, relative list paths and canonical deduplication.
+    # Same basename, spaces in the parent path, relative list paths and canonical deduplication.
     (directory / 'images.json').write_text(json.dumps(['first/page.png', 'second/page.png', 'first/page.png']))
-    output = directory / 'ocr output'
-    run(['--list', directory / 'images.json', '--ocr-only', '--quiet', '--output', output])
-    run_dir, summary = latest_summary(output)
-    assert len(summary) == 2 and all(row['status'] == 'success' for row in summary), summary
-    run(['--resume-run', run_dir, '--list', directory / 'images.json', '--ocr-only', '--quiet'])
-    resumed = json.loads((run_dir / 'summary.json').read_text())
-    assert len(resumed) == 2 and all(row.get('resumed') for row in resumed), resumed
-    final = json.loads((run_dir / '0001/final.json').read_text())
-    assert any('早く' in region['source'] for region in final['regions']), final
-    runtime = json.loads(next((run_dir / '0001').glob('*runtime-settings.json')).read_text())['value']
-    assert runtime['ocr']['detectorMaximumSide'] == 1184 and runtime['ocr']['recognizerMaximumWidth'] == 1184
-    assert list((run_dir / '0001').glob('*detector-output.json'))
-    assert list((run_dir / '0001').glob('*native-ocr.json'))
-    assert (run_dir / 'analysis-index.html').exists()
-    assert (run_dir / '0001/analysis.html').exists()
-    analysis = json.loads((run_dir / '0001/analysis.json').read_text())
-    assert analysis['stages'] and analysis['maps']
-    assert all((run_dir / '0001' / item['raw']).stat().st_size == item['width'] * item['height'] * 4 for item in analysis['maps'])
-    replay = directory / 'replay.json'
-    replay.write_text(json.dumps({region['source']: '어서! 빨리 움직여!' for region in final['regions']}, ensure_ascii=False))
-    replay_output = directory / 'replay output'
-    run(['--translations', replay, '--quiet', '--output', replay_output, first])
-    replay_dir, summary = latest_summary(replay_output)
-    assert (replay_dir / '0001/final.png').stat().st_size > 100
-    assert (replay_dir / '0001/final.html').exists()
-    analysis = json.loads((replay_dir / '0001/analysis.json').read_text())
-    assert analysis['finalImage'] == 'final.png' and not analysis['segmentation']
-    diagnostics = json.loads(next((replay_dir / '0001').glob('*native-render-diagnostics.json')).read_text())['value']
-    # Offline replay only substitutes translations; rendering uses the production main
-    # ensemble route with AOT restoration (AIDOKU_LEGACY_PANEL_RENDERER=1 is the rollback).
-    assert diagnostics['entrypoint'] == 'NativeTranslationRenderer/NativeMainEnsemblePipeline', diagnostics
-    assert diagnostics['mainPipelineApplied'] is True and diagnostics['complete'] is True, diagnostics
-    assert diagnostics['expectedTranslationItems'] > 0, diagnostics
-    assert diagnostics['paintedTranslationItems'] == diagnostics['expectedTranslationItems'], diagnostics
-    assert diagnostics['itemAccounting'] and all(row['status'] == 'painted' for row in diagnostics['itemAccounting']), diagnostics
-    restoration = diagnostics['restoration']
-    assert restoration['appliedHasRemovalPixels'] is True and restoration['alphaPolicy'].startswith('aot-'), restoration
-    render_result = json.loads(next((replay_dir / '0001').glob('*render-result.json')).read_text())['value']
-    assert render_result['engine'] == 'native-coretext-coregraphics'
-    assert render_result['renderedItemCount'] > 0 and render_result['layoutVersion'] > 0
-    assert not list((replay_dir / '0001').glob('*render-dom.json'))
-    assert (replay_dir / '0001/final-typography.pdf').read_bytes().startswith(b'%PDF-')
-    assert (replay_dir / '0001/final-layers.json').exists()
-    assert (replay_dir / '0001/native-layout.json').exists()
-    final_html = (replay_dir / '0001/final.html').read_text()
-    assert 'src="final.png"' in final_html and '<script' not in final_html.lower()
-    assert 'data:image/png;base64,' not in final_html
-    translated = json.loads((replay_dir / '0001/final.json').read_text())
-    assert all(region['translation'] == '어서! 빨리 움직여!' for region in translated['regions'])
-    assert translated['renderEngine'] == 'native-coretext-coregraphics'
-    # Native payload replay uses the main ensemble path and retains saved OCR/translations.
-    native_ocr_before = {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')}
-    saved_payload = next((replay_dir / '0001').glob('*render-payload.json'))
-    latest_payload = replay_dir / '0001/1000-render-payload.json'
-    latest_payload.write_bytes(saved_payload.read_bytes())
-    stale_payload = replay_dir / '0001/999-render-payload.json'
-    stale_payload.write_text(json.dumps({'stage': 'render-payload', 'value': {'hostViewport': []}}))
-    run(['--render-run', replay_dir])
-    assert json.loads((replay_dir / '0001/final.json').read_text())['regions'] == translated['regions']
-    assert {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')} == native_ocr_before
-    replay_html = (replay_dir / '0001/final.html').read_text()
-    assert 'src="final.png"' in replay_html and '<script' not in replay_html.lower()
-    # Completed browser-era runs must recompose through native code when resumed,
-    # while retaining OCR and user translations without any provider request.
-    saved_payload = latest_payload
-    legacy_payload = json.loads(saved_payload.read_text())
-    for key in ['nativeLayout', 'nativeSettings', 'hostRenderer']:
-        legacy_payload['value'].pop(key, None)
-    saved_payload.write_text(json.dumps(legacy_payload, ensure_ascii=False))
-    translated.pop('renderEngine')
-    (replay_dir / '0001/final.json').write_text(json.dumps(translated, ensure_ascii=False))
-    ocr_before = {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')}
-    (replay_dir / '0001/final.png').unlink()
-    run(['--resume-run', replay_dir, '--translations', replay, '--quiet', first])
-    migrated = json.loads((replay_dir / '0001/final.json').read_text())
-    assert migrated['renderEngine'] == 'native-coretext-coregraphics'
-    assert migrated['regions'] == translated['regions']
-    assert (replay_dir / '0001/final.png').stat().st_size > 100
-    assert {file.name: file.read_bytes() for file in (replay_dir / '0001').glob('*native-ocr.json')} == ocr_before
-    assert all(row.get('resumed') for row in json.loads((replay_dir / 'summary.json').read_text()))
-    # Real production client + codec/transport against a loopback mock.
+
+    # OCR-only: S1-S4, recognized blocks, no PNG, no provider settings needed.
+    ocr_output = directory / 'ocr output'
+    run(['--ocr-only', '--list', directory / 'images.json', '--output', ocr_output],
+        extra={'AIDOKU_TRANSLATION_API_KEY': ''})
+    ocr = summary(ocr_output)
+    assert ocr['mode'] == 'ocr-only' and [row['pageID'] for row in ocr['pageResults']] == ['page', 'page-2'], ocr
+    assert all(row['status'] == 'success' and 'png' not in row for row in ocr['pageResults']), ocr
+    assert not list((ocr_output / 'pages').glob('*.png'))
+    recognized = page(ocr_output, 'page')
+    assert recognized['mode'] == 'ocr-only' and recognized['placed'] == []
+    assert any('早く' in block['sourceText'] for block in recognized['blocks']), recognized['blocks']
+    assert all(block.get('translation') is None for block in recognized['blocks'])
+    assert all(line['text'] for block in recognized['blocks'] for line in block['lines'])
+    assert not any(stage in recognized['timings'] for stage in ('s6_mask', 's7_inpaint', 's10_paint')), recognized['timings']
+    assert 'provider' not in ocr
+
+    # Live: the real client/codec against the loopback mock, mandatory page settings.
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Provider)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base_url = f'http://127.0.0.1:{server.server_port}/v1'
+    provider = ['--base-url', base_url, '--model', 'smoke-fixture', '--protocol', 'chatCompletions',
+                '--allow-local-http', '--source', 'ja', '--target', 'ko']
     try:
-        remote_output = directory / 'remote output'
-        run(['--quiet', '--output', remote_output, '--base-url', f'http://127.0.0.1:{server.server_port}/v1',
-             '--model', 'smoke-fixture', '--protocol', 'chatCompletions', '--allow-local-http', '--source', 'ja', first])
-        remote_dir, summary = latest_summary(remote_output)
-        assert requests and not any(request.get('stream') for request in requests), 'Page requests must use the standard single-call path'
-        assert not list((remote_dir / '0001').glob('*translation-partial.json'))
-        assert (remote_dir / '0001/final.png').exists()
-        assert list((remote_dir / '0001').glob('*http-request.json'))
-        assert list((remote_dir / '0001').glob('*http-response.json'))
-        for file in remote_dir.rglob('*.json'):
-            assert SECRET not in file.read_text(), file
-        # Identical concurrent requests share one provider attempt, so the overlap probe
-        # needs a distinct second page: pad the fixture to shift its region bounds.
-        distinct_second = directory / 'parallel/second/page.png'
-        distinct_second.parent.mkdir(parents=True)
-        dimensions = subprocess.run(['sips', '-g', 'pixelHeight', '-g', 'pixelWidth', str(FIXTURE)],
-                                    check=True, capture_output=True, text=True).stdout
-        height = int(re.search(r'pixelHeight: (\d+)', dimensions).group(1))
-        width = int(re.search(r'pixelWidth: (\d+)', dimensions).group(1))
-        subprocess.run(['sips', '--padToHeightWidth', str(height + 32), str(width + 32), '--padColor', 'FFFFFF',
-                        str(FIXTURE), '--out', str(distinct_second)], check=True, capture_output=True)
+        live_output = directory / 'live output'
+        run([*provider, '--output', live_output, first])
+        live = summary(live_output)
+        assert live['mode'] == 'live' and live['failedPages'] == [], live
+        assert live['provider']['keyPresent'] is True and live['provider']['model'] == 'smoke-fixture'
+        assert live['provider']['includePageImage'] and live['provider']['filterSFX'] and live['provider']['filterBackground']
+        assert len(requests) == 1, len(requests)
+        body = requests[0]
+        assert body['model'] == 'smoke-fixture' and not body.get('stream'), body.keys()
+        content = user_content(body)
+        images = [part for part in content if isinstance(part, dict) and part.get('type') == 'image_url']
+        assert len(images) == 1, 'the page image is mandatory'
+        jpeg = base64.b64decode(images[0]['image_url']['url'].split(',', 1)[1])
+        assert jpeg.startswith(b'\xff\xd8'), 'page image must be a JPEG'
+        ids, required = requested_ids(body)
+        assert ids == ['v2-block-0'] or all(key.startswith('v2-block-') for key in ids), ids
+        assert 'text_role' in required, 'SFX/background filtering must request text roles'
+        text = json.dumps(body, ensure_ascii=False)
+        assert '早く' in text, 'recognized source text is sent'
+        translated = page(live_output, 'page')
+        painted = [block for block in translated['blocks'] if block.get('translation')]
+        assert painted and all(block['translation'] == TRANSLATION for block in painted), translated['blocks']
+        assert translated['placed'], 'translated blocks are placed and painted'
+        png = live_output / 'pages/page.png'
+        assert png.read_bytes().startswith(b'\x89PNG') and png.stat().st_size > 100
+        assert live['pageResults'][0]['png'] == 'pages/page.png'
+        assert_no_secret(live_output)
+
+        # Pages overlap their provider calls and results stay in input order.
         parallel_probe = True
         parallel_output = directory / 'parallel output'
-        run(['--jobs', '2', '--quiet', '--output', parallel_output, '--base-url', f'http://127.0.0.1:{server.server_port}/v1',
-             '--model', 'smoke-fixture', '--protocol', 'chatCompletions',
-             '--allow-local-http', first, distinct_second])
-        parallel_dir, summary = latest_summary(parallel_output)
-        assert peak_requests == 2, f'Translation did not overlap: peak={peak_requests}'
-        assert len(summary) == 2 and all(row['status'] == 'success' for row in summary), summary
-        assert [Path(row['input']).parent.name for row in summary] == ['first', 'second']
-        assert all((parallel_dir / f'{index:04d}/final.png').exists() for index in [1, 2])
-        assert len(list((parallel_dir / 'final').glob('*.png'))) == 2
+        run([*provider, '--jobs', '2', '--output', parallel_output, '--list', directory / 'images.json'])
         parallel_probe = False
+        assert peak_requests == 2, f'Translation did not overlap: peak={peak_requests}'
+        parallel = summary(parallel_output)
+        assert [row['image'] for row in parallel['pageResults']] == [str(first), str(second)], parallel['pageResults']
+        assert all(row['status'] == 'success' and row['png'] for row in parallel['pageResults'])
+        assert_no_secret(parallel_output)
 
+        # Replay from the live V2 run: no provider call, same translations.
+        before = len(requests)
+        replay_output = directory / 'replay output'
+        run(['--replay-translations', live_output, '--output', replay_output, first],
+            extra={'AIDOKU_TRANSLATION_API_KEY': ''})
+        assert len(requests) == before, 'replay must not call the provider'
+        replay = summary(replay_output)
+        assert replay['mode'] == 'replay' and 'provider' not in replay
+        replayed = page(replay_output, 'page')
+        assert replayed['replayAvailable'] is True and replayed['replayMatched'] >= 1, replayed
+        assert [block.get('translation') for block in replayed['blocks']] == \
+            [block.get('translation') for block in translated['blocks']]
+        assert (replay_output / 'pages/page.png').exists()
+
+        # `--pipeline v2` is a no-op alias; settings precedence is CLI > shell.
+        settings = json.loads(run(['--pipeline', 'v2', *provider, '--model', 'cli-model', '--print-settings', first],
+                                  extra={'AIDOKU_TRANSLATION_MODEL': 'shell-model'}).stdout)
+        assert settings['provider']['model'] == 'cli-model' and settings['mode'] == 'live', settings
     finally:
         server.shutdown()
         server.server_close()
-    # A decode failure does not prevent the next valid image from completing.
+
+    # A decode failure does not stop the next page; the run exits 1 and records it.
     mixed_output = directory / 'mixed output'
-    run(['--ocr-only', '--quiet', '--output', mixed_output, directory / 'broken.png', first], expected=1)
-    _, summary = latest_summary(mixed_output)
-    assert [row['status'] for row in summary] == ['failed', 'success'], summary
-    nested_output = directory / 'nested output'
-    run(['--ocr-only', '--quiet', '--recursive', '--limit', '1', '--output', nested_output, directory / 'first'])
-    _, summary = latest_summary(nested_output)
-    assert len(summary) == 1
-    run(['--ocr-only', '--confidence', 'nan', first], expected=2)
+    run(['--ocr-only', '--output', mixed_output, directory / 'broken.png', first], expected=1)
+    mixed = summary(mixed_output)
+    assert [row['status'] for row in mixed['pageResults']] == ['failed', 'success'], mixed
+    assert mixed['pageResults'][0]['failure'].startswith('load:') and mixed['failedPages'] == ['broken']
+
+    # Invalid settings fail before model loading (exit 2) and never echo the key.
+    run([first], expected=2)  # live without --base-url/--model
+    run(['--base-url', 'http://example.org/v1', '--model', 'fixture', first], expected=2)  # insecure remote HTTP
+    run(['--base-url', base_url, '--model', 'fixture', '--allow-local-http', first], expected=2,
+        extra={'AIDOKU_TRANSLATION_API_KEY': ''})  # missing key
+    run(['--ocr-only', '--source', 'en', first], expected=2)
+    run(['--ocr-only', '--replay-translations', live_output, first], expected=2)
     run(['--ocr-only', directory / 'missing.png'], expected=2)
-    run(['--base-url', 'http://example.org/v1', '--model', 'fixture', first], expected=2)
-print('PASS: native OCR, offline render, concurrent provider requests, stable ordering, inputs/resume/failures and credential exclusion')
+    run(['--pipeline', 'legacy', first], expected=2)
+print('PASS: V2 OCR-only blocks, live provider request shape (image, roles, ids), overlap and input ordering, '
+      'V2-run replay without provider calls, output files, failures and credential exclusion')

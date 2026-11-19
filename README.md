@@ -17,7 +17,7 @@ A free and open source manga reading application for iOS, iPadOS, and macOS.
 - Downloads
 - Tracker integration (AniList, MyAnimeList, etc.)
 - On-device OCR and native dictionary lookup
-- On-device PP-OCRv6 and OpenAI / Custom OpenAI page translation with native text layout, restoration and image export ([architecture and development](Docs/native-runtime.md))
+- On-device page translation (V2 pipeline: Core ML layout/OCR, OpenAI / Custom OpenAI translation, AOT text removal and Core Text rendering) with translated downloads ([pipeline](Docs/translation-v2.md))
 
 ## Installation
 
@@ -36,8 +36,6 @@ We have an AltStore repo that contains the latest releases ipa. You can copy the
 The latest ipa file will always be available from the [releases page](https://github.com/Aidoku/Aidoku/releases). Nightly ipas are also built on each commit, but it's not recommended to use these since they may have in-progress changes that could cause issues when updating later.
 
 ## Contributing
-
-Before building from a fresh checkout, install CMake and provision the native image dependencies for your target. For an iPhone build, run `python3 Scripts/native-source-cv/bootstrap.py --platform ios-arm64`. For an Apple Silicon simulator build, use `--platform ios-arm64-simulator`. The same script accepts `--platform macos-arm64` for the image translation CLI. [Native dependency details](Vendor/NativeSourceCV/README.md)
 
 Aidoku is still in a beta phase, and there are a lot of planned features and fixes. If you're interested in contributing, I'd first recommend checking with me on [Discord](https://discord.gg/kh2PYT8V8d) in the app development channel.
 

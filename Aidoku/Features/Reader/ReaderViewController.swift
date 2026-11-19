@@ -23,10 +23,7 @@ class ReaderViewController: BaseObservingViewController {
     let source: AidokuRunner.Source?
     let manga: AidokuRunner.Manga
     var chapter: AidokuRunner.Chapter
-    var pages: [Page] = [] {
-        didSet { cachedTranslationItems = nil }
-    }
-    private var cachedTranslationItems: (processorKey: String, items: [ReaderTranslationSession.Item])?
+    var pages: [Page] = []
     var readingMode: ReadingMode = .rtl
     var defaultReadingMode: ReadingMode?
     private var tapZone: TapZone?
@@ -1211,16 +1208,6 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
 
     var translationUpcomingPages: [Page] {
         pages.filter { $0.type == .imagePage && !$0.isTextPage }
-    }
-
-    var translationChapterItems: [ReaderTranslationSession.Item] {
-        let processorKey = ImageProcessingSettingsKey.getProcessorSettingsKey()
-        if let cachedTranslationItems, cachedTranslationItems.processorKey == processorKey {
-            return cachedTranslationItems.items
-        }
-        let items = ReaderTranslationSession.chapterItems(translationUpcomingPages)
-        cachedTranslationItems = (processorKey, items)
-        return items
     }
 
     var translationCurrentPageIndex: Int { max(0, currentPage - 1) }

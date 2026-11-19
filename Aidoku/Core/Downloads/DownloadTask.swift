@@ -262,7 +262,11 @@ extension DownloadTask {
         let download = downloads[0]
         let translationSettings = download.translatesImages == true ? await MainActor.run {
             var settings = ReaderTranslationSettings()
-            settings.rightToLeftPanelOrder = download.manga.viewer == .rightToLeft
+            settings.readingDirection = switch download.manga.viewer {
+            case .leftToRight: .leftToRight
+            case .vertical, .webtoon: .topToBottom
+            case .rightToLeft, .unknown: .rightToLeft
+            }
             return settings
         } : nil
         guard !Task.isCancelled, running, downloads.first == download else { return }

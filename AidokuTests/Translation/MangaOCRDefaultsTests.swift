@@ -5,17 +5,6 @@ import Testing
 
 @Suite(.serialized)
 struct MangaOCRDefaultsTests {
-    @Test func adoptedMangaThresholdMigratesOnlyLegacyDefaults() throws {
-        let suite = "MangaOCRThreshold.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        for (saved, expected) in [(0.50, 0.30), (0.75, 0.30), (0.45, 0.30), (0.30, 0.30), (0.4, 0.4), (0.6, 0.6)] {
-            let value = ReaderOCRConfiguration(modelTier: .manga, confidenceThreshold: saved)
-            defaults.set(try JSONEncoder().encode(value), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
-            #expect(ReaderTranslationSettings(defaults: defaults).ocr.confidenceThreshold == expected)
-        }
-        #expect(ReaderOCRConfiguration(modelTier: .small).confidenceThreshold == 0.50)
-    }
     @Test func freshInstallUsesMangaForBothStagesAndItsPreset() throws {
         let suite = "MangaOCRDefaults.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -54,25 +43,6 @@ struct MangaOCRDefaultsTests {
         #expect(settings.ocr.detectorConfidenceThreshold == 0.25)
         settings.sourceLanguage = "en"
         #expect(throws: RemoteTranslationError.self) { try settings.validate() }
-    }
-
-    @Test func explicitSavedModelsRemainSelectableAfterInstallation() throws {
-        let suite = "MangaOCRSaved.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let selected = ReaderOCRConfiguration(modelTier: .small, detectorMaximumSide: 800, detectorPixelThreshold: 0.4)
-        defaults.set(try JSONEncoder().encode(selected), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
-        defaults.set("en", forKey: ReaderTranslationSettings.keyPrefix + "sourceLanguage")
-        let restored = ReaderTranslationSettings(defaults: defaults)
-        #expect(restored.ocr == selected)
-        #expect(restored.sourceLanguage == "en")
-        defaults.set(try JSONEncoder().encode(ReaderOCRConfiguration()), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
-        defaults.set(["en", "ja"], forKey: ReaderTranslationSettings.keyPrefix + "translationSourceLanguages")
-        let manga = ReaderTranslationSettings(defaults: defaults)
-        #expect(manga.sourceLanguage == "auto")
-        #expect(manga.translationSourceLanguages == ["ja"])
-        defaults.set("zh", forKey: ReaderTranslationSettings.keyPrefix + "sourceLanguage")
-        #expect(ReaderTranslationSettings(defaults: defaults).sourceLanguage == "zh-Hans")
     }
 
     @Test func mangaRestrictsOCRSourceWithoutRestrictingTargetsOrMetadata() throws {

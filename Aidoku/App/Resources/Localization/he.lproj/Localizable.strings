@@ -304,25 +304,15 @@
 
 "TRANSLATION_TITLE" = "OCR ותרגום";
 
-"TRANSLATION_TRANSLATE" = "תרגם עמודים גלויים";
 
-"TRANSLATION_RECOGNIZE" = "זיהוי טקסט (לא מקוון)";
 
-"TRANSLATION_ORIGINAL" = "הצג מקורי";
 
-"TRANSLATION_TEXT" = "טקסט מזוהה ומתורגם";
 
-"TRANSLATION_NO_IMAGE" = "המתן לטעינת עמוד תמונה ולאחר מכן נסה שוב.";
 
-"TRANSLATION_NO_TEXT" = "לא זוהה טקסט. נסה מודל OCR אחר או תמונה ברורה יותר.";
 
-"TRANSLATION_WORKING" = "מזהה ומתרגם…";
 
-"TRANSLATION_OCR_WORKING" = "מזהה טקסט במכשיר…";
 
-"TRANSLATION_HELP" = "סמל התרגום מפעיל או מכבה את התרגום. העמודים הגלויים מוכנים תחילה, ואחריהם העמודים הסמוכים. ההכנה עוקבת אחר מיקום הקריאה שלך. ניתן להשתמש שוב בתוצאות OCR, בתרגומים ובפריסת טקסט שנשמרו לאחר פתיחה מחדש של הקורא או הפעלה מחדש של האפליקציה. תמונות משותפות זמניות אינן שומרות מטמון זה. יציאה מהקורא מבטלת עבודה שלא הושלמה.";
 
-"TRANSLATION_PRIVACY" = "OCR פועל במכשיר שלך. לצורך התרגום נשלחים הטקסט המזוהה וההוראות שלך לספק שנבחר. אם האפשרות לכלול תמונת עמוד בתרגום מופעלת, ייתכן שתישלח גם תמונת עמוד מעובדת. אם קלט תמונה אינו נתמך, התרגום ממשיך עם טקסט בלבד. עלויות ה-API תלויות בספק. מפתחות ה-API נשמרים ב-Keychain. תוצאות OCR, תרגומים ופריסת טקסט נשמרים באחסון מוגן של האפליקציה שאינו נכלל בגיבויים.";
 
 "TRANSLATION_KEY_REPLACE" = "החלף מפתח API שמור (אופציונלי)";
 
@@ -340,11 +330,9 @@
 
 "TRANSLATION_TARGET" = "תרגום אל";
 
-"TRANSLATION_SOURCE" = "שפת המקור";
 
 "TRANSLATION_AUTO" = "זיהוי אוטומטי";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 דורש iOS 18 ואילך. Manga v0.3 הוא מודל ברירת המחדל הן לאיתור אזורי טקסט והן לזיהוי תווים. ניתן לבחור גם מודלי OCR אחרים.";
 
 
 
@@ -362,42 +350,21 @@
 
 "TRANSLATION_CONCURRENCY" = "בקשות במקביל";
 
-"TRANSLATION_DETECTOR_SIZE" = "אורך צלע מרבי לתמונת הזיהוי";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "רוחב מרבי לתמונת זיהוי הטקסט";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "סף פיקסלים לזיהוי אזורי OCR";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "רמת ביטחון מינימלית בזיהוי אזורי OCR";
-"TRANSLATION_CONFIDENCE" = "רמת ביטחון מינימלית בפענוח טקסט OCR";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "סף הפיקסלים בוחר פיקסלים של טקסט. רמת הביטחון בזיהוי מסננת אזורי טקסט. רמת הביטחון בפענוח מסננת את הטקסט שנקרא מכל אזור. ערכים נמוכים יותר מאפשרים יותר תוצאות לא ודאיות.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "גודל מינימלי לזיהוי אזורי OCR";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "האורך המינימלי של הצלע הקצרה באזורי טקסט אפשריים, בפיקסלים של מפת הזיהוי. ברירת מחדל: 3 px. ערכים נמוכים יותר עשויים לזהות טקסט קטן יותר, אך גם לכלול יותר רעש בתמונה.";
 
-"TRANSLATION_SURFACE" = "צבע רקע";
 
-"TRANSLATION_WHITE" = "לבן";
 
-"TRANSLATION_DARK" = "כהה";
 
-"TRANSLATION_OPACITY" = "אטימות רקע";
 
-"TRANSLATION_EXPANSION" = "הרחבת מסגרת הטקסט";
 
-"TRANSLATION_PANEL_BOUNDS" = "בתוך גבולות התמונה";
 
-"TRANSLATION_SOURCE_BOUNDS" = "בתוך מסגרת הטקסט המקורית";
 
-"TRANSLATION_UNRESTRICTED" = "ללא הגבלה";
 
-"TRANSLATION_FONT_SIZE" = "גודל גופן";
 
-"TRANSLATION_AUTO_FIT" = "התאמה אוטומטית";
 
-"TRANSLATION_FIXED" = "קבוע";
 
-"TRANSLATION_OVERLAY" = "שכבת תרגום";
 
-"TRANSLATION_OVERLAY_HELP" = "מחליף טקסט בתוך המסגרת המקורית שלו, תוך מניעת חפיפה והתאמת גלישת השורות למערכת הכתב. שינויים בתצוגה משתמשים מחדש בתוצאות ה-OCR הקיימות.";
 
 "TRANSLATION_PROVIDER" = "ספק תרגום";
 
@@ -469,7 +436,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "שפת מקור העמוד";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "מזהה אוטומטית את שפת המקור של כל כותרת ומתרגם רק כותרות בשפות שנבחרו. האפשרות כל השפות שזוהו מבטלת את הגבלת השפה. הגדרות שפת המקור של העמוד ושל סוגי כותרות אחרים אינן משפיעות על בחירה זו.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "תרגום תיאורי מנגה";
 
@@ -481,32 +447,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "כלול תמונת עמוד בתרגום";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "שליחת תמונת העמוד עם טקסט OCR מספקת את הקשר הסצנה. אם קלט תמונה אינו נתמך, התרגום ממשיך אוטומטית עם טקסט בלבד. צירוף תמונות עשוי להגדיל את צריכת הנתונים ואת עלות ה-API.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "קלט תמונה אינו נתמך. התרגום ממשיך ללא תמונות.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "שמור על צבע הטקסט המקורי";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "מעריך את צבע הטקסט המקורי ללא מודל נוסף. משתמש בצבע ברירת המחדל כשההערכה אינה ודאית או כשהניגודיות נמוכה מדי.";
 
-"TRANSLATION_LLM_SFX" = "סינון אפקטים קוליים באמצעות LLM (כל השפות)";
 
-"TRANSLATION_LLM_SFX_HELP" = "מסווג אפקטים קוליים באותה בקשת תרגום ומשאיר אותם ללא שינוי. כשמצורפת תמונת עמוד, הבינה המלאכותית מדלגת גם על מקטעי OCR לא ברורים, אלא אם התמונה מראה שמדובר בטקסט בעל משמעות. דיאלוג, קריינות, כותרות וקרדיטים נשארים מיועדים לתרגום. הסיווג פחות אמין ללא תמונת עמוד.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "ללא קלט תמונה, הקשר חזותי ופריסה מוגבל עשוי להפחית את דיוק סיווג SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "שמור על צבע הרקע של הטקסט המקורי";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "מתאים את רקע התרגום לרקע שסביב הטקסט המקורי. משתמש ברקע ברירת המחדל כשההערכה אינה ודאית או כשהטקסט אינו קריא. הגדרת האטימות עדיין חלה.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "מותאם אישית (תואם OpenAI)";
 
-"TRANSLATION_OCR_MEDIUM" = "בינוני";
 
-"TRANSLATION_OCR_SMALL" = "קטן";
 
-"TRANSLATION_OCR_TINY" = "זעיר";
 
 "TRANSLATION_REASONING_NONE" = "ללא";
 
@@ -1079,8 +1034,6 @@
 
 "DOWNLOAD_TRANSLATED" = "הורדה עם תרגום";
 
-"TRANSLATION_LLM_BACKGROUND" = "דילוג על כיתוב ברקע (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "מודל הבינה המלאכותית לתרגום משאיר שלטים רגילים, כרזות וכיתוב על עצמים בסצנה ללא שינוי, גם כשהם קשורים לסצנה או מוזכרים בדיאלוג. דיאלוג, קריינות, כותרות, קרדיטים, טקסט כתוב שחיוני לעלילה וטקסט שתפקידו אינו ודאי מתורגמים. לא נשלחת בקשה נוספת, אך העיבוד עשוי להימשך זמן רב יותר. הסיווג פחות אמין ללא תמונת עמוד.";
 
 "TRANSLATION_STATE_ON" = "פעיל";
 "TRANSLATION_STATE_OFF" = "כבוי";
@@ -1147,13 +1100,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "שינויים בסנכרון iCloud ייכנסו לתוקף לאחר סגירה מלאה ופתיחה מחדש של Aidoku. עד אז, הגדרת הסנכרון הנוכחית תישאר פעילה.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "שמירת הצבעים המקוריים";
-"TRANSLATION_SOURCE_COLORS_HELP" = "שמירת צבעי הטקסט והרקע יחד.";
-"TRANSLATION_INPAINTING" = "שחזור הרקע";
-"TRANSLATION_INPAINTING_HELP" = "מוחק את הטקסט המקורי תוך שמירת הרקע. משתמש בתיבות כשהמסכה או הקריאות אינן ודאיות. דורש צבעים מקוריים.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "סינון טקסט";
 
 "TRANSLATION_TARGETS" = "מה לתרגם";
 
@@ -1194,8 +1142,5 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "המקור %@ בגרסה %d אינו נתמך באפליקציה זו. יש להתקין גרסה נתמכת.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "כל השפות הנתמכות ב-OCR";
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 תומך בטקסט מקור ביפנית ובסינית (מפושטת ומסורתית) בלבד. הזיהוי האוטומטי של שפת המקור ואפשרויות הבחירה של שפת המקור מוגבלים לשפות אלה. עדיין ניתן לתרגם לכל שפת יעד. בחירה ב-Manga מחילה ספי איתור של 0.85 ו-0.25; גודל האיתור המוגדר כברירת מחדל הוא 1120 פיקסלים.";
-"TRANSLATION_PIPELINE_V2" = "צינור מהיר (בטא)";
-"TRANSLATION_PIPELINE_V2_HELP" = "משתמש בצינור החדש לתרגום עמודים שמתמקד במהירות. העמודים מזוהים, נמחקים ומצוירים מחדש כתמונה מוגמרת אחת, בדרך כלל מהר הרבה יותר. התוצאות נשמרות במטמון בנפרד מהצינור הרגיל. דורש iOS 18.";

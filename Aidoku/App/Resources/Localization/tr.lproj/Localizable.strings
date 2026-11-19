@@ -741,25 +741,15 @@
 
 "TRANSLATION_TITLE" = "OCR ve Çeviri";
 
-"TRANSLATION_TRANSLATE" = "Görünür Sayfaları Çevir";
 
-"TRANSLATION_RECOGNIZE" = "Metni Tanı (Çevrimdışı)";
 
-"TRANSLATION_ORIGINAL" = "Orijinali Göster";
 
-"TRANSLATION_TEXT" = "Tanınan ve Çevrilmiş Metin";
 
-"TRANSLATION_NO_IMAGE" = "Bir resim sayfasının yüklenmesini bekleyin, ardından tekrar deneyin.";
 
-"TRANSLATION_NO_TEXT" = "Hiçbir metin tanınmadı. Başka bir OCR modelini veya daha net bir görüntüyü deneyin.";
 
-"TRANSLATION_WORKING" = "Metin tanınıyor ve çevriliyor…";
 
-"TRANSLATION_OCR_WORKING" = "Metin cihaz üzerinde tanınıyor…";
 
-"TRANSLATION_HELP" = "Çeviri simgesi çeviriyi açar veya kapatır. Önce görünür sayfalar, ardından yakındaki sayfalar hazırlanır. Hazırlık, okuma konumunuza göre ilerler. Kaydedilen OCR sonuçları, çeviriler ve metin düzeni, okuyucu yeniden açıldığında veya uygulama yeniden başlatıldığında tekrar kullanılabilir. Geçici olarak açılan paylaşılan görseller için bu önbellek kaydedilmez. Okuyucudan çıkınca tamamlanmamış işler iptal edilir.";
 
-"TRANSLATION_PRIVACY" = "OCR cihazınızda çalışır. Çeviri, tanınan metni ve talimatlarınızı seçilen sağlayıcıya gönderir. Sayfa Resmini Çeviriye Ekle seçeneği etkinse işlenmiş bir sayfa görseli de yüklenebilir. Görsel girişi desteklenmiyorsa çeviri yalnızca metinle devam eder. API ücretleri sağlayıcınıza bağlıdır. Anahtarlar Anahtar Zinciri’nde kalır. OCR, çeviriler ve metin düzeni, yedeklemelerin dışında tutulan korumalı uygulama depolama alanına kaydedilir.";
 
 "TRANSLATION_KEY_REPLACE" = "Kayıtlı API anahtarını değiştir (isteğe bağlı)";
 
@@ -777,11 +767,9 @@
 
 "TRANSLATION_TARGET" = "Hedef Dil";
 
-"TRANSLATION_SOURCE" = "Kaynak Dil";
 
 "TRANSLATION_AUTO" = "Otomatik Olarak Algıla";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6, iOS 18 veya üstünü gerektirir. Hem metin algılama hem de metin tanıma için varsayılan model Manga v0.3’tür. Diğer OCR modelleri de seçilebilir.";
 
 
 
@@ -799,42 +787,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Eşzamanlı İstekler";
 
-"TRANSLATION_DETECTOR_SIZE" = "Algılama Görüntüsünün En Uzun Kenarı";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Tanıma Görüntüsünün En Fazla Genişliği";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR Algılama Piksel Eşiği";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "OCR Bölge Algılama İçin Minimum Güven";
-"TRANSLATION_CONFIDENCE" = "OCR Metin Tanıma İçin Minimum Güven";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "Piksel eşiği metin piksellerini seçer. Algılama güveni metin bölgelerini filtreler. Tanıma güveni her bölgeden okunan metni filtreler. Daha düşük değerler daha fazla belirsiz sonucu kabul eder.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimum OCR Algılama Boyutu";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Olası metin bölgelerinin kısa kenarının, algılama haritası pikselleriyle ölçülen minimum uzunluğu. Varsayılan: 3 px. Daha düşük değerler daha küçük metni algılayabilir, ancak daha fazla görüntü gürültüsü de içerebilir.";
 
-"TRANSLATION_SURFACE" = "Arka Plan Rengi";
 
-"TRANSLATION_WHITE" = "Beyaz";
 
-"TRANSLATION_DARK" = "Koyu";
 
-"TRANSLATION_OPACITY" = "Arka Plan Opaklığı";
 
-"TRANSLATION_EXPANSION" = "Metin Kutusunu Genişletme";
 
-"TRANSLATION_PANEL_BOUNDS" = "Görüntü Sınırları İçinde";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Orijinal Metin Kutusu İçinde";
 
-"TRANSLATION_UNRESTRICTED" = "Sınırsız";
 
-"TRANSLATION_FONT_SIZE" = "Yazı Tipi Boyutu";
 
-"TRANSLATION_AUTO_FIT" = "Otomatik Olarak Sığdır";
 
-"TRANSLATION_FIXED" = "Sabit yazı tipi boyutu";
 
-"TRANSLATION_OVERLAY" = "Çeviri Katmanı";
 
-"TRANSLATION_OVERLAY_HELP" = "Metni özgün kutusunda, çakışmaları önleyen bir düzen ve yazı sistemine uygun satır kaydırma kullanarak değiştirir. Görünüm değişikliklerinde mevcut OCR sonuçları yeniden kullanılır.";
 
 "TRANSLATION_PROVIDER" = "Çeviri Sağlayıcısı";
 
@@ -906,7 +873,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Sayfa Kaynak Dili";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Her başlığın kaynak dilini otomatik olarak algılar ve yalnızca seçilen dilleri çevirir. Algılanan Tüm Diller dil kısıtlamasını kaldırır. Sayfa ve diğer başlıkların kaynak dil ayarları bu seçimi etkilemez.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Manga Açıklamalarını Çevir";
 
@@ -918,32 +884,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Sayfa Resmini Çeviriye Ekle";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Sahne bağlamını sağlamak için sayfa görselini OCR metniyle birlikte gönderir. Görsel girişi desteklenmiyorsa çeviri otomatik olarak yalnızca metinle devam eder. Görsel eklemek veri kullanımını ve API maliyetini artırabilir.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Görsel girişi desteklenmiyor. Çeviri görseller olmadan devam eder.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Orijinal Metin Rengini Koru";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Ek model kullanmadan özgün metin rengini tahmin eder. Tahmin belirsizse veya kontrast çok düşükse varsayılan rengi kullanır.";
 
-"TRANSLATION_LLM_SFX" = "LLM ile SFX Filtreleme (Tüm Diller)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Ses efektlerini aynı çeviri isteğinde sınıflandırır ve değiştirmeden bırakır. Sayfa görüntüsü varsa yapay zekâ, görüntü anlamlı bir metin olduğunu doğrulamadıkça belirsiz OCR parçalarını da atlar. Diyalog, anlatım, başlıklar ve emeği geçenlere ilişkin bilgiler çeviri kapsamında kalır. Sayfa görüntüsü olmadan sınıflandırma daha az güvenilirdir.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Görüntü girişi olmadan sınırlı görsel ve düzen bağlamı, SFX sınıflandırma doğruluğunu azaltabilir.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Özgün Metnin Arka Plan Rengini Koru";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Çeviri panelinin rengini özgün metnin çevresindeki arka planla eşleştirir. Tahmin belirsizse veya metin okunaklı değilse varsayılan paneli kullanır. Opaklık ayarınız geçerli kalır.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Özel (OpenAI Uyumlu)";
 
-"TRANSLATION_OCR_MEDIUM" = "Orta";
 
-"TRANSLATION_OCR_SMALL" = "Küçük";
 
-"TRANSLATION_OCR_TINY" = "Çok Küçük";
 
 "TRANSLATION_REASONING_NONE" = "Yok";
 
@@ -1081,8 +1036,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Çevirerek indir";
 
-"TRANSLATION_LLM_BACKGROUND" = "Arka Plandaki Yazıları Atla (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Çeviri yapay zekâsı, sahneyle ilgili olsalar veya diyalogda anılsalar bile sıradan tabelaları, posterleri ve sahnedeki nesnelerin üzerindeki yazıları değiştirmeden bırakır. Diyaloglar, anlatım, başlıklar, emeği geçenlere ilişkin bilgiler, olay örgüsü açısından kritik yazılar ve rolü belirsiz metinler çevrilir. Ek istek gönderilmez, ancak işleme daha uzun sürebilir. Sayfa görüntüsü olmadan sınıflandırma daha az güvenilirdir.";
 
 "TRANSLATION_STATE_ON" = "Açık";
 "TRANSLATION_STATE_OFF" = "Kapalı";
@@ -1149,13 +1102,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud Senkronizasyonu değişiklikleri, Aidoku tamamen kapatılıp yeniden açıldığında uygulanır. O zamana kadar mevcut senkronizasyon ayarı etkin kalır.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Özgün Renkleri Koru";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Metin ve arka plan renklerini birlikte korur.";
-"TRANSLATION_INPAINTING" = "Arka Plan Onarımı";
-"TRANSLATION_INPAINTING_HELP" = "Arka planı koruyarak özgün yazıyı siler. Maske veya okunabilirlik belirsizse kutular kullanır. Özgün renkleri gerektirir.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Metin Filtreleme";
 
 "TRANSLATION_TARGETS" = "Çevrilecek İçerik";
 
@@ -1198,8 +1146,5 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ kaynağının %d sürümü bu uygulama tarafından desteklenmiyor. Desteklenen bir sürüm yükleyin.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Desteklenen tüm OCR dilleri";
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 yalnızca Japonca ve Çince (Basitleştirilmiş ve Geleneksel) kaynak metinleri destekler. Otomatik kaynak dil algılama ve kaynak dil seçenekleri bu dillerle sınırlıdır. Herhangi bir hedef dile çeviri yapılabilir. Manga seçildiğinde algılama eşikleri 0,85 ve 0,25 olarak ayarlanır; varsayılan algılama boyutu 1120 pikseldir.";
-"TRANSLATION_PIPELINE_V2" = "Hızlı işlem hattı (Beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Hıza odaklı yeni sayfa çeviri işlem hattını kullanır. Sayfalar tanınır, silinir ve tek bir bitmiş görüntü olarak yeniden çizilir; genellikle çok daha hızlıdır. Sonuçlar standart işlem hattından ayrı olarak önbelleğe alınır. iOS 18 gerektirir.";

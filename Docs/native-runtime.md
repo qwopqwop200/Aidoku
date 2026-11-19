@@ -7,35 +7,30 @@ still use WebKit. The app as a whole therefore still has a browser component.
 
 | Area | Current execution | Main entry points |
 | --- | --- | --- |
-| OCR and recovery | Core ML and Swift image/geometry processing | `NativeCoreMLOCRPipeline`, `ReaderOCRService` |
+| Page translation (V2) | Core ML layout/OCR/inpainting plus Swift grouping, removal mask, style and Core Text paint | `ReaderTranslationV2Service`, `V2Pipeline` (`Docs/translation-v2.md`) |
+| OCR models | Core ML PP-OCRv6 manga detector and recognizer reused by V2 | `NativeCoreMLDetector`, `NativeCoreMLRecognizer` |
 | Translation requests | Swift URLSession transport, parsing and bounded batching | `RemoteTranslationClient`, `ReaderTranslationService` |
-| Translated text layout | Swift, Core Text and Core Graphics | `NativeTranslationRenderer`, `NativeTranslationLayoutPlanner` |
-| Source color, text removal and background repair | Swift plus original Rust kernels compiled as a native static library through a C ABI | `NativeTranslationPixelKernels`, `Scripts/overlay-kernels/native/build.py` |
-| Live translation display | Worker-owned bitmap, direct Core Graphics source painting, Core Text and bounded native helpers | `ReaderTranslationOverlayView`, `NativeSourceCanvasHierarchyCompositor` |
-| Final image export and cache | Native image/PDF composition with versioned cache identity | `ReaderTranslationImageExporter`, `ReaderTranslationRenderCache` |
+| Reader display and export | The finished V2 page bitmap is attached above the source image and saved as is | `ReaderTranslationPage`, `ReaderTranslationImageExporter` |
 | Dictionary popup | UIKit text, links and view layout | `NativeDictionaryPopupView` |
 | Installed source metadata and adapters | Native registry dispatch by exact ID/version; unsupported packages fail | `NativeSourceRegistration`, `Vendor/AidokuRunner` |
 | Web login, challenge solving and user agent | WebKit for browser-dependent flows | `WebView`, `CloudflareHandler`, `UserAgentProvider` |
 | Image translation CLI | Native production algorithms with an AppKit/Core Graphics host adapter | `Scripts/image-translation.swift` |
 
-Historical `Browser…` names can remain on pure Swift layout and OCR data types.
-A type name alone does not imply browser execution. The production translation
-and dictionary path does not load the old overlay JavaScript or instantiate the
-old Web popup. Native Rust is compiled machine code, not an embedded WASM
-interpreter.
+Historical `Browser…` names can remain on pure Swift OCR data types. A type
+name alone does not imply browser execution. The production translation and
+dictionary path does not load the old overlay JavaScript or instantiate the old
+Web popup.
 
 ## Host image translation
 
 ```sh
 swift Scripts/image-translation.swift /path/to/page.png
-swift Scripts/image-translation.swift --render-run /path/to/saved-run
+swift Scripts/image-translation.swift --ocr-only /path/to/page.png
 ```
 
-The launcher builds current source with incremental object/model caches. It
-requires Apple Silicon macOS 15+, Xcode command-line tools and Rust. Rendering
-uses Core Text/Core Graphics, native restoration and PDF composition; `final.html`
-is a static PNG preview. The host shares the app's worker-side Core Graphics
-source compositor; temporary window capture is no longer required. Host font
+The launcher builds the V2 pipeline (`Docs/translation-v2.md`) from current
+source with incremental object/model caches on Apple Silicon macOS 15+ with the
+Xcode command-line tools. See `Scripts/image-translation/README.md`. Host font
 and raster behavior is not proof of exact iPhone output.
 
 See [CLI configuration and outputs](../Scripts/image-translation/README.md),

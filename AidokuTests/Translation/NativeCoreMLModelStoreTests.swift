@@ -47,7 +47,7 @@ struct NativeCoreMLModelStoreTests {
     @Test func bundledOCRAssetsLoadFromDurableCopy() async throws {
         let root = try temporary()
         defer { try? FileManager.default.removeItem(at: root) }
-        for name in ["PP-OCRv6-Medium-DetShapes", "PP-OCRv6-Medium-RecWidths"] {
+        for name in ["PP-OCRv6-Manga-DetShapes", "PP-OCRv6-Manga-RecWidths"] {
             let source = try #require(Bundle.main.url(forResource: name, withExtension: "mlmodelc"))
             let store = NativeCoreMLModelStore(root: root.appendingPathComponent("stable"), runtimeCache: root.appendingPathComponent("runtime"))
             let stable = try store.modelURL(for: source)
@@ -87,7 +87,7 @@ struct NativeCoreMLModelStoreTests {
     @Test func productionDirectoryKeepsBothPublishedModels() throws {
         // The injected temporary roots did not reproduce iOS Application Support
         // URL aliases. Exercise the exact persistent directory used by OCR.
-        for name in ["PP-OCRv6-Medium-DetShapes", "PP-OCRv6-Medium-RecWidths"] {
+        for name in ["PP-OCRv6-Manga-DetShapes", "PP-OCRv6-Manga-RecWidths"] {
             let source = try #require(Bundle.main.url(forResource: name, withExtension: "mlmodelc"))
             let model = try NativeCoreMLModelStore.shared.modelURL(for: source)
             #expect(FileManager.default.fileExists(atPath: model.appendingPathComponent("model.mil").path))

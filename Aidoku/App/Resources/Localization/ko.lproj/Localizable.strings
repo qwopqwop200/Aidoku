@@ -523,16 +523,6 @@
 
 // OCR and translation
 "TRANSLATION_TITLE" = "OCR 및 번역";
-"TRANSLATION_TRANSLATE" = "보이는 페이지 번역";
-"TRANSLATION_RECOGNIZE" = "글자 인식 (오프라인)";
-"TRANSLATION_ORIGINAL" = "원문 보기";
-"TRANSLATION_TEXT" = "인식 및 번역된 텍스트";
-"TRANSLATION_NO_IMAGE" = "이미지 페이지가 로드된 후 다시 시도하세요.";
-"TRANSLATION_NO_TEXT" = "인식된 글자가 없습니다. 다른 OCR 모델이나 더 선명한 이미지를 사용하세요.";
-"TRANSLATION_WORKING" = "글자 인식 및 번역 중…";
-"TRANSLATION_OCR_WORKING" = "기기에서 글자 인식 중…";
-"TRANSLATION_HELP" = "번역 아이콘으로 번역을 켜거나 끕니다. 화면에 보이는 페이지를 먼저 준비한 뒤 주변 페이지를 준비하며, 준비 범위는 현재 읽는 위치를 따라갑니다. 저장된 OCR·번역·텍스트 배치 정보는 리더를 다시 열거나 앱을 재시작해도 재사용할 수 있습니다. 임시로 연 공유 이미지는 이 캐시를 저장하지 않습니다. 리더를 나가면 완료되지 않은 작업은 취소됩니다.";
-"TRANSLATION_PRIVACY" = "OCR은 기기에서 실행됩니다. 번역 시 인식된 텍스트와 번역 지침을 선택한 제공업체로 보냅니다. 페이지 이미지 첨부를 켜면 전송용으로 가공된 페이지 이미지도 업로드될 수 있습니다. 이미지 입력을 지원하지 않으면 텍스트만으로 번역을 계속합니다. API 요금은 제공업체 정책에 따릅니다. 키는 Keychain에 보관합니다. OCR·번역·텍스트 배치 정보는 백업에서 제외된 앱의 보호된 저장소에 보관합니다.";
 "TRANSLATION_KEY_REPLACE" = "저장된 API 키 교체 (선택 사항)";
 "TRANSLATION_KEY" = "API 키";
 "TRANSLATION_KEY_SAVED" = "Keychain에 API 키 저장됨";
@@ -541,9 +531,7 @@
 "TRANSLATION_GET_KEY" = "OpenAI API 키 관리 열기";
 "TRANSLATION_LANGUAGE" = "언어";
 "TRANSLATION_TARGET" = "번역 결과 언어";
-"TRANSLATION_SOURCE" = "원문 언어";
 "TRANSLATION_AUTO" = "자동 감지";
-"TRANSLATION_OCR_HELP" = "PP-OCRv6는 iOS 18 이상에서 작동합니다. 텍스트 탐지와 인식의 기본 모델은 Manga v0.3이며, 다른 OCR 모델도 선택할 수 있습니다.";
 "TRANSLATION_CLEAR_CACHE" = "번역 캐시 비우기";
 "TRANSLATION_CACHE_CLEARED" = "번역 캐시를 비웠습니다.";
 "TRANSLATION_NOTICES" = "OCR 및 번역 라이선스";
@@ -553,27 +541,6 @@
 "TRANSLATION_REASONING" = "추론 강도";
 "TRANSLATION_MODEL_DEFAULT" = "모델 기본값";
 "TRANSLATION_CONCURRENCY" = "동시 요청 수";
-"TRANSLATION_DETECTOR_SIZE" = "탐지 입력 최대 변 길이";
-"TRANSLATION_RECOGNIZER_SIZE" = "인식 입력 최대 너비";
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR 탐지 픽셀 임계값";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "OCR 탐지 영역 최소 신뢰도";
-"TRANSLATION_CONFIDENCE" = "OCR 인식 최소 신뢰도";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "픽셀 임계값은 글자 후보 픽셀을 고릅니다. 탐지 신뢰도는 글자 영역을 걸러내고, 인식 신뢰도는 각 영역에서 읽은 텍스트를 걸러냅니다. 값을 낮추면 불확실한 결과도 더 많이 포함됩니다.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "OCR 최소 탐지 크기";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "탐지 맵의 픽셀 단위로 측정한 글자 후보의 최소 짧은 변 길이입니다. 기본값은 3px입니다. 값을 낮추면 더 작은 글자를 탐지할 수 있지만 잡음도 늘어날 수 있습니다.";
-"TRANSLATION_SURFACE" = "배경색";
-"TRANSLATION_WHITE" = "흰색";
-"TRANSLATION_DARK" = "어두움";
-"TRANSLATION_OPACITY" = "배경 불투명도";
-"TRANSLATION_EXPANSION" = "박스 확장";
-"TRANSLATION_PANEL_BOUNDS" = "이미지 영역 안";
-"TRANSLATION_SOURCE_BOUNDS" = "원문 박스 안";
-"TRANSLATION_UNRESTRICTED" = "제한 없음";
-"TRANSLATION_FONT_SIZE" = "글꼴 크기";
-"TRANSLATION_AUTO_FIT" = "자동 맞춤";
-"TRANSLATION_FIXED" = "고정";
-"TRANSLATION_OVERLAY" = "번역 오버레이";
-"TRANSLATION_OVERLAY_HELP" = "충돌 회피 배치와 문자 체계별 줄바꿈을 사용해 원문 박스 위에 번역문을 표시합니다. 표시 설정을 바꿔도 기존 OCR 결과를 재사용합니다.";
 
 "TRANSLATION_PROVIDER" = "번역 제공업체";
 "TRANSLATION_BASE_URL" = "서버 주소";
@@ -628,7 +595,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "페이지 원문 언어";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "제목의 원문 언어를 자동 감지해 선택한 언어만 번역합니다. ‘모든 감지 언어’를 선택하면 언어 제한 없이 번역합니다. 페이지와 다른 종류의 제목에 설정한 원문 언어 및 필터에는 영향을 받지 않습니다.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "만화 설명 번역";
 
@@ -638,26 +604,15 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "번역에 페이지 이미지 첨부";
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "페이지 이미지를 OCR 텍스트와 함께 보내 장면의 맥락을 번역에 참고합니다. 이미지 입력을 지원하지 않으면 자동으로 텍스트만 번역합니다. 이미지를 첨부하면 데이터 사용량과 API 비용이 늘어날 수 있습니다.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "이미지 입력을 지원하지 않아 이미지 없이 번역합니다.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "원문 글자색 유지";
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "추가 모델 없이 원문 색을 추정합니다. 색이 불확실하거나 배경과 구분하기 어려우면 기본 글자색을 사용합니다.";
 
-"TRANSLATION_LLM_SFX" = "LLM 효과음 필터링 (모든 언어)";
-"TRANSLATION_LLM_SFX_HELP" = "동일한 번역 요청에서 효과음을 분류하고 원문으로 유지합니다. 페이지 이미지를 첨부하면 이미지에서 의미 있는 글자로 확인되지 않는 불명확한 OCR 조각도 번역하지 않고 남깁니다. 대사·내레이션·제목·크레딧은 번역 대상으로 유지합니다. 페이지 이미지가 없으면 분류의 신뢰도가 낮아집니다.";
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "이미지가 입력되지 않으면 장면·배치 확인이 어려워 효과음 판정 정확도가 낮아질 수 있습니다.";
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "원문 배경색 유지";
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "원문 글자 주변의 배경색을 번역 패널에 적용합니다. 불확실하거나 글자가 잘 보이지 않으면 기본 패널을 사용합니다. 설정한 불투명도는 유지됩니다.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "사용자 지정 (OpenAI 호환)";
 
-"TRANSLATION_OCR_MEDIUM" = "중형";
 
-"TRANSLATION_OCR_SMALL" = "소형";
 
-"TRANSLATION_OCR_TINY" = "초소형";
 
 "TRANSLATION_REASONING_NONE" = "없음";
 
@@ -1011,8 +966,6 @@
 
 "DOWNLOAD_TRANSLATED" = "번역 포함 다운로드";
 
-"TRANSLATION_LLM_BACKGROUND" = "배경 글자 번역 생략 (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "번역 AI가 장면 속 일반 간판·포스터·물건에 적힌 글자를 원문으로 유지합니다. 장면과 관련이 있거나 대사에서 언급되어도 그대로 둡니다. 대사·내레이션·제목·크레딧·줄거리의 핵심이 되는 글과 역할이 불확실한 글자는 번역합니다. 추가 요청은 없지만 처리 시간이 늘어날 수 있습니다. 페이지 이미지가 없으면 분류의 신뢰도가 낮아집니다.";
 
 "TRANSLATION_STATE_ON" = "켜짐";
 
@@ -1050,13 +1003,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud 동기화 변경은 Aidoku를 완전히 종료한 뒤 다시 열 때 적용됩니다. 그전까지는 현재 동기화 설정이 유지됩니다.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "원문 색상 유지";
-"TRANSLATION_SOURCE_COLORS_HELP" = "원문 글자색과 배경색을 함께 유지합니다.";
-"TRANSLATION_INPAINTING" = "인페인팅";
-"TRANSLATION_INPAINTING_HELP" = "배경을 보존하며 원문 글자를 지웁니다. 마스크가 불확실하거나 가독성이 떨어지면 상자로 표시합니다. 원문 색상 유지가 필요합니다.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "번역할 텍스트 필터링";
 
 "TRANSLATION_TARGETS" = "번역 대상";
 
@@ -1097,10 +1045,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "%@ 소스의 %d 버전은 이 앱에서 지원하지 않습니다. 지원되는 버전을 설치해 주세요.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3는 일본어와 중국어(간체·번체) 원문만 지원합니다. 자동 원문 언어 판별과 원문 언어 선택도 이 언어들로 제한됩니다. 번역 대상 언어는 어떤 언어든 선택할 수 있습니다. Manga를 선택하면 탐지 임계값 0.85와 0.25가 적용되며, 기본 탐지 크기는 1120px입니다.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "지원되는 모든 OCR 언어";
-"TRANSLATION_PIPELINE_V2" = "빠른 파이프라인 (베타)";
-"TRANSLATION_PIPELINE_V2_HELP" = "속도 중심의 새 페이지 번역 파이프라인을 사용합니다. 페이지 인식, 글자 지우기, 다시 그리기를 하나의 완성 이미지로 처리하여 보통 훨씬 빠릅니다. 결과는 기본 파이프라인과 별도로 캐시됩니다. iOS 18이 필요합니다.";

@@ -5,43 +5,6 @@ import CoreGraphics
 
 @Suite(.serialized)
 struct ReaderTranslationConcurrencyTests {
-    @Test func ordinaryPageTranslatesAllDialogueInOneProviderRequest() async throws {
-        let client = ConcurrencyProbe()
-        await client.release()
-        let service = ReaderTranslationService(client: client)
-        let input = regions(prefix: "page", count: 16)
-        let translated = try await service.translate(regions: input, settings: settings(concurrency: 8), preparedImageJPEG: Self.jpeg)
-        #expect(await client.calls == 1)
-        #expect(translated.map(\.id) == input.map(\.id))
-        #expect(translated.compactMap(\.translation) == input.map { "translated " + $0.source })
-    }
-
-    @Test func providerFailureWaitsForPartialCallbackToFinish() async throws {
-        let lifetime = PartialCallbackLifetime()
-        let service = ReaderTranslationService(client: FailingPartialProbe(lifetime: lifetime))
-        let work = Task {
-            do {
-                _ = try await service.translate(regions: regions(prefix: "partial", count: 1), settings: settings(concurrency: 1),
-                    preparedImageJPEG: Self.jpeg, onPartialProgress: { _ in await lifetime.holdCallback() })
-                Issue.record("The provider should fail")
-            } catch {
-                #expect(error as? RemoteTranslationError == .missingCredential)
-            }
-            await lifetime.recordReturn()
-        }
-        defer {
-            work.cancel()
-            Task { await lifetime.releaseCallback() }
-        }
-        try await waitUntil { await lifetime.callbackCancelled }
-        // Keep the cancelled callback suspended independently of cancellation.
-        // The service must join it before its failure reaches the caller.
-        try await Task.sleep(for: .milliseconds(30))
-        #expect(await !lifetime.returned)
-        await lifetime.releaseCallback()
-        await work.value
-        #expect(await lifetime.callbackFinished)
-    }
 
     @Test func providerQueueHonorsAllMetadataPrioritiesAfterPages() async throws {
         let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
@@ -72,35 +35,6 @@ struct ReaderTranslationConcurrencyTests {
         #expect(TitleTranslationKind.tag.priority == .tag)
     }
 
-    @Test func readerPreemptsActiveAndQueuedMetadataThenResumesAfterLastReaderLeaves() async throws {
-        let client = ConcurrencyProbe()
-        let service = ReaderTranslationService(client: client)
-        let value = settings(concurrency: 1)
-        let owner = UUID()
-        let otherOwner = UUID()
-        let metadata = Task { try await service.translateMetadata(regions: regions(prefix: "metadata", count: 1), settings: value) }
-        defer { metadata.cancel() }
-        try await waitUntil { await client.active == 1 }
-        let queued = Task { try await service.translateMetadata(regions: regions(prefix: "queued", count: 1), settings: value) }
-        defer { queued.cancel() }
-        await service.setReaderActive(true, owner: owner)
-        await service.setReaderActive(true, owner: otherOwner)
-        try await waitUntil { await client.active == 0 }
-        let page = Task { try await service.translate(regions: regions(prefix: "page", count: 1), settings: value, preparedImageJPEG: Self.jpeg) }
-        defer { page.cancel() }
-        try await waitUntil { await client.active == 1 }
-        await client.release()
-        #expect(try await page.value.first?.translation == "translated page text 0")
-        #expect(await client.calls == 2)
-        await service.setReaderActive(false, owner: owner)
-        #expect(await client.calls == 2)
-        await service.setReaderActive(false, owner: otherOwner)
-        #expect(try await metadata.value.first?.translation == "translated metadata text 0")
-        #expect(try await queued.value.first?.translation == "translated queued text 0")
-        #expect(await client.calls == 4)
-        #expect(await client.peak == 1)
-    }
-
     @Test func cancelledMetadataWaitingForReaderNeverReachesProvider() async throws {
         let client = ConcurrencyProbe()
         let service = ReaderTranslationService(client: client)
@@ -113,130 +47,6 @@ struct ReaderTranslationConcurrencyTests {
         await #expect(throws: CancellationError.self) { try await metadata.value }
         await service.setReaderActive(false, owner: owner)
         #expect(await client.calls == 0)
-    }
-
-    @Test func cachedBatchOutsideConcurrencyWindowSurvivesProviderFailure() async throws {
-        let client = CacheFailureProbe()
-        let cache = try TranslationCache(configuration: .init(diskEnabled: false, maxSizeMiB: 10))
-        let service = TranslationService(client: client, cache: cache)
-        let configuration = settings(concurrency: 1).configuration
-        let cached = ReaderTranslationService.plans(regions: regions(prefix: "cached", count: 2),
-                                                    settings: settings(concurrency: 1))[0].request
-        let missing = ReaderTranslationService.plans(regions: regions(prefix: "missing", count: 1),
-                                                     settings: settings(concurrency: 1))[0].request
-        _ = try await service.translate(cached, configuration: configuration)
-        await client.fail()
-        let progress = CacheBatchProgress()
-        await #expect(throws: RemoteTranslationError.self) {
-            try await BoundedTranslationBatchExecutor.translate(
-                [missing, cached], configuration: configuration, service: service,
-                maximumConcurrentRequests: 1,
-                onBatchCompleted: { index, _ in await progress.append(index) }
-            )
-        }
-        #expect(await progress.indices == [1])
-        #expect(await client.calls == 2)
-    }
-
-    // Every page request attaches an image, so a configured limit above three is capped.
-    @Test func readerCapsImagePageRequestsAboveSixteen() async throws {
-        let client = ConcurrencyProbe()
-        let service = ReaderTranslationService(client: client)
-        let value = settings(concurrency: 32)
-        let regions = regions(prefix: "wide", count: 2_500)
-        #expect(ReaderTranslationService.plans(regions: regions, settings: value).count > 32)
-        let work = Task { try await service.translate(regions: regions, settings: value, preparedImageJPEG: Self.jpeg) }
-        defer { work.cancel() }
-        try await waitUntil { await client.active == 3 }
-        try await Task.sleep(for: .milliseconds(30))
-        #expect(await client.peak == 3)
-        await client.release()
-        #expect(try await work.value.count == regions.count)
-        #expect(await client.peak == 3)
-    }
-
-    @Test(arguments: [false, true])
-    func imageCapabilityUsesTheActualRequestConcurrencyCap(unsupported: Bool) async throws {
-        let client = ConcurrencyProbe()
-        let service = ReaderTranslationService(client: client)
-        var value = settings(concurrency: 4)
-        value.provider = .custom
-        value.custom.baseURL = "https://concurrency-fixture.example/" + UUID().uuidString + "/v1"
-        value.custom.model = "image-concurrency-fixture"
-        // Validate the fixture before waiting for provider admission, so a
-        // configuration failure cannot be reported as a concurrency timeout.
-        _ = try value.configuration.validatedEndpoint()
-        value.includePageImage = true
-        TranslationImageSupport.shared.record(unsupported ? .unsupported : .supported, for: value.configuration)
-        let input = regions(prefix: "image-capability", count: 300)
-        #expect(ReaderTranslationService.plans(regions: input, settings: value).count > 4)
-        let capturedSettings = value
-        let work = Task {
-            try await service.translate(regions: input, settings: capturedSettings,
-                                        preparedImageJPEG: Self.jpeg)
-        }
-        defer { work.cancel() }
-        // A known-unsupported record no longer downgrades the mandatory page image.
-        let expectedConcurrency = 3
-        try await waitUntil { await client.active == expectedConcurrency }
-        #expect(await client.peak == expectedConcurrency)
-        await client.release()
-        let result = try await work.value
-        #expect(result.map(\.id) == input.map(\.id))
-        #expect(result.compactMap(\.translation) == input.map { "translated " + $0.source })
-        #expect(await client.imageAttachments.allSatisfy { $0 })
-        #expect(await client.peak == expectedConcurrency)
-    }
-
-    @Test func currentAndPrefetchShareTheConfiguredRequestCap() async throws {
-        let client = ConcurrencyProbe()
-        let service = ReaderTranslationService(client: client)
-        let value = settings(concurrency: 4)
-        let first = Task {
-            try await service.translate(regions: regions(prefix: "current", count: 300), settings: value, preparedImageJPEG: Self.jpeg)
-        }
-        defer { first.cancel() }
-        try await waitUntil { await client.active == 3 }
-        let second = Task {
-            try await service.translate(regions: regions(prefix: "ahead", count: 300), settings: value,
-                                        preparedImageJPEG: Self.jpeg, priority: .prefetch)
-        }
-        defer { second.cancel() }
-        await client.release()
-        #expect(try await first.value.count == 300)
-        #expect(try await second.value.count == 300)
-        #expect(await client.peak <= 3)
-    }
-
-    @Test func twoImageLookaheadsLeaveOneProviderSlotForVisibleDemand() async throws {
-        let client = ConcurrencyProbe()
-        let service = ReaderTranslationService(client: client)
-        var configured = settings(concurrency: 8)
-        configured.includePageImage = true
-        let value = configured
-        let jpeg = Data([0xff, 0xd8, 0xff, 0xd9])
-        let first = Task {
-            try await service.translate(regions: regions(prefix: "ahead-one", count: 300), settings: value,
-                                        preparedImageJPEG: jpeg, priority: .prefetch)
-        }
-        let second = Task {
-            try await service.translate(regions: regions(prefix: "ahead-two", count: 300), settings: value,
-                                        preparedImageJPEG: jpeg, priority: .promotable(TranslationRequestPromotion()))
-        }
-        defer { first.cancel(); second.cancel() }
-        try await waitUntil { await client.active == 2 }
-        try await Task.sleep(for: .milliseconds(30))
-        #expect(await client.calls == 2, "Each offscreen page must submit only one blocked batch")
-        let visible = Task {
-            try await service.translate(regions: regions(prefix: "visible", count: 1), settings: value, preparedImageJPEG: jpeg)
-        }
-        defer { visible.cancel() }
-        try await waitUntil { await client.active == 3 }
-        await client.release()
-        #expect(try await first.value.count == 300)
-        #expect(try await second.value.count == 300)
-        #expect(try await visible.value.first?.translation == "translated visible text 0")
-        #expect(await client.peak == 3)
     }
 
     @Test func queuedForegroundPrecedesPrefetchAndCancelledWaiterDoesNotConsumePermit() async throws {
@@ -286,48 +96,6 @@ struct ReaderTranslationConcurrencyTests {
         try await second.value
         try await third.value
         #expect(await recorder.order == ["first", "second", "third"])
-    }
-
-    @Test func promotionFillsForegroundSlotsWithoutWaitingForSlowPrefetchBatches() async throws {
-        let client = ConcurrencyProbe()
-        let service = ReaderTranslationService(client: client)
-        let promotion = TranslationRequestPromotion()
-        let work = Task {
-            try await service.translate(regions: regions(prefix: "promoted", count: 300),
-                                        settings: settings(concurrency: 4), preparedImageJPEG: Self.jpeg,
-                                        priority: .promotable(promotion))
-        }
-        defer { work.cancel() }
-        try await waitUntil { await client.active == 1 }
-        promotion.promote()
-        try await waitUntil { await client.active == 3 }
-        #expect(await client.peak == 3)
-        await client.release()
-        #expect(try await work.value.count == 300)
-        #expect(await client.peak == 3)
-    }
-
-    @Test func unpromotedSchedulerCompletesAndCancelsWithoutWaitingForPromotion() async throws {
-        for cancel in [false, true] {
-            let client = ConcurrencyProbe()
-            let service = ReaderTranslationService(client: client)
-            let promotion = TranslationRequestPromotion()
-            let work = Task {
-                try await service.translate(regions: regions(prefix: "unpromoted", count: 300),
-                                            settings: settings(concurrency: 4), preparedImageJPEG: Self.jpeg,
-                                            priority: .promotable(promotion))
-            }
-            defer { work.cancel() }
-            try await waitUntil { await client.active == 1 }
-            if cancel {
-                work.cancel()
-                await #expect(throws: CancellationError.self) { try await work.value }
-            } else {
-                await client.release()
-                #expect(try await work.value.count == 300)
-            }
-            #expect(await client.peak == 1)
-        }
     }
 
     @Test func promotionReordersAlreadyQueuedProviderRequests() async throws {

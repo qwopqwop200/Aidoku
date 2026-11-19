@@ -821,25 +821,15 @@
 
 "TRANSLATION_TITLE" = "OCR 与翻译";
 
-"TRANSLATION_TRANSLATE" = "翻译可见页面";
 
-"TRANSLATION_RECOGNIZE" = "识别文本（离线）";
 
-"TRANSLATION_ORIGINAL" = "显示原图";
 
-"TRANSLATION_TEXT" = "识别和翻译的文本";
 
-"TRANSLATION_NO_IMAGE" = "请等待图片页面加载后重试。";
 
-"TRANSLATION_NO_TEXT" = "没有识别出任何文字。尝试其他 OCR 模型或更清晰的图像。";
 
-"TRANSLATION_WORKING" = "正在识别和翻译…";
 
-"TRANSLATION_OCR_WORKING" = "正在设备上识别文字…";
 
-"TRANSLATION_HELP" = "点击翻译图标可开启或关闭翻译。优先处理可见页面，再处理附近页面，处理范围随当前阅读位置调整。重新打开阅读器或重启应用后，可复用已保存的 OCR 结果、翻译和文字排版。临时打开的共享图片不会保存此缓存。退出阅读器会取消未完成的任务。";
 
-"TRANSLATION_PRIVACY" = "OCR 在设备上运行。翻译时会将识别出的文字和翻译指令发送给所选服务商。启用“在翻译中包含页面图像”后，还可能上传经过处理的页面图像。如果不支持图像输入，将仅使用文本继续翻译。API 费用取决于服务商。API 密钥保存在钥匙串中。OCR 结果、翻译和文字排版保存在受保护的应用存储空间中，不包含在备份内。";
 
 "TRANSLATION_KEY_REPLACE" = "替换已保存的 API 密钥（可选）";
 
@@ -857,11 +847,9 @@
 
 "TRANSLATION_TARGET" = "翻译为";
 
-"TRANSLATION_SOURCE" = "源语言";
 
 "TRANSLATION_AUTO" = "自动检测";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 需要 iOS 18 或更高版本。文字检测和识别默认均使用 Manga v0.3，也可以选择其他 OCR 模型。";
 
 
 
@@ -879,42 +867,21 @@
 
 "TRANSLATION_CONCURRENCY" = "并发请求数";
 
-"TRANSLATION_DETECTOR_SIZE" = "检测图像最大边长";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "识别图像最大宽度";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "OCR 检测像素阈值";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "OCR 检测区域最低置信度";
-"TRANSLATION_CONFIDENCE" = "OCR 文字识别最低置信度";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "像素阈值用于选择文字候选像素。检测置信度用于筛选文字区域，识别置信度用于筛选各区域中读出的文字。降低数值会保留更多不确定的结果。";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "OCR 最小检测尺寸";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "文字候选区域的最小短边长度，以检测图中的像素为单位。默认值为 3px。降低数值可以检测更小的文字，但也可能增加噪点。";
 
-"TRANSLATION_SURFACE" = "背景颜色";
 
-"TRANSLATION_WHITE" = "白色";
 
-"TRANSLATION_DARK" = "深色";
 
-"TRANSLATION_OPACITY" = "背景不透明度";
 
-"TRANSLATION_EXPANSION" = "文字框扩展范围";
 
-"TRANSLATION_PANEL_BOUNDS" = "图片范围内";
 
-"TRANSLATION_SOURCE_BOUNDS" = "原文框内";
 
-"TRANSLATION_UNRESTRICTED" = "无限制";
 
-"TRANSLATION_FONT_SIZE" = "字体大小";
 
-"TRANSLATION_AUTO_FIT" = "自动适配";
 
-"TRANSLATION_FIXED" = "固定";
 
-"TRANSLATION_OVERLAY" = "翻译叠加";
 
-"TRANSLATION_OVERLAY_HELP" = "在原文位置叠加译文，避免文字重叠，并按文字系统自动换行。更改显示设置时会复用已有的 OCR 结果。";
 
 "TRANSLATION_PROVIDER" = "翻译服务商";
 
@@ -986,7 +953,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "页面原文语言";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "自动检测每个标题的原文语言，只翻译选中的语言。选择“所有检测到的语言”可取消语言限制。页面和其他类型标题的原文语言设置不会影响此选项。";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "翻译漫画简介";
 
@@ -998,32 +964,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "在翻译中包含页面图像";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "将页面图像与 OCR 文本一起发送，为翻译提供场景上下文。如果不支持图像输入，将自动仅使用文本继续翻译。附加图像可能增加流量和 API 费用。";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "不支持图像输入，将不附加图像继续翻译。";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "保留原始文本颜色";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "无需额外模型即可估计原文字色。无法确定颜色或对比度过低时，自动使用默认颜色。";
 
-"TRANSLATION_LLM_SFX" = "LLM 音效文字过滤（所有语言）";
 
-"TRANSLATION_LLM_SFX_HELP" = "在同一次翻译请求中判断音效文字，并保留其原文。提供页面图像时，AI 还会跳过不清晰的 OCR 片段，除非图像能确认它们是有意义的文字。对话、旁白、标题和署名信息仍会翻译。未提供页面图像时，分类判断的可靠性会降低。";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "不提供图片时，可供判断的画面和排版信息有限，音效文字识别的准确率可能降低。";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "保留原文背景色";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "让译文背景与原文周围的背景色一致。无法确定颜色或文字难以辨认时，使用默认背景。不透明度仍遵循您的设置。";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "自定义（兼容 OpenAI）";
 
-"TRANSLATION_OCR_MEDIUM" = "中型";
 
-"TRANSLATION_OCR_SMALL" = "小型";
 
-"TRANSLATION_OCR_TINY" = "超小型";
 
 "TRANSLATION_REASONING_NONE" = "无";
 
@@ -1081,8 +1036,6 @@
 
 "DOWNLOAD_TRANSLATED" = "下载并翻译";
 
-"TRANSLATION_LLM_BACKGROUND" = "跳过背景文字（LLM）";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "翻译 AI 会保留场景中普通标牌、海报及物体上文字的原文，即使这些文字与场景内容有关或在对话中被提及也不翻译。对话、旁白、标题、署名信息、对情节至关重要的文字，以及无法确定作用的文字仍会翻译。不会额外发送请求，但处理时间可能增加。未提供页面图像时，分类判断的可靠性会降低。";
 
 "TRANSLATION_STATE_ON" = "开启";
 
@@ -1120,13 +1073,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud 同步的更改将在完全关闭并重新打开 Aidoku 后生效。在此之前，当前同步设置仍然有效。";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "保留原文颜色";
-"TRANSLATION_SOURCE_COLORS_HELP" = "同时保留原文文字和背景的颜色。";
-"TRANSLATION_INPAINTING" = "图像修复";
-"TRANSLATION_INPAINTING_HELP" = "保留背景并擦除原文文字。遮罩或可读性不可靠时使用文本框。需启用保留原文颜色。";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "文本过滤";
 
 "TRANSLATION_TARGETS" = "翻译内容";
 
@@ -1169,10 +1117,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "此应用不支持图源 %@ 的版本 %d。请安装受支持的版本。";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 仅支持识别日语和中文（简体、繁体）原文。自动检测原文语言和手动选择原文语言的范围也仅限于这些语言。仍可翻译成任意目标语言。选择 Manga 后，检测阈值会设为 0.85 和 0.25；默认检测尺寸为 1120px。";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "所有支持的 OCR 语言";
-"TRANSLATION_PIPELINE_V2" = "快速管线（测试版）";
-"TRANSLATION_PIPELINE_V2_HELP" = "使用以速度为先的新页面翻译管线。页面的识别、擦除和重绘将合成为一张完成的图像，通常快得多。结果与标准管线分开缓存。需要 iOS 18。";

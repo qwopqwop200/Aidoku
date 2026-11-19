@@ -28,17 +28,10 @@ struct ReaderTemporaryIdentityTests {
         #expect(first.index == 2)
         #expect(first.translationCacheKey == reopened.translationCacheKey)
 
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
         let settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        let regions = [ReaderTranslationRegion(id: "saved", rect: CGRect(x: 0, y: 0, width: 1, height: 1),
-                                              source: "Original", translation: "저장된 번역")]
-        let writer = ReaderTranslationDiskCache(directory: directory)
-        try await writer.storeRegions(regions,
-            for: ReaderTranslationCacheIdentity.translation(page: first.translationCacheKey, settings: settings),
-            kind: .translation, generation: 0)
-        let reader = ReaderTranslationDiskCache(directory: directory)
-        #expect(try await reader.translatedRegions(page: reopened.translationCacheKey, settings: settings) == regions)
+        let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
+        #expect(ReaderTranslationV2Service.cacheKey(page: first.translationCacheKey, crop: unit, settings: settings)
+            == ReaderTranslationV2Service.cacheKey(page: reopened.translationCacheKey, crop: unit, settings: settings))
         await firstStore.removeAll()
         await secondStore.removeAll()
     }

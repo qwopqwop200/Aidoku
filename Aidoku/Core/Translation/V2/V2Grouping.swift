@@ -4,7 +4,8 @@ import Foundation
 // S4: recognized lines -> paragraph/balloon blocks in reading order, then a
 // conservative pre-LLM role split. Pure geometry over V2 values; the
 // paragraph graph is V2ParagraphGrouping (V2 copy of the legacy simple graph)
-// and the panel order is ReaderTranslationPanelOrder (manga right-to-left).
+// and the panel order is ReaderTranslationPanelOrder, mirrored for left-to-right
+// books; top-to-bottom strips use geometric bands only.
 
 /// Downsampled 8-bit gray page for panel-gutter ordering (<= 768 px side).
 struct V2GrayRaster: Sendable {
@@ -38,6 +39,17 @@ struct V2GrayRaster: Sendable {
         self.height = height
     }
 
+    /// The horizontally mirrored raster (left-to-right panel order).
+    func mirrored() -> V2GrayRaster {
+        guard width > 1, pixels.count == width * height else { return self }
+        var flipped = pixels
+        for row in 0..<height {
+            let start = row * width
+            for column in 0..<width { flipped[start + column] = pixels[start + width - 1 - column] }
+        }
+        return V2GrayRaster(pixels: flipped, width: width, height: height)
+    }
+
     /// Pixel-free stand-in: layout frames painted dark on white, so frame
     /// gutters become the bright bands the panel splitter cuts at.
     init?(frames: [CGRect], pageSize: CGSize) {
@@ -68,6 +80,7 @@ enum V2Grouping {
         layout: [V2LayoutRegion],
         pageSize: CGSize,
         raster: V2GrayRaster? = nil,
+        direction: V2ReadingDirection = .rightToLeft,
         parameters: V2ParagraphGrouping.Parameters = .init()
     ) -> [V2Block] {
         let usable = lines.filter { line in
@@ -100,7 +113,7 @@ enum V2Grouping {
                 vertical: group.vertical, readingOrder: 0,
                 sourceText: joinedText(members.map(\.text)), balloon: enclosingBalloon(bounds, balloons))
         }
-        let order = readingOrder(blocks, layout: layout, pageSize: pageSize, raster: raster)
+        let order = readingOrder(blocks, layout: layout, pageSize: pageSize, raster: raster, direction: direction)
         blocks = order.enumerated().map { rank, index in
             var block = blocks[index]
             block.id = rank
@@ -110,10 +123,12 @@ enum V2Grouping {
         return blocks
     }
 
-    /// Manga order: top-to-bottom bands of overlapping rows, right-to-left
-    /// inside a band, then panel-hierarchy ranks from gutters.
+    /// Top-to-bottom bands of overlapping rows, then the direction inside a
+    /// band: right-to-left (manga) or left-to-right. Paged directions then
+    /// apply panel-hierarchy ranks from gutters (mirrored for left-to-right);
+    /// top-to-bottom strips keep the bands, left-to-right inside each band.
     static func readingOrder(_ blocks: [V2Block], layout: [V2LayoutRegion], pageSize: CGSize,
-                             raster: V2GrayRaster?) -> [Int] {
+                             raster: V2GrayRaster?, direction: V2ReadingDirection = .rightToLeft) -> [Int] {
         guard blocks.count > 1 else { return Array(blocks.indices) }
         let byTop = blocks.indices.sorted { blocks[$0].bounds.minY < blocks[$1].bounds.minY }
         var bands: [[Int]] = []
@@ -129,23 +144,32 @@ enum V2Grouping {
                 bottom = max(bottom, box.maxY)
             }
         }
+        let rightToLeft = direction == .rightToLeft
         let base = bands.flatMap { band in
-            band.sorted { blocks[$0].bounds.maxX == blocks[$1].bounds.maxX ? $0 < $1 : blocks[$0].bounds.maxX > blocks[$1].bounds.maxX }
+            band.sorted { first, second in
+                let a = blocks[first].bounds, b = blocks[second].bounds
+                if rightToLeft { return a.maxX == b.maxX ? first < second : a.maxX > b.maxX }
+                return a.minX == b.minX ? first < second : a.minX < b.minX
+            }
         }
+        guard direction != .topToBottom else { return base }
         let frames = layout.filter { $0.kind == .frame && $0.score >= 0.5 }.map(\.bounds)
-        guard let raster = raster ?? V2GrayRaster(frames: frames, pageSize: pageSize),
+        guard let source = raster ?? V2GrayRaster(frames: frames, pageSize: pageSize),
               pageSize.width > 0, pageSize.height > 0 else { return base }
+        // Left-to-right panels are right-to-left panels of the mirrored page.
+        let gray = rightToLeft ? source : source.mirrored()
         let page = CGRect(origin: .zero, size: pageSize)
         let inputs = base.map { index -> ReaderTranslationPanelOrder.Input in
             let box = blocks[index].bounds.intersection(page)
             let rect = box.isNull ? CGRect(x: 0, y: 0, width: 1 / pageSize.width, height: 1 / pageSize.height) : box
-            return .init(rect: CGRect(x: rect.minX / pageSize.width, y: rect.minY / pageSize.height,
-                                      width: max(rect.width, 1) / pageSize.width, height: max(rect.height, 1) / pageSize.height)
-                            .intersection(CGRect(x: 0, y: 0, width: 1, height: 1)),
-                         isVertical: blocks[index].vertical)
+            var normalized = CGRect(x: rect.minX / pageSize.width, y: rect.minY / pageSize.height,
+                                    width: max(rect.width, 1) / pageSize.width, height: max(rect.height, 1) / pageSize.height)
+                .intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+            if !rightToLeft { normalized.origin.x = 1 - normalized.maxX }
+            return .init(rect: normalized, isVertical: blocks[index].vertical)
         }
-        let ranks = ReaderTranslationPanelOrder.rightToLeftRanks(pixels: raster.pixels, width: raster.width,
-                                                                 height: raster.height, inputs: inputs)
+        let ranks = ReaderTranslationPanelOrder.rightToLeftRanks(pixels: gray.pixels, width: gray.width,
+                                                                 height: gray.height, inputs: inputs)
         var ordered = Array(repeating: 0, count: base.count)
         for (slot, rank) in ranks.enumerated() { ordered[rank] = base[slot] }
         return ordered

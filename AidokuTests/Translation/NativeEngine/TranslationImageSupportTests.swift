@@ -59,91 +59,6 @@ struct TranslationImageSupportTests {
         return try ReaderTranslationImagePreparation.translationJPEG(image)
     }
 
-    @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions], 0..<16)
-    func readerFilterAndImageMatrix(apiProtocol: RemoteTranslationProtocol, mode: Int) async throws {
-        // Legacy filter preferences cannot weaken the mandatory page contract.
-        // Missing images fail locally; a rejected image never falls back to text.
-        var settings = settings()
-        settings.custom.apiProtocol = apiProtocol
-        settings.filterSFXWithLLM = mode & 1 != 0
-        settings.filterBackgroundWithLLM = mode & 2 != 0
-        let imageMode = mode / 4
-        settings.includePageImage = imageMode != 0
-        let transport = ImageSupportTransport(roles: Dictionary(uniqueKeysWithValues: Self.roleSamples))
-        if imageMode == 0 || imageMode == 1 { await transport.acceptImages() }
-        if imageMode == 3 { TranslationImageSupport.shared.record(.unsupported, for: settings.configuration) }
-        let service = ReaderTranslationService(client: RemoteTranslationClient(
-            credentialStore: ImageSupportCredentials(), transport: transport))
-        let regions = Self.roleSamples.enumerated().map { index, sample in
-            ReaderTranslationRegion(id: "line-\(index)", rect: CGRect(x: 0.1, y: 0.05 + Double(index) * 0.13, width: 0.6, height: 0.1),
-                                    source: sample.0)
-        }
-        let jpeg = try Self.fixtureJPEG.get()
-        let providedImage = imageMode == 1 || imageMode == 2 ? jpeg : nil
-        if imageMode != 1 {
-            var failed = false
-            do {
-                _ = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
-            } catch {
-                failed = true
-                if providedImage == nil {
-                    guard case RemoteTranslationError.invalidRequest = error else { throw error }
-                }
-            }
-            #expect(failed)
-            #expect(await transport.images == (imageMode == 2 ? [true] : []))
-            return
-        }
-        let output = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
-        #expect(output.count == regions.count)
-        for (index, sample) in Self.roleSamples.enumerated() {
-            // Background-role lettering keeps its source text; it is never overlaid as translated speech.
-            #expect(output[index].translation == (sample.1 == "background" ? sample.0 : "translated:" + sample.0))
-            // Classified SFX and background lettering keep their original pixels.
-            #expect(output[index].preservesOriginalText == ["background", "sfx"].contains(sample.1))
-        }
-        let overlays = ReaderTranslationRegion.overlayItems(output, imageSize: Self.fixtureSize)
-        #expect(overlays.count == output.filter { !$0.preservesOriginalText }.count)
-        #expect(await transport.images == [true])
-        let bodies = await transport.bodies
-        for body in bodies {
-            let root = try #require(JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
-            let schema: [String: Any]
-            let imageURLs: [String]
-            if apiProtocol == .responses {
-                schema = try #require(((root["text"] as? [String: Any])?["format"] as? [String: Any])?["schema"] as? [String: Any])
-                let content = try #require((root["input"] as? [[String: Any]])?.first?["content"] as? [[String: Any]])
-                imageURLs = content.filter { $0["type"] as? String == "input_image" }.compactMap { $0["image_url"] as? String }
-            } else {
-                schema = try #require(((root["response_format"] as? [String: Any])?["json_schema"] as? [String: Any])?["schema"] as? [String: Any])
-                let content = (root["messages"] as? [[String: Any]])?.last?["content"] as? [[String: Any]] ?? []
-                imageURLs = content.filter { $0["type"] as? String == "image_url" }.compactMap { ($0["image_url"] as? [String: Any])?["url"] as? String }
-            }
-            let translations = try #require((schema["properties"] as? [String: Any])?["translations"] as? [String: Any])
-            let item = try #require(translations["items"] as? [String: Any])
-            let branches = item["anyOf"] as? [[String: Any]] ?? [item]
-            #expect(!branches.isEmpty)
-            for branch in branches {
-                let required = try #require(branch["required"] as? [String])
-                let properties = try #require(branch["properties"] as? [String: Any])
-                #expect(Set(required) == ["id", "text", "text_role"])
-                #expect(Set(required) == Set(properties.keys))
-            }
-            #expect((root["temperature"] as? NSNumber)?.doubleValue == 1.0)
-            #expect(imageURLs.count == 1)
-            let imageURL = try #require(imageURLs.first)
-            #expect(imageURL.hasPrefix("data:image/jpeg;base64,"))
-            #expect(Data(base64Encoded: String(imageURL.dropFirst("data:image/jpeg;base64,".count))) == jpeg)
-        }
-        // Repeated reads reuse the complete image-backed result.
-        let second = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
-        #expect(second.map(\.translation) == output.map(\.translation))
-        let count = await transport.images.count
-        _ = try await service.translate(regions: regions, settings: settings, preparedImageJPEG: providedImage)
-        #expect(await transport.images.count == count)
-        #expect(count == 1)
-    }
-
     private func settings() -> ReaderTranslationSettings {
         var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "ImageSettings.\(UUID().uuidString)")!)
         settings.provider = .custom
@@ -297,37 +212,6 @@ struct TranslationImageSupportTests {
             Issue.record("Text authentication failure must propagate")
         } catch let error as RemoteTranslationError { #expect(error == .httpStatus(401, requestID: nil)) }
         #expect(await transport.images == [true, false])
-    }
-
-    @Test func knownUnsupportedReaderStillRequiresImageAndKeepsPageCacheIdentity() async throws {
-        let settings = settings()
-        let support = TranslationImageSupport.shared
-        let initialKey = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
-        support.record(.unsupported, for: settings.configuration)
-        #expect(settings.shouldAttachPageImage)
-        let fallbackKey = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
-        let transport = ImageSupportTransport()
-        await transport.acceptImages()
-        let service = ReaderTranslationService(client: RemoteTranslationClient(
-            credentialStore: ImageSupportCredentials(), transport: transport))
-        let translated = try await service.translate(regions: [.init(id: "line", rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.2),
-            source: "Please open the door and come inside.")], settings: settings, preparedImageJPEG: Self.fixtureJPEG.get())
-        #expect(translated.first?.translation == "안녕하세요")
-        #expect(await transport.images == [true])
-        support.record(.supported, for: settings.configuration)
-        #expect(settings.shouldAttachPageImage)
-        let recoveredKey = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
-        #expect(initialKey == fallbackKey)
-        #expect(fallbackKey == recoveredKey)
-        var changed = settings
-        changed.model = "other-model"
-        #expect(support.status(for: changed.configuration) == .unknown)
-        changed = settings
-        changed.credentialGeneration += 1
-        #expect(support.status(for: changed.configuration) == .unknown)
-        changed = settings
-        changed.custom.baseURL = "https://another-image-support-test.example/v1"
-        #expect(support.status(for: changed.configuration) == .unknown)
     }
 
     @Test(arguments: [

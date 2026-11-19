@@ -34,6 +34,35 @@ struct V2GroupingTests {
         #expect(blocks.map(\.sourceText) == ["R", "L"])
     }
 
+    @Test func leftToRightBooksReadLeftPanelAndLeftBlockFirst() {
+        let frames = [V2LayoutRegion(kind: .frame, bounds: CGRect(x: 520, y: 20, width: 460, height: 1360), score: 0.9),
+                      V2LayoutRegion(kind: .frame, bounds: CGRect(x: 20, y: 20, width: 460, height: 1360), score: 0.9)]
+        // The right panel's text sits higher, so a plain top-to-bottom pass would read it first.
+        let panels = [column(200, 400, 200, "L"), column(700, 60, 200, "R")]
+        let page = CGSize(width: 1000, height: 1400)
+        #expect(V2Grouping.group(panels, layout: frames, pageSize: page, direction: .leftToRight).map(\.sourceText) == ["L", "R"])
+        #expect(V2Grouping.group(panels, layout: frames, pageSize: page, direction: .rightToLeft).map(\.sourceText) == ["R", "L"])
+        // One band without panels: left-to-right versus manga right-to-left.
+        let band = [column(100, 100, 300, "A"), column(800, 100, 300, "B")]
+        #expect(V2Grouping.group(band, layout: [], pageSize: page, direction: .leftToRight).map(\.sourceText) == ["A", "B"])
+        #expect(V2Grouping.group(band, layout: [], pageSize: page, direction: .rightToLeft).map(\.sourceText) == ["B", "A"])
+    }
+
+    @Test func topToBottomStripsReadBandsDownwardIgnoringPanels() {
+        let frames = [V2LayoutRegion(kind: .frame, bounds: CGRect(x: 520, y: 20, width: 460, height: 1360), score: 0.9),
+                      V2LayoutRegion(kind: .frame, bounds: CGRect(x: 20, y: 20, width: 460, height: 1360), score: 0.9)]
+        let lines = [column(700, 400, 200, "lower"), column(200, 60, 200, "upper"), column(100, 900, 100, "bottomLeft"),
+                     column(800, 900, 100, "bottomRight")]
+        let blocks = V2Grouping.group(lines, layout: frames, pageSize: CGSize(width: 1000, height: 1400), direction: .topToBottom)
+        #expect(blocks.map(\.sourceText) == ["upper", "lower", "bottomLeft", "bottomRight"])
+        #expect(blocks.map(\.readingOrder) == [0, 1, 2, 3])
+    }
+
+    @Test func mirroredRasterFlipsEachRow() {
+        let raster = V2GrayRaster(pixels: [1, 2, 3, 4, 5, 6], width: 3, height: 2).mirrored()
+        #expect(raster.pixels == [3, 2, 1, 6, 5, 4])
+    }
+
     @Test func roleFilterMarksOnlyUnambiguousSoundEffects() {
         let sfx = V2LayoutRegion(kind: .sfx, bounds: CGRect(x: 0, y: 0, width: 300, height: 300), score: 0.9)
         let weak = V2LayoutRegion(kind: .sfx, bounds: CGRect(x: 500, y: 0, width: 300, height: 300), score: 0.6)

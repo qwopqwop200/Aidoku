@@ -445,29 +445,6 @@ struct TranslationHTTPCodecTests {
         #expect(TranslationCacheKey(configuration: configuration, endpoint: endpoint, request: request) != imageKey)
     }
 
-    @Test func pageSettingsIgnoreLegacyImageOptOutAndRetainInstructions() throws {
-        let suite = "ImageSettings.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        defaults.set(false, forKey: ReaderTranslationSettings.keyPrefix + "includePageImage")
-        var settings = ReaderTranslationSettings(defaults: defaults)
-        #expect(settings.includePageImage)
-        let originalInstructions = settings.configuration.instructions
-        let key = ReaderTranslationCacheIdentity.translation(page: "page", settings: settings)
-        let pageSettings = settings
-        // Metadata may override this internally, but the opt-out is no longer persisted for pages.
-        settings.includePageImage = false
-        #expect(!settings.hasSameTranslation(as: pageSettings))
-        try settings.autosave(defaults: defaults)
-        #expect(ReaderTranslationSettings(defaults: defaults).includePageImage)
-        #expect(ReaderTranslationSettings(defaults: defaults).configuration.instructions == originalInstructions)
-        // Page translations have one image-required content identity
-        // ("page-image-required-v1"); pages always run with mandatory page
-        // settings and the cache write policy fences the opt-out separately.
-        #expect(ReaderTranslationCacheIdentity.translation(page: "page", settings: settings) == key)
-        #expect(defaults.object(forKey: ReaderTranslationSettings.keyPrefix + "includePageImage") == nil)
-    }
-
     @Test(arguments: [RemoteTranslationProtocol.responses, .chatCompletions])
     func outputContractCarriesExactIDsAndCount(apiProtocol: RemoteTranslationProtocol) throws {
         let request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",

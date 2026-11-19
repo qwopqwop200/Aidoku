@@ -472,7 +472,7 @@ private final class NativeCoreMLModelPredictor:
         deinit { idleExpiry?.cancel() }
 
         private static var hasReplicaHeadroom: Bool {
-            let available = ReaderTranslationSession.processAvailableMemory()
+            let available = ProcessMemory.available()
             // The simulator's sentinel means that no headroom reading was available.
             return available != .max && available >= 3 * 1_024 * 1_024 * 1_024
         }
@@ -640,7 +640,7 @@ private final class NativeCoreMLModelPredictor:
             admissionCheck: @escaping @Sendable () throws -> Void = {}
         ) async throws -> ModelAccess? {
             try admissionCheck()
-            let headroom = ReaderTranslationSession.processAvailableMemory()
+            let headroom = ProcessMemory.available()
             let residentLimit = headroom < 2 * 1_024 * 1_024 * 1_024 ? min(2, maximumResidentModels) : maximumResidentModels
             let modelKey = storageKey(for: variant)
             if !allowsEviction, headroom < 2 * 1_024 * 1_024 * 1_024 { return nil }
@@ -1811,7 +1811,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         // the next unseen width. Do no work there rather than evicting the
         // just-used sparse-page b1 function.
         guard idlePreparationEnabled,
-              ReaderTranslationSession.processAvailableMemory() >= 2 * 1_024 * 1_024 * 1_024 else { return }
+              ProcessMemory.available() >= 2 * 1_024 * 1_024 * 1_024 else { return }
         let preparationToken = preparationRevision.token()
         let resourceAccess = try await resourceStore.load(admissionCheck: {
             try self.preparationRevision.requireCurrent(preparationToken)
@@ -2339,7 +2339,7 @@ final class NativeCoreMLRecognizer: @unchecked Sendable {
         guard !chunks.isEmpty else { return }
         let allowsOverlap = chunks.count > 1
             && maximumConcurrentPredictions > 1
-            && ReaderTranslationSession.processAvailableMemory()
+            && ProcessMemory.available()
                 >= Self.minimumConcurrentPredictionMemory
         try await withThrowingTaskGroup(
             of: (Int, Int, NativeCoreMLChunkPredictionOutcome).self

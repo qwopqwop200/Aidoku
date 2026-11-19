@@ -99,50 +99,6 @@ struct TitleTranslationTests {
         #expect(try await reopened.statistics().entries == 6)
     }
 
-    @Test func metadataTranslatesWithoutAnImageWhenPageAttachmentsAreEnabled() async throws {
-        let fixture = TitleCacheFixture()
-        let client = TitleTestClient()
-        let service = ReaderTranslationService(client: client)
-        var settings = ReaderTranslationSettings()
-        settings.includePageImage = true
-        settings.targetLanguage = "ko"
-        settings.translateMangaTitles = true
-        settings.translateChapterTitles = true
-        settings.translateAuthors = true
-        settings.translateMangaTags = true
-        settings.translateSourceLabels = true
-        settings.translateMangaDescriptions = true
-        settings.mangaTitleSourceLanguages = []
-        settings.chapterTitleSourceLanguages = []
-        settings.authorSourceLanguages = []
-        settings.mangaTagSourceLanguages = []
-        settings.sourceLabelSourceLanguages = []
-        settings.mangaDescriptionSourceLanguages = []
-
-        for kind: TitleTranslationKind in [.manga, .chapter, .author, .tag, .sourceLabel, .description] {
-            let original = "The Lost Adventure \(kind.rawValue)"
-            let result = await TitleTranslation.translate(original, kind: kind, settings: settings,
-                service: service, diskCache: fixture.disk)
-            #expect(result == "일본어 제목")
-        }
-        let menu = await SourceMenuTranslation.translate(["School Life"], settings: settings, kind: .tag,
-            service: service, diskCache: fixture.disk)
-        #expect(menu["School Life"] == "일본어 제목")
-        let synopsis = await MangaDescriptionTranslation.translate("A detective travels.\n\nAn adventure begins.",
-            settings: settings, service: service, diskCache: fixture.disk)
-        #expect(synopsis == "일본어 제목\n\n일본어 제목")
-        let requests = await client.requests
-        #expect(requests.count == 9)
-        #expect(requests.allSatisfy { $0.imageJPEG == nil && $0.preparedImageDataURL == nil })
-        #expect(settings.includePageImage)
-        // A reader page must still require its image when the option is enabled.
-        await #expect(throws: RemoteTranslationError.self) {
-            _ = try await service.translate(regions: [.init(id: "page", rect: .zero, source: "これは日本語です")],
-                settings: settings)
-        }
-        #expect(await client.requests.count == 9)
-    }
-
     @Test func cachedMetadataSurvivesOtherItemsFailingOffline() async {
         let fixture = TitleCacheFixture()
         var settings = ReaderTranslationSettings()
@@ -199,30 +155,6 @@ struct TitleTranslationTests {
         settings.translateMangaTags = false
         #expect(await TitleTranslation.translate(text, kind: .tag, settings: settings,
             service: ReaderTranslationService(client: offline), diskCache: fixture.disk) == text)
-    }
-
-    @Test func targetLanguageSkipsNetworkButMixedAndRomanizedTextRemainEligible() async throws {
-        let fixture = TitleCacheFixture()
-        let client = TitleTestClient()
-        let service = ReaderTranslationService(client: client)
-        var settings = ReaderTranslationSettings()
-        settings.targetLanguage = "ko"
-        settings.translateMangaTitles = true
-        settings.mangaTitleSourceLanguages = []
-        let korean = "골목길의 수녀님 1–9"
-        #expect(await TitleTranslation.translate(korean, kind: .manga, settings: settings,
-            service: service, diskCache: fixture.disk) == korean)
-        #expect(await client.requests.isEmpty)
-        for text in ["일본어 제목: 路地裏のシスター", "한국어와 English", "Isekai Majutsushi", "School Life"] {
-            #expect(!ReaderTranslationLanguageFilter.isAlreadyTargetLanguage(text, target: "ko"))
-            _ = await TitleTranslation.translate(text, kind: .manga, settings: settings,
-                service: service, diskCache: fixture.disk)
-        }
-        #expect(await client.requests.count == 4)
-        #expect(!ReaderTranslationLanguageFilter.isAlreadyTargetLanguage("Isekai Majutsushi", target: "en"))
-        #expect(!ReaderTranslationLanguageFilter.isAlreadyTargetLanguage("日本語 English", target: "ja"))
-        #expect(ReaderTranslationLanguageFilter.isAlreadyTargetLanguage("これは日本語です", target: "ja"))
-        #expect(try ReaderTranslationService.requests(regions: [.init(id: "ko", rect: .zero, source: korean)], settings: settings).isEmpty)
     }
 
     @Test func screenshotEnglishTitleTranslatesWithEnglishFilter() async {
@@ -534,41 +466,6 @@ struct TitleTranslationTests {
         #expect(ReaderTranslationSettings(defaults: defaults).chapterTitleSourceLanguages == ["en"])
     }
 
-    @Test func pageJapaneseMangaAllAndChapterEnglishAreIndependent() async throws {
-        let fixture = TitleCacheFixture()
-        let client = TitleTestClient()
-        let service = ReaderTranslationService(client: client)
-        var settings = ReaderTranslationSettings()
-        settings.sourceLanguage = "ja"
-        settings.translationSourceLanguages = ["ja"]
-        settings.mangaTitleSourceLanguages = []
-        settings.chapterTitleSourceLanguages = ["en"]
-        settings.translateMangaTitles = true
-        settings.translateChapterTitles = true
-        let english = "The mysterious adventures of a young detective"
-        let japanese = "これは日本語のタイトルです"
-        let page = try await service.translate(regions: [.init(id: "page", rect: .zero, source: english)], settings: settings)
-        // Excluded OCR remains an unchanged source owner, without a provider request.
-        #expect(page.count == 1)
-        #expect(page.first?.source == english && page.first?.translation == english)
-        #expect(await client.requests.isEmpty)
-        #expect(await TitleTranslation.translate(english, kind: .manga, settings: settings,
-            service: service, diskCache: fixture.disk) == "일본어 제목")
-        #expect(await TitleTranslation.translate(japanese, kind: .manga, settings: settings,
-            service: service, diskCache: fixture.disk) == "일본어 제목")
-        #expect(await TitleTranslation.translate(english, kind: .chapter, settings: settings,
-            service: service, diskCache: fixture.disk) == "일본어 제목")
-        let beforeExcluded = await client.requests.count
-        #expect(await TitleTranslation.translate(japanese, kind: .chapter, settings: settings,
-            service: service, diskCache: fixture.disk) == japanese)
-        #expect(await client.requests.count == beforeExcluded)
-        // A previously cached translation must not bypass a narrower title filter.
-        settings.mangaTitleSourceLanguages = ["en"]
-        #expect(await TitleTranslation.translate(japanese, kind: .manga, settings: settings,
-            service: service, diskCache: fixture.disk) == japanese)
-        #expect(await client.requests.count == beforeExcluded)
-    }
-
     @Test func eachTitleCacheIgnoresOtherFiltersButTracksItsOwn() {
         var settings = ReaderTranslationSettings()
         let mangaKey = TitleTranslation.cacheKey("title", kind: .manga, settings: settings)
@@ -583,41 +480,6 @@ struct TitleTranslationTests {
         settings.mangaTitleSourceLanguages = ["ja"]
         #expect(TitleTranslation.cacheKey("title", kind: .manga, settings: settings) != mangaKey)
     }
-
-    @Test func titlesAndPagesRunConcurrentlyWithinSharedLimit() async {
-        let fixture = TitleCacheFixture()
-        let client = TitleConcurrencyClient()
-        let service = ReaderTranslationService(client: client)
-        var settings = ReaderTranslationSettings()
-        settings.sourceLanguage = "auto"
-        settings.translationSourceLanguages = []
-        settings.mangaTitleSourceLanguages = []
-        settings.chapterTitleSourceLanguages = []
-        settings.translateMangaTitles = true
-        settings.translateChapterTitles = true
-        settings.maximumConcurrentRequests = 2
-        let configuration = settings
-        let disk = fixture.disk
-        await withTaskGroup(of: Void.self) { group in
-            for index in 0..<6 {
-                group.addTask {
-                    // Manga OCR admits Japanese page text; metadata still admits English.
-                    let source = index == 0 ? "これは探偵の物語です" : "This is a unique story about a detective number \(index)"
-                    if index == 0 {
-                        // Page translation always attaches the page image.
-                        _ = try? await service.translate(regions: [.init(id: "page", rect: .zero, source: source)], settings: configuration,
-                            preparedImageJPEG: Data([0xff, 0xd8, 0xff, 0xd9]))
-                    } else {
-                        _ = await TitleTranslation.translate(source, kind: index.isMultiple(of: 2) ? .manga : .chapter,
-                            settings: configuration, service: service, diskCache: disk)
-                    }
-                }
-            }
-        }
-        #expect(await client.completed == 6)
-        #expect(await client.peak == 2)
-    }
-
 }
 
 private actor TitleTestClient: RemoteTranslating {

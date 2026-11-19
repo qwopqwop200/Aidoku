@@ -25,39 +25,21 @@ SOFTWARE.
 ## PaddleOCR and PP-OCR models
 
 - Project: PaddlePaddle/PaddleOCR
-- Models: `PP-OCRv6_medium_det`, `PP-OCRv6_medium_rec`,
-  `PP-OCRv6_small_det`, `PP-OCRv6_small_rec`, `PP-OCRv6_tiny_det`, and
-  `PP-OCRv6_tiny_rec`
+- Models: the bundled detector and recognizer are fine-tuned PP-OCRv6 models
+  (see "PP-OCRv6 Manga v0.3" below)
 - License: Apache License 2.0
 - Source: <https://github.com/PaddlePaddle/PaddleOCR>
-- Tiny ONNX sources: <https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx>
-  and <https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx>
 
-All six checked-in resources are specification-version-9 iOS 18 Core ML
-MLPrograms with one `main` function and dynamic inputs. Medium detector height
-and width range from 32 through 4,000; Small and Tiny detector dimensions range
-from 32 through 2,000. Recognizers accept batch sizes 1 through 4 at height 48;
-Medium width ranges from 160 through 3,200 and Small/Tiny width from 160 through
-2,000. Manga is the default tier, and each tier has its own detector,
-recognizer, and character dictionary. Korean OCR and PP-OCRv5 models are not
-bundled.
+The checked-in OCR resources are iOS 18 Core ML MLPrograms with dynamic inputs:
+one detector, one recognizer and its character dictionary. The Medium, Small and
+Tiny PP-OCRv6 tiers, Korean OCR and PP-OCRv5 models are not bundled.
 
-Some package manifests, including the Tiny recognizer, retain
-`com.microsoft.OnnxRuntime` as creator metadata. The model protobufs themselves
-are Core ML MLPrograms; this metadata does not mean ONNX Runtime is bundled or
-used at runtime. The app requests Core ML `.cpuOnly` in the Simulator.
-On a physical device, detection uses `.cpuAndGPU` and recognition uses `.all`,
-allowing Core ML to choose among the compute units permitted for each stage.
+The app requests Core ML `.cpuOnly` in the Simulator. On a physical device,
+detection uses `.cpuAndGPU` and recognition uses `.all`, allowing Core ML to
+choose among the compute units permitted for each stage.
 
-`CoreMLSources.json` records the official archive URL and SHA-256, internal ONNX
-SHA-256, dynamic bound, output resource, dictionary, and dictionary SHA-256 for
-each tier and role.
-
-All three detectors (Medium, Small, Tiny) are stored as float16-compute
-MLPrograms, re-converted from the float32 conversions with coremltools; their
-input and output remain float32. Medium/Small/Tiny recognizers remain float32;
-the Manga v0.3 recognizer uses float16 compute with float32 probabilities.
-
+`CoreMLSources.json` records the upstream URL and SHA-256, output resource,
+dictionary, and dictionary SHA-256 for each bundled model.
 
 ## PP-OCRv6 Manga v0.3
 

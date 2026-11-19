@@ -52,7 +52,14 @@ struct ReaderTranslationDismissalTests {
         try await Task.sleep(for: .milliseconds(450))
         var settings = ReaderTranslationSettings()
         settings.overlay.visible = true
-        reader.page.displayLoadedImage(.init(image: reader.translated, regions: [], settings: settings))
+        // The same V2 key the coordinator derives for this page, so its later
+        // synchronization keeps (never restarts) the attached cached bitmap.
+        var keySettings = settings
+        keySettings.readingDirection = .leftToRight
+        let sourceKey = try #require(reader.page.sourcePage?.translationCacheKey)
+        let key = ReaderTranslationV2Service.cacheKey(page: sourceKey, crop: CGRect(x: 0, y: 0, width: 1, height: 1),
+                                                      settings: keySettings)
+        reader.page.displayLoadedImage(.init(image: reader.translated, regions: [], settings: settings, v2CacheKey: key))
         controller.translationVisibilityDidChange()
         let overlay = try #require(reader.imageView.subviews.first as? UIImageView)
         #expect(overlay.image === reader.translated)

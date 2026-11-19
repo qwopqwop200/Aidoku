@@ -11,31 +11,26 @@ final class TranslationImageWorkBudget: Sendable {
     private let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private let availableMemory: @Sendable () -> UInt64
 
-    init(availableMemory: @escaping @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() }) {
+    init(availableMemory: @escaping @Sendable () -> UInt64 = { ProcessMemory.available() }) {
         self.availableMemory = availableMemory
     }
 
     enum AdmissionError: Error { case insufficientMemory, imageTooLarge }
 
-    /// Reclaim page caches first, then warm OCR runtimes only if headroom is
+    /// Reclaim page caches first, then the resident V2 models only if headroom is
     /// still short. Waiting on headroom without releasing these owners can
     /// otherwise stall indefinitely, but reloading models that did not need to
     /// be released costs the next page a cold OCR start.
     @discardableResult
     static func reclaimIdleResources(
         requiredHeadroom: UInt64 = minimumHeadroom,
-        availableMemory: @escaping @Sendable () -> UInt64 = { ReaderTranslationSession.processAvailableMemory() }
+        availableMemory: @escaping @Sendable () -> UInt64 = { ProcessMemory.available() }
     ) async -> Bool {
         await reclaimIdleResources(requiredHeadroom: requiredHeadroom, availableMemory: availableMemory, purgeCaches: {
-            await MainActor.run {
-                ImagePipeline.shared.configuration.imageCache?.removeAll()
-                ReaderTranslationRenderCache.shared.clearMemory()
-            }
+            await MainActor.run { ImagePipeline.shared.configuration.imageCache?.removeAll() }
+            if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.clearMemory() }
         }, purgeModels: {
-            if #available(iOS 18.0, *) {
-                await ReaderOCRService.shared.purge()
-                await ReaderTranslationV2Service.shared.releaseModels()
-            }
+            if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.releaseModels() }
         })
     }
 

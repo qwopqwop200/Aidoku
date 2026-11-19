@@ -20,7 +20,8 @@ struct ReaderTranslationPreparedImage {
     let image: UIImage
     let regions: [ReaderTranslationRegion]
     let settings: ReaderTranslationSettings
-    var freshSettledGeometry: ReaderTranslationImageGeometry? = nil
+    /// Set for a cached V2 page bitmap: the V2 cache key it was stored under.
+    var v2CacheKey: String? = nil
     var isCurrent: @MainActor () -> Bool = { true }
     var matchesSourceImage: @MainActor (UIImage) -> Bool = { _ in true }
 

@@ -205,90 +205,6 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
         )
     }
 
-    func testProgressiveMergeDropsProvisionalTranslationForChangedOCRText()
-        throws
-    {
-        let configuration = makeConfiguration()
-        let oldRequest = makeRequest()
-        let nextRequest = makeRequest(secondText: "바뀐 이웃")
-        let oldFirst = try identity(
-            configuration: configuration,
-            request: oldRequest,
-            segmentID: "segment-0"
-        )
-        let oldSecond = try identity(
-            configuration: configuration,
-            request: oldRequest,
-            segmentID: "segment-1"
-        )
-        let nextFirst = try identity(
-            configuration: configuration,
-            request: nextRequest,
-            segmentID: "segment-0"
-        )
-        let nextSecond = try identity(
-            configuration: configuration,
-            request: nextRequest,
-            segmentID: "segment-1"
-        )
-        let items = [
-            BrowserOverlayItem(
-                rect: .init(x: 0, y: 0, width: 100, height: 20),
-                sourceText: "同じ文字",
-                translatedText: "기존 첫 번째",
-                confidence: 0.95,
-                translationReuseIdentity: oldFirst
-            ),
-            BrowserOverlayItem(
-                rect: .init(x: 0, y: 30, width: 100, height: 20),
-                sourceText: "次の文字",
-                translatedText: "기존 두 번째",
-                confidence: 0.95,
-                translationReuseIdentity: oldSecond
-            ),
-        ]
-
-        let merged = NativeProgressiveTranslationOverlay.merge(
-            items: items,
-            expectedIdentities: [0: nextFirst, 1: nextSecond],
-            completedTranslations: [
-                0: NativeTranslationReuseValue(
-                    identity: nextFirst,
-                    translatedText: "새 첫 번째"
-                ),
-            ]
-        )
-
-        XCTAssertEqual(merged.map(\.translatedText), ["새 첫 번째", nil])
-        XCTAssertEqual(merged[0].translationReuseIdentity, nextFirst)
-        XCTAssertNil(merged[1].translationReuseIdentity)
-    }
-
-    func testBackgroundFilterChangeInvalidatesProvisionalAndGeometryReuse() throws {
-        let configuration = makeConfiguration()
-        let request = makeRequest()
-        var filtered = request
-        filtered.filtersBackground = true
-        let original = try identity(configuration: configuration, request: request)
-        let updated = try identity(configuration: configuration, request: filtered)
-
-        XCTAssertFalse(original.canRemainVisibleWhileRefreshing(expected: updated))
-        XCTAssertFalse(updated.canRemainVisibleWhileRefreshing(expected: original))
-        XCTAssertFalse(original.hasSameTranslationConfiguration(as: updated))
-        XCTAssertFalse(updated.hasSameTranslationConfiguration(as: original))
-        let item = BrowserOverlayItem(
-            rect: .init(x: 0, y: 0, width: 100, height: 20),
-            sourceText: request.segments[0].text,
-            translatedText: "오래된 간판 번역", confidence: 1,
-            translationReuseIdentity: original
-        )
-        let merged = NativeProgressiveTranslationOverlay.merge(
-            items: [item], expectedIdentities: [0: updated], completedTranslations: [:]
-        )
-        XCTAssertNil(merged[0].translatedText)
-        XCTAssertNil(merged[0].translationReuseIdentity)
-    }
-
     func testSourceBoundRoleFieldsInvalidateProvisionalDisplay() throws {
         let base = try identity(configuration: makeConfiguration(), request: makeRequest())
         let encoded = try JSONEncoder().encode(base.cacheKey)
@@ -304,24 +220,6 @@ final class NativeTranslationReuseIdentityTests: XCTestCase {
             XCTAssertFalse(base.canRemainVisibleWhileRefreshing(expected: next), field)
             XCTAssertFalse(base.hasSameTranslationConfiguration(as: next), field)
         }
-    }
-
-    func testOwnRoleEvidenceInvalidatesDisplayWhileNeighborRefreshRemainsAllowed() throws {
-        let text = "同じ文字"
-        let bounds = [0.1, 0.1, 0.2, 0.2]
-        let evidence = try XCTUnwrap(TranslationBackgroundRolePolicy.make(source: text,
-            bounds: bounds, imageIdentity: String(repeating: "a", count: 64), contour: nil, rf: nil))
-        func request(ownEvidence: NativeTranslationRoleEvidence?, neighborEvidence: NativeTranslationRoleEvidence?) -> RemoteTranslationRequest {
-            RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: [
-                .init(id: "segment-0", text: text, bounds: bounds, roleEvidence: ownEvidence),
-                .init(id: "segment-1", text: text, bounds: bounds, roleEvidence: neighborEvidence)
-            ])
-        }
-        let base = try identity(configuration: makeConfiguration(), request: request(ownEvidence: nil, neighborEvidence: nil))
-        let own = try identity(configuration: makeConfiguration(), request: request(ownEvidence: evidence, neighborEvidence: nil))
-        let neighbor = try identity(configuration: makeConfiguration(), request: request(ownEvidence: nil, neighborEvidence: evidence))
-        XCTAssertFalse(base.canRemainVisibleWhileRefreshing(expected: own))
-        XCTAssertTrue(base.canRemainVisibleWhileRefreshing(expected: neighbor))
     }
 
     private func identity(

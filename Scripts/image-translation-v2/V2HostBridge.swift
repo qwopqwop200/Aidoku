@@ -1,22 +1,6 @@
-import Darwin
 import Foundation
 
-// Mac host platform bridges for the V2 compile closure. The legacy recognizer
-// references the app-only ReaderTranslationSession memory probe; the host
-// supplies the same vm_statistics64 estimate as Scripts/image-translation/HostSupport.swift.
-enum ReaderTranslationSession {
-    static func processAvailableMemory() -> UInt64 {
-        var statistics = vm_statistics64()
-        var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
-        let status = withUnsafeMutablePointer(to: &statistics) { pointer in
-            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
-            }
-        }
-        guard status == KERN_SUCCESS else { return 0 }
-        return (UInt64(statistics.free_count) + UInt64(statistics.inactive_count)) * UInt64(vm_page_size)
-    }
-}
+// Mac host stand-ins for app-only symbols referenced by the V2 compile closure.
 
 /// The app's reader diagnostics sink is not part of the V2 host; legacy
 /// translation transport calls are accepted and dropped.

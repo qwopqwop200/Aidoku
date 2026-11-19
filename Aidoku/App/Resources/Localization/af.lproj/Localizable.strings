@@ -213,25 +213,15 @@
 
 "TRANSLATION_TITLE" = "OCR en vertaling";
 
-"TRANSLATION_TRANSLATE" = "Vertaal sigbare bladsye";
 
-"TRANSLATION_RECOGNIZE" = "Herken teks (vanlyn)";
 
-"TRANSLATION_ORIGINAL" = "Wys oorspronklike";
 
-"TRANSLATION_TEXT" = "Herkende en vertaalde teks";
 
-"TRANSLATION_NO_IMAGE" = "Wag vir 'n prentbladsy om te laai en probeer dan weer.";
 
-"TRANSLATION_NO_TEXT" = "Geen teks is herken nie. Probeer 'n ander OCR-model of 'n duideliker beeld.";
 
-"TRANSLATION_WORKING" = "Herken en vertaal tans…";
 
-"TRANSLATION_OCR_WORKING" = "Herken tans teks op toestel…";
 
-"TRANSLATION_HELP" = "Die vertaalikoon skakel vertaling aan of af. Sigbare bladsye word eerste voorberei, daarna nabygeleë bladsye. Die voorbereiding volg jou leesposisie. Gestoorde OCR-resultate, vertalings en teksuitleg kan hergebruik word nadat die leser heropen of die toepassing herbegin is. Tydelik geopende gedeelde beelde stoor nie hierdie kas nie. Wanneer jy die leser verlaat, word onvoltooide werk gekanselleer.";
 
-"TRANSLATION_PRIVACY" = "OCR loop op jou toestel. Vertaling stuur herkende teks en jou instruksies na die geselekteerde verskaffer. As ‘Sluit bladsybeeld by vertaling in’ geaktiveer is, kan ’n bladsybeeld wat vir verwerking aangepas is ook opgelaai word. As beeldinvoer nie ondersteun word nie, gaan vertaling met slegs teks voort. API-koste hang van jou verskaffer af. API-sleutels word in Keychain bewaar. OCR-resultate, vertalings en teksuitleg word in beskermde toepassingsberging gestoor wat van rugsteune uitgesluit is.";
 
 "TRANSLATION_KEY_REPLACE" = "Vervang gestoorde API-sleutel (opsioneel)";
 
@@ -249,11 +239,9 @@
 
 "TRANSLATION_TARGET" = "Vertaal na";
 
-"TRANSLATION_SOURCE" = "Brontaal";
 
 "TRANSLATION_AUTO" = "Bespeur outomaties";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 vereis iOS 18 of later. Manga v0.3 is die verstekmodel vir beide teksopsporing en teksherkenning. Ander OCR-modelle bly beskikbaar.";
 
 
 
@@ -271,42 +259,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Gelyktydige versoeke";
 
-"TRANSLATION_DETECTOR_SIZE" = "Maksimum sylengte vir teksopsporing";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Maksimum breedte vir teksherkenning";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Pikseldrempel vir OCR-opsporing";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimum vertroue in opgespoorde OCR-teksgebiede";
-"TRANSLATION_CONFIDENCE" = "Minimum vertroue in OCR-teksherkenning";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "Die pikseldrempel kies tekspiksels. Opsporingsvertroue filtreer teksgebiede. Herkenningsvertroue filtreer die teks wat uit elke gebied gelees word. Laer waardes aanvaar meer onseker resultate.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimum OCR-opsporingsgrootte";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimum lengte van die kort sy van moontlike teksgebiede, gemeet in piksels van die opsporingskaart. Verstek: 3 px. Laer waardes kan kleiner teks opspoor, maar ook meer beeldruis insluit.";
 
-"TRANSLATION_SURFACE" = "Agtergrondkleur";
 
-"TRANSLATION_WHITE" = "Wit";
 
-"TRANSLATION_DARK" = "Donker";
 
-"TRANSLATION_OPACITY" = "Ondeursigtigheid van agtergrond";
 
-"TRANSLATION_EXPANSION" = "Teksraamuitbreiding";
 
-"TRANSLATION_PANEL_BOUNDS" = "Binne die beeldgrense";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Binne die oorspronklike teksraam";
 
-"TRANSLATION_UNRESTRICTED" = "Onbeperk";
 
-"TRANSLATION_FONT_SIZE" = "Lettergrootte";
 
-"TRANSLATION_AUTO_FIT" = "Pas outomaties aan";
 
-"TRANSLATION_FIXED" = "Vaste lettergrootte";
 
-"TRANSLATION_OVERLAY" = "Vertaaloorleg";
 
-"TRANSLATION_OVERLAY_HELP" = "Vertoon die vertaling oor die oorspronklike tekskassie, vermy oorvleuelende teks en pas reëlbreuke by die skrifstelsel aan. Vertoonveranderinge hergebruik bestaande OCR-resultate.";
 
 "TRANSLATION_PROVIDER" = "Vertaalverskaffer";
 
@@ -378,7 +345,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Brontaal van bladsye";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Bespeur outomaties elke titel se brontaal en vertaal slegs die geselekteerde tale. Alle bespeurde tale verwyder die taalbeperking. Bladsy- en ander titelbrontaalinstellings beïnvloed nie hierdie keuse nie.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Vertaal mangabeskrywings";
 
@@ -390,32 +356,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Sluit bladsybeeld by vertaling in";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Stuur die bladsybeeld saam met OCR-teks om konteks vir die toneel te verskaf. As beeldinvoer nie ondersteun word nie, gaan vertaling outomaties met slegs teks voort. Beeldaanhegsels kan datagebruik en API-koste verhoog.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Beeldinvoer word nie ondersteun nie. Vertaling gaan sonder beelde voort.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Behou oorspronklike tekskleur";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Skat die oorspronklike tekskleur sonder 'n bykomende model. By onsekerheid of te lae kontras word die verstekkleur gebruik.";
 
-"TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alle tale)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Identifiseer klankeffekte in dieselfde vertaalversoek en laat dit onveranderd. Met ’n bladsybeeld slaan die KI ook onduidelike OCR-fragmente oor, tensy die beeld toon dat dit betekenisvolle teks is. Dialoog, vertelteks, titels en erkennings aan skeppers word behou om te vertaal. Klassifikasie is minder betroubaar sonder ’n bladsybeeld.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sonder beeldinvoer kan beperkte visuele en uitlegkonteks die akkuraatheid van SFX-klassifikasie verminder.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Behou oorspronklike agtergrondkleur";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Pas die vertaalpaneel by die agtergrond rondom die oorspronklike teks aan. By onsekerheid of swak leesbaarheid word die verstekpaneel gebruik. Jou ondeursigtigheidinstelling geld steeds.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Eie bediener (OpenAI-versoenbaar)";
 
-"TRANSLATION_OCR_MEDIUM" = "Medium";
 
-"TRANSLATION_OCR_SMALL" = "Klein";
 
-"TRANSLATION_OCR_TINY" = "Baie klein";
 
 "TRANSLATION_REASONING_NONE" = "Geen";
 
@@ -1079,8 +1034,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Laai met vertaling af";
 
-"TRANSLATION_LLM_BACKGROUND" = "Slaan agtergrondteks oor (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Die vertaal-KI laat gewone borde, plakkate en teks op voorwerpe in die toneel onveranderd, selfs wanneer dit met die toneel verband hou of in dialoog genoem word. Dialoog, vertelteks, titels, erkennings aan skeppers, geskrewe teks wat deurslaggewend vir die verhaal is en teks waarvan die rol onseker is, word vertaal. Geen ekstra versoek word gestuur nie, maar verwerking kan langer neem. Klassifikasie is minder betroubaar sonder ’n bladsybeeld.";
 
 "TRANSLATION_STATE_ON" = "Aan";
 
@@ -1148,13 +1101,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Veranderinge aan iCloud-sinkronisering geld nadat jy Aidoku heeltemal sluit en weer oopmaak. Tot dan bly die huidige sinkroniseringsinstelling aktief.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Behou oorspronklike kleure";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Behou die teks- en agtergrondkleure saam.";
-"TRANSLATION_INPAINTING" = "Agtergrondherstel";
-"TRANSLATION_INPAINTING_HELP" = "Vee oorspronklike teks uit en behou die agtergrond. Gebruik blokkies as maskers of leesbaarheid onseker is. Vereis oorspronklike kleure.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Teksfiltrering";
 
 "TRANSLATION_TARGETS" = "Wat om te vertaal";
 
@@ -1195,10 +1143,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ weergawe %d word nie deur hierdie toepassing ondersteun nie. Installeer ’n ondersteunde weergawe.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ondersteun slegs Japannese en Chinese bronteks (vereenvoudig en tradisioneel). Outomatiese identifikasie van die brontaal en die keuse van brontale is tot hierdie tale beperk. Jy kan steeds na enige teikentaal vertaal. Wanneer jy Manga kies, word opsporingsdrempels van 0.85 en 0.25 toegepas; die verstekgrootte vir teksopsporing is 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle ondersteunde OCR-tale";
-"TRANSLATION_PIPELINE_V2" = "Vinnige pyplyn (Beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Gebruik die nuwe spoedgerigte bladsyvertaalpyplyn. Bladsye word herken, uitgevee en as een voltooide beeld herteken, gewoonlik baie vinniger. Resultate word apart van die standaardpyplyn gekas. Vereis iOS 18.";

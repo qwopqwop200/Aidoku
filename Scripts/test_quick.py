@@ -20,10 +20,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def host_commands():
-    # Native runtime checks live in the iOS suites and explicit full-host matrix.
+    # Python tooling tests, localization parity and the model-free V2 host settings
+    # check. Model-loading V2 host smokes and OCR contracts are in the full-host matrix.
     return [
         [sys.executable, '-m', 'unittest', 'discover', '-s', 'Scripts', '-v'],
         [sys.executable, 'Scripts/validate_localizations.py'],
+        [sys.executable, 'Scripts/tests/run-image-environment-smoke.py'],
     ]
 
 

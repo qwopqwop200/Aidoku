@@ -149,7 +149,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             ]
         )
         AppSettings.registerDefaults()
-        Task(priority: .background) { try? await ReaderTranslationDiskCache.shared.compact() }
+        // One-time cleanup of the retired legacy page pipeline: its cache rows
+        // (V2 page rows and metadata stay), compiled copies of the unused OCR
+        // tiers, and its preference keys. Each step is idempotent.
+        ReaderTranslationSettings.retiredKeys.forEach(UserDefaults.standard.removeObject(forKey:))
+        Task(priority: .background) {
+            try? await ReaderTranslationDiskCache.shared.purgeLegacyPipelineRows()
+            try? await ReaderTranslationDiskCache.shared.compact()
+        }
         Task.detached(priority: .utility) { NativeCoreMLModelStore.shared.reclaimLegacyExecutionCache() }
 
         // PlayCover fix: eagerly initialize the Core Data stack on the main thread
@@ -284,7 +291,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
         ImagePipeline.shared.configuration.imageCache?.removeAll()
-        ReaderTranslationRenderCache.shared.clearMemory()
+        if #available(iOS 18.0, *) { Task { await ReaderTranslationV2Service.shared.clearMemory() } }
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

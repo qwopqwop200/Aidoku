@@ -723,25 +723,15 @@
 
 "TRANSLATION_TITLE" = "OCR och översättning";
 
-"TRANSLATION_TRANSLATE" = "Översätt synliga sidor";
 
-"TRANSLATION_RECOGNIZE" = "Känn igen text (offline)";
 
-"TRANSLATION_ORIGINAL" = "Visa original";
 
-"TRANSLATION_TEXT" = "Igenkänd och översatt text";
 
-"TRANSLATION_NO_IMAGE" = "Vänta tills en bildsida laddas och försök sedan igen.";
 
-"TRANSLATION_NO_TEXT" = "Ingen text kändes igen. Prova en annan OCR-modell eller en tydligare bild.";
 
-"TRANSLATION_WORKING" = "Känner igen och översätter…";
 
-"TRANSLATION_OCR_WORKING" = "Känner igen text på enheten…";
 
-"TRANSLATION_HELP" = "Översättningsikonen aktiverar eller inaktiverar översättning. Synliga sidor förbereds först, sedan närliggande sidor. Förberedelserna följer din läsposition. Sparade OCR-resultat, översättningar och textlayout kan återanvändas när du öppnar läsaren igen eller startar om appen. Delade bilder som öppnas tillfälligt sparar inte denna cache. När du lämnar läsaren avbryts oavslutat arbete.";
 
-"TRANSLATION_PRIVACY" = "OCR körs på din enhet. Översättningen skickar igenkänd text och dina instruktioner till den valda leverantören. Om Inkludera sidbild i översättning är aktiverat kan även en sidbild som anpassats för bearbetning laddas upp. Om bilder inte stöds som indata fortsätter översättningen med enbart text. API-avgifter beror på leverantören. Nycklarna sparas i Nyckelring. OCR-resultat, översättningar och textlayout sparas i skyddad applagring som inte ingår i säkerhetskopior.";
 
 "TRANSLATION_KEY_REPLACE" = "Ersätt sparad API-nyckel (valfritt)";
 
@@ -759,11 +749,9 @@
 
 "TRANSLATION_TARGET" = "Översätt till";
 
-"TRANSLATION_SOURCE" = "Källspråk";
 
 "TRANSLATION_AUTO" = "Upptäck automatiskt";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 kräver iOS 18 eller senare. Manga v0.3 är standardmodellen för både textdetektering och textigenkänning. Andra OCR-modeller är fortfarande tillgängliga.";
 
 
 
@@ -781,42 +769,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Samtidiga förfrågningar";
 
-"TRANSLATION_DETECTOR_SIZE" = "Maximal sidlängd för textdetektering";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Maximal bredd för textigenkänning";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Pixeltröskel för OCR-detektering";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Lägsta konfidens för detekterade OCR-områden";
-"TRANSLATION_CONFIDENCE" = "Lägsta konfidens för OCR-textigenkänning";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "Pixeltröskeln väljer textpixlar. Detekteringskonfidensen filtrerar textområden. Igenkänningskonfidensen filtrerar texten som lästs från varje område. Lägre värden godtar fler osäkra resultat.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minsta storlek för OCR-detektering";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minsta längd på kortsidan av möjliga textområden, mätt i pixlar på detekteringskartan. Standard: 3 px. Lägre värden kan upptäcka mindre text, men även mer brus.";
 
-"TRANSLATION_SURFACE" = "Bakgrundsfärg";
 
-"TRANSLATION_WHITE" = "Vit";
 
-"TRANSLATION_DARK" = "Mörk";
 
-"TRANSLATION_OPACITY" = "Bakgrundens opacitet";
 
-"TRANSLATION_EXPANSION" = "Utöka textramen";
 
-"TRANSLATION_PANEL_BOUNDS" = "Inom bildens gränser";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Inom den ursprungliga textramen";
 
-"TRANSLATION_UNRESTRICTED" = "Obegränsad";
 
-"TRANSLATION_FONT_SIZE" = "Teckenstorlek";
 
-"TRANSLATION_AUTO_FIT" = "Anpassa automatiskt";
 
-"TRANSLATION_FIXED" = "Fast teckenstorlek";
 
-"TRANSLATION_OVERLAY" = "Översättningsöverlägg";
 
-"TRANSLATION_OVERLAY_HELP" = "Ersätter text i den ursprungliga textrutan med en layout som tar hänsyn till överlappningar och anpassar radbrytningen till skriftsystemet. Ändringar av visningen återanvänder befintliga OCR-resultat.";
 
 "TRANSLATION_PROVIDER" = "Översättningsleverantör";
 
@@ -888,7 +855,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Sidans källspråk";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Identifierar automatiskt varje titels källspråk och översätter endast de valda språken. Alla upptäckta språk tar bort språkbegränsningen. Inställningarna för sidornas och andra titeltypers källspråk påverkar inte detta val.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Översätt mangabeskrivningar";
 
@@ -900,32 +866,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Inkludera sidbild i översättning";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Skickar sidbilden tillsammans med OCR-texten för att ge scenens sammanhang. Om bilder inte stöds som indata fortsätter översättningen automatiskt med enbart text. Bilder kan öka dataanvändningen och API-kostnaden.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Bilder stöds inte som indata. Översättningen fortsätter utan bilder.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Bevara originaltextfärg";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Uppskattar originaltextens färg utan en extra modell. Vid osäkerhet eller för låg kontrast används standardfärgen.";
 
-"TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alla språk)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Identifierar ljudeffekter i samma översättningsbegäran och lämnar dem oförändrade. Med en sidbild hoppar AI:n även över otydliga OCR-fragment, om inte bilden visar att de är meningsfull text. Dialog, berättartext, titlar och upphovsuppgifter behålls för översättning. Klassificeringen är mindre tillförlitlig utan en sidbild.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Utan bildinmatning kan begränsad visuell och layoutkontext minska SFX-klassificeringsnoggrannheten.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Bevara ursprunglig bakgrundsfärg";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Anpassar översättningspanelen till bakgrunden runt originaltexten. Vid osäkerhet eller dålig läsbarhet används standardpanelen. Din opacitetsinställning gäller fortfarande.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Egen server (OpenAI-kompatibel)";
 
-"TRANSLATION_OCR_MEDIUM" = "Medium";
 
-"TRANSLATION_OCR_SMALL" = "Liten";
 
-"TRANSLATION_OCR_TINY" = "Mycket liten";
 
 "TRANSLATION_REASONING_NONE" = "Ingen";
 
@@ -1079,8 +1034,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Ladda ned med översättning";
 
-"TRANSLATION_LLM_BACKGROUND" = "Hoppa över bakgrundstext (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Översättnings-AI:n lämnar vanliga skyltar, affischer och text på föremål i scenen oförändrade, även när de har anknytning till scenen eller nämns i dialog. Dialog, berättartext, titlar, upphovsuppgifter, skrift som är avgörande för handlingen och text vars roll är osäker översätts. Ingen extra förfrågan görs, men bearbetningen kan ta längre tid. Klassificeringen är mindre tillförlitlig utan en sidbild.";
 
 "TRANSLATION_STATE_ON" = "På";
 
@@ -1148,13 +1101,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Ändringar av iCloud-synkronisering gäller när du stänger Aidoku helt och öppnar appen igen. Tills dess används den nuvarande inställningen.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Behåll originalfärger";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Behåll textens och bakgrundens färger tillsammans.";
-"TRANSLATION_INPAINTING" = "Bakgrundsrekonstruktion";
-"TRANSLATION_INPAINTING_HELP" = "Tar bort originaltext och bevarar bakgrunden. Använder rutor vid osäker mask eller läsbarhet. Kräver originalfärger.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Textfiltrering";
 
 "TRANSLATION_TARGETS" = "Vad som ska översättas";
 
@@ -1197,10 +1145,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Källan %@ version %d stöds inte av den här appen. Installera en version som stöds.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 stöder endast källtext på japanska och kinesiska (förenklad och traditionell). Automatisk identifiering av källspråket och val av källspråk är begränsade till dessa språk. Du kan fortfarande översätta till valfritt målspråk. När du väljer Manga används detekteringströsklarna 0.85 och 0.25; standardstorleken för textdetektering är 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alla OCR-språk som stöds";
-"TRANSLATION_PIPELINE_V2" = "Snabb pipeline (beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Använder den nya, hastighetsinriktade pipelinen för sidöversättning. Sidor känns igen, raderas och ritas om som en enda färdig bild, vanligtvis mycket snabbare. Resultaten cachelagras separat från standardpipelinen. Kräver iOS 18.";

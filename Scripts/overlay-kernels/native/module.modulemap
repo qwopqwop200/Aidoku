@@ -1,4 +1,0 @@
-module AidokuOverlayKernels {
-    header "kernels.h"
-    export *
-}

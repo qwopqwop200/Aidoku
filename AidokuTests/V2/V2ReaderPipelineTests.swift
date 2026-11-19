@@ -4,7 +4,7 @@ import Foundation
 import Testing
 @testable import Aidoku
 
-/// App integration of the opt-in V2 pipeline: iOS resource policy, cache identity, replay.
+/// App integration of the V2 pipeline: iOS resource policy, cache identity, replay.
 struct V2ReaderPipelineTests {
     @Test func iosPoolSizesFollowPhysicalMemory() {
         let gib: UInt64 = 1_024 * 1_024 * 1_024
@@ -19,7 +19,6 @@ struct V2ReaderPipelineTests {
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
         let key = ReaderTranslationV2Service.cacheKey(page: "page-1", crop: unit, settings: settings)
         #expect(key.hasPrefix("v2-" + ReaderTranslationV2Service.version + "-"))
-        #expect(key != ReaderTranslationCacheIdentity.translation(page: "page-1", settings: settings))
         #expect(key == ReaderTranslationV2Service.cacheKey(page: "page-1", crop: unit, settings: settings))
         #expect(key != ReaderTranslationV2Service.cacheKey(page: "page-2", crop: unit, settings: settings))
         #expect(key != ReaderTranslationV2Service.cacheKey(page: "page-1",
@@ -28,17 +27,75 @@ struct V2ReaderPipelineTests {
         #expect(key != ReaderTranslationV2Service.cacheKey(page: "page-1", crop: unit, settings: settings))
     }
 
-    @Test func pipelineSettingDefaultsOffAndPersists() throws {
+    @Test func retiredPipelineAndOCRKeysAreIgnoredAndRemovedOnSave() throws {
         let defaults = UserDefaults(suiteName: "V2ReaderPipelineTests-\(UUID())")!
-        var settings = ReaderTranslationSettings(defaults: defaults)
-        #expect(!settings.pipelineV2)
-        settings.pipelineV2 = true
+        // An old backup: legacy pipeline toggle, a non-manga OCR tier and thresholds.
+        defaults.set(false, forKey: "Reader.translationPipelineV2")
+        defaults.set("medium", forKey: ReaderTranslationSettings.keyPrefix + "modelTier")
+        let oldOCR = ReaderOCRConfiguration(modelTier: .small, confidenceThreshold: 0.9)
+        defaults.set(try JSONEncoder().encode(oldOCR), forKey: ReaderTranslationSettings.keyPrefix + "ocr")
+        defaults.set(Data("{\"unexpected\":true}".utf8), forKey: ReaderTranslationSettings.keyPrefix + "overlay")
+        let settings = ReaderTranslationSettings(defaults: defaults)
+        #expect(settings.ocr == ReaderOCRConfiguration())
+        #expect(settings.modelTier == .manga)
+        #expect(settings.overlay.visible)
         try settings.autosave(defaults: defaults, credentialStore: V2NoCredentials())
-        #expect(defaults.bool(forKey: "Reader.translationPipelineV2"))
-        #expect(ReaderTranslationSettings(defaults: defaults).pipelineV2)
-        var legacy = settings
-        legacy.pipelineV2 = false
-        #expect(!settings.hasSameTranslation(as: legacy))
+        for key in ReaderTranslationSettings.retiredKeys { #expect(defaults.object(forKey: key) == nil, "\(key)") }
+    }
+
+    @Test func readingDirectionKeysOnlyNonRightToLeftPages() {
+        var settings = Self.freshSettings()
+        let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
+        settings.readingDirection = .rightToLeft
+        let rightToLeft = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        settings.readingDirection = .leftToRight
+        let leftToRight = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        settings.readingDirection = .topToBottom
+        let topToBottom = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        #expect(Set([rightToLeft, leftToRight, topToBottom]).count == 3)
+        // Right-to-left keeps the key rows were cached under before direction-aware ordering.
+        settings.readingDirection = .rightToLeft
+        #expect(settings.rightToLeftPanelOrder)
+        settings.rightToLeftPanelOrder = false
+        #expect(settings.readingDirection == .leftToRight)
+    }
+
+    @Test func memoryCacheEvictsLeastRecentlyUsedWithinBudget() {
+        let image = V2SyntheticPages.make(index: 0, width: 100, height: 100)
+        let cost = V2PageMemoryCache.cost(image)
+        var cache = V2PageMemoryCache()
+        cache.insert(image, for: "a", limit: cost * 2)
+        cache.insert(image, for: "b", limit: cost * 2)
+        #expect(cache.image(for: "a") != nil) // a becomes most recent
+        cache.insert(image, for: "c", limit: cost * 2)
+        #expect(cache.image(for: "b") == nil)
+        #expect(cache.image(for: "a") != nil && cache.image(for: "c") != nil)
+        #expect(cache.bytes == cost * 2 && cache.count == 2)
+        cache.insert(image, for: "d", limit: cost - 1)
+        #expect(cache.image(for: "d") == nil)
+        cache.removeAll()
+        #expect(cache.count == 0 && cache.bytes == 0)
+        let gib: UInt64 = 1_024 * 1_024 * 1_024
+        #expect(V2PageMemoryCache.byteLimit(available: 0, current: 0) == V2PageMemoryCache.minimumBytes)
+        #expect(V2PageMemoryCache.byteLimit(available: 8 * gib, current: 0) == V2PageMemoryCache.maximumBytes)
+    }
+
+    @Test func cachedPageServesTemporaryResultsFromMemoryOnly() async throws {
+        let service = ReaderTranslationV2Service(
+            loadModels: { throw CancellationError() }, translateBlocks: { blocks, _, _, _, _ in blocks },
+            diskCache: nil, observesMemoryWarnings: false)
+        #expect(await service.cachedPage(cacheKey: "missing", persists: false) == nil)
+        #expect(await service.memoryCachedCount == 0)
+    }
+
+    @Test func lookaheadTranslatesSplitHalvesInReadingOrder() {
+        let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let left = CGRect(x: 0, y: 0, width: 0.5, height: 1), right = CGRect(x: 0.5, y: 0, width: 0.5, height: 1)
+        let wide = CGSize(width: 2_000, height: 1_400), tall = CGSize(width: 1_000, height: 1_400)
+        #expect(ReaderTranslationCoordinator.v2LookaheadCrops(imageSize: wide, splitsWidePages: true, direction: .rightToLeft) == [right, left])
+        #expect(ReaderTranslationCoordinator.v2LookaheadCrops(imageSize: wide, splitsWidePages: true, direction: .leftToRight) == [left, right])
+        #expect(ReaderTranslationCoordinator.v2LookaheadCrops(imageSize: wide, splitsWidePages: false, direction: .rightToLeft) == [unit])
+        #expect(ReaderTranslationCoordinator.v2LookaheadCrops(imageSize: tall, splitsWidePages: true, direction: .rightToLeft) == [unit])
     }
 
     @Test func replayReappliesOnlyMatchingBlocks() {

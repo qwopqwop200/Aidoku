@@ -379,25 +379,15 @@
 
 "TRANSLATION_TITLE" = "OCR en vertaling";
 
-"TRANSLATION_TRANSLATE" = "Vertaal zichtbare pagina's";
 
-"TRANSLATION_RECOGNIZE" = "Tekst herkennen (offline)";
 
-"TRANSLATION_ORIGINAL" = "Origineel tonen";
 
-"TRANSLATION_TEXT" = "Herkende en vertaalde tekst";
 
-"TRANSLATION_NO_IMAGE" = "Wacht tot een afbeeldingspagina is geladen en probeer het vervolgens opnieuw.";
 
-"TRANSLATION_NO_TEXT" = "Er werd geen tekst herkend. Probeer een ander OCR-model of een duidelijker beeld.";
 
-"TRANSLATION_WORKING" = "Herkennen en vertalen…";
 
-"TRANSLATION_OCR_WORKING" = "Tekst herkennen op apparaat…";
 
-"TRANSLATION_HELP" = "Het vertaalpictogram schakelt vertaling in of uit. Zichtbare pagina’s worden eerst voorbereid, daarna nabijgelegen pagina’s. De voorbereiding volgt je leespositie. Opgeslagen OCR-resultaten, vertalingen en tekstopmaak kunnen worden hergebruikt nadat je de lezer opnieuw opent of de app opnieuw start. Tijdelijk geopende gedeelde afbeeldingen slaan deze cache niet op. Als je de lezer verlaat, wordt onvoltooid werk geannuleerd.";
 
-"TRANSLATION_PRIVACY" = "OCR wordt uitgevoerd op je apparaat. Voor vertaling worden de herkende tekst en je instructies naar de geselecteerde aanbieder gestuurd. Als ‘Pagina-afbeelding opnemen in vertaling’ is ingeschakeld, kan ook een voor verwerking aangepaste pagina-afbeelding worden geüpload. Als afbeeldingsinvoer niet wordt ondersteund, gaat de vertaling verder met alleen tekst. API-kosten zijn afhankelijk van je aanbieder. Sleutels blijven in Sleutelhanger. OCR-resultaten, vertalingen en tekstopmaak worden opgeslagen in beveiligde app-opslag die is uitgesloten van back-ups.";
 
 "TRANSLATION_KEY_REPLACE" = "Vervang opgeslagen API-sleutel (optioneel)";
 
@@ -415,11 +405,9 @@
 
 "TRANSLATION_TARGET" = "Vertalen naar";
 
-"TRANSLATION_SOURCE" = "Brontaal";
 
 "TRANSLATION_AUTO" = "Automatisch detecteren";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 vereist iOS 18 of nieuwer. Manga v0.3 is het standaardmodel voor zowel tekstdetectie als tekstherkenning. Andere OCR-modellen blijven beschikbaar.";
 
 
 
@@ -437,42 +425,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Gelijktijdige verzoeken";
 
-"TRANSLATION_DETECTOR_SIZE" = "Maximale zijlengte voor tekstdetectie";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Maximale breedte voor tekstherkenning";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Pixeldrempel voor OCR-detectie";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimale betrouwbaarheid van gedetecteerde OCR-gebieden";
-"TRANSLATION_CONFIDENCE" = "Minimale betrouwbaarheid van OCR-herkenning";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "De pixeldrempel selecteert tekstpixels. De detectiebetrouwbaarheid filtert tekstgebieden. De herkenningsbetrouwbaarheid filtert de tekst die uit elk gebied is gelezen. Lagere waarden laten meer onzekere resultaten toe.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimale OCR-detectiegrootte";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimale lengte van de korte zijde van mogelijke tekstgebieden, in pixels van de detectiekaart. Standaard: 3 px. Lagere waarden kunnen kleinere tekst detecteren, maar ook meer ruis meenemen.";
 
-"TRANSLATION_SURFACE" = "Achtergrondkleur";
 
-"TRANSLATION_WHITE" = "Wit";
 
-"TRANSLATION_DARK" = "Donker";
 
-"TRANSLATION_OPACITY" = "Achtergronddekking";
 
-"TRANSLATION_EXPANSION" = "Tekstkader uitbreiden";
 
-"TRANSLATION_PANEL_BOUNDS" = "Binnen de afbeeldingsgrenzen";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Binnen het oorspronkelijke tekstkader";
 
-"TRANSLATION_UNRESTRICTED" = "Onbeperkt";
 
-"TRANSLATION_FONT_SIZE" = "Lettergrootte";
 
-"TRANSLATION_AUTO_FIT" = "Automatisch passend maken";
 
-"TRANSLATION_FIXED" = "Vaste lettergrootte";
 
-"TRANSLATION_OVERLAY" = "Vertaaloverlay";
 
-"TRANSLATION_OVERLAY_HELP" = "Toont de vertaling over het oorspronkelijke tekstvak, voorkomt overlappende tekst en past regelafbreking aan het schrift aan. Bij weergavewijzigingen worden bestaande OCR-resultaten hergebruikt.";
 
 "TRANSLATION_PROVIDER" = "Vertaalaanbieder";
 
@@ -544,7 +511,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Paginabrontaal";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Detecteer automatisch de brontaal van elke titel en vertaal alleen de geselecteerde talen. Alle gedetecteerde talen verwijdert de taalbeperking. Pagina- en andere titelbrontaalinstellingen hebben geen invloed op deze selectie.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Vertaal mangabeschrijvingen";
 
@@ -556,32 +522,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Pagina-afbeelding opnemen in vertaling";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Stuurt de pagina-afbeelding samen met de OCR-tekst om context uit de scène te bieden. Als afbeeldingen niet worden ondersteund, gaat de vertaling automatisch verder met alleen tekst. Afbeeldingen kunnen het dataverbruik en de API-kosten verhogen.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Afbeeldingsinvoer wordt niet ondersteund. De vertaling gaat verder zonder afbeeldingen.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Oorspronkelijke tekstkleur behouden";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Schat de oorspronkelijke tekstkleur zonder extra model. Bij onzekerheid of te weinig contrast wordt de standaardkleur gebruikt.";
 
-"TRANSLATION_LLM_SFX" = "LLM SFX-filtering (alle talen)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Herkent geluidseffecten in hetzelfde vertaalverzoek en laat ze ongewijzigd. Met een pagina-afbeelding slaat de AI ook onduidelijke OCR-fragmenten over, tenzij de afbeelding aantoont dat het om betekenisvolle tekst gaat. Dialoog, verteltekst, titels en makersvermeldingen blijven behouden om te worden vertaald. Zonder pagina-afbeelding is de classificatie minder betrouwbaar.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Zonder beeldinvoer kan een beperkte visuele en lay-outcontext de nauwkeurigheid van de SFX-classificatie verminderen.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Oorspronkelijke achtergrondkleur behouden";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Past het vertaalpaneel aan de achtergrond rond de oorspronkelijke tekst aan. Bij onzekerheid of slechte leesbaarheid wordt het standaardpaneel gebruikt. De ingestelde dekking blijft van toepassing.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Eigen server (OpenAI-compatibel)";
 
-"TRANSLATION_OCR_MEDIUM" = "Middelgroot";
 
-"TRANSLATION_OCR_SMALL" = "Klein";
 
-"TRANSLATION_OCR_TINY" = "Zeer klein";
 
 "TRANSLATION_REASONING_NONE" = "Geen";
 
@@ -1081,8 +1036,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Downloaden met vertaling";
 
-"TRANSLATION_LLM_BACKGROUND" = "Achtergrondtekst overslaan (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "De vertaal-AI laat gewone borden, posters en tekst op voorwerpen in de scène ongewijzigd, ook als ze verband houden met de scène of in dialoog worden genoemd. Dialoog, verteltekst, titels, makersvermeldingen, geschreven tekst die cruciaal is voor het verhaal en tekst waarvan de rol onzeker is, worden vertaald. Er wordt geen extra verzoek verstuurd, maar de verwerking kan langer duren. Zonder pagina-afbeelding is de classificatie minder betrouwbaar.";
 
 "TRANSLATION_STATE_ON" = "Aan";
 
@@ -1150,13 +1103,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Wijzigingen aan iCloud-synchronisatie worden toegepast nadat je Aidoku volledig sluit en opnieuw opent. Tot dan blijft de huidige instelling actief.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Originele kleuren behouden";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Behoud de tekst- en achtergrondkleuren samen.";
-"TRANSLATION_INPAINTING" = "Achtergrondherstel";
-"TRANSLATION_INPAINTING_HELP" = "Wist originele tekst met behoud van de achtergrond. Gebruikt vakken bij een onzeker masker of slechte leesbaarheid. Vereist originele kleuren.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Tekstfiltering";
 
 "TRANSLATION_TARGETS" = "Te vertalen inhoud";
 
@@ -1197,10 +1145,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ versie %d wordt niet ondersteund door deze app. Installeer een ondersteunde versie.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 ondersteunt alleen Japanse en Chinese brontekst (vereenvoudigd en traditioneel). Automatische herkenning van de brontaal en de beschikbare brontalen zijn beperkt tot deze talen. Je kunt nog steeds naar elke doeltaal vertalen. Als je Manga kiest, worden de detectiedrempels 0.85 en 0.25 toegepast; de standaardgrootte voor detectie is 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle ondersteunde OCR-talen";
-"TRANSLATION_PIPELINE_V2" = "Snelle pijplijn (bèta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Gebruikt de nieuwe, op snelheid gerichte pijplijn voor paginavertaling. Pagina's worden herkend, gewist en opnieuw getekend als één afgewerkte afbeelding, meestal veel sneller. Resultaten worden apart van de standaardpijplijn in de cache bewaard. Vereist iOS 18.";

@@ -16,24 +16,19 @@ struct ReaderLocalPageIdentityTests {
         let first = await ReaderLocalPageIdentity.prepare([page(url)])
         let unchanged = await ReaderLocalPageIdentity.prepare([page(url)])
         #expect(first[0].translationCacheKey == unchanged[0].translationCacheKey)
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
         let name = UUID().uuidString
         let defaults = UserDefaults(suiteName: name)!
         defer { defaults.removePersistentDomain(forName: name) }
         let settings = ReaderTranslationSettings(defaults: defaults)
-        let regions = [ReaderTranslationRegion(id: "saved", rect: CGRect(x: 0, y: 0, width: 1, height: 1),
-                                              source: "Original", translation: "저장된 번역")]
-        let writer = ReaderTranslationDiskCache(directory: directory)
-        try await writer.storeRegions(regions,
-            for: ReaderTranslationCacheIdentity.translation(page: first[0].translationCacheKey, settings: settings),
-            kind: .translation, generation: 0)
-        let reader = ReaderTranslationDiskCache(directory: directory)
-        #expect(try await reader.translatedRegions(page: unchanged[0].translationCacheKey, settings: settings) == regions)
+        let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
+        func pageKey(_ page: Page) -> String {
+            ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: unit, settings: settings)
+        }
+        #expect(pageKey(first[0]) == pageKey(unchanged[0]))
         try Data("other image".utf8).write(to: url, options: .atomic)
         let replacement = await ReaderLocalPageIdentity.prepare([page(url)])
         #expect(first[0].translationCacheKey != replacement[0].translationCacheKey)
-        #expect(try await reader.translatedRegions(page: replacement[0].translationCacheKey, settings: settings) == nil)
+        #expect(pageKey(first[0]) != pageKey(replacement[0]))
         // The captured identity stays immutable; key lookups do not stat files.
         #expect(first[0].translationCacheKey == unchanged[0].translationCacheKey)
     }

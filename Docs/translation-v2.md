@@ -1,13 +1,15 @@
 # V2 image translation pipeline
 
-A second, speed-first page translation pipeline that lives next to the legacy
-`NativeEngine` pipeline. Priorities: **1. speed, 2. quality, 3. simplicity.**
+Aidoku's speed-first page translation pipeline, used by the reader, translated
+downloads and the Mac host CLI; it replaced the legacy `NativeEngine` page
+pipeline. Priorities: **1. speed, 2. quality, 3. simplicity.**
 OCR character recognition and translation quality are bounded by the Core ML
 recognizer and the LLM, so V2 reuses them unchanged and optimizes everything
 around them. V2 is built and measured on the Mac host first, then ported to iOS.
-The legacy pipeline stays the default until V2 wins on the gates below.
+V2 is the only page pipeline in the app; the legacy pipeline, its bundled
+models and native kernels have been removed.
 
-## Why
+## Why (legacy profile that motivated V2)
 
 Profile of the final 830-page live run (Mac, non-LLM wall time, 823 pages):
 render 61% (layout retries/recovery alone 75% of paint time on 125 pages;
@@ -19,7 +21,7 @@ grouping recall is 0.969 with GT boxes but 0.845 with production detection.
 ## Stages and owners
 
 All code is in `Aidoku/Core/Translation/V2/` (compiled by the app and by the
-host `--pipeline v2` entry). Shared value types: `V2Types.swift`. Stages are
+Mac host, `swift Scripts/image-translation.swift`). Shared value types: `V2Types.swift`. Stages are
 plain functions over those values; no legacy singletons, task-locals, cache
 stores, registries or environment-variable policy switches.
 
@@ -40,7 +42,7 @@ stores, registries or environment-variable policy switches.
 
 Gate: Mac non-LLM wall time per page median <= 1.0 s, p90 <= 2.0 s.
 
-## Quality gates (vs legacy on GT dev)
+## Quality gates (vs the legacy baseline on GT dev)
 
 Evaluation uses `aidoku-unified-gt-20261116.json` (all labels user-reviewed)
 and the canonical split in
@@ -56,17 +58,26 @@ if it wins most folds.
 - Style (S8): font size MAE <= 2.6 px; weight accuracy >= 0.98.
 - Render (S9/S10): zero page failures; no text outside the page; no overlap between painted blocks.
 
-## iOS app integration (opt-in)
+## iOS app integration
 
-`Reader.translationPipelineV2` (default off; Settings > Translation > Fast Pipeline)
-routes reader pages and translated downloads through
+Reader pages and translated downloads always run through
 `Core/Translation/ReaderTranslationV2Service.swift`: models load lazily once per
 session (recognizer 2, or 3 at >= 7 GB; detector 1-2; AOT 1) and are released on
 memory warnings; S5 uses the live `RemoteTranslationClient` through
 `ReaderTranslationService.translateV2` (shared provider limiter, mandatory page
 settings). The rendered page is cached under `v2-<version>-` keys (image as
 `.layout`, blocks as `.translation`) and presented by `ReaderTranslationPage.processV2`
-through the cached-page canvas; the legacy session stays off in V2 mode.
+through the cached-page canvas. A cached page (memory LRU, then disk) is
+attached in the loader's source commit (`prepareCachedImage`), so it never
+flashes the source. Finished bitmaps, including temporary (non-persisted)
+pages, stay in an in-memory LRU bounded like the old translated-bitmap budget
+(32-192 MB of headroom). S4 orders blocks/panels by the reader direction
+(`V2ReadingDirection`: right-to-left manga, mirrored left-to-right, top-to-bottom
+bands for vertical/webtoon); non-RTL directions are part of the cache key.
+At launch, legacy cache rows and compiled copies of the retired OCR tiers are
+deleted once. The disk cache clears its page rows when the provider, model,
+credentials, languages or source filter change (`ReaderTranslationCachePolicy`);
+OCR and overlay-appearance settings no longer affect it.
 Compute admission is split: S1-S4 and the back work each take a priority-ordered
 slot (2 each, visible before look-ahead) and no slot is held while merely
 waiting for the provider. S8, S6 and S7 read no translation text, so
@@ -78,12 +89,35 @@ output never depends on the overlap. The page is decoded once: for an opaque
 sRGB page the detector/recognizer RGBA frame is also the S1/S6/S7 raster
 (`decode_conversions` = 1). The page JPEG is only encoded when the page image
 is sent (concurrently with S1-S4), and the disk-cache JPEG is written after the
-page is returned. The coordinator pre-translates the next 1-2 pages with the
-legacy look-ahead policy (pretranslation limit, background-only mode); a page
+page is returned. The coordinator pre-translates the next 1-2 pages (both halves, in
+reading order, for wide pages the reader splits) with the look-ahead policy (pretranslation limit, background-only mode); a page
 that becomes visible joins and promotes its running look-ahead. Blocks pass the
 legacy source-language rule (manga recognizer, plus Han-only recall) before S5.
 `V2ReaderPipelineBenchmarkTests` (AidokuFull) prints per-stage timings for three
 synthetic pages without any LLM call.
+
+## Mac host
+
+`swift Scripts/image-translation.swift [options] IMAGE|FOLDER ...` compiles this
+folder, an explicit list of shared app files (detector, recognizer, translation
+client, simple grouping, painters) and `Scripts/image-translation-v2` into an
+incremental `-O` binary (`build/image-translation-v2`). V2 is its only pipeline;
+`--pipeline v2` is accepted as a no-op alias. Modes:
+
+- live (default): S5 calls the real provider through `V2Translation.translate` and
+  `RemoteTranslationClient` with the app's mandatory page settings (page JPEG
+  attached, SFX/background filtering) and at most three concurrent page requests.
+  Settings come from CLI > shell environment > the ignored `.env`; the API key is
+  never printed or written. The reader's source-language eligibility filter is
+  not applied on the host.
+- `--replay-translations DIR`: saved translations from a legacy run
+  (`page-index.json`) or a V2 run (`pages/*.json`); no LLM.
+- `--ocr-only`: S1-S4 only; recognized blocks are written, nothing is rendered.
+
+Each run writes `pages/<page>.json`, `pages/<page>.png` and `summary.json`; see
+`Scripts/image-translation/README.md`. Smokes:
+`Scripts/tests/run-image-environment-smoke.py` (settings, no models) and
+`Scripts/tests/run-image-translation-smoke.py` (real OCR, loopback mock provider).
 
 ## Rules
 

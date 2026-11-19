@@ -25,25 +25,15 @@
 
 "TRANSLATION_TITLE" = "OCR na Tafsiri";
 
-"TRANSLATION_TRANSLATE" = "Tafsiri Kurasa Zinazoonekana";
 
-"TRANSLATION_RECOGNIZE" = "Tambua Maandishi (Nje ya Mtandao)";
 
-"TRANSLATION_ORIGINAL" = "Onyesha Asili";
 
-"TRANSLATION_TEXT" = "Maandishi Yanayotambuliwa na Kutafsiriwa";
 
-"TRANSLATION_NO_IMAGE" = "Subiri ukurasa wa picha upakie, kisha ujaribu tena.";
 
-"TRANSLATION_NO_TEXT" = "Hakuna maandishi yaliyotambuliwa. Jaribu modeli nyingine ya OCR au picha iliyo wazi zaidi.";
 
-"TRANSLATION_WORKING" = "Inatambua na kutafsiri…";
 
-"TRANSLATION_OCR_WORKING" = "Inatambua maandishi kwenye kifaa…";
 
-"TRANSLATION_HELP" = "Aikoni ya tafsiri huwasha au kuzima tafsiri. Kurasa zinazoonekana huandaliwa kwanza, kisha kurasa zilizo karibu. Maandalizi hufuata nafasi yako ya kusoma. Matokeo ya OCR, tafsiri na mpangilio wa maandishi yaliyohifadhiwa yanaweza kutumiwa tena baada ya kufungua kisomaji au kuanzisha programu upya. Picha zilizoshirikiwa zinazofunguliwa kwa muda hazihifadhi akiba hii. Kuondoka kwenye kisomaji kunaghairi kazi ambayo haijakamilika.";
 
-"TRANSLATION_PRIVACY" = "OCR inaendeshwa kwenye kifaa chako. Tafsiri hutuma maandishi yanayotambuliwa na maagizo yako kwa mtoaji aliyechaguliwa. Ikiwa Jumuisha Picha ya Ukurasa katika Tafsiri imewezeshwa, picha ya ukurasa iliyochakatwa inaweza pia kupakiwa. Ikiwa picha hazitumiki kama ingizo, tafsiri itaendelea kwa maandishi pekee. Gharama za API hutegemea mtoaji wako. Funguo hukaa kwenye Keychain. OCR, tafsiri na mpangilio wa maandishi huhifadhiwa katika hifadhi ya programu iliyolindwa bila kujumuishwa kwenye hifadhi rudufu.";
 
 "TRANSLATION_KEY_REPLACE" = "Badilisha ufunguo wa API uliohifadhiwa (si lazima)";
 
@@ -61,11 +51,9 @@
 
 "TRANSLATION_TARGET" = "Tafsiri Kwa";
 
-"TRANSLATION_SOURCE" = "Lugha Chanzo";
 
 "TRANSLATION_AUTO" = "Tambua Kiotomatiki";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 inahitaji iOS 18 au toleo jipya zaidi. Manga v0.3 ndiyo modeli chaguomsingi ya kugundua maeneo ya maandishi na kutambua herufi zake. Modeli nyingine za OCR bado zinapatikana.";
 
 
 
@@ -83,42 +71,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Maombi ya Wakati Mmoja";
 
-"TRANSLATION_DETECTOR_SIZE" = "Urefu wa Juu wa Upande wa Kigunduzi";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Upana wa Juu wa Kitambuzi";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Kizingiti cha pikseli za ugunduzi wa OCR";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Uhakika wa chini wa ugunduzi wa maeneo ya OCR";
-"TRANSLATION_CONFIDENCE" = "Uhakika wa chini wa utambuzi wa maandishi ya OCR";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "Kizingiti cha pikseli huchagua pikseli za maandishi. Uhakika wa ugunduzi huchuja maeneo ya maandishi. Uhakika wa utambuzi huchuja maandishi yaliyosomwa kutoka kila eneo. Thamani za chini hukubali matokeo mengi zaidi yasiyo na uhakika.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Ukubwa wa chini wa ugunduzi wa OCR";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Urefu wa chini wa upande mfupi wa maeneo yanayoweza kuwa na maandishi, ukipimwa kwa pikseli za ramani ya ugunduzi. Chaguomsingi: 3 px. Thamani za chini zinaweza kugundua maandishi madogo zaidi, lakini pia kujumuisha kelele zaidi za picha.";
 
-"TRANSLATION_SURFACE" = "Rangi ya Mandharinyuma";
 
-"TRANSLATION_WHITE" = "Nyeupe";
 
-"TRANSLATION_DARK" = "Giza";
 
-"TRANSLATION_OPACITY" = "Kiwango cha Kutopitisha Mwanga cha Mandharinyuma";
 
-"TRANSLATION_EXPANSION" = "Upanuzi wa fremu ya maandishi";
 
-"TRANSLATION_PANEL_BOUNDS" = "Ndani ya Mipaka ya Picha";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Ndani ya fremu asili ya maandishi";
 
-"TRANSLATION_UNRESTRICTED" = "Haina kikomo";
 
-"TRANSLATION_FONT_SIZE" = "Ukubwa wa herufi";
 
-"TRANSLATION_AUTO_FIT" = "Rekebisha Ukubwa Kiotomatiki";
 
-"TRANSLATION_FIXED" = "Ukubwa wa fonti usiobadilika";
 
-"TRANSLATION_OVERLAY" = "Uwekeleaji wa Tafsiri";
 
-"TRANSLATION_OVERLAY_HELP" = "Hubadilisha maandishi juu ya kisanduku asilia kwa mpangilio unaozuia mwingiliano na kuvunja mistari kulingana na mfumo wa uandishi. Mabadiliko ya mwonekano hutumia tena matokeo ya OCR yaliyopo.";
 
 "TRANSLATION_PROVIDER" = "Mtoa Tafsiri";
 
@@ -190,7 +157,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Lugha Asilia ya Ukurasa";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Tambua lugha asilia ya kila kichwa kiotomatiki na utafsiri lugha ulizochagua pekee. Lugha Zote Zilizogunduliwa huondoa kizuizi cha lugha. Mipangilio ya lugha asilia ya kurasa na vichwa vingine haiathiri uteuzi huu.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Tafsiri Maelezo ya Manga";
 
@@ -202,32 +168,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Jumuisha Picha ya Ukurasa katika Tafsiri";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Hutuma picha ya ukurasa pamoja na maandishi ya OCR ili kutoa muktadha wa tukio. Ikiwa picha hazitumiki kama ingizo, tafsiri itaendelea kiotomatiki kwa maandishi pekee. Kuambatisha picha kunaweza kuongeza matumizi ya data na gharama ya API.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Picha hazitumiki kama ingizo. Tafsiri itaendelea bila picha.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Dumisha Rangi Asilia ya Maandishi";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Kadiria rangi asilia ya maandishi bila modeli ya ziada. Tumia rangi chaguomsingi ikiwa haina uhakika au utofauti wa rangi uko chini sana.";
 
-"TRANSLATION_LLM_SFX" = "Uchujaji wa Maandishi ya Madoido ya Sauti kwa LLM (Lugha Zote)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Ainisha maandishi ya madoido ya sauti katika ombi lilelile la tafsiri na uyaache bila kubadilika. Ikiwa picha ya ukurasa ipo, AI pia huruka vipande vya OCR visivyoeleweka isipokuwa picha ithibitishe kuwa ni maandishi yenye maana. Mazungumzo, masimulizi, vichwa na majina ya wachangiaji bado hutafsiriwa. Uainishaji hauaminiki sana bila picha ya ukurasa.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Bila ingizo la picha, muktadha mdogo wa mwonekano na mpangilio unaweza kupunguza usahihi wa uainishaji wa SFX.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Dumisha Rangi Asilia ya Mandharinyuma";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Linganisha rangi ya kidirisha cha tafsiri na mandharinyuma yanayozunguka maandishi asilia. Tumia kidirisha chaguomsingi ikiwa rangi haina uhakika au maandishi hayasomeki. Kiwango chako cha kutopitisha mwanga bado kinatumika.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Maalum (Inaoana na OpenAI)";
 
-"TRANSLATION_OCR_MEDIUM" = "Kati";
 
-"TRANSLATION_OCR_SMALL" = "Ndogo";
 
-"TRANSLATION_OCR_TINY" = "Ndogo sana";
 
 "TRANSLATION_REASONING_NONE" = "Hakuna";
 
@@ -1059,8 +1014,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Pakua pamoja na tafsiri";
 
-"TRANSLATION_LLM_BACKGROUND" = "Ruka Maandishi ya Mandharinyuma (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "AI ya tafsiri huacha maandishi kwenye vibao vya kawaida, mabango na vitu vilivyo katika tukio bila kubadilika, hata kama maudhui yake yanahusiana na tukio hilo au yanatajwa katika mazungumzo. Mazungumzo, masimulizi, vichwa, majina ya wachangiaji, maandishi muhimu kwa maendeleo ya hadithi na maandishi ambayo jukumu lake halijulikani kwa uhakika hutafsiriwa. Hakuna ombi la ziada linalotumwa, lakini uchakataji unaweza kuchukua muda mrefu zaidi. Uainishaji hauaminiki sana bila picha ya ukurasa.";
 
 "TRANSLATION_STATE_ON" = "Imewashwa";
 "TRANSLATION_STATE_OFF" = "Imezimwa";
@@ -1127,13 +1080,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Mabadiliko ya usawazishaji wa iCloud yanaanza kutumika baada ya kufunga Aidoku kabisa na kuifungua tena. Hadi wakati huo, mpangilio wa sasa unaendelea kutumika.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Dumisha rangi asili";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Dumisha pamoja rangi za maandishi na mandharinyuma.";
-"TRANSLATION_INPAINTING" = "Urejeshaji wa mandharinyuma";
-"TRANSLATION_INPAINTING_HELP" = "Hufuta maandishi asili na kudumisha mandharinyuma. Hutumia visanduku ikiwa maeneo ya kufuta au usomekaji hauna uhakika. Inahitaji kudumisha rangi asili.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Uchujaji wa maandishi";
 
 "TRANSLATION_TARGETS" = "Maudhui ya kutafsiri";
 
@@ -1176,10 +1124,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Chanzo %@ toleo %d hakitumiki katika programu hii. Sakinisha toleo linalotumika.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 inasaidia maandishi asilia ya Kijapani na Kichina (kilichorahisishwa na cha jadi) pekee. Utambuzi wa kiotomatiki wa lugha asilia na machaguo ya lugha asilia pia yamewekewa mipaka ya lugha hizi. Bado unaweza kutafsiri kwenda lugha yoyote lengwa. Kuchagua Manga huweka viwango vya kugundua maandishi kuwa 0.85 na 0.25; ukubwa chaguomsingi wa ugunduzi ni pikseli 1120.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Lugha zote zinazotumika na OCR";
-"TRANSLATION_PIPELINE_V2" = "Mchakato wa haraka (Beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Hutumia mchakato mpya wa kutafsiri kurasa unaolenga kasi. Kurasa hutambuliwa, hufutwa na kuchorwa upya kama picha moja iliyokamilika, kwa kawaida kwa kasi zaidi. Matokeo huhifadhiwa kwenye akiba tofauti na mchakato wa kawaida. Inahitaji iOS 18.";

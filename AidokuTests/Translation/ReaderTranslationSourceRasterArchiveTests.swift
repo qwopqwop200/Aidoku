@@ -4,26 +4,6 @@ import Testing
 @testable import Aidoku
 
 struct ReaderTranslationSourceRasterArchiveTests {
-    @Test func diskLookupChecksClaimBeforeReusingEvenEmptyResults() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let disk = ReaderTranslationDiskCache(directory: directory)
-        let settings = ReaderTranslationSettings()
-        let sourceA = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "a", count: 64)))
-        let sourceB = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "b", count: 64)))
-        let page = "same-url-and-dimensions"
-        let key = ReaderTranslationCacheIdentity.translation(page: page, settings: settings)
-        try await disk.storeRegions([], for: key, kind: .translation, generation: await disk.currentGeneration(settings: settings))
-        #expect(try await disk.translatedRegionRecord(page: page, settings: settings, matching: sourceA) == nil)
-        #expect(try await disk.translatedRegions(page: page, settings: settings)?.isEmpty == true)
-
-        try await disk.storeRegions([], for: key, kind: .translation, generation: await disk.currentGeneration(settings: settings),
-                                    sourceRasterClaim: sourceA)
-        let reopened = ReaderTranslationDiskCache(directory: directory)
-        #expect(try await reopened.translatedRegionRecord(page: page, settings: settings, matching: sourceB) == nil)
-        let match = try #require(try await reopened.translatedRegionRecord(page: page, settings: settings, matching: sourceA))
-        #expect(match.regions.isEmpty && match.sourceRasterClaim == sourceA)
-    }
 
     @Test func claimedArchiveSharesLegacyBaseAndPreservesTranslationState() throws {
         var region = ReaderTranslationRegion(id: "one", rect: CGRect(x: 0, y: 0, width: 1, height: 1),

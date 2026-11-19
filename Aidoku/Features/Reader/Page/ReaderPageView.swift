@@ -643,10 +643,9 @@ extension ReaderPageView {
             self.textView = nil
         }
         if imageView.image !== image { translationPage.reset() }
-        if gifData != nil { translationPage.disallowSettledHighlight() }
         imageView.image = image
         fixImageSize()
-        if let prepared { translationPage.displayLoadedImage(prepared, isKnownStatic: gifData == nil) }
+        if let prepared { translationPage.displayLoadedImage(prepared) }
         if !isTranslationPreload, let image, let source = translationPage.sourcePage {
             ReaderTranslationPage.sourceDidLoad(image, page: source)
         }

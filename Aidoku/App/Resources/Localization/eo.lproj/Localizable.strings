@@ -178,25 +178,15 @@
 
 "TRANSLATION_TITLE" = "OCR kaj tradukado";
 
-"TRANSLATION_TRANSLATE" = "Traduki videblajn paĝojn";
 
-"TRANSLATION_RECOGNIZE" = "Rekoni tekston (eksterrete)";
 
-"TRANSLATION_ORIGINAL" = "Montri originalon";
 
-"TRANSLATION_TEXT" = "Rekonita kaj tradukita teksto";
 
-"TRANSLATION_NO_IMAGE" = "Atendu la ŝarĝon de bildopaĝo, poste provu denove.";
 
-"TRANSLATION_NO_TEXT" = "Neniu teksto estis rekonita. Provu alian OCR-modelon aŭ pli klaran bildon.";
 
-"TRANSLATION_WORKING" = "Rekonante kaj tradukante…";
 
-"TRANSLATION_OCR_WORKING" = "Rekonante tekston sur aparato…";
 
-"TRANSLATION_HELP" = "La tradukikono ŝaltas aŭ malŝaltas tradukon. Unue estas preparataj la videblaj paĝoj, poste la proksimaj. La preparado sekvas vian legopozicion. Konservitaj OCR-rezultoj, tradukoj kaj teksta aranĝo povas esti reuzataj post remalfermo de la legilo aŭ rekomenco de la aplikaĵo. Provizore malfermitaj kunhavigitaj bildoj ne konservas ĉi tiun kaŝmemoron. Forlasi la legilon nuligas nefinitan laboron.";
 
-"TRANSLATION_PRIVACY" = "OCR funkcias en via aparato. Tradukado sendas rekonitan tekston kaj viajn instrukciojn al la elektita provizanto. Se Inkluzivi paĝan bildon en tradukado estas ebligita, paĝbildo adaptita por prilaborado ankaŭ povas esti alŝutita. Se bilda enigo ne estas subtenata, tradukado daŭras nur per teksto. API-kostoj dependas de via provizanto. API-ŝlosiloj estas konservataj en Keychain. OCR, tradukoj kaj teksta aranĝo estas konservitaj en protektita aplikaĵa stokado ekskludita de savkopioj.";
 
 "TRANSLATION_KEY_REPLACE" = "Anstataŭigi konservitan API-ŝlosilon (laŭvola)";
 
@@ -214,11 +204,9 @@
 
 "TRANSLATION_TARGET" = "Traduki al";
 
-"TRANSLATION_SOURCE" = "Fontlingvo";
 
 "TRANSLATION_AUTO" = "Detekti aŭtomate";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 postulas iOS 18 aŭ pli novan version. Manga v0.3 estas la defaŭlta modelo por kaj detektado kaj rekonado de teksto. Aliaj OCR-modeloj restas disponeblaj.";
 
 
 
@@ -236,42 +224,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Samtempaj petoj";
 
-"TRANSLATION_DETECTOR_SIZE" = "Maksimuma bilda flanko por tekstdetekto";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Maksimuma bilda larĝo por tekstrekono";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Piksela sojlo por OCR-detekto";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Minimuma fidindeco de OCR-regiona detekto";
-"TRANSLATION_CONFIDENCE" = "Minimuma fidindeco de OCR-tekstorekono";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "La piksela sojlo elektas tekstajn pikselojn. La detekta fidindeco filtras tekstajn regionojn. La rekona fidindeco filtras la tekston legitan el ĉiu regiono. Pli malaltaj valoroj akceptas pli da necertaj rezultoj.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minimuma grandeco por OCR-detekto";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minimuma longo de la mallonga flanko de eblaj tekstaj regionoj, mezurita en pikseloj de la detekta mapo. Defaŭlto: 3 px. Pli malaltaj valoroj povas detekti pli etan tekston, sed ankaŭ pli da bilda bruo.";
 
-"TRANSLATION_SURFACE" = "Fona koloro";
 
-"TRANSLATION_WHITE" = "Blanka";
 
-"TRANSLATION_DARK" = "Malhela";
 
-"TRANSLATION_OPACITY" = "Fona opakeco";
 
-"TRANSLATION_EXPANSION" = "Vastigo de tekstokadro";
 
-"TRANSLATION_PANEL_BOUNDS" = "Ene de la bildaj limoj";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Ene de la originala tekstokadro";
 
-"TRANSLATION_UNRESTRICTED" = "Senlima";
 
-"TRANSLATION_FONT_SIZE" = "Tipargrandeco";
 
-"TRANSLATION_AUTO_FIT" = "Adapti aŭtomate";
 
-"TRANSLATION_FIXED" = "Fiksa tipargrandeco";
 
-"TRANSLATION_OVERLAY" = "Traduka supermetaĵo";
 
-"TRANSLATION_OVERLAY_HELP" = "Anstataŭigas tekston super ĝia originala kadro per aranĝo, kiu evitas interkovrojn kaj dividas liniojn laŭ la skribsistemo. Ŝanĝoj de la aspekto reuzas la ekzistantajn OCR-rezultojn.";
 
 "TRANSLATION_PROVIDER" = "Traduka provizanto";
 
@@ -343,7 +310,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Fontlingvo de paĝoj";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Aŭtomate detektas la fontlingvon de ĉiu titolo kaj tradukas nur la elektitajn lingvojn. La opcio Ĉiuj detektitaj lingvoj forigas la lingvan limigon. La fontlingvaj agordoj por paĝoj kaj aliaj specoj de titoloj ne influas ĉi tiun elekton.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Traduki mangaajn priskribojn";
 
@@ -355,32 +321,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Inkluzivi paĝan bildon en tradukado";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Sendas la paĝbildon kune kun la OCR-teksto por doni scenan kuntekston. Se bilda enigo ne estas subtenata, tradukado aŭtomate daŭras nur per teksto. Aldonado de bildoj povas pliigi datumuzon kaj API-koston.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Bilda enigo ne estas subtenata. Tradukado daŭras sen bildoj.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Konservi la originalan tekstokoloron";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Taksas la originalan tekstokoloron sen plia modelo. La defaŭlta koloro estas uzata kiam la takso estas necerta aŭ la kontrasto estas tro malalta.";
 
-"TRANSLATION_LLM_SFX" = "Filtrado de LLM SFX (ĉiuj lingvoj)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Klasifikas sonefektojn en la sama tradukpeto kaj lasas ilin senŝanĝaj. Kun paĝa bildo, la AI ankaŭ preterlasas neklarajn OCR-fragmentojn, krom se la bildo montras, ke ili estas senchava teksto. Dialogo, rakonta teksto, titoloj kaj mencioj de kreintoj estas konservataj por tradukado. Klasifikado estas malpli fidinda sen paĝa bildo.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sen bilda enigo, limigita vida kaj aranĝa kunteksto povas redukti SFX-klasifikan precizecon.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Konservi la originalan fonkoloron de teksto";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Adaptas la fonon de la tradukpanelo al la fono ĉirkaŭ la originala teksto. La defaŭlta panelo estas uzata kiam la takso estas necerta aŭ la teksto estus nelegebla. La agordo de opakeco plu validas.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Propra (kongrua kun OpenAI)";
 
-"TRANSLATION_OCR_MEDIUM" = "Meza";
 
-"TRANSLATION_OCR_SMALL" = "Malgranda";
 
-"TRANSLATION_OCR_TINY" = "Eta";
 
 "TRANSLATION_REASONING_NONE" = "Neniu";
 
@@ -1079,8 +1034,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Elŝuti kun traduko";
 
-"TRANSLATION_LLM_BACKGROUND" = "Preterpasi fonajn surskribojn (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "La traduka AI lasas ordinarajn ŝildojn, afiŝojn kaj surskribojn sur objektoj en la sceno senŝanĝaj, eĉ kiam ili rilatas al la sceno aŭ estas menciataj en dialogo. Dialogo, rakonta teksto, titoloj, mencioj de kreintoj, skribaĵoj decidaj por la intrigo kaj teksto kun necerta rolo estas tradukataj. Neniu plia peto estas farata, sed la prilaborado povas daŭri pli longe. Klasifikado estas malpli fidinda sen paĝa bildo.";
 
 "TRANSLATION_STATE_ON" = "Ŝaltita";
 
@@ -1148,13 +1101,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Ŝanĝoj al iCloud-sinkronigo ekvalidas post plena fermo kaj remalfermo de Aidoku. Ĝis tiam la nuna sinkroniga agordo restas aktiva.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Konservi originalajn kolorojn";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Konservi kune la kolorojn de teksto kaj fono.";
-"TRANSLATION_INPAINTING" = "Fona rekonstruo";
-"TRANSLATION_INPAINTING_HELP" = "Forigas originalan tekston konservante la fonon. Uzas kestojn ĉe necerta masko aŭ legebleco. Postulas originalajn kolorojn.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Teksta filtrado";
 
 "TRANSLATION_TARGETS" = "Kion traduki";
 
@@ -1195,10 +1143,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Fonto %@ versio %d ne estas subtenata de ĉi tiu aplikaĵo. Instalu subtenatan version.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 subtenas nur fonttekston en la japana kaj la ĉina (simpligitaj kaj tradiciaj skribsignoj). Aŭtomata identigo de la fontlingvo kaj la elektoj de fontlingvo ankaŭ limiĝas al tiuj lingvoj. Vi ankoraŭ povas traduki al ajna cellingvo. Elekto de Manga aplikas detektajn sojlojn de 0.85 kaj 0.25; ĝia defaŭlta detekta grandeco estas 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Ĉiuj lingvoj subtenataj de OCR";
-"TRANSLATION_PIPELINE_V2" = "Rapida procezo (beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Uzas la novan rapidec-celan procezon por traduki paĝojn. Paĝoj estas rekonataj, viŝataj kaj redesegnataj kiel unu preta bildo, kutime multe pli rapide. Rezultoj estas kaŝmemorataj aparte de la norma procezo. Postulas iOS 18.";

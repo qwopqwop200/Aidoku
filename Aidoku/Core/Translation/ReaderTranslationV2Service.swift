@@ -49,6 +49,10 @@ actor ReaderTranslationV2Service {
     nonisolated let backSlots: V2ComputeSlots
     /// Coalesced page work (visible demand joins and promotes a look-ahead).
     private var inflight: [String: Flight] = [:]
+    /// Finished bitmaps by cache key, including pages that are never written
+    /// to disk (temporary sessions), so scrolling back reuses them.
+    private var memory = V2PageMemoryCache()
+    private let availableMemory: @Sendable () -> UInt64
 
     private final class Flight {
         let task: Task<PageOutput, Error>
@@ -73,8 +77,10 @@ actor ReaderTranslationV2Service {
         },
         diskCache: ReaderTranslationDiskCache? = .shared,
         observesMemoryWarnings: Bool = true,
-        frontSlots: Int = 2, backSlots: Int = 2
+        frontSlots: Int = 2, backSlots: Int = 2,
+        availableMemory: @escaping @Sendable () -> UInt64 = { ProcessMemory.available() }
     ) {
+        self.availableMemory = availableMemory
         self.frontSlots = V2ComputeSlots(count: frontSlots)
         self.backSlots = V2ComputeSlots(count: backSlots)
         self.loadModels = loadModels
@@ -85,7 +91,10 @@ actor ReaderTranslationV2Service {
                 forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: nil
             ) { [weak self] _ in
                 guard let self else { return }
-                Task { await self.releaseModels() }
+                Task {
+                    await self.releaseModels()
+                    await self.clearMemory()
+                }
             }
         }
     }
@@ -128,11 +137,16 @@ actor ReaderTranslationV2Service {
         loading = nil
     }
 
+    /// Drops the in-memory page bitmaps (memory pressure; settings reset).
+    func clearMemory() { memory.removeAll() }
+
+    var memoryCachedCount: Int { memory.count }
+
     // MARK: Cache identity
 
     static func cacheKey(page: String, crop: CGRect, settings: ReaderTranslationSettings) -> String {
         let config = settings.configuration
-        let identity = ReaderTranslationCacheIdentity.encoded([
+        var parts: [String] = [
             version, page,
             [crop.minX, crop.minY, crop.width, crop.height].map { String(Double($0)) }.joined(separator: ","),
             config.provider.rawValue, config.apiProtocol.rawValue, config.baseURL, config.model,
@@ -141,7 +155,11 @@ actor ReaderTranslationV2Service {
             TranslationHTTPCodec.letteringPolicy, TranslationHTTPCodec.sfxPolicy, TranslationHTTPCodec.backgroundPolicy,
             ReaderTranslationCacheIdentity.encoded(ReaderTranslationLanguageFilter.identity(settings: settings) ?? []),
             ReaderTranslationLanguageFilter.v2SourcePolicy
-        ])
+        ]
+        // Right-to-left adds nothing, so rows cached before direction-aware
+        // ordering (always right-to-left) stay valid.
+        if settings.readingDirection != .rightToLeft { parts.append("direction:" + settings.readingDirection.rawValue) }
+        let identity = ReaderTranslationCacheIdentity.encoded(parts)
         // Distinct prefix: legacy and V2 rows can never be read as each other.
         return "v2-" + version + "-" + identity
     }
@@ -157,16 +175,33 @@ actor ReaderTranslationV2Service {
         let fromCache: Bool
     }
 
+    /// A finished page without computing: the in-memory bitmap, then (for
+    /// persisted pages) the disk row. Used to present a cached translation in
+    /// the same commit as the source image, so the source never flashes.
+    func cachedPage(cacheKey key: String, persists: Bool = true) async -> CGImage? {
+        if let image = memory.image(for: key) { return image }
+        guard persists, let diskCache, let data = try? await diskCache.data(for: Self.imageKey(key), kind: .layout),
+              let image = Self.decode(data) else { return nil }
+        remember(image, for: key)
+        return image
+    }
+
+    private func remember(_ image: CGImage, for key: String) {
+        memory.insert(image, for: key, limit: V2PageMemoryCache.byteLimit(available: availableMemory(), current: memory.bytes))
+    }
+
     /// Translates one upright page and returns the fully rendered page bitmap.
     /// Concurrent calls for the same cache key share one computation; a
     /// foreground caller promotes a running look-ahead. The shared work is
-    /// cancelled when its last consumer is cancelled.
+    /// cancelled when its last consumer is cancelled. `persists == false`
+    /// (temporary pages) keeps the result in memory only.
     func translatePage(
-        _ source: CGImage, cacheKey key: String?, settings: ReaderTranslationSettings,
+        _ source: CGImage, cacheKey key: String?, persists: Bool = true, settings: ReaderTranslationSettings,
         priority: TranslationRequestPriority = .foreground
     ) async throws -> PageOutput {
         try Task.checkCancellation()
-        guard let key else { return try await compute(source, key: nil, settings: settings, priority: priority) }
+        guard let key else { return try await compute(source, key: nil, persists: false, settings: settings, priority: priority) }
+        if let image = memory.image(for: key) { return PageOutput(image: image, timings: nil, fromCache: true) }
         let flight: Flight
         if let existing = inflight[key] {
             flight = existing
@@ -174,7 +209,10 @@ actor ReaderTranslationV2Service {
             let promotion = TranslationRequestPromotion()
             let task = Task { [weak self] () throws -> PageOutput in
                 guard let self else { throw CancellationError() }
-                return try await self.compute(source, key: key, settings: settings, priority: .promotable(promotion))
+                let output = try await self.compute(source, key: key, persists: persists, settings: settings,
+                                                    priority: .promotable(promotion))
+                await self.remember(output.image, for: key)
+                return output
             }
             flight = Flight(task: task, promotion: promotion)
             inflight[key] = flight
@@ -208,10 +246,10 @@ actor ReaderTranslationV2Service {
     func consumerCount(_ key: String) -> Int { inflight[key]?.consumers ?? 0 }
 
     private func compute(
-        _ source: CGImage, key: String?, settings: ReaderTranslationSettings, priority: TranslationRequestPriority
+        _ source: CGImage, key: String?, persists: Bool, settings: ReaderTranslationSettings, priority: TranslationRequestPriority
     ) async throws -> PageOutput {
         try Task.checkCancellation()
-        let cache = key == nil ? nil : diskCache
+        let cache = key == nil || !persists ? nil : diskCache
         if let key, let cache, let data = try? await cache.data(for: Self.imageKey(key), kind: .layout),
            let image = Self.decode(data) {
             try Task.checkCancellation()
@@ -236,7 +274,7 @@ actor ReaderTranslationV2Service {
         let hold = V2SlotHold(front: frontSlots, back: backSlots)
         defer { hold.releaseAll() }
         try await hold.acquireFront(priority: priority)
-        let page = V2Page(id: key ?? UUID().uuidString, image: source)
+        let page = V2Page(id: key ?? UUID().uuidString, image: source, readingDirection: settings.readingDirection)
         // The provider only receives the page JPEG when the setting asks for it; encode it
         // concurrently with S1-S4 so it is ready when S5 starts.
         let jpegTask: Task<Data, Error>? = replayBlocks == nil && settings.includePageImage
@@ -335,6 +373,61 @@ actor ReaderTranslationV2Service {
             return nil
         }
         return CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
+    }
+}
+
+/// Bounded LRU of finished V2 page bitmaps. The budget follows the legacy
+/// translated-bitmap memory budget: at least 32 MB, otherwise a quarter of
+/// the headroom above the image-work reserve, at most 192 MB.
+struct V2PageMemoryCache {
+    static let minimumBytes = 32 * 1_024 * 1_024
+    static let maximumBytes = 192 * 1_024 * 1_024
+
+    private var entries: [String: (image: CGImage, cost: Int)] = [:]
+    private var order: [String] = []
+    private(set) var bytes = 0
+    var count: Int { entries.count }
+
+    static func byteLimit(available: UInt64, current: Int) -> Int {
+        let spare = available > TranslationImageWorkBudget.minimumHeadroom ? available - TranslationImageWorkBudget.minimumHeadroom : 0
+        let allowance = min(UInt64(maximumBytes), spare / 4 + UInt64(max(0, current)) / 4)
+        return max(minimumBytes, Int(allowance))
+    }
+
+    static func cost(_ image: CGImage) -> Int { image.bytesPerRow * image.height }
+
+    mutating func image(for key: String) -> CGImage? {
+        guard let entry = entries[key] else { return nil }
+        touch(key)
+        return entry.image
+    }
+
+    mutating func insert(_ image: CGImage, for key: String, limit: Int) {
+        let cost = Self.cost(image)
+        remove(key)
+        guard cost <= limit else { return }
+        while bytes + cost > limit, let oldest = order.first { remove(oldest) }
+        entries[key] = (image, cost)
+        order.append(key)
+        bytes += cost
+    }
+
+    mutating func remove(_ key: String) {
+        guard let entry = entries.removeValue(forKey: key) else { return }
+        bytes -= entry.cost
+        order.removeAll { $0 == key }
+    }
+
+    mutating func removeAll() {
+        entries.removeAll()
+        order.removeAll()
+        bytes = 0
+    }
+
+    private mutating func touch(_ key: String) {
+        guard let index = order.firstIndex(of: key) else { return }
+        order.remove(at: index)
+        order.append(key)
     }
 }
 

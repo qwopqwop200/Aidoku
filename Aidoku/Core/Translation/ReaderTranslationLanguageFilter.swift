@@ -3,48 +3,6 @@ import NaturalLanguage
 
 /// Apply the source-language policy after raw OCR caching, before requests or overlays.
 enum ReaderTranslationLanguageFilter {
-    /// A provider can append a stray OCR fragment after a complete Korean
-    /// sentence. Drop only a separate, multi-character Han/kana tail after
-    /// sentence punctuation; names embedded in the sentence remain intact.
-    static func removingForeignScriptTail(_ translation: String, target: String) -> String {
-        guard canonical(target) == "ko" else { return translation }
-        // A source-script vowel-length mark inside an otherwise Korean word is
-        // not an independent symbol. Preserve its rhythm without a hybrid word.
-        let originalScalars = Array(translation.unicodeScalars)
-        func hangul(_ scalar: Unicode.Scalar) -> Bool {
-            (0xAC00...0xD7A3).contains(scalar.value) || (0x1100...0x11FF).contains(scalar.value) ||
-                (0x3130...0x318F).contains(scalar.value)
-        }
-        let normalized = originalScalars.indices.map { index -> String in
-            let scalar = originalScalars[index]
-            guard (scalar.value == 0x30FC || scalar.value == 0xFF70), index > 0,
-                  hangul(originalScalars[index - 1]),
-                  (index + 1 == originalScalars.count ||
-                    !(0x3040...0x30FF).contains(originalScalars[index + 1].value)) else { return String(scalar) }
-            return "~"
-        }.joined()
-        let translation = normalized
-        let scalars = Array(translation.unicodeScalars)
-        func korean(_ scalar: Unicode.Scalar) -> Bool {
-            (0xAC00...0xD7A3).contains(scalar.value) || (0x1100...0x11FF).contains(scalar.value) ||
-                (0x3130...0x318F).contains(scalar.value)
-        }
-        func foreign(_ scalar: Unicode.Scalar) -> Bool {
-            (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value) ||
-                (0x3400...0x9FFF).contains(scalar.value) || (0x20000...0x323AF).contains(scalar.value)
-        }
-        let end = scalars.lastIndex { !CharacterSet.whitespacesAndNewlines.contains($0) }.map { $0 + 1 } ?? 0
-        guard end > 0 else { return translation }
-        var start = end
-        while start > 0 && foreign(scalars[start - 1]) { start -= 1 }
-        guard end - start >= 2, start > 0,
-              CharacterSet.whitespacesAndNewlines.contains(scalars[start - 1]) else { return translation }
-        let prefix = String(String.UnicodeScalarView(scalars[..<start]))
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard prefix.unicodeScalars.filter(korean).count >= 4,
-              let last = prefix.last, "!?！？…。".contains(last) else { return translation }
-        return prefix
-    }
 
     /// A Japanese sentence re-punctuated by the provider is not a Korean translation.
     /// Exact copies remain valid for explicit SFX/background preservation; short names
@@ -102,38 +60,6 @@ enum ReaderTranslationLanguageFilter {
         return copiedClause(run)
     }
 
-    /// Image-admitted dialogue copied in Japanese is not a Korean translation,
-    /// even for a one-kana reply. Keep ambiguous roles and names without kana
-    /// outside this bounded recovery.
-    static func untranslatedAdmittedDialogueIDs(
-        request: RemoteTranslationRequest, result: RemoteTranslationBatchResult
-    ) -> Set<String> {
-        guard canonical(request.targetLanguage) == "ko", request.imageJPEG != nil else { return [] }
-        func kana(_ scalar: Unicode.Scalar) -> Bool { (0x3041...0x30FA).contains(scalar.value) }
-        func japanese(_ scalar: Unicode.Scalar) -> Bool {
-            kana(scalar) || (0x3400...0x9FFF).contains(scalar.value)
-        }
-        func normalized(_ text: String) -> String? {
-            let letters = text.precomposedStringWithCompatibilityMapping.unicodeScalars.filter { $0.properties.isAlphabetic }
-            guard letters.contains(where: kana), letters.allSatisfy(japanese) else { return nil }
-            // OCR often misses the small form of a kana. This is orthographic
-            // equivalence only; do not fuzzy-match different sentence content.
-            let small = Array("ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ")
-            let full = Array("あいうえおつやゆよわアイウエオツヤユヨワ")
-            let mapping = Dictionary(uniqueKeysWithValues: zip(small, full))
-            return String(String(String.UnicodeScalarView(letters)).map { mapping[$0] ?? $0 })
-        }
-        let sources = Dictionary(request.segments.map { ($0.id, $0.text) }, uniquingKeysWith: { first, _ in first })
-        return Set(result.translations.compactMap { output in
-            guard output.isSFX == false, output.textRole == .dialogue,
-                  let source = sources[output.id],
-                  let original = normalized(source),
-                  normalized(TranslationHTTPCodec.decodingLeakedEscapes(in: output.text, source: source)) == original
-            else { return nil }
-            return output.id
-        })
-    }
-
     /// Shared completed-provider check for the reader service and native host CLI.
     /// Classifier-preserved effects and exact source copies keep their existing policy.
     static func isWrongLanguage(_ segment: RemoteTranslatedSegment, source: String, target: String,
@@ -148,26 +74,6 @@ enum ReaderTranslationLanguageFilter {
         return translations.contains { segment in
             guard let source = sources[segment.id] else { return false }
             return isWrongLanguage(segment, source: source, target: request.targetLanguage)
-        }
-    }
-
-    /// Geometrically established balloon prose cannot be silently kept as Japanese in a Korean page.
-    /// Short names, effects, signs and unverified background components remain preservation candidates.
-    static func requiresBalloonTranslation(_ region: ReaderTranslationRegion, translation: String, target: String) -> Bool {
-        let recoveredQuote = region.sourceOrientation == .vertical && region.unitMemberRects.count >= 2 &&
-            ReaderTranslationQuotedStack.isBoundedQuote(region.source)
-        guard canonical(target) == "ko", region.balloonInterior?.contourVerified == true || recoveredQuote,
-              region.source.trimmingCharacters(in: .whitespacesAndNewlines) == translation.trimmingCharacters(in: .whitespacesAndNewlines)
-        else { return false }
-        let letters = region.source.unicodeScalars.filter { $0.properties.isAlphabetic }
-        let kana = letters.filter { (0x3040...0x30FF).contains($0.value) }
-        return letters.count >= (recoveredQuote ? 2 : 10) && kana.count >= (recoveredQuote ? 1 : 3) &&
-            !letters.contains { (0xAC00...0xD7A3).contains($0.value) }
-    }
-
-    static func containsUntranslatedJapaneseReply(_ regions: [ReaderTranslationRegion], target: String) -> Bool {
-        regions.contains { region in
-            region.translation.map { isUntranslatedJapaneseReply(source: region.source, translation: $0, target: target) || requiresBalloonTranslation(region, translation: $0, target: target) } ?? false
         }
     }
 
@@ -330,18 +236,5 @@ enum ReaderTranslationLanguageFilter {
             kept.translationReuseIdentity = nil
             return kept
         }
-    }
-
-    /// NaturalLanguage classification must not block reader gestures.
-    static func applyOffMain(
-        _ regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings
-    ) async throws -> [ReaderTranslationRegion] {
-        let task = Task.detached(priority: .utility) {
-            try Task.checkCancellation()
-            let result = apply(regions, settings: settings)
-            try Task.checkCancellation()
-            return result
-        }
-        return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
 }

@@ -92,57 +92,6 @@ struct NativeTranslationReuseValue: Equatable, Sendable {
     let translatedText: String
 }
 
-/// Builds a stable partial frame as remote batches complete. Exact/provisional
-/// translations from the source frame remain visible until their own
-/// replacement arrives, so progressive publication cannot blink a region back
-/// to source-only merely because a neighboring provider batch finished first.
-enum NativeProgressiveTranslationOverlay {
-    static func merge(
-        items: [BrowserOverlayItem],
-        expectedIdentities:
-            [Int: NativeTranslationReuseIdentity],
-        completedTranslations:
-            [Int: NativeTranslationReuseValue]
-    ) -> [BrowserOverlayItem] {
-        items.enumerated().map { index, item in
-            let expectedIdentity = expectedIdentities[index]
-            let completed = completedTranslations[index]
-            let canKeepExisting: Bool
-            if let oldIdentity = item.translationReuseIdentity,
-               let expectedIdentity,
-               item.translatedText != nil
-            {
-                canKeepExisting = oldIdentity == expectedIdentity ||
-                    oldIdentity.canRemainVisibleWhileRefreshing(
-                        expected: expectedIdentity
-                    )
-            } else {
-                canKeepExisting = false
-            }
-            return BrowserOverlayItem(
-                stableRegionID: item.stableRegionID,
-                rect: item.rect,
-                sourceText: item.sourceText,
-                translatedText:
-                    completed?.translatedText ??
-                    (canKeepExisting ? item.translatedText : nil),
-                confidence: item.confidence,
-                sourceOrientation: item.sourceOrientation,
-                sourceSingleVerticalColumn:
-                    item.sourceSingleVerticalColumn,
-                translationReuseIdentity:
-                    completed?.identity ??
-                    (canKeepExisting
-                        ? item.translationReuseIdentity
-                        : nil),
-                sourcePolygon: item.sourcePolygon, auxiliaryInkRects: item.auxiliaryInkRects, auxiliaryInkPolygons: item.auxiliaryInkPolygons,
-                balloonInterior: item.balloonInterior, unitMemberRects: item.unitMemberRects,
-                keepsSourceLettering: item.keepsSourceLettering, recoveredLine: item.recoveredLine
-            )
-        }
-    }
-}
-
 /// Exact-match lookup used when carrying visible translations into a newly
 /// rendered OCR frame. Missing identities and semantic mismatches deliberately
 /// return no value so the normal TranslationService/cache path owns the result.

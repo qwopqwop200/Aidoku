@@ -8,10 +8,9 @@ suites cannot resolve. The shared Aidoku scheme defaults to AidokuFast;
 AidokuFull has no suite filter. No skipped tests or zero-execution passes are
 accepted. A timeout is incomplete, never a pass.
 
-The previous Web renderer and its JS/WASM comparison runners, captures and
-pixel-acceptance gates have been removed. Native correctness, restoration,
-export, cache, cancellation and memory-lifetime tests remain. The interactive
-CLI report still uses JavaScript to inspect saved native outputs.
+Page translation has one pipeline, V2 (`Docs/translation-v2.md`). The legacy
+page pipeline, its host CLI features (analysis report, render/resume runs) and
+its smokes, quality matrices and research tooling have been removed.
 
 ## Commands
 
@@ -23,34 +22,37 @@ python3 Scripts/test_quick.py
 python3 Scripts/test_quick.py --fast-ios --device <UDID>
 
 # Explicit affected suites
-python3 Scripts/test_quick.py --ios NativeDirectExportTests NativeTranslationPixelKernelBridgeTests \
-  --device <UDID> --configuration Release --jobs 2
+python3 Scripts/test_quick.py --ios V2PipelineSchedulingTests --device <UDID> --configuration Release --jobs 2
 
 # Full plans, only when the broader scope is required
 python3 Scripts/test_quick.py --full-ios --device <UDID>
 python3 Scripts/test_quick.py --full-host
 ```
 
-The full-host command manifest is `Scripts/tests/full-host-matrix.json`.
-It contains native CLI, graphics, layout, OCR-merger, Hoshi boundary and host
-tooling checks. Native restoration quality matrices also run in
-`.github/workflows/source-color.yml`, with executed-case verification through
-`Scripts/verify_native_quality_result.py`.
+`python3 Scripts/test_quick.py` runs the Python tooling tests
+(`unittest discover -s Scripts`), localization validation and the model-free V2
+host settings check (`Scripts/tests/run-image-environment-smoke.py`).
 
-The source-top alignment smoke requires a completed current standard host cache;
-it never rebuilds production, downloads models, reads a corpus or calls an API.
-Prepare that fixed cache first (build-only exits before reading the input path):
+The full-host command manifest is `Scripts/tests/full-host-matrix.json`. Every
+entry still applies to kept code and passes:
 
-```sh
-AIDOKU_IMAGE_HOST_CACHE=build/current-main-host AIDOKU_HOST_BUILD_ONLY=1 \
-  swift Scripts/image-translation.swift --prepare-render-run .
-python3 Scripts/tests/run-native-source-top-alignment-smoke.py --cache build/current-main-host
-```
+- V2 host: `run-image-environment-smoke.py` (.env < shell < CLI precedence,
+  `AIDOKU_ENV_FILE`, validation without secret output, input lists, phone import)
+  and `run-image-translation-smoke.py` (real Core ML OCR in `--ocr-only`, the
+  production `RemoteTranslationClient` against a loopback mock: page image,
+  text-role schema, segment ids, overlapping requests, input-ordered results,
+  replay from a V2 run with no provider call, decode failures, exit codes and
+  credential exclusion from every output file).
+- OCR and translation contracts over files the V2 host compiles: CTC collapse,
+  DB float digest, detector padding, detector seed evidence, DB child columns,
+  multiline column recovery, geometry deduplication, ROI probability evidence,
+  recognizer execution/observation/tensor identity, role verification planner,
+  codec source fidelity and the language filter.
+- Non-translation: Hoshi storage and sanitizer boundaries, blocking-task priority.
 
-Its 24 alignment and 15 transaction controls use current MAIN definitions and
-verified compiled snapshots, not frozen experiment helpers. Missing, busy or
-stale caches fail rather than skip; the runner's separate output cache is
-`build/native-source-top-alignment-smoke`.
+The V2 host smoke uses `Scripts/tests/fixtures/v2-host/VerticalSingleGlyphBalloon.png`
+and the incremental host cache `build/image-translation-v2`. Score a V2 run on
+the private GT split with `python3 Scripts/v2/eval.py RUN_DIR --split dev`.
 
 ## Resource and build policy
 
@@ -69,6 +71,6 @@ identical macOS/iPhone font metrics or device performance.
 
 Keep condition-based waits, controlled test clocks, fixture assertions and
 parameter matrices. Production retry delays must remain unchanged. Keep
-credentials and private `.env` values out of logs and reports. Reader and CLI
-OCR limits are detector 1184 and recognizer 48 × 1184; explicit historical replay
-inputs can retain their recorded geometry independently of these defaults.
+credentials and private `.env` values out of logs and reports. Host smokes never
+read the developer's `.env` (`AIDOKU_ENV_FILE=` disables it) and never call a
+real provider.

@@ -1,9 +1,0 @@
-{
-  "version": "accepted-font198-v1",
-  "model": "model.pkl.gz",
-  "modelSHA256": "30f0072a07ec393fb26a3ea6d0b306fac836bf5290d0e16f3a94b3e2b0107f05",
-  "bytes": 134157436,
-  "GTQueryValuesRead": false,
-  "packagedSourceOnlyModels": true,
-  "activated": false
-}

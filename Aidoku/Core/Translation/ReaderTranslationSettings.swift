@@ -1,45 +1,6 @@
 import CryptoKit
 import Foundation
 
-// The bundled Core ML packages require iOS 18.
-enum IPhoneOCRModelTier: String, Codable, CaseIterable, Sendable {
-    case medium
-    case small
-    case tiny
-    case manga
-
-    /// Nil retains the unified models' existing source-language contract.
-    var restrictedSourceLanguageCodes: Set<String>? {
-        self == .manga ? ["ja", "zh", "zh-Hant"] : nil
-    }
-}
-
-enum IPhoneOCRSettings {
-    static let defaultModelTier: IPhoneOCRModelTier = .manga
-    static let minimumInputDimension = 32
-    static let maximumDetectorSide = 1_184
-    static let maximumRecognizerWidth = 1_184
-    static let mangaMaximumRecognizerWidth = 2_400
-    static let defaultDetectorMaximumSide = 1_120
-    static let defaultRecognizerMaximumWidth = maximumRecognizerWidth
-    static let mangaConfidenceThreshold = 0.30
-
-    static func defaultDetectorMaximumSide(for tier: IPhoneOCRModelTier) -> Int {
-        tier == .manga ? defaultDetectorMaximumSide : maximumDetectorSide
-    }
-
-    static func maximumRecognizerWidth(for tier: IPhoneOCRModelTier) -> Int {
-        tier == .manga ? mangaMaximumRecognizerWidth : maximumRecognizerWidth
-    }
-    static func defaultConfidenceThreshold(for tier: IPhoneOCRModelTier) -> Double {
-        tier == .manga ? mangaConfidenceThreshold : 0.50
-    }
-    static func migratedConfidenceThreshold(_ value: Double, for tier: IPhoneOCRModelTier) -> Double {
-        value == 0.75 || tier == .manga && (value == 0.50 || value == 0.45)
-            ? defaultConfidenceThreshold(for: tier) : value
-    }
-}
-
 struct ReaderOCRConfiguration: Equatable, Codable, Sendable {
     var modelTier: IPhoneOCRModelTier = IPhoneOCRSettings.defaultModelTier
     var detectorMaximumSide = IPhoneOCRSettings.defaultDetectorMaximumSide
@@ -200,8 +161,13 @@ struct ReaderTranslationSettings: Equatable, Sendable {
             .filter { supportedOCRSourceLanguageCodes.contains($0) }
     }
 
-    // Transient chapter direction, supplied by the reader coordinator.
-    var rightToLeftPanelOrder = false
+    /// Transient chapter direction, supplied by the reader coordinator (or the
+    /// manga's viewer for downloads). V2 orders blocks and panels by it.
+    var readingDirection: V2ReadingDirection = .rightToLeft
+    var rightToLeftPanelOrder: Bool {
+        get { readingDirection == .rightToLeft }
+        set { readingDirection = newValue ? .rightToLeft : .leftToRight }
+    }
     var modelTier: IPhoneOCRModelTier {
         get { ocr.modelTier }
         set {
@@ -232,14 +198,11 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var metadataInstructions = ""
     var credentialGeneration: UInt64 = 0
     var cacheLimitBytes: Int64 = ReaderTranslationDiskCache.defaultBytes
-    /// Opt-in speed-first V2 page pipeline (`Reader.translationPipelineV2`).
-    var pipelineV2 = false
-    static let pipelineV2Key = "Reader.translationPipelineV2"
-    /// V2 requires the iOS 18 Core ML runtime; older systems stay on legacy.
-    var usesPipelineV2: Bool {
-        if #available(iOS 18.0, *) { return pipelineV2 }
-        return false
-    }
+    /// Preference keys of retired pipeline/OCR controls. Old backups may still
+    /// carry them; they are ignored on load and removed on save.
+    static let retiredKeys = ["Reader.translationPipelineV2", keyPrefix + "ocr", keyPrefix + "modelTier",
+                              keyPrefix + "includePageImage", keyPrefix + "filterSFXWithLLM",
+                              keyPrefix + "filterBackgroundWithLLM"]
 
     init(defaults: UserDefaults = .standard) {
         // Keep the existing OpenAI preferences and Keychain account during migration.
@@ -284,20 +247,15 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         translationSourceLanguages = ReaderTranslationLanguageFilter.normalized(
             defaults.stringArray(forKey: Self.keyPrefix + "translationSourceLanguages") ?? []
         ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
-        let storedModelTier = defaults.string(forKey: Self.keyPrefix + "modelTier").flatMap(IPhoneOCRModelTier.init) ?? modelTier
-        ocr = ReaderOCRConfiguration(modelTier: storedModelTier)
+        // The page pipeline has one fixed manga detector/recognizer; saved OCR
+        // tier and threshold preferences (`ocr`, `modelTier`) no longer apply.
         if let data = defaults.data(forKey: Self.keyPrefix + "overlay"),
            let value = try? JSONDecoder().decode(IPhoneOverlaySettings.self, from: data) { overlay = value }
         overlay.enforceSourceReplacement()
-        if let data = defaults.data(forKey: Self.keyPrefix + "ocr"),
-           let value = try? JSONDecoder().decode(ReaderOCRConfiguration.self, from: data) { ocr = value.boundedReaderResolution }
-        // Migrate previously shipped defaults; retain other explicit thresholds.
-        ocr.confidenceThreshold = IPhoneOCRSettings.migratedConfidenceThreshold(ocr.confidenceThreshold, for: ocr.modelTier)
         openAIReasoningEffort = defaults.string(forKey: Self.keyPrefix + "reasoningEffort")
             .flatMap(OpenAIReasoningEffort.init(rawValue:)) ?? openAIReasoningEffort
         maximumConcurrentRequests = defaults.object(forKey: Self.keyPrefix + "concurrency") as? Int ?? maximumConcurrentRequests
         credentialGeneration = UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))
-        pipelineV2 = defaults.bool(forKey: Self.pipelineV2Key)
         if let value = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber,
            ReaderTranslationDiskCache.limitChoices.contains(value.int64Value) { cacheLimitBytes = value.int64Value }
         normalizeOCRSourceLanguages()
@@ -323,7 +281,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     }
 
     func hasSameTranslation(as other: Self) -> Bool {
-        pipelineV2 == other.pipelineV2 && includePageImage == other.includePageImage && rightToLeftPanelOrder == other.rightToLeftPanelOrder && configuration == other.configuration && ocrConfiguration == other.ocrConfiguration &&
+        includePageImage == other.includePageImage && readingDirection == other.readingDirection && configuration == other.configuration && ocrConfiguration == other.ocrConfiguration &&
             sourceLanguage == other.sourceLanguage && targetLanguage == other.targetLanguage &&
             ReaderTranslationLanguageFilter.identity(settings: self) == ReaderTranslationLanguageFilter.identity(settings: other)
     }
@@ -388,7 +346,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         var replacement = overlay
         replacement.enforceSourceReplacement()
         let overlayData = try JSONEncoder().encode(replacement)
-        let ocrData = try JSONEncoder().encode(ocrConfiguration)
         let customData = try JSONEncoder().encode(custom)
         // Encode everything before mutating credentials or preferences.
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -398,12 +355,9 @@ struct ReaderTranslationSettings: Equatable, Sendable {
             generation = max(generation, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))) &+ 1
         }
         defaults.set(overlayData, forKey: Self.keyPrefix + "overlay")
-        defaults.set(ocrData, forKey: Self.keyPrefix + "ocr")
         defaults.set(openAIReasoningEffort.rawValue, forKey: Self.keyPrefix + "reasoningEffort")
         defaults.set(provider.rawValue, forKey: Self.keyPrefix + "provider")
-        defaults.removeObject(forKey: Self.keyPrefix + "includePageImage")
-        defaults.removeObject(forKey: Self.keyPrefix + "filterSFXWithLLM")
-        defaults.removeObject(forKey: Self.keyPrefix + "filterBackgroundWithLLM")
+        Self.retiredKeys.forEach(defaults.removeObject(forKey:))
         defaults.set(automaticallyTranslate, forKey: Self.keyPrefix + "automatic")
         defaults.set(translateInBackground, forKey: Self.keyPrefix + "background")
         defaults.set(maximumPretranslatedPages, forKey: Self.keyPrefix + "pretranslationLimit")
@@ -422,12 +376,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(chapterTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "chapterTitleSourceLanguages")
         defaults.set(customData, forKey: Self.keyPrefix + "custom")
         defaults.set(maximumConcurrentRequests, forKey: Self.keyPrefix + "concurrency")
-        defaults.set(pipelineV2, forKey: Self.pipelineV2Key)
         defaults.set(openAIModel.trimmingCharacters(in: .whitespacesAndNewlines), forKey: Self.keyPrefix + "model")
         defaults.set(targetLanguage, forKey: Self.keyPrefix + "targetLanguage")
         defaults.set(sourceLanguage, forKey: Self.keyPrefix + "sourceLanguage")
         defaults.set(translationSourceLanguages.sorted(), forKey: Self.keyPrefix + "translationSourceLanguages")
-        defaults.set(modelTier.rawValue, forKey: Self.keyPrefix + "modelTier")
         defaults.set(Int(clamping: generation), forKey: Self.keyPrefix + "credentialGeneration")
         let previousCacheLimit = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber
         defaults.set(cacheLimitBytes, forKey: Self.keyPrefix + "cacheLimitBytes")

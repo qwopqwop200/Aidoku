@@ -327,25 +327,15 @@
 
 "TRANSLATION_TITLE" = "OCR și traducere";
 
-"TRANSLATION_TRANSLATE" = "Traduceți paginile vizibile";
 
-"TRANSLATION_RECOGNIZE" = "Recunoașteți textul (offline)";
 
-"TRANSLATION_ORIGINAL" = "Afișați originalul";
 
-"TRANSLATION_TEXT" = "Text recunoscut și tradus";
 
-"TRANSLATION_NO_IMAGE" = "Așteptați să se încarce o pagină de imagine, apoi încercați din nou.";
 
-"TRANSLATION_NO_TEXT" = "Niciun text nu a fost recunoscut. Încercați un alt model OCR sau o imagine mai clară.";
 
-"TRANSLATION_WORKING" = "Se recunoaște și se traduce textul…";
 
-"TRANSLATION_OCR_WORKING" = "Se recunoaște textul pe dispozitiv…";
 
-"TRANSLATION_HELP" = "Pictograma de traducere activează sau dezactivează traducerea. Sunt pregătite mai întâi paginile vizibile, apoi cele din apropiere. Pregătirea urmează poziția curentă de lectură. Rezultatele OCR, traducerile și aranjarea textului salvate pot fi reutilizate după redeschiderea cititorului sau repornirea aplicației. Imaginile partajate temporar nu salvează acest cache. Ieșirea din cititor anulează procesarea neterminată.";
 
-"TRANSLATION_PRIVACY" = "OCR rulează pe dispozitivul dvs. Traducerea trimite textul recunoscut și instrucțiunile dvs. furnizorului selectat. Dacă opțiunea „Includeți imaginea paginii în traducere” este activată, poate fi trimisă și o versiune prelucrată a imaginii paginii. Dacă imaginile nu sunt acceptate ca date de intrare, traducerea continuă doar cu text. Costurile API depind de furnizor. Cheile rămân în Keychain. Rezultatele OCR, traducerile și aranjarea textului sunt salvate în spațiul protejat al aplicației, exclus din copiile de rezervă.";
 
 "TRANSLATION_KEY_REPLACE" = "Înlocuiți cheia API salvată (opțional)";
 
@@ -363,11 +353,9 @@
 
 "TRANSLATION_TARGET" = "Traduceți în";
 
-"TRANSLATION_SOURCE" = "Limba sursă";
 
 "TRANSLATION_AUTO" = "Detectează automat";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 necesită iOS 18 sau o versiune mai nouă. Manga v0.3 este modelul implicit atât pentru detectarea, cât și pentru recunoașterea textului. Sunt disponibile și alte modele OCR.";
 
 
 
@@ -385,42 +373,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Cereri concurente";
 
-"TRANSLATION_DETECTOR_SIZE" = "Latura maximă a imaginii pentru detectarea textului";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Lățimea maximă a imaginii pentru recunoașterea textului";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Prag de pixeli pentru detectarea OCR";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Încredere minimă în regiunile detectate prin OCR";
-"TRANSLATION_CONFIDENCE" = "Încredere minimă în recunoașterea OCR";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "Pragul de pixeli selectează pixelii de text. Încrederea în detectare filtrează regiunile de text. Încrederea în recunoaștere filtrează textul citit din fiecare regiune. Valorile mai mici acceptă mai multe rezultate incerte.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Dimensiune minimă de detectare OCR";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Lungimea minimă a laturii scurte a regiunilor candidate de text, în pixeli ai hărții de detectare. Implicit: 3 px. Valorile mai mici pot detecta text mai mic, dar și mai mult zgomot.";
 
-"TRANSLATION_SURFACE" = "Culoare de fundal";
 
-"TRANSLATION_WHITE" = "Alb";
 
-"TRANSLATION_DARK" = "Întunecat";
 
-"TRANSLATION_OPACITY" = "Opacitatea fundalului";
 
-"TRANSLATION_EXPANSION" = "Extinderea cadrului de text";
 
-"TRANSLATION_PANEL_BOUNDS" = "În limitele imaginii";
 
-"TRANSLATION_SOURCE_BOUNDS" = "În cadrul textului original";
 
-"TRANSLATION_UNRESTRICTED" = "Nerestricționat";
 
-"TRANSLATION_FONT_SIZE" = "Dimensiunea fontului";
 
-"TRANSLATION_AUTO_FIT" = "Ajustare automată";
 
-"TRANSLATION_FIXED" = "Dimensiune fixă a fontului";
 
-"TRANSLATION_OVERLAY" = "Suprapunere de traducere";
 
-"TRANSLATION_OVERLAY_HELP" = "Înlocuiește textul în caseta originală, evitând suprapunerile și adaptând împărțirea pe rânduri la sistemul de scriere. Modificările de afișare reutilizează rezultatele OCR existente.";
 
 "TRANSLATION_PROVIDER" = "Furnizor de traduceri";
 
@@ -492,7 +459,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Limba sursă a paginii";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Detectează automat limba sursă a fiecărui titlu și traduce numai limbile selectate. Opțiunea Toate limbile detectate elimină restricția de limbă. Setările limbii sursă pentru pagini și alte tipuri de titluri nu afectează această selecție.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Traduceți descrierile manga";
 
@@ -504,32 +470,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Includeți imaginea paginii în traducere";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Trimite imaginea paginii împreună cu textul OCR pentru a oferi contextul scenei. Dacă imaginile nu sunt acceptate ca date de intrare, traducerea continuă automat doar cu text. Atașarea imaginilor poate crește consumul de date și costul API.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Imaginile nu sunt acceptate ca date de intrare. Traducerea continuă fără imagini.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Păstrați culoarea originală a textului";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estimează culoarea textului original fără un model suplimentar. Folosește culoarea implicită când estimarea este incertă sau contrastul este prea scăzut.";
 
-"TRANSLATION_LLM_SFX" = "Filtrarea efectelor sonore prin LLM (toate limbile)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Clasifică efectele sonore în aceeași cerere de traducere și le lasă neschimbate. Dacă este inclusă imaginea paginii, IA omite și fragmentele OCR neclare, cu excepția cazurilor în care imaginea confirmă existența unui text cu sens. Dialogurile, narațiunea, titlurile și creditele sunt păstrate pentru traducere. Clasificarea este mai puțin fiabilă fără o imagine a paginii.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Fără imagine, informațiile vizuale și cele despre aranjarea textului sunt limitate, ceea ce poate reduce precizia clasificării efectelor sonore.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Păstrați culoarea originală a fundalului textului";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Potrivește fundalul traducerii cu cel din jurul textului original. Folosește fundalul implicit dacă estimarea este incertă sau textul nu este lizibil. Setarea de opacitate rămâne valabilă.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Personalizat (compatibil cu OpenAI)";
 
-"TRANSLATION_OCR_MEDIUM" = "Mediu";
 
-"TRANSLATION_OCR_SMALL" = "Mic";
 
-"TRANSLATION_OCR_TINY" = "Foarte mic";
 
 "TRANSLATION_REASONING_NONE" = "Fără raționament";
 
@@ -1079,8 +1034,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Descarcă cu traducere";
 
-"TRANSLATION_LLM_BACKGROUND" = "Omiteți textele din fundal (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "IA de traducere lasă neschimbate textele de pe indicatoarele obișnuite, afișe și obiectele din scenă, chiar dacă au legătură cu scena sau sunt menționate în dialoguri. Sunt traduse dialogurile, narațiunea, titlurile, creditele, textele esențiale pentru intrigă și textele al căror rol este incert. Nu se face nicio cerere suplimentară, dar procesarea poate dura mai mult. Clasificarea este mai puțin fiabilă fără o imagine a paginii.";
 
 "TRANSLATION_STATE_ON" = "Activată";
 "TRANSLATION_STATE_OFF" = "Dezactivată";
@@ -1115,13 +1068,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Modificările sincronizării iCloud se aplică după închiderea completă și redeschiderea Aidoku. Până atunci, setarea actuală rămâne activă.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Păstrați culorile originale";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Păstrează împreună culorile textului și fundalului.";
-"TRANSLATION_INPAINTING" = "Reconstrucția fundalului";
-"TRANSLATION_INPAINTING_HELP" = "Șterge textul original păstrând fundalul. Folosește casete dacă masca sau lizibilitatea sunt incerte. Necesită culorile originale.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Filtrarea textului";
 
 "TRANSLATION_TARGETS" = "Ce se traduce";
 
@@ -1162,10 +1110,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sursa %@ versiunea %d nu este acceptată de această aplicație. Instalați o versiune acceptată.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 acceptă doar text sursă în japoneză și chineză (simplificată și tradițională). Detectarea automată a limbii sursă și opțiunile de selectare a limbii sursă sunt limitate la aceste limbi. Traducerea în orice limbă țintă este în continuare posibilă. Selectarea modelului Manga aplică pragurile de detectare 0,85 și 0,25; dimensiunea implicită pentru detectare este de 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Toate limbile acceptate de OCR";
-"TRANSLATION_PIPELINE_V2" = "Procesare rapidă (beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Folosește noul flux de traducere a paginilor orientat spre viteză. Paginile sunt recunoscute, șterse și redesenate ca o singură imagine finală, de obicei mult mai rapid. Rezultatele sunt stocate în cache separat de fluxul standard. Necesită iOS 18.";

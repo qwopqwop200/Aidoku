@@ -741,25 +741,15 @@
 
 "TRANSLATION_TITLE" = "OCR y traducción";
 
-"TRANSLATION_TRANSLATE" = "Traducir páginas visibles";
 
-"TRANSLATION_RECOGNIZE" = "Reconocer texto (sin conexión)";
 
-"TRANSLATION_ORIGINAL" = "Mostrar original";
 
-"TRANSLATION_TEXT" = "Texto reconocido y traducido";
 
-"TRANSLATION_NO_IMAGE" = "Espera a que se cargue una página de imagen y vuelve a intentarlo.";
 
-"TRANSLATION_NO_TEXT" = "No se reconoció ningún texto. Prueba con otro modelo de OCR o una imagen más clara.";
 
-"TRANSLATION_WORKING" = "Reconociendo y traduciendo…";
 
-"TRANSLATION_OCR_WORKING" = "Reconociendo texto en el dispositivo…";
 
-"TRANSLATION_HELP" = "El icono de traducción activa o desactiva la traducción. Primero se preparan las páginas visibles y después las cercanas. La preparación sigue tu posición de lectura. Los resultados del OCR, las traducciones y la distribución del texto guardados pueden reutilizarse al volver a abrir el lector o reiniciar la aplicación. Las imágenes compartidas temporales no guardan esta caché. Salir del lector cancela el trabajo pendiente.";
 
-"TRANSLATION_PRIVACY" = "El OCR se ejecuta en tu dispositivo. La traducción envía el texto reconocido y tus instrucciones al proveedor seleccionado. Si está habilitado Incluir imagen de página en la traducción, también puede enviarse una versión procesada de la imagen de la página. Si no se admiten imágenes como entrada, la traducción continúa solo con texto. Los cargos de API dependen de tu proveedor. Las claves se guardan en el llavero. El OCR, las traducciones y la distribución del texto se guardan en el almacenamiento protegido de la aplicación, excluido de las copias de seguridad.";
 
 "TRANSLATION_KEY_REPLACE" = "Reemplazar la clave API guardada (opcional)";
 
@@ -777,11 +767,9 @@
 
 "TRANSLATION_TARGET" = "Traducir a";
 
-"TRANSLATION_SOURCE" = "Idioma de origen";
 
 "TRANSLATION_AUTO" = "Detectar automáticamente";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 requiere iOS 18 o posterior. Manga v0.3 es el modelo predeterminado tanto para la detección como para el reconocimiento de texto. Los demás modelos OCR siguen disponibles.";
 
 
 
@@ -799,42 +787,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Solicitudes simultáneas";
 
-"TRANSLATION_DETECTOR_SIZE" = "Lado máximo del detector";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Ancho máximo del reconocedor";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Umbral de píxeles de detección OCR";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Confianza mínima de las regiones detectadas por OCR";
-"TRANSLATION_CONFIDENCE" = "Confianza mínima de reconocimiento OCR";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "El umbral de píxeles selecciona los píxeles de texto. La confianza de detección filtra las regiones de texto. La confianza de reconocimiento filtra el texto leído en cada región. Los valores más bajos aceptan más resultados inciertos.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Tamaño mínimo de detección OCR";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Longitud mínima del lado corto de las regiones de texto candidatas, medida en píxeles del mapa de detección. Valor predeterminado: 3 px. Los valores más bajos pueden detectar texto más pequeño, pero también más ruido.";
 
-"TRANSLATION_SURFACE" = "Color de fondo";
 
-"TRANSLATION_WHITE" = "Blanco";
 
-"TRANSLATION_DARK" = "Oscuro";
 
-"TRANSLATION_OPACITY" = "Opacidad del fondo";
 
-"TRANSLATION_EXPANSION" = "Expansión del recuadro de texto";
 
-"TRANSLATION_PANEL_BOUNDS" = "Dentro de los límites de la imagen";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Dentro del recuadro de texto original";
 
-"TRANSLATION_UNRESTRICTED" = "Sin restricciones";
 
-"TRANSLATION_FONT_SIZE" = "Tamaño de fuente";
 
-"TRANSLATION_AUTO_FIT" = "Ajustar automáticamente";
 
-"TRANSLATION_FIXED" = "Tamaño de fuente fijo";
 
-"TRANSLATION_OVERLAY" = "Superposición de traducción";
 
-"TRANSLATION_OVERLAY_HELP" = "Reemplaza el texto en su recuadro original con una distribución que evita solapamientos y adapta los saltos de línea al sistema de escritura. Los cambios de visualización reutilizan el OCR existente.";
 
 "TRANSLATION_PROVIDER" = "Proveedor de traducción";
 
@@ -906,7 +873,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Idioma de origen de la página";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Detecta automáticamente el idioma de origen de cada título y traduce solo los idiomas seleccionados. La opción Todos los idiomas detectados elimina la restricción de idioma. Las opciones de idioma de origen de las páginas y de otros tipos de títulos no afectan a esta selección.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Traducir descripciones de manga";
 
@@ -918,32 +884,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Incluir imagen de página en la traducción";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Envía la imagen de la página junto con el texto OCR para aportar contexto de la escena. Si no se admiten imágenes, la traducción continúa automáticamente solo con texto. Adjuntar imágenes puede aumentar el uso de datos y el coste de la API.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "No se admiten imágenes como entrada. La traducción continúa sin imágenes.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Conservar el color del texto original";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Estima el color del texto original sin un modelo adicional. Utiliza el color predeterminado si la estimación es incierta o el contraste es demasiado bajo.";
 
-"TRANSLATION_LLM_SFX" = "Filtrar efectos de sonido con LLM (todos los idiomas)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Clasifica los efectos de sonido en la misma solicitud de traducción y los deja sin cambios. Si se incluye una imagen de la página, la IA también omite los fragmentos de OCR poco claros, salvo que la imagen confirme que contienen texto con sentido. Los diálogos, la narración, los títulos y los créditos se mantienen para su traducción. La clasificación es menos fiable sin una imagen de la página.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Sin una imagen de la página, la falta de contexto visual y de distribución del texto puede reducir la precisión de la clasificación de los efectos de sonido.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Conservar el color del fondo original";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Adapta el fondo de la traducción al fondo que rodea el texto original. Utiliza el fondo predeterminado si la estimación es incierta o dificulta la lectura. Se sigue aplicando el ajuste de opacidad.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Personalizado (compatible con OpenAI)";
 
-"TRANSLATION_OCR_MEDIUM" = "Medio";
 
-"TRANSLATION_OCR_SMALL" = "Pequeño";
 
-"TRANSLATION_OCR_TINY" = "Diminuto";
 
 "TRANSLATION_REASONING_NONE" = "Ninguno";
 
@@ -1081,8 +1036,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Descargar con traducción";
 
-"TRANSLATION_LLM_BACKGROUND" = "Omitir textos de fondo (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "La IA de traducción deja sin cambios los textos de los letreros habituales, los carteles y los objetos de la escena, aunque estén relacionados con ella o se mencionen en los diálogos. Se traducen los diálogos, la narración, los títulos, los créditos, los escritos esenciales para la trama y los textos cuya función no está clara. No se realiza ninguna solicitud adicional, pero el procesamiento puede tardar más. La clasificación es menos fiable sin una imagen de la página.";
 
 "TRANSLATION_STATE_ON" = "Activada";
 "TRANSLATION_STATE_OFF" = "Desactivada";
@@ -1117,13 +1070,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Los cambios en la sincronización de iCloud se aplican al cerrar Aidoku por completo y volver a abrirlo. Hasta entonces, se mantiene la configuración actual.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Conservar colores originales";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Conservar juntos los colores del texto y del fondo.";
-"TRANSLATION_INPAINTING" = "Retoque del fondo";
-"TRANSLATION_INPAINTING_HELP" = "Borra el texto original conservando el fondo. Usa recuadros si la máscara o la legibilidad no son fiables. Requiere los colores originales.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Filtrado de texto";
 
 "TRANSLATION_TARGETS" = "Qué traducir";
 
@@ -1164,10 +1112,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Esta aplicación no admite la fuente %@ versión %d. Instala una versión compatible.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 solo admite texto de origen en japonés y chino (simplificado y tradicional). La detección automática y la selección del idioma de origen también se limitan a estos idiomas. Se puede seguir traduciendo a cualquier idioma de destino. Al seleccionar Manga, se aplican umbrales de detección de texto de 0.85 y 0.25; el tamaño de detección predeterminado es de 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Todos los idiomas OCR compatibles";
-"TRANSLATION_PIPELINE_V2" = "Proceso rápido (beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Usa el nuevo proceso de traducción de páginas centrado en la velocidad. Las páginas se reconocen, se borran y se redibujan como una sola imagen terminada, normalmente mucho más rápido. Los resultados se guardan en caché por separado del proceso estándar. Requiere iOS 18.";

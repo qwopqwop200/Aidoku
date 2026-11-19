@@ -191,25 +191,15 @@
 
 "TRANSLATION_TITLE" = "OCR og oversettelse";
 
-"TRANSLATION_TRANSLATE" = "Oversett synlige sider";
 
-"TRANSLATION_RECOGNIZE" = "Gjenkjenn tekst (frakoblet)";
 
-"TRANSLATION_ORIGINAL" = "Vis original";
 
-"TRANSLATION_TEXT" = "Gjenkjent og oversatt tekst";
 
-"TRANSLATION_NO_IMAGE" = "Vent til en bildeside lastes inn, og prøv på nytt.";
 
-"TRANSLATION_NO_TEXT" = "Ingen tekst ble gjenkjent. Prøv en annen OCR-modell eller et klarere bilde.";
 
-"TRANSLATION_WORKING" = "Gjenkjenner og oversetter …";
 
-"TRANSLATION_OCR_WORKING" = "Gjenkjenner tekst på enheten …";
 
-"TRANSLATION_HELP" = "Oversettelsesikonet slår oversettelse på eller av. Synlige sider klargjøres først, deretter nærliggende sider. Klargjøringen følger leseposisjonen din. Lagrede OCR-resultater, oversettelser og tekstoppsett kan gjenbrukes når du åpner leseren igjen eller starter appen på nytt. Delte bilder som åpnes midlertidig, lagrer ikke denne hurtigbufferen. Når du forlater leseren, avbrytes uferdig arbeid.";
 
-"TRANSLATION_PRIVACY" = "OCR kjører på enheten din. Oversettelse sender gjenkjent tekst og instruksjonene dine til den valgte leverandøren. Hvis Inkluder sidebilde i oversettelse er aktivert, kan også et sidebilde som er tilpasset for behandling, lastes opp. Hvis bilder ikke støttes som inndata, fortsetter oversettelsen med bare tekst. API-kostnader avhenger av leverandøren din. Nøkler forblir i Nøkkelring. OCR, oversettelser og tekstoppsett lagres i beskyttet applagring ekskludert fra sikkerhetskopiering.";
 
 "TRANSLATION_KEY_REPLACE" = "Erstatt lagret API-nøkkel (valgfritt)";
 
@@ -227,11 +217,9 @@
 
 "TRANSLATION_TARGET" = "Oversett til";
 
-"TRANSLATION_SOURCE" = "Kildespråk";
 
 "TRANSLATION_AUTO" = "Oppdag automatisk";
 
-"TRANSLATION_OCR_HELP" = "PP-OCRv6 krever iOS 18 eller nyere. Manga v0.3 er standardmodellen for både tekstlokalisering og tekstgjenkjenning. Andre OCR-modeller er fortsatt tilgjengelige.";
 
 
 
@@ -249,42 +237,21 @@
 
 "TRANSLATION_CONCURRENCY" = "Samtidige forespørsler";
 
-"TRANSLATION_DETECTOR_SIZE" = "Maksimal sidelengde for tekstdeteksjon";
 
-"TRANSLATION_RECOGNIZER_SIZE" = "Maksimal bredde for tekstgjenkjenning";
 
-"TRANSLATION_DETECTOR_PIXEL_THRESHOLD" = "Pikselterskel for OCR-deteksjon";
-"TRANSLATION_DETECTOR_CONFIDENCE" = "Laveste konfidens for detekterte OCR-områder";
-"TRANSLATION_CONFIDENCE" = "Laveste konfidens for OCR-tekstgjenkjenning";
-"TRANSLATION_OCR_CONFIDENCE_HELP" = "Pikselterskelen velger tekstpiksler. Deteksjonskonfidensen filtrerer tekstområder. Gjenkjenningskonfidensen filtrerer teksten som leses fra hvert område. Lavere verdier godtar flere usikre resultater.";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE" = "Minste størrelse for OCR-deteksjon";
-"TRANSLATION_DETECTOR_MINIMUM_SIZE_HELP" = "Minste lengde på kortsiden av mulige tekstområder, målt i piksler på deteksjonskartet. Standard: 3 px. Lavere verdier kan oppdage mindre tekst, men også mer støy.";
 
-"TRANSLATION_SURFACE" = "Bakgrunnsfarge";
 
-"TRANSLATION_WHITE" = "Hvit";
 
-"TRANSLATION_DARK" = "Mørk";
 
-"TRANSLATION_OPACITY" = "Bakgrunnsopasitet";
 
-"TRANSLATION_EXPANSION" = "Utvidelse av tekstramme";
 
-"TRANSLATION_PANEL_BOUNDS" = "Innenfor bildegrensene";
 
-"TRANSLATION_SOURCE_BOUNDS" = "Innenfor den opprinnelige tekstrammen";
 
-"TRANSLATION_UNRESTRICTED" = "Ubegrenset";
 
-"TRANSLATION_FONT_SIZE" = "Skriftstørrelse";
 
-"TRANSLATION_AUTO_FIT" = "Tilpass automatisk";
 
-"TRANSLATION_FIXED" = "Fast skriftstørrelse";
 
-"TRANSLATION_OVERLAY" = "Oversettelsesoverlegg";
 
-"TRANSLATION_OVERLAY_HELP" = "Viser oversettelsen over det opprinnelige tekstfeltet, unngår overlappende tekst og tilpasser linjebryting til skriftsystemet. Ved visningsendringer gjenbrukes eksisterende OCR-resultater.";
 
 "TRANSLATION_PROVIDER" = "Oversettelsesleverandør";
 
@@ -356,7 +323,6 @@
 
 "TRANSLATION_PAGE_SOURCE" = "Sidens kildespråk";
 
-"TRANSLATION_TITLE_FILTER_HELP" = "Gjenkjenner automatisk kildespråket for hver tittel og oversetter bare de valgte språkene. Alle oppdagede språk fjerner språkbegrensningen. Innstillingene for kildespråk for sider og andre titteltyper påvirker ikke dette valget.";
 
 "TRANSLATION_MANGA_DESCRIPTIONS" = "Oversett mangabeskrivelser";
 
@@ -368,32 +334,21 @@
 
 
 
-"TRANSLATION_INCLUDE_IMAGE" = "Inkluder sidebilde i oversettelse";
 
 "TRANSLATION_INCLUDE_IMAGE_HELP" = "Sender sidebildet sammen med OCR-teksten for å gi kontekst til scenen. Hvis bilder ikke støttes som inndata, fortsetter oversettelsen automatisk med bare tekst. Bilder kan øke databruken og API-kostnadene.";
 "TRANSLATION_IMAGE_UNSUPPORTED" = "Bilder støttes ikke som inndata. Oversettelsen fortsetter uten bilder.";
 
-"TRANSLATION_SOURCE_TEXT_COLOR" = "Bevar original tekstfarge";
 
-"TRANSLATION_SOURCE_TEXT_COLOR_HELP" = "Anslår originaltekstens farge uten en ekstra modell. Ved usikkerhet eller for lav kontrast brukes standardfargen.";
 
-"TRANSLATION_LLM_SFX" = "LLM SFX-filtrering (alle språk)";
 
-"TRANSLATION_LLM_SFX_HELP" = "Gjenkjenner lydeffekter i samme oversettelsesforespørsel og lar dem stå uendret. Med et sidebilde hopper KI-en også over uklare OCR-fragmenter, med mindre bildet viser at de er meningsfull tekst. Dialog, fortellertekst, titler og opplysninger om opphavspersoner beholdes for oversettelse. Klassifiseringen er mindre pålitelig uten et sidebilde.";
 
-"TRANSLATION_LLM_SFX_NO_IMAGE" = "Uten bildeinndata kan begrenset visuell og layoutkontekst redusere SFX-klassifiseringsnøyaktigheten.";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR" = "Bevar opprinnelig bakgrunnsfarge";
 
-"TRANSLATION_SOURCE_BACKGROUND_COLOR_HELP" = "Tilpasser oversettelsespanelet til bakgrunnen rundt originalteksten. Ved usikkerhet eller dårlig lesbarhet brukes standardpanelet. Opasitetsinnstillingen din gjelder fortsatt.";
 
 "TRANSLATION_CUSTOM_PROVIDER" = "Egen server (OpenAI-kompatibel)";
 
-"TRANSLATION_OCR_MEDIUM" = "Middels";
 
-"TRANSLATION_OCR_SMALL" = "Liten";
 
-"TRANSLATION_OCR_TINY" = "Veldig liten";
 
 "TRANSLATION_REASONING_NONE" = "Ingen";
 
@@ -1079,8 +1034,6 @@
 
 "DOWNLOAD_TRANSLATED" = "Last ned med oversettelse";
 
-"TRANSLATION_LLM_BACKGROUND" = "Hopp over bakgrunnstekst (LLM)";
-"TRANSLATION_LLM_BACKGROUND_HELP" = "Oversettelses-KI-en lar vanlige skilt, plakater og tekst på gjenstander i scenen stå uendret, selv når de er knyttet til scenen eller nevnes i dialog. Dialog, fortellertekst, titler, opplysninger om opphavspersoner, skriftlig tekst som er avgjørende for handlingen og tekst med usikker rolle blir oversatt. Ingen ekstra forespørsel sendes, men behandlingen kan ta lengre tid. Klassifiseringen er mindre pålitelig uten et sidebilde.";
 
 "TRANSLATION_STATE_ON" = "På";
 
@@ -1148,13 +1101,8 @@
 "ICLOUD_SYNC_RESTART_REQUIRED" = "Endringer i iCloud-synkronisering trer i kraft når du lukker Aidoku helt og åpner appen igjen. Frem til da gjelder den nåværende innstillingen.";
 
 // Source-preserving inpainting
-"TRANSLATION_SOURCE_COLORS" = "Behold originalfarger";
-"TRANSLATION_SOURCE_COLORS_HELP" = "Behold tekst- og bakgrunnsfargene sammen.";
-"TRANSLATION_INPAINTING" = "Bakgrunnsrekonstruksjon";
-"TRANSLATION_INPAINTING_HELP" = "Fjerner originaltekst og bevarer bakgrunnen. Bruker bokser ved usikker maske eller lesbarhet. Krever originalfarger.";
 
 // Translation settings section
-"TRANSLATION_FILTERING" = "Tekstfiltrering";
 
 "TRANSLATION_TARGETS" = "Hva som skal oversettes";
 
@@ -1195,10 +1143,7 @@
 // Unsupported installed source package version
 "NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Kilden %@ versjon %d støttes ikke av denne appen. Installer en støttet versjon.";
 
-"TRANSLATION_OCR_MANGA" = "Manga v0.3 (Kellenok)";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 støtter bare kildetekst på japansk og kinesisk (forenklet og tradisjonell). Automatisk identifisering av kildespråket og valg av kildespråk er begrenset til disse språkene. Du kan fortsatt oversette til et hvilket som helst målspråk. Når du velger Manga, brukes deteksjonstersklene 0.85 og 0.25; standardstørrelsen for tekstlokalisering er 1120 px.";
 
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Alle støttede OCR-språk";
-"TRANSLATION_PIPELINE_V2" = "Rask prosess (beta)";
-"TRANSLATION_PIPELINE_V2_HELP" = "Bruker den nye, hastighetsorienterte prosessen for sideoversettelse. Sider gjenkjennes, viskes ut og tegnes på nytt som ett ferdig bilde, vanligvis mye raskere. Resultatene bufres separat fra standardprosessen. Krever iOS 18.";

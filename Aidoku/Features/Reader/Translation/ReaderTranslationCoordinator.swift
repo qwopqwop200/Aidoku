@@ -4,22 +4,18 @@ import UIKit
 protocol ReaderTranslationOwner: AnyObject {
     var navigationItem: UINavigationItem { get }
     var translationUpcomingPages: [Page] { get }
-    var translationChapterItems: [ReaderTranslationSession.Item] { get }
     var translationVisiblePages: [ReaderTranslationPage] { get }
     var translationPreviewPages: [ReaderTranslationPage] { get }
     var translationChapterKey: String { get }
     var translationCurrentPageIndex: Int { get }
-    var translationReadsRightToLeft: Bool { get }
+    var translationReadingDirection: V2ReadingDirection { get }
     var translationPersistsCache: Bool { get }
     func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout
 }
 
 extension ReaderTranslationOwner {
-    var translationChapterItems: [ReaderTranslationSession.Item] {
-        ReaderTranslationSession.chapterItems(translationUpcomingPages)
-    }
     var translationPreviewPages: [ReaderTranslationPage] { [] }
-    var translationReadsRightToLeft: Bool { false }
+    var translationReadingDirection: V2ReadingDirection { .rightToLeft }
     var translationPersistsCache: Bool { true }
     func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout { .whole }
     var translationCurrentPageIndex: Int {
@@ -30,7 +26,13 @@ extension ReaderTranslationOwner {
 
 extension ReaderViewController: ReaderTranslationOwner {
     var translationPersistsCache: Bool { !isTemporaryImageSession }
-    var translationReadsRightToLeft: Bool { readingMode == .rtl }
+    var translationReadingDirection: V2ReadingDirection {
+        switch readingMode {
+        case .rtl: .rightToLeft
+        case .ltr: .leftToRight
+        case .vertical, .webtoon, .continuous: .topToBottom
+        }
+    }
     var translationVisiblePages: [ReaderTranslationPage] { reader?.translationPages() ?? [] }
     var translationPreviewPages: [ReaderTranslationPage] { reader?.translationPreviewPages() ?? [] }
     var translationChapterKey: String { chapter.key }
@@ -55,11 +57,12 @@ struct ReaderTranslationNavigationDebounce {
     }
 }
 
+/// Reader page translation: every visible page renders through
+/// `ReaderTranslationV2Service` (see Docs/translation-v2.md), and the next
+/// pages are pre-translated into the V2 caches.
 @MainActor
 final class ReaderTranslationCoordinator {
     private weak var owner: (any ReaderTranslationOwner)?
-    private let preloader: ReaderTranslationPreloader
-    private let layoutPreparer = ReaderTranslationLayoutPreparer()
     private lazy var button = UIBarButtonItem(image: UIImage(systemName: "character.bubble"), style: .plain, target: self, action: #selector(toggle))
     private var observers: [NSObjectProtocol] = []
     private var failureNotice: UIView?
@@ -71,6 +74,18 @@ final class ReaderTranslationCoordinator {
     private var synchronizationTask: Task<Void, Never>?
     private var scrollVisibilityTask: Task<Void, Never>?
     private var scrollVisibility: ScrollVisibility?
+    private var navigationIdentity: String?
+    /// Reader open/resume has no navigation to settle; its first populated
+    /// viewport uses the short delay. Scrubbing and later jumps stay conservative.
+    private var initialSynchronizationPending = true
+    private var isScrubbing = false
+    private var navigationDebounce = ReaderTranslationNavigationDebounce()
+    private let v2Pages = NSHashTable<ReaderTranslationPage>.weakObjects()
+    /// V2 look-ahead consumers by the whole-page V2 cache key (pages after the viewport).
+    private var v2Lookahead: [String: Task<Void, Never>] = [:]
+    private let v2Loader: ReaderTranslationImageLoader
+    private let readSettings: () -> ReaderTranslationSettings
+    private let setEnabled: (Bool) -> Void
 
     private struct ScrollVisibility: Equatable {
         struct PageState: Equatable {
@@ -91,6 +106,47 @@ final class ReaderTranslationCoordinator {
         let previews: [PageState]
     }
 
+    init(
+        owner: any ReaderTranslationOwner,
+        temporaryPageStore: ReaderTemporaryPageStore? = nil,
+        readSettings: @escaping () -> ReaderTranslationSettings = { ReaderTranslationSettings() },
+        setEnabled: @escaping (Bool) -> Void = { ReaderTranslationSettings.setAutomaticTranslation($0) }
+    ) {
+        self.v2Loader = ReaderTranslationImageLoader(temporaryStore: temporaryPageStore)
+        self.owner = owner
+        self.readSettings = readSettings
+        self.setEnabled = setEnabled
+        for name in [ReaderTranslationPage.sourceImageReady, ReaderTranslationSettings.changed,
+                     ReaderTranslationPage.imageChanged, UIApplication.didBecomeActiveNotification] {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, !self.isScrubbing else { return }
+                    self.visiblePagesDidChange()
+                }
+            })
+        }
+        observers.append(NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            // Visible pages keep their work; offscreen look-ahead restarts later.
+            Task { @MainActor in self?.cancelV2Lookahead() }
+        })
+    }
+
+    deinit {
+        scrollVisibilityTask?.cancel()
+        let previous = metadataActivityTask
+        let owner = metadataOwner
+        Task {
+            await previous?.value
+            await ReaderTranslationService.shared.setReaderActive(false, owner: owner)
+        }
+        failureNoticeTask?.cancel()
+        synchronizationTask?.cancel()
+        v2Lookahead.values.forEach { $0.cancel() }
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+
     private func cancelScrollVisibility() {
         scrollVisibilityTask?.cancel()
         scrollVisibilityTask = nil
@@ -101,11 +157,7 @@ final class ReaderTranslationCoordinator {
     /// bounded cadence, without rehashing/reordering the chapter on every frame.
     /// Image/settings notifications still use the immediate restoration path.
     func scrollVisibilityDidChange() {
-        guard isVisible else { return }
-        // Already rendered pages need no navigation debounce or image admission.
-        // Keep the expensive visibility/queue refresh on the existing cadence.
-        if let owner { session.displayCachedVisiblePages(owner.translationVisiblePages) }
-        guard scrollVisibilityTask == nil else { return }
+        guard isVisible, scrollVisibilityTask == nil else { return }
         scrollVisibilityTask = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: 80_000_000) } catch { return }
             guard let self, !Task.isCancelled, isVisible, let owner else { return }
@@ -119,174 +171,6 @@ final class ReaderTranslationCoordinator {
             visiblePagesDidChange()
         }
     }
-    private var memoryRecoveryTask: Task<Void, Never>?
-    private var navigationIdentity: String?
-    /// Reader open/resume has no navigation to settle; its first populated
-    /// viewport uses the short delay. Scrubbing and later jumps stay conservative.
-    private var initialSynchronizationPending = true
-    private var diagnosticVisibleKeys: [String] = []
-    /// Cold presentations of preloaded neighbors wait behind the page on screen;
-    /// a neighbor is promoted as soon as it becomes visible.
-    private var displayPromotions: [(key: String, promotion: TranslationRequestPromotion)] = []
-    private var isScrubbing = false
-    private var navigationDebounce = ReaderTranslationNavigationDebounce()
-    private let session: ReaderTranslationSession
-    /// Opt-in V2 pipeline mode: the legacy session stays off and each visible
-    /// page renders through `ReaderTranslationV2Service`.
-    private var v2Active = false
-    private let v2Pages = NSHashTable<ReaderTranslationPage>.weakObjects()
-    /// V2 look-ahead consumers by V2 cache key (pages after the viewport).
-    private var v2Lookahead: [String: Task<Void, Never>] = [:]
-    private let v2Loader: ReaderTranslationImageLoader
-    private let readSettings: () -> ReaderTranslationSettings
-    private let setEnabled: (Bool) -> Void
-
-    init(
-        owner: any ReaderTranslationOwner,
-        temporaryPageStore: ReaderTemporaryPageStore? = nil,
-        session: ReaderTranslationSession? = nil,
-        readSettings: @escaping () -> ReaderTranslationSettings = { ReaderTranslationSettings() },
-        setEnabled: @escaping (Bool) -> Void = { ReaderTranslationSettings.setAutomaticTranslation($0) }
-    ) {
-        let persistsCache = owner.translationPersistsCache
-        self.v2Loader = ReaderTranslationImageLoader(temporaryStore: temporaryPageStore)
-        self.preloader = ReaderTranslationPreloader(diskCache: persistsCache ? .shared : nil, retainImage: { [weak owner] page in
-            guard let owner else { return false }
-            let key = page.translationCacheKey
-            guard let position = owner.translationChapterItems.firstIndex(where: { $0.key == key }) else { return false }
-            return abs(position - owner.translationCurrentPageIndex) <= 2
-        }, loader: ReaderTranslationImageLoader(temporaryStore: temporaryPageStore))
-        self.owner = owner
-        self.readSettings = readSettings
-        self.setEnabled = setEnabled
-        self.session = session ?? ReaderTranslationSession(
-            processRecord: { [preloader] page, settings, progress in
-                try await preloader.translateRecord(page, settings: settings, onProgress: progress)
-            },
-            cancelProcessing: { [preloader] in preloader.cancel() },
-            cancelProcessingForPage: { [preloader] page in preloader.cancel(preservingRecognitionFor: page) },
-            diskCache: persistsCache ? .shared : nil, renderCache: persistsCache ? .shared : nil,
-            prepareRecordLayout: { [weak owner, layoutPreparer] page, record, settings in
-                guard persistsCache, let claim = record.sourceRasterClaim,
-                      let visible = owner?.translationVisiblePages.first, let imageView = visible.imageView,
-                      let window = imageView.window, imageView.bounds.width > 0, imageView.bounds.height > 0 else { throw CancellationError() }
-                try await layoutPreparer.prepare(
-                    page: page, regions: record.regions, settings: settings,
-                    geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: imageView,
-                        widePageLayout: owner?.translationWidePageLayout(for: page) ?? .whole), window: window,
-                    expectedSource: claim
-                )
-            },
-            prepareTextLayout: { [weak owner, layoutPreparer] page, regions, settings in
-                guard persistsCache, let visible = owner?.translationVisiblePages.first, let imageView = visible.imageView else { return }
-                try await layoutPreparer.prepareTextOnly(page: page, regions: regions, settings: settings,
-                    geometry: ReaderTranslationLayoutGeometry(page: visible, imageView: imageView,
-                        widePageLayout: owner?.translationWidePageLayout(for: page) ?? .whole))
-            }
-        )
-        preloader.nextPage = { [weak session = self.session] page in session?.nextPageForRecognition(after: page) }
-        preloader.nextPageExcluding = { [weak session = self.session] page, excluded in
-            session?.nextPageForRecognition(after: page, excluding: excluded)
-        }
-        preloader.lookaheadLimit = { [weak owner] page, settings in
-            guard let owner else { return 1 }
-            if !settings.automaticallyTranslate && settings.translateInBackground { return 2 }
-            let visible = owner.translationVisiblePages
-            guard !visible.isEmpty, visible.allSatisfy({
-                $0.sourcePage?.translationCacheKey != page.translationCacheKey && $0.hasCompletedTranslation(settings: settings)
-            }) else { return 1 }
-            return 2
-        }
-        preloader.onEvidencePrepared = { [weak session = self.session] page, settings, evidence, sourceRasterClaim in
-            session?.receivePreparedEvidence(evidence, page: page, settings: settings, sourceRasterClaim: sourceRasterClaim)
-        }
-        preloader.onPreparedRecord = { [weak session = self.session] page, record, settings in
-            session?.receivePrepared(page, record: record, settings: settings)
-        }
-        if session == nil {
-            // Foreground and speculative writes share one bounded, ordered
-            // commit path, so an older result cannot finish after its successor.
-            preloader.onPersistPreparedRecord = { [weak session = self.session] page, record, destination in
-                await session?.persistPreparedRecord(record, page: page, destination: destination)
-            }
-        }
-        self.session.onStateChanged = { [weak self] state in
-            guard let self, !v2Active else { return }
-            applyButtonState(enabled: state == .on && readSettings().automaticallyTranslate)
-        }
-        self.session.onFailure = { [weak self] error in
-            guard let self else { return }
-            button.accessibilityHint = Self.localizedFailureDescription(error)
-            if readSettings().automaticallyTranslate { showFailureNotice(error) }
-        }
-        observers.append(NotificationCenter.default.addObserver(
-            forName: ReaderTranslationPage.sourceImageReady, object: nil, queue: .main
-        ) { [weak self] notification in
-            guard let source = notification.object as? ReaderTranslationPage.LoadedSource else { return }
-            Task { @MainActor [weak self] in
-                guard let self, isVisible, !isScrubbing else { return }
-                if self.usesV2Pipeline { self.visiblePagesDidChange(); return }
-                self.layoutPreparer.sourceDidLoad(source.image, page: source.page)
-                // A delayed backing view may replace the page object captured
-                // when translation started. Refresh the actual viewport before
-                // delivering readiness to the session's completed-result path.
-                if let owner = self.owner {
-                    let visible = owner.translationVisiblePages
-                    if visible.contains(where: { $0.sourcePage?.translationCacheKey == source.page.translationCacheKey }) {
-                        self.session.refreshVisiblePages(visible,
-                            previews: self.readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
-                    }
-                }
-                self.session.sourceImageDidLoad(source.page)
-            }
-        })
-        observers.append(NotificationCenter.default.addObserver(
-            forName: TranslationImageSupport.changed, object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.session.refreshImageSupport() }
-        })
-        for name in [ReaderTranslationSettings.changed, ReaderTranslationPage.imageChanged, UIApplication.didBecomeActiveNotification] {
-            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.visiblePagesDidChange() }
-            })
-        }
-        observers.append(NotificationCenter.default.addObserver(
-            forName: UIApplication.willResignActiveNotification, object: nil, queue: .main
-        ) { [weak self] _ in Task { @MainActor in self?.cancel(reason: "app_inactive") } })
-        observers.append(NotificationCenter.default.addObserver(
-            forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                // Inspect every warning, including escalation during a recovery.
-                guard self.session.handleMemoryWarning() else { return }
-                guard self.memoryRecoveryTask == nil else { return }
-                self.memoryRecoveryTask = Task { [weak self] in
-                    guard let self else { return }
-                    ReaderTranslationRenderCache.shared.clearMemory()
-                    if #available(iOS 18.0, *) { await ReaderOCRService.shared.purge() }
-                    do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
-                    guard !Task.isCancelled else { return }
-                    self.memoryRecoveryTask = nil
-                    self.visiblePagesDidChange()
-                }
-            }
-        })
-    }
-
-    deinit {
-        scrollVisibilityTask?.cancel()
-        let previous = metadataActivityTask
-        let owner = metadataOwner
-        Task {
-            await previous?.value
-            await ReaderTranslationService.shared.setReaderActive(false, owner: owner)
-        }
-        failureNoticeTask?.cancel()
-        memoryRecoveryTask?.cancel()
-        synchronizationTask?.cancel()
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
-    }
 
     private func dismissFailureNotice() {
         failureNoticeTask?.cancel()
@@ -296,10 +180,7 @@ final class ReaderTranslationCoordinator {
     }
 
     static func localizedFailureDescription(_ error: Error) -> String {
-        if let fallback = error as? ReaderTranslationOCRFallback {
-            return fallback.underlying.localizedDescription
-        }
-        return error.localizedDescription
+        error.localizedDescription
     }
 
     private func showFailureNotice(_ error: Error) {
@@ -323,12 +204,8 @@ final class ReaderTranslationCoordinator {
             guard let self else { return }
             dismissFailureNotice()
             button.accessibilityHint = nil
-            if v2Active {
-                owner?.translationVisiblePages.forEach { $0.retryV2() }
-                visiblePagesDidChange()
-                return
-            }
-            session.retryVisibleFailures()
+            owner?.translationVisiblePages.forEach { $0.retryV2() }
+            visiblePagesDidChange()
         }, for: .touchUpInside)
         let stack = UIStackView(arrangedSubviews: [label, retry])
         stack.spacing = 12
@@ -380,35 +257,14 @@ final class ReaderTranslationCoordinator {
 
     @objc func toggle() {
         dismissFailureNotice()
-        if usesV2Pipeline {
-            button.accessibilityHint = nil
-            // The settings notification resynchronizes (or hides) visible V2 pages.
-            setEnabled(!readSettings().automaticallyTranslate)
-            visiblePagesDidChange()
-            return
-        }
-        if readSettings().automaticallyTranslate {
-            synchronizationTask?.cancel()
-            synchronizationTask = nil
-            setEnabled(false)
-            session.setTranslationVisible(false)
-            var settings = readSettings()
-            settings.rightToLeftPanelOrder = owner?.translationReadsRightToLeft ?? false
-            if settings.translateInBackground {
-                session.enable(settings: settings)
-                visiblePagesDidChange()
-            } else {
-                session.disable(preservingVisibleRendering: true)
-            }
-            updateMetadataActivity(active: settings.shouldProcessReaderPages)
-        } else {
-            button.accessibilityHint = nil
-            setEnabled(true)
-            visiblePagesDidChange()
-        }
+        button.accessibilityHint = nil
+        // The settings notification resynchronizes (or hides) visible pages.
+        setEnabled(!readSettings().automaticallyTranslate)
+        visiblePagesDidChange()
     }
 
     func resume() { isVisible = true; visiblePagesDidChange() }
+
     func suspend() {
         cancelScrollVisibility()
         dismissFailureNotice()
@@ -419,16 +275,22 @@ final class ReaderTranslationCoordinator {
         navigationDebounce.reset()
         navigationIdentity = nil
         initialSynchronizationPending = true
+        // A completed departure releases the attached bitmaps; returning to the
+        // reader re-presents them from the V2 memory cache.
+        v2Pages.allObjects.forEach { $0.hideV2() }
+        v2Pages.removeAllObjects()
+        cancelV2Lookahead()
+    }
+
+    /// Chapter changes: stop page work for the old chapter.
+    func cancel(reason: String = "cancelled") {
         v2Pages.allObjects.forEach { $0.cancelV2Work() }
         cancelV2Lookahead()
-        session.disable(reason: "reader_left")
     }
-    func cancel(reason: String = "cancelled") { session.suspendWorkForResourcePressure() }
+
     func close() {
         cancelScrollVisibility()
         dismissFailureNotice()
-        memoryRecoveryTask?.cancel()
-        memoryRecoveryTask = nil
         synchronizationTask?.cancel()
         synchronizationTask = nil
         isVisible = false
@@ -436,11 +298,10 @@ final class ReaderTranslationCoordinator {
         v2Pages.allObjects.forEach { $0.cancelV2Work() }
         v2Pages.removeAllObjects()
         cancelV2Lookahead()
-        session.close()
         owner = nil
         NotificationCenter.default.post(name: ReaderTranslationLayoutAwaiter.invalidated, object: nil)
-        // The selected OCR models remain warm across readers. Memory pressure
-        // and OCR configuration changes are the resource-release boundaries.
+        // The V2 models remain warm across readers. Memory pressure is the
+        // resource-release boundary.
     }
 
     func sliderInteractionBegan() {
@@ -449,7 +310,6 @@ final class ReaderTranslationCoordinator {
         navigationDebounce.reset()
         synchronizationTask?.cancel()
         synchronizationTask = nil
-        session.pauseForPageTurn()
     }
 
     func sliderInteractionEnded() {
@@ -459,248 +319,24 @@ final class ReaderTranslationCoordinator {
         visiblePagesDidChange()
     }
 
-    private func promoteVisibleDisplays() {
-        guard let owner, !displayPromotions.isEmpty else { return }
-        let keys = Set(owner.translationVisiblePages.compactMap { $0.sourcePage?.translationCacheKey })
-        for entry in displayPromotions where keys.contains(entry.key) { entry.promotion.promote() }
-    }
-
-    func visiblePagesDidChange() {
-        guard isVisible, let owner else { return }
-        if usesV2Pipeline {
-            visiblePagesDidChangeV2(owner)
-            return
-        }
-        if v2Active { leaveV2Pipeline() }
-        promoteVisibleDisplays()
-        session.setTranslationVisible(readSettings().automaticallyTranslate)
-        updateMetadataActivity(active: readSettings().shouldProcessReaderPages)
-        let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
-        let moved = navigationIdentity != identity
-        var delay: UInt64 = 80_000_000
-        if moved {
-            dismissFailureNotice()
-            delay = navigationDebounce.delay(chapter: owner.translationChapterKey,
-                                             index: owner.translationCurrentPageIndex,
-                                             now: ProcessInfo.processInfo.systemUptime)
-            if initialSynchronizationPending {
-                delay = 80_000_000
-                // A chapter whose pages are still loading has no position yet.
-                if !owner.translationVisiblePages.isEmpty || !owner.translationUpcomingPages.isEmpty {
-                    initialSynchronizationPending = false
-                }
-            }
-            navigationIdentity = identity
-            let pages = owner.translationUpcomingPages
-            let index = owner.translationCurrentPageIndex
-            let destination = pages.indices.contains(index) ? pages[index] : nil
-            session.pauseForPageTurn(preservingRecognitionFor: destination, visiblePages: owner.translationVisiblePages)
-            synchronizationTask?.cancel()
-            synchronizationTask = nil
-        }
-        // Existing results can display immediately without starting OCR.
-        session.refreshVisiblePages(owner.translationVisiblePages,
-            previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
-        // Cache-only preparation follows navigation immediately. Otherwise rapid
-        // scrolling keeps cancelling lookahead and postponing its restart by 350ms.
-        // OCR/provider work stays paused until the navigation debounce expires.
-        if moved, !isScrubbing, session.state == .on, !owner.translationVisiblePages.isEmpty,
-           readSettings().shouldProcessReaderPages {
-            let visible = owner.translationVisiblePages
-            let context = visible.first.flatMap { page in
-                page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0,
-                    widePageLayout: owner.translationWidePageLayout(for: nil)).context }
-            }
-            session.update(items: owner.translationChapterItems,
-                visible: visible, context: owner.translationChapterKey,
-                currentPageIndex: owner.translationCurrentPageIndex, renderContext: context,
-                processUncachedPages: false)
-        }
-        guard !isScrubbing, synchronizationTask == nil else { return }
-        synchronizationTask = Task { [weak self] in
-            do { try await Task.sleep(nanoseconds: delay) }
-            catch { return }
-            guard !Task.isCancelled, let self else { return }
-            synchronizationTask = nil
-            synchronizeVisiblePages()
-        }
-    }
-
-    private func synchronizeVisiblePages() {
-        guard #available(iOS 18.0, *), let owner, isVisible, UIApplication.shared.applicationState == .active else { return }
-        let visible = owner.translationVisiblePages
-        let visibleKeys = visible.compactMap { $0.sourcePage?.translationCacheKey }
-        session.refreshVisiblePages(visible, previews: readSettings().automaticallyTranslate ? owner.translationPreviewPages : [])
-        let renderContext = visible.first.flatMap { page in
-            page.imageView.map { ReaderTranslationLayoutGeometry(page: page, imageView: $0,
-                widePageLayout: owner.translationWidePageLayout(for: nil)).context }
-        }
-        session.update(items: owner.translationChapterItems, visible: visible, context: owner.translationChapterKey,
-                       currentPageIndex: owner.translationCurrentPageIndex, renderContext: renderContext)
-        if visibleKeys != diagnosticVisibleKeys {
-            diagnosticVisibleKeys = visibleKeys
-            ReaderTranslationDiagnostics.record("visible_window", page: owner.translationCurrentPageIndex + 1, count: visible.count)
-            for page in visible {
-                if let key = page.sourcePage?.translationCacheKey {
-                    let diagnostic = session.diagnosticContext(pageKey: key)
-                    page.diagnosticContext = diagnostic
-                    ReaderTranslationDiagnostics.record("visible_page", count: Int(page.imageView?.bounds.width ?? 0),
-                        code: Int(page.imageView?.bounds.height ?? 0), context: diagnostic)
-                }
-            }
-        }
-        var settings = readSettings()
-        settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
-        if settings.shouldProcessReaderPages { session.enable(settings: settings) } else { session.disable(preservingVisibleRendering: true) }
-    }
-}
-
-extension ReaderTranslationCoordinator {
-    /// These observers belong to one render request. Turning translation off or
-    /// closing the reader cancels even a queued exporter, releasing its source.
-    private func performImagePreparation(
-        _ operation: @escaping @MainActor () async throws -> ReaderTranslationImageExporter.LoadedPresentation
-    ) async throws -> ReaderTranslationImageExporter.LoadedPresentation {
-        let rendering = Task { try await operation() }
-        let names = [ReaderTranslationSettings.changed, ReaderTranslationLayoutAwaiter.invalidated,
-                     UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification]
-        let observers = names.map { name in
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in rendering.cancel() }
-        }
-        defer { observers.forEach { NotificationCenter.default.removeObserver($0) } }
-        return try await withTaskCancellationHandler { try await rendering.value } onCancel: { rendering.cancel() }
-    }
-
-    private func imagePreparationSettings() -> ReaderTranslationSettings? {
-        guard let owner else { return nil }
-        var settings = readSettings()
-        // V2 pages present their own bitmaps; never restore legacy renders.
-        guard settings.automaticallyTranslate, settings.overlay.visible, !settings.usesPipelineV2 else { return nil }
-        settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
-        return settings
-    }
-
-    /// Return a finished source-aspect image before the loader exposes the source.
-    /// Cached assets and cold native renders work without a window. Requests
-    /// wait only for measured reader geometry, using layout events instead of polling.
-    func prepareCachedImage(
-        image: UIImage, page: Page,
-        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
-    ) async throws -> ReaderTranslationPreparedImage? {
-        let key = page.translationCacheKey
-        let diagnostic = session.diagnosticContext(pageKey: key)
-        return try await ReaderTranslationDiagnostics.measure("loaded_presentation", context: diagnostic) {
-            try await prepareCachedImageBody(image: image, page: page, geometry: geometry)
-        }
-    }
-
-    private func prepareCachedImageBody(
-        image: UIImage, page: Page,
-        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
-    ) async throws -> ReaderTranslationPreparedImage? {
-        guard #available(iOS 18.0, *) else { return nil }
-        let pageKey = page.translationCacheKey
-        let crop = page.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-        func renderKey(_ settings: ReaderTranslationSettings, _ geometry: ReaderTranslationImageGeometry) -> String {
-            ReaderTranslationCacheIdentity.render(page: pageKey, settings: settings, imageSize: image.size,
-                viewport: geometry.viewport, scale: geometry.scale, aspectFit: geometry.aspectFit, crop: crop, dark: geometry.dark)
-        }
-        while true {
-            try Task.checkCancellation()
-            guard owner != nil else { throw CancellationError() }
-            guard let settings = imagePreparationSettings() else { return nil }
-            let translationIdentity = ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings)
-            let result = try await session.cachedRegions(for: page, settings: settings, sourceImage: image)
-            try Task.checkCancellation()
-            guard owner != nil else { throw CancellationError() }
-            guard imagePreparationSettings() == settings,
-                  translationIdentity == ReaderTranslationCacheIdentity.translation(page: pageKey, settings: settings) else { continue }
-            guard let result else {
-                ReaderTranslationDiagnostics.record("loaded_translation_miss")
-                return nil
-            }
-            ReaderTranslationDiagnostics.record("loaded_translation_hit", count: result.count)
-            // cachedRegions verified this reader's decoded source. Lend it to a nearby
-            // renderer while this presentation waits for geometry or an export permit.
-            if page.memoizedTranslationSource(for: image) != nil {
-                layoutPreparer.sourceDidLoad(image, page: page)
-            }
-            let regions = result.compactMap { $0.cropped(to: crop) }
-            guard !regions.isEmpty else { return nil }
-            guard let current = geometry(), current.isValid else {
-                guard let host = (owner as? UIViewController)?.viewIfLoaded else {
-                    throw ReaderTranslationImageExporter.ExportError.unavailable
-                }
-                ReaderTranslationDiagnostics.record("loaded_geometry_wait")
-                try await ReaderTranslationLayoutAwaiter.wait(in: host) { [weak self] in
-                    self?.imagePreparationSettings() != settings || geometry()?.isValid == true
-                }
-                continue
-            }
-            let key = renderKey(settings, current)
-            let host = (owner as? UIViewController)?.viewIfLoaded
-            let cache = owner?.translationPersistsCache == true ? session.renderCache : nil
-            let promotion = TranslationRequestPromotion()
-            displayPromotions.append((pageKey, promotion))
-            promoteVisibleDisplays()
-            defer { displayPromotions.removeAll { $0.promotion === promotion } }
-            let rendered: ReaderTranslationImageExporter.LoadedPresentation
-            do {
-                rendered = try await performImagePreparation {
-                    try await ReaderTranslationImageExporter.renderLoadedPresentation(
-                        image: image, regions: regions, settings: settings, viewport: current.viewport,
-                        scale: current.scale, aspectFit: current.aspectFit, dark: current.dark,
-                        host: host, cache: cache, key: key,
-                        pageIdentity: translationIdentity,
-                        priority: .promotable(promotion)
-                    )
-                }
-            } catch is CancellationError {
-                try Task.checkCancellation()
-                guard owner != nil else { throw CancellationError() }
-                // A request event cancelled the child. Re-read settings so OFF
-                // can return the source immediately and background can use RAM.
-                continue
-            } catch {
-                try Task.checkCancellation()
-                guard owner != nil else { throw CancellationError() }
-                if imagePreparationSettings() != settings || geometry() != current { continue }
-                throw error
-            }
-            try Task.checkCancellation()
-            guard owner != nil else { throw CancellationError() }
-            guard imagePreparationSettings() == settings, let latest = geometry(), latest.isValid,
-                  renderKey(settings, latest) == key else { continue }
-            return ReaderTranslationPreparedImage(image: rendered.image, regions: result, settings: settings,
-                freshSettledGeometry: rendered.freshSettledSource ? current : nil,
-                isCurrent: { [weak self] in
-                    guard self?.imagePreparationSettings() == settings, let latest = geometry(), latest.isValid else { return false }
-                    return renderKey(settings, latest) == key
-                }, matchesSourceImage: { [weak image] candidate in candidate === image })
-        }
-    }
-}
-
-// MARK: - V2 pipeline
-
-extension ReaderTranslationCoordinator {
-    var usesV2Pipeline: Bool { readSettings().usesPipelineV2 }
-
     fileprivate func applyButtonState(enabled: Bool) {
         button.image = UIImage(systemName: enabled ? "character.bubble.fill" : "character.bubble")
         button.tintColor = enabled ? .systemGreen : .secondaryLabel
         button.accessibilityValue = NSLocalizedString(enabled ? "TRANSLATION_STATE_ON" : "TRANSLATION_STATE_OFF")
     }
 
-    private func visiblePagesDidChangeV2(_ owner: any ReaderTranslationOwner) {
-        if !v2Active {
-            v2Active = true
-            // Tear down legacy work and presentations once; V2 owns the pages now.
-            session.disable(reason: "v2_pipeline")
-        }
+    /// Settings for reader pages: the saved preferences plus this reader's direction.
+    private func pageSettings() -> ReaderTranslationSettings {
+        var settings = readSettings()
+        if let owner { settings.readingDirection = owner.translationReadingDirection }
+        return settings
+    }
+
+    func visiblePagesDidChange() {
+        guard isVisible, let owner else { return }
         let settings = readSettings()
         applyButtonState(enabled: settings.automaticallyTranslate)
-        updateMetadataActivity(active: settings.automaticallyTranslate)
+        updateMetadataActivity(active: settings.shouldProcessReaderPages)
         let visible = owner.translationVisiblePages
         // Pages that scrolled away stop their pipeline (and provider) work.
         for page in v2Pages.allObjects where !visible.contains(where: { $0 === page }) {
@@ -727,20 +363,19 @@ extension ReaderTranslationCoordinator {
             do { try await Task.sleep(nanoseconds: delay) } catch { return }
             guard !Task.isCancelled, let self else { return }
             synchronizationTask = nil
-            synchronizeVisiblePagesV2()
+            synchronizeVisiblePages()
         }
     }
 
-    private func synchronizeVisiblePagesV2() {
-        guard let owner, isVisible, usesV2Pipeline, UIApplication.shared.applicationState == .active else { return }
-        var settings = readSettings()
-        settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
+    private func synchronizeVisiblePages() {
+        guard let owner, isVisible, UIApplication.shared.applicationState == .active else { return }
+        let settings = pageSettings()
         let persistsCache = owner.translationPersistsCache
         for page in owner.translationVisiblePages {
             guard settings.automaticallyTranslate else { page.hideV2(); continue }
             v2Pages.add(page)
             page.processV2(settings: settings, persistsCache: persistsCache, onPresented: { [weak self] in
-                // Visible pages done: widen the look-ahead like the legacy preloader.
+                // Visible pages done: widen the look-ahead.
                 self?.updateV2Lookahead()
             }, onFailure: { [weak self] error in
                 guard let self else { return }
@@ -751,54 +386,117 @@ extension ReaderTranslationCoordinator {
         updateV2Lookahead()
     }
 
-    /// Legacy look-ahead policy: one page after the viewport while visible
-    /// pages are pending, two once they are presented (or in background-only
-    /// mode), bounded by the pretranslation limit. Results land in the V2 disk
-    /// cache; a page that becomes visible joins its running computation.
+    // MARK: Cached presentation
+
+    /// Returns a cached V2 page bitmap for the loader to attach in the same
+    /// commit as the source image, so a cached page never flashes the source.
+    /// A miss returns nil and the page translates once it is visible.
+    func prepareCachedImage(
+        image: UIImage, page: Page,
+        geometry: @escaping @MainActor () -> ReaderTranslationImageGeometry?
+    ) async throws -> ReaderTranslationPreparedImage? {
+        guard #available(iOS 18.0, *), let owner else { return nil }
+        let settings = pageSettings()
+        guard settings.automaticallyTranslate, settings.overlay.visible else { return nil }
+        let crop = page.translationSourceRect ?? ReaderTranslationSplitGeometry.unit
+        let key = ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: crop, settings: settings)
+        let cached = await ReaderTranslationV2Service.shared.cachedPage(cacheKey: key, persists: owner.translationPersistsCache)
+        try Task.checkCancellation()
+        guard let cached else {
+            ReaderTranslationDiagnostics.record("loaded_translation_miss")
+            return nil
+        }
+        // The cached bitmap is the upright source; it must match the source size.
+        let upright = image.imageOrientation == .up || image.imageOrientation == .upMirrored ||
+            image.imageOrientation == .down || image.imageOrientation == .downMirrored
+        let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        let expected = upright ? pixelSize : CGSize(width: pixelSize.height, height: pixelSize.width)
+        guard abs(CGFloat(cached.width) - expected.width) <= 1, abs(CGFloat(cached.height) - expected.height) <= 1 else {
+            return nil
+        }
+        ReaderTranslationDiagnostics.record("loaded_translation_hit")
+        return ReaderTranslationPreparedImage(
+            image: UIImage(cgImage: cached, scale: image.scale, orientation: .up), regions: [], settings: settings,
+            v2CacheKey: key,
+            isCurrent: { [weak self] in
+                guard let self, self.owner != nil else { return false }
+                let current = self.pageSettings()
+                return current.automaticallyTranslate && current.overlay.visible &&
+                    ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: crop, settings: current) == key
+            }, matchesSourceImage: { [weak image] candidate in candidate === image })
+    }
+}
+
+// MARK: - Look-ahead
+
+extension ReaderTranslationCoordinator {
+    /// One page after the viewport while visible pages are pending, two once
+    /// they are presented (or in background-only mode), bounded by the
+    /// pretranslation limit. Results land in the V2 caches; a page that
+    /// becomes visible joins its running computation. Wide pages the reader
+    /// shows as halves are translated per half, in reading order.
     private func updateV2Lookahead() {
-        guard #available(iOS 18.0, *), let owner, isVisible, usesV2Pipeline, owner.translationPersistsCache else {
+        guard #available(iOS 18.0, *), let owner, isVisible, owner.translationPersistsCache else {
             cancelV2Lookahead()
             return
         }
-        var settings = readSettings()
-        settings.rightToLeftPanelOrder = owner.translationReadsRightToLeft
+        let settings = pageSettings()
         guard settings.shouldProcessReaderPages else { cancelV2Lookahead(); return }
         let targets = Self.v2LookaheadPages(
             upcoming: owner.translationUpcomingPages, visible: owner.translationVisiblePages,
             currentIndex: owner.translationCurrentPageIndex, settings: settings)
         let unit = ReaderTranslationSplitGeometry.unit
-        func key(_ page: Page) -> String {
-            ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: unit, settings: settings)
+        func key(_ page: Page, _ crop: CGRect = unit) -> String {
+            ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: crop, settings: settings)
         }
         // Visible pages keep any look-ahead already running for them: their
         // demand joins (and promotes) that computation instead of restarting.
-        let retained = Set(targets.map(key)).union(owner.translationVisiblePages.compactMap { $0.sourcePage.map(key) })
+        let retained = Set(targets.map { key($0) }).union(owner.translationVisiblePages.compactMap { $0.sourcePage.map { key($0) } })
         for (stale, task) in v2Lookahead where !retained.contains(stale) {
             task.cancel()
             v2Lookahead[stale] = nil
         }
         for page in targets {
-            let cacheKey = key(page)
-            guard v2Lookahead[cacheKey] == nil else { continue }
+            let taskKey = key(page)
+            guard v2Lookahead[taskKey] == nil else { continue }
+            let splitsWidePages = owner.translationWidePageLayout(for: page) == .halves
+            let direction = settings.readingDirection
             let loader = v2Loader
-            v2Lookahead[cacheKey] = Task { [weak self] in
-                defer { if let self, !Task.isCancelled { self.v2Lookahead[cacheKey] = nil } }
+            v2Lookahead[taskKey] = Task { [weak self] in
+                defer { if let self, !Task.isCancelled { self.v2Lookahead[taskKey] = nil } }
                 do {
                     let image = try await loader.load(page)
                     try Task.checkCancellation()
-                    let pixels = await Task.detached(priority: .utility) {
-                        ReaderTranslationImagePreparation.uprightSourceImage(image).cgImage
-                    }.value
-                    try Task.checkCancellation()
-                    guard let pixels else { return }
-                    _ = try await ReaderTranslationV2Service.shared.translatePage(
-                        pixels, cacheKey: cacheKey, settings: settings, priority: .prefetch)
-                    ReaderTranslationDiagnostics.record("v2_lookahead_finished", page: page.index + 1)
+                    let crops = Self.v2LookaheadCrops(imageSize: image.size, splitsWidePages: splitsWidePages, direction: direction)
+                    for crop in crops {
+                        guard let part = ReaderTranslationSplitGeometry.image(image, crop: crop) else { continue }
+                        let pixels = await Task.detached(priority: .utility) {
+                            ReaderTranslationImagePreparation.uprightSourceImage(part).cgImage
+                        }.value
+                        try Task.checkCancellation()
+                        guard let pixels else { continue }
+                        _ = try await ReaderTranslationV2Service.shared.translatePage(
+                            pixels, cacheKey: key(page, crop), settings: settings, priority: .prefetch)
+                    }
+                    ReaderTranslationDiagnostics.record("v2_lookahead_finished", page: page.index + 1, count: crops.count)
                 } catch {
                     // Offscreen failures never surface; the page retries when visible.
                 }
             }
         }
+    }
+
+    /// The crops a look-ahead page is translated under: the whole page, or both
+    /// halves (reading order first) when the reader splits wide pages.
+    nonisolated static func v2LookaheadCrops(
+        imageSize: CGSize, splitsWidePages: Bool, direction: V2ReadingDirection
+    ) -> [CGRect] {
+        guard splitsWidePages, imageSize.height > 0, imageSize.width / imageSize.height > 1 else {
+            return [ReaderTranslationSplitGeometry.unit]
+        }
+        let left = CGRect(x: 0, y: 0, width: 0.5, height: 1)
+        let right = CGRect(x: 0.5, y: 0, width: 0.5, height: 1)
+        return direction == .rightToLeft ? [right, left] : [left, right]
     }
 
     static func v2LookaheadPages(
@@ -836,18 +534,5 @@ extension ReaderTranslationCoordinator {
     private func cancelV2Lookahead() {
         v2Lookahead.values.forEach { $0.cancel() }
         v2Lookahead.removeAll()
-    }
-
-    /// Switching V2 off returns every page to the source image; the legacy
-    /// session then restarts from its own caches.
-    private func leaveV2Pipeline() {
-        v2Active = false
-        cancelV2Lookahead()
-        synchronizationTask?.cancel()
-        synchronizationTask = nil
-        navigationIdentity = nil
-        v2Pages.allObjects.forEach { $0.hideV2() }
-        v2Pages.removeAllObjects()
-        owner?.translationVisiblePages.forEach { $0.hideV2() }
     }
 }

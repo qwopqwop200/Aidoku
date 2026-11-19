@@ -7,29 +7,6 @@ import UIKit
 /// Real bundled model checks; opt in through AidokuFull or this focused suite.
 @Suite(.serialized)
 struct NativeOCRMangaTests {
-    @Test @MainActor func bundledMangaPipelineRecognizesJapaneseText() async throws {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 384, height: 128), format: format).image { context in
-            UIColor.white.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 384, height: 128))
-            ("今日はいい天気です" as NSString).draw(at: CGPoint(x: 24, y: 40), withAttributes: [
-                .font: UIFont.systemFont(ofSize: 30), .foregroundColor: UIColor.black
-            ])
-        }
-        let pipeline = NativeCoreMLOCRPipeline()
-        do {
-            let result = try await pipeline.recognize(image: #require(image.cgImage), requestID: "manga-japanese", confidenceThreshold: 0.75)
-            #expect(result.lines.map(\.text).joined().contains("天気"))
-            #expect(result.diagnostics.detection.inputShape[3] <= 960)
-            #expect(result.diagnostics.detectionModel == NativeCoreMLDetector.modelResourceName)
-            #expect(result.diagnostics.recognitionModel == NativeCoreMLRecognizer.modelResourceName)
-            await pipeline.purgeResources()
-        } catch {
-            await pipeline.purgeResources()
-            throw error
-        }
-    }
 
     @Test func bundledMangaRecognizerAcceptsDynamicNativeABI() throws {
         let profile = NativeCoreMLOCRModelProfile.profile(for: .manga)

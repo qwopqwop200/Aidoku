@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Copy installed Aidoku preferences from iPhone into the local ignored .env.
-The existing API key stays in .env; Keychain is never read or modified.
+"""Copy the installed app's provider/language settings from iPhone into the local ignored .env.
+The existing API key stays in .env; Keychain is never read or modified. The V2 host
+(swift Scripts/image-translation.swift) reads these values; V2 has no OCR or overlay settings.
 """
 import argparse
 from datetime import datetime, timezone
@@ -12,63 +13,34 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = 'Reader.translation.'
-OCR_MINIMUM_SIZE = 32
-OCR_MAXIMUM_DETECTOR_SIDE = 1184
-OCR_MAXIMUM_RECOGNIZER_WIDTH = 1184
-MANGA_MAXIMUM_RECOGNIZER_WIDTH = 2400
-
-
-def ocr_profile(ocr, tier):
-    """Mirror effective ReaderOCRConfiguration after loading saved preferences."""
-    manga = tier == 'manga'
-    recognizer_limit = MANGA_MAXIMUM_RECOGNIZER_WIDTH if manga else OCR_MAXIMUM_RECOGNIZER_WIDTH
-    pixel_threshold, box_threshold = (.85, .25) if manga else ((.2, .4) if tier == 'tiny' else (.3, .6))
-    confidence = ocr['confidenceThreshold']
-    if confidence == .75 or manga and confidence in (.50, .45):
-        confidence = .30 if manga else .50
-    return {
-        'AIDOKU_OCR_TIER': tier,
-        'AIDOKU_OCR_CONFIDENCE': confidence,
-        'AIDOKU_OCR_DETECTOR_SIDE': min(OCR_MAXIMUM_DETECTOR_SIDE, max(OCR_MINIMUM_SIZE, ocr['detectorMaximumSide'])),
-        'AIDOKU_OCR_RECOGNIZER_WIDTH': min(recognizer_limit, max(OCR_MINIMUM_SIZE, ocr['recognizerMaximumWidth'])),
-        'AIDOKU_OCR_DETECTOR_PIXEL_THRESHOLD': ocr.get('detectorPixelThreshold', pixel_threshold),
-        'AIDOKU_OCR_DETECTOR_CONFIDENCE_THRESHOLD': ocr.get('detectorConfidenceThreshold', box_threshold),
-        'AIDOKU_OCR_DETECTOR_MINIMUM_BOX_SIDE': ocr.get('detectorMinimumBoxSide', 3),
-    }
+MAXIMUM_PROVIDER_CONCURRENCY = 3  # The app caps image-attached page calls at three.
+# Keys written by earlier versions for the removed legacy host; dropped on sync.
+RETIRED = ('AIDOKU_OCR_', 'AIDOKU_IPHONE_OVERLAY_JSON', 'AIDOKU_IPHONE_SCHEDULING_JSON', 'AIDOKU_TRANSLATION_RTL',
+           'AIDOKU_TRANSLATION_INCLUDE_IMAGE', 'AIDOKU_TRANSLATION_FILTER_', 'AIDOKU_RENDER_VIEWPORT')
 
 
 def profile(prefs):
+    """Provider and language settings the V2 host reads (Scripts/image-translation-v2/V2HostSettings.swift)."""
     def get(name, default=None):
         value = prefs.get(PREFIX + name, default)
         return json.loads(value) if isinstance(value, bytes) else value
     if get('provider') != 'custom':
         raise ValueError('Expected the installed custom-server profile; refusing to guess credentials/provider.')
-    custom = get('custom'); ocr = get('ocr'); overlay = get('overlay')
-    if not all(isinstance(value, dict) for value in [custom, ocr, overlay]):
-        raise ValueError('Installed app preferences are missing custom/OCR/overlay settings.')
-    tier = ocr.get('modelTier', get('modelTier', 'manga'))
-    values = {
-        'AIDOKU_IMAGE_JOBS': get('concurrency', 16),
+    custom = get('custom')
+    if not isinstance(custom, dict):
+        raise ValueError('Installed app preferences are missing the custom provider settings.')
+    reasoning = custom.get('reasoningEffort', 'modelDefault')
+    return {
         'AIDOKU_TRANSLATION_BASE_URL': custom['baseURL'],
         'AIDOKU_TRANSLATION_MODEL': custom['model'],
         'AIDOKU_TRANSLATION_PROTOCOL': custom['apiProtocol'],
-        'AIDOKU_TRANSLATION_REASONING': custom.get('reasoningEffort', 'modelDefault'),
-        'AIDOKU_TRANSLATION_TIMEOUT': 120 if custom.get('reasoningEffort') == 'none' else 300,
+        'AIDOKU_TRANSLATION_REASONING': reasoning,
+        'AIDOKU_TRANSLATION_TIMEOUT': 120 if reasoning == 'none' else 300,
         'AIDOKU_TRANSLATION_SOURCE': get('sourceLanguage', 'auto'),
         'AIDOKU_TRANSLATION_TARGET': get('targetLanguage', 'ko'),
-        'AIDOKU_TRANSLATION_SOURCE_LANGUAGES': get('translationSourceLanguages', []),
-        # The app does not currently persist/load a panel-order preference.
-        'AIDOKU_TRANSLATION_RTL': False,
-        **ocr_profile(ocr, tier),
-        'AIDOKU_IPHONE_OVERLAY_JSON': overlay,
-        # Retain app scheduling/cache preferences as provenance. CLI uses concurrency above; chapter/cache scheduling stays app-only.
-        'AIDOKU_IPHONE_SCHEDULING_JSON': {
-            'concurrency': get('concurrency', 16), 'automatic': get('automatic', True),
-            'background': get('background', False), 'pretranslationLimit': get('pretranslationLimit'),
-            'cacheLimitBytes': get('cacheLimitBytes')},
+        'AIDOKU_TRANSLATION_CONCURRENCY': min(MAXIMUM_PROVIDER_CONCURRENCY, max(1, int(get('concurrency', 3)))),
         'AIDOKU_IPHONE_CAPTURED_AT': datetime.now(timezone.utc).isoformat(),
     }
-    return values
 
 
 def literal(value):
@@ -88,6 +60,8 @@ def write_env(path, values):
     output = []
     for line in lines:
         key = line.split('=', 1)[0].strip()
+        if key.startswith(RETIRED):
+            continue
         if key in values:
             if key in pending: output.append(key + '=' + literal(pending.pop(key)))
         else: output.append(line)
@@ -116,7 +90,7 @@ def main():
     values['AIDOKU_IPHONE_DEVICE'] = args.device
     values['AIDOKU_IPHONE_BUNDLE_ID'] = args.bundle_id
     write_env(ROOT / '.env', values)
-    print('Imported installed iPhone preferences into .env; existing API key preserved.')
+    print('Imported installed iPhone provider settings into .env; existing API key preserved.')
 
 
 if __name__ == '__main__':
