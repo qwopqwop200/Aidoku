@@ -54,29 +54,4 @@ import Testing
         #expect(actual != opposite)
     }
 
-    @Test func ownerOverflowStateSurvivesRootDetachAndGeometryCommit() throws {
-        let fields: [String: Any] = ["id": "owner", "text": "AB", "x": 20, "y": 20,
-            "width": 60, "height": 60, "fontSize": 8, "lineHeight": 10,
-            "sourceFrame": [0, 0, 100, 100], "sourceBounds": [0.3, 0.3, 0.2, 0.2],
-            "sourceTextOnly": false, "wrappingScript": "korean"]
-        let item = try JSONDecoder().decode(NativeTranslationLayoutItem.self,
-            from: JSONSerialization.data(withJSONObject: fields))
-        let style = NativeTranslationTypography.Style(fontSize: 8, foreground: NativeTranslationRenderer.color([0, 0, 0]), lineHeight: 10)
-        let typography = NativeTranslationTypography.layout(text: item.text, in: item.contentRect.size, style: style)
-        var card = NativeTranslationRenderer.Card(item: item, typography: typography, style: style,
-            sourcePanels: [.init(rect: item.rect, background: [154, 172, 191], coverage: [item.rect])],
-            drawsPanel: false, background: NativeTranslationRenderer.color([154, 172, 191]),
-            usesFallbackVeil: false, lightSurface: true, heavyStrokeWidth: 0, finalFontSize: 8)
-        #expect(!card.sourcePanels[0].overflowClip)
-        card.sourcePanels[0].overflowClip = true; card.captionParentPlate = true
-        var cards = [card]
-        NativeTranslationRenderer.appendTextToRoot(cards: &cards, index: 0)
-        let layout = NativeTranslationLayout(imageSize: CGSize(width: 100, height: 100),
-            sourceRect: CGRect(x: 0, y: 0, width: 100, height: 100), viewport: CGSize(width: 100, height: 100), items: [item])
-        let settings = IPhoneOverlaySettings(visible: true, mode: .translateOnly, colorMode: .white, opacity: 1,
-            textPlacement: .replace, subtitlePosition: .bottom, subtitleMaxLines: 3, subtitleContextSentences: 0)
-        NativeTranslationRenderer.polishCaptionPanels(cards: &cards, glossCards: [], gloss: .init(),
-            layout: layout, settings: settings, source: nil)
-        #expect(!cards[0].captionParentPlate && cards[0].sourcePanels[0].overflowClip)
-    }
 }

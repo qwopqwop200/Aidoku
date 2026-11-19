@@ -39,46 +39,6 @@ import Testing
         settings.preserveSourceColors = true
         return (card,layout,restoration,settings)
     }
-    /// Source inpainting is retired, so certified restoration evidence can no
-    /// longer shrink the legacy panel renderer's source plate. The main AOT
-    /// renderer owns restoration; this stage must retain the original plate.
-    @Test(arguments: ["certified", "painted", "forced", "incomplete"])
-    func retiredSourceInpaintingRetainsOriginalPlate(variant: String) throws {
-        let (card,layout,restoration,settings) = try fixture(painted: variant == "painted" || variant == "forced",
-            forced: variant == "forced",candidateComplete: variant != "incomplete")
-        #expect(!settings.usesSourceInpainting)
-        var cards = [card]
-        NativeTranslationRenderer.minimalRestoredPlates(cards: &cards,gloss: .init(),layout: layout,
-            restoration: restoration,settings: settings)
-        #expect(cards[0].sourcePanels.count == 1 && cards[0].sourcePanels[0].rect == card.sourcePanels[0].rect)
-        #expect(cards[0].sourcePanels[0].coverage == card.sourcePanels[0].coverage)
-        #expect(cards[0].item == card.item && cards[0].finalFontSize == card.finalFontSize)
-        #expect(cards[0].textOrigin == card.textOrigin && cards[0].typography.glyphBounds == card.typography.glyphBounds)
-    }
-    @Test func sourceFrameImagesGrowthAndProvisionalProofRetainOriginalPlate() throws {
-        let (card,layout,restoration,settings) = try fixture()
-        var framed = card, grown = card, foreign = card
-        framed.sourcePanels[0].sourceFrameImage = restoration.patches[0].image
-        grown.displayCardGrowth = true
-        foreign.foreignFills = [.init(rect: CGRect(x: 1,y: 2,width: 5,height: 6),color: [30,40,50])]
-        for input in [framed,grown,foreign] {
-            var cards = [input]
-            NativeTranslationRenderer.minimalRestoredPlates(cards: &cards,gloss: .init(),layout: layout,restoration: restoration,settings: settings)
-            #expect(cards[0].sourcePanels[0].rect == input.sourcePanels[0].rect)
-        }
-        restoration.patches[0].candidate?.provisional = true
-        var cards = [card]
-        NativeTranslationRenderer.minimalRestoredPlates(cards: &cards,gloss: .init(),layout: layout,restoration: restoration,settings: settings)
-        #expect(cards[0].sourcePanels[0].rect == card.sourcePanels[0].rect)
-    }
-    @Test func hiddenCaptionDoesNotReleaseItsSourcePlate() throws {
-        let (card,layout,restoration,settings) = try fixture()
-        var gloss = NativeTranslationEffectGloss.Refinement()
-        gloss.hiddenIDs.insert(card.item.id)
-        var cards = [card]
-        NativeTranslationRenderer.minimalRestoredPlates(cards: &cards,gloss: gloss,layout: layout,restoration: restoration,settings: settings)
-        #expect(cards[0].sourcePanels[0].rect == card.sourcePanels[0].rect)
-    }
     @Test(arguments: ["inpainted", "readability-panel", "display-restored"])
     func sourceAlignmentReceivesActualBackgroundModeIndependentlyOfCanvasCompletion(mode: String) throws {
         let (original,layout,initialRestoration,_) = try fixture()

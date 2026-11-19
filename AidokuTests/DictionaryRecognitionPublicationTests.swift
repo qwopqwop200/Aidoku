@@ -67,33 +67,4 @@ struct DictionaryRecognitionPublicationTests {
         #expect(await task.value == false)
         #expect(recognizer.orderedClusterForObservation(0) == nil)
     }
-
-    /// Bounded diagnostic, no Vision/model. Measures construction separately from
-    /// short publication/reset critical sections. Not a screen latency benchmark.
-    @Test func publicationTimingSeparatesClusterWorkFromLock() throws {
-        let recognizer = TextRecognizer()
-        let input = (0..<200).map { index in
-            observation("字", x: CGFloat(index % 10) * 0.09, y: CGFloat(index / 10) * 0.045)
-        }
-        var samples: [[String: Any]] = []
-        for iteration in 0..<6 {
-            let start = ProcessInfo.processInfo.systemUptime
-            let prepared = TextRecognizer.prepareAnalysis(input)
-            let afterPrepare = ProcessInfo.processInfo.systemUptime
-            #expect(recognizer.commitAnalysis(prepared, generation: recognizer.analysisGeneration()))
-            let afterCommit = ProcessInfo.processInfo.systemUptime
-            #expect(recognizer.orderedClusterForObservation(199) != nil)
-            recognizer.reset()
-            let afterReset = ProcessInfo.processInfo.systemUptime
-            samples.append(["iteration": iteration, "observations": input.count,
-                            "prepareMS": (afterPrepare - start) * 1000,
-                            "commitWithGenerationReadMS": (afterCommit - afterPrepare) * 1000,
-                            "lookupAndResetMS": (afterReset - afterCommit) * 1000])
-        }
-        let directory = URL.documentsDirectory.appendingPathComponent("FullAuditPerformance/DictionaryPublication")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let output = directory.appendingPathComponent(UUID().uuidString + ".json")
-        try JSONSerialization.data(withJSONObject: samples, options: [.prettyPrinted, .sortedKeys])
-            .write(to: output, options: .atomic)
-    }
 }

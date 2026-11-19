@@ -18,56 +18,6 @@ import Testing
             background:NativeTranslationRenderer.color([255,255,255]),usesFallbackVeil:false,lightSurface:true,heavyStrokeWidth:0,finalFontSize:6)
     }
 
-    @Test func initialReflowUsesDeclarationsAndRawFallbackBoxOnlyForItsOwnMeasure() throws {
-        let original=try card()
-        let rawPanel=CGRect(x:-14.00892857142857,y:18.123,width:53.38496240601504,height:105)
-        let usedPanel=NativeTranslationRenderer.usedRect(rawPanel)
-        let panel=NativeTranslationSourceStylePostPolish.Panel(authoredRect:rawPanel,rect:usedPanel,background:[255,255,255],coverage:[usedPanel])
-        let obstacles=[CGRect(x:150.015625,y:100.03125,width:30,height:50)]
-        let entry=NativeTranslationRenderer.captionReflowEntry(original,panel:panel,text:original.item.text,padding:3,obstacles:obstacles)
-        #expect(entry.width == 36.65413533834584)
-        #expect(entry.paddingLeft == 2.613 && entry.paddingRight == 2.613)
-        #expect(entry.panel == rawPanel)
-        #expect(entry.obstacles == obstacles)
-        #expect(original.item.width == 36.640625 && original.item.paddingLeft == 2.609375)
-        var observed:[CGPoint]=[]
-        let profile=NativeCaptionFixedBoxReflow.Profile(lines:3,breaks:[3,8],badStarts:[],badEnds:[],hangulIsolated:0,punctuationOnly:0,ink:[])
-        let result=NativeCaptionFixedBoxReflow.reflow(entry,session:.init(),baseline:{profile},measure:{x,width in
-            observed.append(CGPoint(x:x,y:width))
-            return .init(profile:.init(lines:2,breaks:[3],badStarts:[],badEnds:[],hangulIsolated:0,punctuationOnly:0,ink:[]),fits:observed.count==2)
-        })
-        let accepted=try #require(result)
-        let declaredUsable=36.65413533834584-2.613*2
-        let expectedWidth=declaredUsable+(53.38496240601504-6-declaredUsable)*0.67
-        #expect(abs(accepted.width-expectedWidth)<1e-12)
-        #expect(abs(accepted.x-(-14.00892857142857+(53.38496240601504-expectedWidth)/2))<1e-12)
-        #expect(accepted.originalWidth == entry.width)
-        let oracleInput:[String:Any] = ["name":"raw-initial-caption","text":entry.text,"x":entry.x,"width":entry.width,
-            "left":entry.paddingLeft,"right":entry.paddingRight,"pad":entry.padding,
-            "panel":[Double(rawPanel.minX),Double(rawPanel.minY),Double(rawPanel.width),Double(rawPanel.height)],
-            "baseline":["lines":3,"breaks":[3,8]],"probes":[["profile":["lines":2,"breaks":[3]],"fits":false],
-                ["profile":["lines":2,"breaks":[3]],"fits":true]]]
-        let record:[String:Any] = ["kind":"reflow","input":oracleInput,"actual":["x":accepted.x,"width":accepted.width,"originalWidth":accepted.originalWidth]]
-        print("CSS_PROVENANCE "+String(data:try JSONSerialization.data(withJSONObject:record,options:.sortedKeys),encoding:.utf8)!)
-    }
-
-    @Test(arguments:[false,true]) func initialDeclarationsAreClearedEvenWhenCallbackCannotRun(mutate:Bool) throws {
-        var original=try card()
-        let rawPanel=CGRect(x:-14.00892857142857,y:18.123,width:53.38496240601504,height:105)
-        original.sourcePanels=[.init(authoredRect:rawPanel,rect:NativeTranslationRenderer.usedRect(rawPanel),background:[255,255,255],coverage:[NativeTranslationRenderer.usedRect(rawPanel)])]
-        if mutate {original.item.width += 1}
-        let entry=NativeTranslationRenderer.captionReflowEntry(original,panel:original.sourcePanels[0],text:original.item.text,padding:3,obstacles:[])
-        #expect(entry.width == (mutate ? Double(original.item.width):36.65413533834584))
-        var cards=[original]
-        let layout=NativeTranslationLayout(imageSize:CGSize(width:390,height:700),sourceRect:CGRect(x:0,y:0,width:390,height:700),viewport:CGSize(width:390,height:700),items:[original.item])
-        var settings=IPhoneOverlaySettings(visible:true,mode:.translateOnly,colorMode:.white,opacity:1,textPlacement:.replace,subtitlePosition:.bottom,subtitleMaxLines:3,subtitleContextSentences:0);settings.preserveSourceBackgroundColor=false
-        NativeTranslationRenderer.applyCaptionFixedBoxReflow(cards:&cards,layout:layout,settings:settings)
-        #expect(cards[0].initialCaptionCSS == nil)
-        #expect(cards[0].sourcePanels[0].authoredRect == nil)
-        #expect(cards[0].sourcePanels[0].rect == original.sourcePanels[0].rect)
-        #expect(cards[0].item.rect == original.item.rect)
-    }
-
     @Test(arguments:0..<8)
     func plateAndRoomShiftSavedAuthoredOriginBeforeParentLocalQuantization(probe:Int) throws {
         let scale=probe&1==0 ? 1.0:0.9

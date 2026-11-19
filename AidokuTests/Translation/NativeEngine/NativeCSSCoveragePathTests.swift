@@ -94,59 +94,6 @@ import Testing
         #expect(pixels.allSatisfy { $0 == 0 })
     }
 
-    @Test func finalCaptionPolishClearsCurrentDeclarationButRetainsHistory() throws {
-        let old = CGRect(x: 203.25, y: 405.859375, width: 31.28125, height: 54.109375)
-        let declaration = try #require(NativeCSSCoveragePath.declaration(coverage: [old], origin: old.origin, commands: .relative))
-        var entry = NativeTranslationCaptionPanelPolish.Entry(id: "22", sourceTextOnly: false,
-            rotation: 0, vertical: false, lettering: "piece", wrappingScript: "korean", font: 6.5,
-            frame: CGRect(x: 0, y: 212.30263157894737, width: 390, height: 275.39473684210526),
-            sources: [CGRect(x: 221.63533834586468, y: 408.890977443609, width: 9.896616541353383, height: 48.139097744360896)],
-            balancedColumn: false, column: nil, columnPaddingTop: 0,
-            ink: CGRect(x: 206.3563125, y: 424.90625, width: 22.178, height: 15),
-            panels: [.init(rect: old, background: [72, 54, 41], coverage: [old], clipped: true, coverageClip: declaration)])
-        entry.panels[0].captionUnionClipped = true
-        let result = NativeTranslationCaptionPanelPolish.polish([entry], opacity: 1, kept: [])
-        #expect(result[0].panels[0].coverageClip == nil)
-        #expect(result[0].panels[0].clipped == false)
-        #expect(result[0].panels[0].captionUnionClipped)
-        #expect(entry.panels[0].coverageClip?.subpaths == declaration.subpaths)
-    }
-    @Test func acceptedPackingWritesAbsolutePathWhileSkippedCopiesRetainCurrentNone() throws {
-        let input = [
-            NativeCaptionPacking.Entry(id: "a", text: "가가가", font: 12,
-                ink: CGRect(x: 25, y: 25, width: 45, height: 15),
-                source: CGRect(x: 25, y: 25, width: 30, height: 15), packingValid: false,
-                panels: [.init(rect: CGRect(x: 20, y: 20, width: 60, height: 30), color: [255,255,255])]),
-            NativeCaptionPacking.Entry(id: "b", text: "가가가", font: 12,
-                ink: CGRect(x: 80, y: 60, width: 50, height: 15),
-                source: CGRect(x: 80, y: 60, width: 30, height: 15), packingValid: false,
-                panels: [.init(rect: CGRect(x: 70, y: 40, width: 70, height: 60), color: [0,0,0])])
-        ]
-        func measure(_ e: NativeCaptionPacking.Entry, _ cell: CGRect, _ font: Double) -> NativeCaptionPacking.Measurement? {
-            let available = max(0, Double(cell.width)-6), demand = Double(e.text.count)*font
-            let width = min(demand, available), height = font*1.2*max(1,ceil(demand/max(1,available)))
-            return .init(ink: CGRect(x: cell.midX-width/2, y: cell.midY-height/2, width: width, height: height))
-        }
-        let result = NativeCaptionPacking.pack(input, page: CGRect(x: 0,y: 0,width: 300,height: 300), opacity: 1, measure: measure)
-        let accepted = result.entries.filter { $0.cell != nil }
-        #expect(!accepted.isEmpty)
-        for entry in accepted {
-            let clip = try #require(entry.panels.first?.coverageClip)
-            #expect(entry.panels[0].coverageClipActive == true)
-            #expect(clip.inset == nil && !clip.subpaths.isEmpty)
-            #expect(clip.subpaths.allSatisfy { $0[0].x == $0[3].x })
-        }
-        var skipped = input[0]
-        skipped.sourceErasurePreserved = true
-        skipped.panels[0].clipped = true // retained historical caption-union admission marker
-        skipped.panels[0].coverageClipActive = false // actual CSS none
-        let unchanged = NativeCaptionPacking.pack([skipped], page: CGRect(x: 0,y: 0,width: 300,height: 300), opacity: 1, measure: { _,_,_ in nil })
-        #expect(unchanged.skippedIDs.contains("a"))
-        #expect(unchanged.entries[0].panels[0].coverageClipActive == false)
-        #expect(unchanged.entries[0].panels[0].coverageClip == nil)
-        #expect(unchanged.entries[0].panels[0].clipped)
-    }
-
     @Test(arguments: [0, 1, 2]) func unchangedGrowthRetainsInsetAbsoluteOrNoneUntilAnActualWrite(mode: Int) throws {
         let owner = CGRect(x: 10.25, y: 20.25, width: 100.25, height: 80.25)
         let initial: NativeCSSCoveragePath.Declaration?

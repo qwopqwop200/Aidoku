@@ -128,37 +128,6 @@ struct DownloadHostAdmissionTests {
         #expect(probe.renderCount == 2)
     }
 
-    /// Run unchanged against the frozen production baseline with only the same
-    /// dependency seam. Controlled 300 ms host absence measures image admission,
-    /// without provider latency, WebKit timing, or a model substitution.
-    @Test func hostWaitLatencyProbe() async throws {
-        let probe = DownloadHostProbe()
-        let budget = TranslationImageWorkBudget(availableMemory: { .max })
-        let data = try input()
-        let download = Task {
-            try await DownloadImageTranslator.translate(data, settings: ReaderTranslationSettings(),
-                imageBudget: budget, environment: probe.environment) { _, _ in
-                    probe.processCount += 1
-                    return []
-                }
-        }
-        defer { download.cancel() }
-        try await waitUntil { probe.waitCount > 0 }
-        let start = ContinuousClock.now
-        let readiness = Task {
-            try await Task.sleep(for: .milliseconds(300))
-            probe.host = UIView()
-        }
-        defer { readiness.cancel() }
-        let visible = try await budget.withPermit { ContinuousClock.now }
-        let duration = start.duration(to: visible)
-        let milliseconds = Double(duration.components.seconds) * 1_000 + Double(duration.components.attoseconds) / 1e15
-        let beforeHost = probe.host == nil
-        #expect(try await download.value == data)
-        #expect(probe.processCount == 1)
-        print("DOWNLOAD_HOST_ADMISSION visible_wait_ms=\(milliseconds) visible_before_host=\(beforeHost)")
-    }
-
     private func waitUntil(_ condition: () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(5))
         while !condition() {

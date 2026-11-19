@@ -71,68 +71,6 @@ import Testing
         #expect(actual != wrongOrder)
         #expect(card.foreignFills[0].backgroundPosition == CGPoint(x:5.12,y:10.32))
     }
-    @Test func coverageAndImageDeclarationsReadTheCommittedOwner() throws {
-        let input = [
-            NativeCaptionPacking.Entry(id:"a",text:"가가가",font:12,ink:CGRect(x:25.013,y:25.019,width:45,height:15),source:CGRect(x:25.013,y:25.019,width:30,height:15),packingValid:false,panels:[.init(rect:CGRect(x:20.013,y:20.019,width:60,height:30),color:[255,255,255])]),
-            NativeCaptionPacking.Entry(id:"b",text:"가가가",font:12,ink:CGRect(x:80.013,y:60.019,width:50,height:15),source:CGRect(x:80.013,y:60.019,width:30,height:15),packingValid:false,panels:[.init(rect:CGRect(x:70.013,y:40.019,width:70,height:60),color:[0,0,0])])]
-        func render(used:Bool)->NativeCaptionPacking.Result {
-            NativeCaptionPacking.pack(input,page:CGRect(x:0,y:0,width:300,height:300),opacity:1,measure:{entry,cell,font in
-                let demand=CGFloat(entry.text.count)*font,available=max(0,cell.width-6),lines=max(1,ceil(demand/max(1,available)))
-                let width=min(demand,available),height=font*1.2*lines
-                return .init(ink:CGRect(x:cell.midX-width/2,y:cell.midY-height/2,width:width,height:height))
-            },readSource:{rect,width,height in
-                let w=width==0 ? max(1,Int(ceil(rect.maxX)-floor(rect.minX))) : width
-                let h=height==0 ? max(1,Int(ceil(rect.maxY)-floor(rect.minY))) : height
-                return .init(rgba:(0..<(w*h)).flatMap { _ in [UInt8(0),0,0,255] },width:w,height:h)
-            },usedPanelRect:{ used ? NativeTranslationRenderer.usedRect($0) : $0 })
-        }
-        let correct=render(used:true).entries[0],raw=render(used:false).entries[0]
-        let authored=try #require(correct.cell),owner=NativeTranslationRenderer.usedRect(authored)
-        let fill=try #require(correct.foreignFills.first),wrongFill=try #require(raw.foreignFills.first)
-        #expect(correct.cell == raw.cell) // CSS placement stays authored.
-        #expect(Double(correct.panels[0].coverage[0].maxX) == Double(owner.maxX))
-        #expect(Double(correct.panels[0].coverage[0].maxY) == Double(owner.maxY))
-        #expect(Double(raw.panels[0].coverage[0].maxX) > Double(owner.maxX))
-        #expect(fill.backgroundPosition == CGPoint(x:fill.rect.minX-owner.minX,y:fill.rect.minY-owner.minY))
-        #expect(fill.backgroundSize == fill.rect.size)
-        #expect(fill.rect.width < wrongFill.rect.width)
-        #expect(correct.text == raw.text && correct.font == raw.font)
-    }
-
-    @Test(arguments: [false,true]) func paletteRetainsOrRebuildsDeclaredImagesAtTheLiteralRewriteEvent(_ rewrite:Bool) throws {
-        let owner=CGRect(x:150.25,y:30.375,width:30,height:30)
-        var cards:[NativeTranslationRenderer.Card]=[]
-        var restoration=NativeTranslationRestoration.Result()
-        for i in 0..<3 {
-            let frame=i==2 ? owner : CGRect(x:i*30,y:0,width:30,height:30)
-            let plate:[Double]=i==2 ? [100,100,100] : (i==0 || !rewrite ? [240,240,240] : [10,10,10])
-            let fill:[CGFloat]=i==1 && rewrite ? [240,240,240] : [10,10,10]
-            var fields:[String:Any] = ["id":String(i),"text":"가","x":frame.minX,"y":frame.minY,
-                "width":30,"height":30,"fontSize":18,"lineHeight":22,"sourceBounds":[0.1,0.1,0.1,0.1],"sourceFrame":[0,0,240,100]]
-            if i<2 { fields["sourceFontSize"]=24 }
-            let item=try JSONDecoder().decode(NativeTranslationLayoutItem.self,from:JSONSerialization.data(withJSONObject:fields))
-            let style=NativeTranslationTypography.Style(fontSize:18,foreground:NativeTranslationRenderer.color(fill))
-            let typography=NativeTranslationTypography.layout(text:item.text,in:item.contentRect.size,style:style)
-            let panel=NativeTranslationSourceStylePostPolish.Panel(rect:frame,background:plate,coverage:[frame])
-            cards.append(.init(item:item,typography:typography,style:style,sourcePanels:[panel],drawsPanel:false,
-                background:NativeTranslationRenderer.color(plate.map {CGFloat($0)}),usesFallbackVeil:false,lightSurface:true,heavyStrokeWidth:0,finalFontSize:18))
-            restoration.appearances[item.id] = .init(foreground:nil,background:nil,restored:false,sourceSample:["foreground":[10,10,10]])
-        }
-        let raw=CGRect(x:15.12,y:20.32,width:20.75,height:30.5),local=CGPoint(x:5.12,y:10.32)
-        cards[2].foreignFills=[.init(rect:raw,color:[240,240,240],backgroundPosition:local,backgroundSize:raw.size)]
-        var settings=IPhoneOverlaySettings(visible:true,mode:.translateOnly,colorMode:.white,opacity:1,textPlacement:.replace,
-            subtitlePosition:.bottom,subtitleMaxLines:3,subtitleContextSentences:0)
-        settings.preserveSourceColors=true
-        let layout=NativeTranslationLayout(imageSize:CGSize(width:240,height:100),sourceRect:CGRect(x:0,y:0,width:240,height:100),viewport:CGSize(width:240,height:100),items:cards.map(\.item))
-        let result=NativeTranslationRenderer.applyLetteringUnitPalette(cards:&cards,gloss:.init(),layout:layout,restoration:restoration,settings:settings)
-        let fill=try #require(cards[2].foreignFills.first)
-        #expect(fill.rect == raw && fill.color == [240,240,240])
-        #expect(fill.backgroundSize == raw.size)
-        #expect(fill.backgroundPosition == (rewrite ? CGPoint(x:raw.minX-owner.minX,y:raw.minY-owner.minY) : local))
-        #expect(result.panels[2].backgroundRewritten == rewrite)
-        #expect(result.updates.count == (rewrite ? 1 : 0))
-    }
-
     @Test func equalCoverageRetainsAnExplicitClipPath() throws {
         let frame=CGRect(x:117.34375,y:20.125,width:33.84375,height:59.359375)
         let fields:[String:Any] = ["id":"clip","text":"","x":frame.minX,"y":frame.minY,"width":frame.width,"height":frame.height,

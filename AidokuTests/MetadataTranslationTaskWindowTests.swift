@@ -5,21 +5,7 @@ import Testing
 @Suite(.serialized) @MainActor
 struct MetadataTranslationTaskWindowTests {
     @Test func thousandSuspendedOperationsStayBoundedAndAllFinishInInputOrder() async throws {
-        let eagerProbe = WindowProbe()
         let input = Array(0..<1000)
-        // Preserve the former task-group shape as a measured reference, with
-        // the same suspended operation and no provider/cache/network work.
-        let eager = Task { await withTaskGroup(of: Int.self, returning: [Int].self) { group in
-            for value in input { group.addTask { await eagerProbe.run(value) } }
-            var result: [Int] = []
-            for await value in group { result.append(value) }
-            return result.sorted()
-        } }
-        defer { eager.cancel() }
-        try await wait { await eagerProbe.started == 1000 }
-        #expect(await eagerProbe.active == 1000)
-        await eagerProbe.release()
-        #expect(await eager.value == input.map { $0 + 10_000 })
         let probe = WindowProbe()
         let task = Task { await MetadataTranslationTaskWindow.map(input, fallback: { $0 }) { await probe.run($0) } }
         defer { task.cancel() }
@@ -33,13 +19,6 @@ struct MetadataTranslationTaskWindowTests {
         #expect(await probe.started == 1000)
         #expect(await probe.peak <= 64)
         #expect(await probe.active == 0)
-        let report: [String: Any] = ["inputs": 1000, "eagerPeakTasks": await eagerProbe.peak,
-            "windowPeakTasks": await probe.peak, "windowCompletedInputs": await probe.started,
-            "scope": "suspended fake operations; no API; task count not process memory or user latency"]
-        let folder = URL.documentsDirectory.appendingPathComponent("MetadataWindowAudit")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys, .prettyPrinted])
-            .write(to: folder.appendingPathComponent("suspended-tasks.json"), options: .atomic)
     }
 
     @Test func cancellationDoesNotScheduleRemaining936InputsAndPreservesFallbacks() async throws {

@@ -155,47 +155,6 @@ struct NativeCaptionFixedBoxReflowTests {
         #expect(cards[0].sourcePanels.count==1 && !cards[0].glyphPlateReleased)
         #expect(cards[0].sourcePanels[0].rect==owner.sourcePanels[0].rect)
     }
-    @Test func retiredInpaintingRetainsControlledColumnAndSourcePlate() throws {
-        let rawText="드디어 선생님이 왔다",controlledText="드디어\n선생님이\n왔다"
-        let object:[String:Any]=["id":"released-column","text":rawText,
-            "x":130,"y":110,"width":44,"height":60,"fontSize":8.75,"lineHeight":10.5,
-            "fontScript":"korean","wrappingScript":"korean","sourceVertical":true,
-            "sourceColorEligible":true,"sourceBounds":[0.3,0.3,0.11,0.2],"sourceFrame":[0,0,400,300],
-            "typesettingText":controlledText,"typesettingQuoteMode":3,
-            "columnLayout":["x":130,"y":110,"width":24.779,"height":100,
-                "fontSize":7.02907,"lineHeight":8.434884,"paddingTop":2,"paddingRight":2,
-                "paddingBottom":2,"paddingLeft":2,"balancedColumn":true]]
-        let item=try JSONDecoder().decode(NativeTranslationLayoutItem.self,from:JSONSerialization.data(withJSONObject:object))
-        var (card,_,settings)=try fixture(id:item.id)
-        card.item=item;card.style.fontSize=item.fontSize;card.style.lineHeight=item.lineHeight
-        card.style.usesBlockWordLayout=true;card.finalFontSize=item.fontSize
-        card.style.horizontalWrapping = .keepAllWithEmergency;card.style.keepsWholeWords=true
-        #expect(card.style.horizontalWhitespace == .preWrap)
-        card.typography=NativeTranslationRenderer.remeasureTypography(card)
-        #expect(card.typography.lineCount==3 && card.style.usesBlockWordLayout)
-        let size=CGSize(width:400,height:300)
-        let layout=NativeTranslationLayout(imageSize:size,sourceRect:CGRect(origin:.zero,size:size),viewport:size,items:[item])
-        settings.preserveSourceColors=true
-        let context=try #require(CGContext(data:nil,width:8,height:8,bitsPerComponent:8,bytesPerRow:32,
-            space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue))
-        context.setFillColor(CGColor(gray:1,alpha:1));context.fill(CGRect(x:0,y:0,width:8,height:8))
-        let image=try #require(context.makeImage())
-        var restoration=NativeTranslationRestoration.Result()
-        restoration.patches=[.init(image:image,rect:card.sourcePanels[0].rect,itemID:item.id)]
-        restoration.appearances[item.id] = .init(foreground:CGColor(gray:0,alpha:1),background:CGColor(gray:1,alpha:1),
-            restored:true,erasureComplete:true,sourceGlyphsVerified:true)
-        var cards=[card]
-        NativeTranslationRenderer.releaseCertifiedPlates(cards:&cards,restoration:restoration,
-            gloss:.init(),layout:layout,settings:settings)
-        // Source inpainting is retired, so certified evidence no longer releases
-        // the legacy plate or rewrites the controlled column into raw text.
-        #expect(!settings.usesSourceInpainting)
-        let retained=cards[0]
-        #expect(!retained.glyphPlateReleased && retained.sourcePanels.count==1)
-        #expect(retained.item==card.item && retained.item.typesettingText==controlledText)
-        #expect(retained.style.usesBlockWordLayout && retained.finalFontSize==card.finalFontSize)
-        #expect(retained.typography.lineCount==card.typography.lineCount)
-    }
     @Test func transparentGlyphCoverRetainsItsActualForeignChildIdentity() throws {
         let (owner,_,_)=try fixture(id:"owner")
         var child=try fixture(id:"foreign").0

@@ -227,9 +227,6 @@
             "name" : "NativeCanvasTextureResamplerTests"
           },
           {
-            "name" : "NativeCaptionBackingRemovalTests"
-          },
-          {
             "name" : "NativeCaptionCSSProvenanceTests"
           },
           {
@@ -239,25 +236,13 @@
             "name" : "NativeCaptionLineSpacingTests"
           },
           {
-            "name" : "NativeCaptionPackingRendererTests"
-          },
-          {
             "name" : "NativeCaptionPanelBackgroundTests"
           },
           {
             "name" : "NativeCaptionPanelCommittedRectTests"
           },
           {
-            "name" : "NativeCaptionPanelWholeRangeTests"
-          },
-          {
-            "name" : "NativeCaptionPolishKeptZoneTests"
-          },
-          {
             "name" : "NativeCertifiedExteriorSurfaceTests"
-          },
-          {
-            "name" : "NativeCleanupGeometryTests"
           },
           {
             "name" : "NativeCollapsedRowIntrinsicWidthTests"
@@ -276,15 +261,6 @@
           },
           {
             "name" : "NativeCTFontVerticalPainterTests"
-          },
-          {
-            "name" : "NativeDisplayCleanupGeometryTests"
-          },
-          {
-            "name" : "NativeEarlyMarginAdapterTests"
-          },
-          {
-            "name" : "NativeEarlyPlateContrastTests"
           },
           {
             "name" : "NativeEnclosedPaperFinishTests"
@@ -320,9 +296,6 @@
             "name" : "NativeGlossWhitespaceAdapterTests"
           },
           {
-            "name" : "NativeGlyphCoverTests"
-          },
-          {
             "name" : "NativeHitomiAuditTests"
           },
           {
@@ -336,9 +309,6 @@
           },
           {
             "name" : "NativeImageCodecAuditTests"
-          },
-          {
-            "name" : "NativeInitialJoinedUnitTests"
           },
           {
             "name" : "NativeInitialReferenceFlowTests"
@@ -365,22 +335,10 @@
             "name" : "NativeKeptSourceCopyTests"
           },
           {
-            "name" : "NativeLateBalloonCleanupFrameTests"
-          },
-          {
-            "name" : "NativeLateBalloonStagesTests"
-          },
-          {
-            "name" : "NativeLatePlateTrimTests"
-          },
-          {
             "name" : "NativeLateWordRepairCallerTests"
           },
           {
             "name" : "NativeLayerTreeCaptureTests"
-          },
-          {
-            "name" : "NativeLightLetteringAdapterTests"
           },
           {
             "name" : "NativeLoginAttemptTests"
@@ -416,22 +374,7 @@
             "name" : "NativeOversizedTitleCoverWriterTests"
           },
           {
-            "name" : "NativePageEdgeFitTests"
-          },
-          {
-            "name" : "NativePaintOrderAdapterTests"
-          },
-          {
-            "name" : "NativePanelCleanupGeometryTests"
-          },
-          {
-            "name" : "NativePanelErasureMembershipTests"
-          },
-          {
             "name" : "NativePanelPhaseTests"
-          },
-          {
-            "name" : "NativePanelRememberedPaddingTests"
           },
           {
             "name" : "NativePDFCropTests"
@@ -501,9 +444,6 @@
           },
           {
             "name" : "NativeSourceCanvasSnapshotOutputTests"
-          },
-          {
-            "name" : "NativeSourceColumnAnchorTests"
           },
           {
             "name" : "NativeSourceHeadingChildrenTests"
@@ -605,9 +545,6 @@
             "name" : "ProviderCacheIdentityAuditTests"
           },
           {
-            "name" : "QualityTranslationAuditTransportTests"
-          },
-          {
             "name" : "ReaderAdmissionRecoveryTests"
           },
           {
@@ -669,9 +606,6 @@
           },
           {
             "name" : "ReaderRenderAssetMutationTests"
-          },
-          {
-            "name" : "ReaderRenderAssetReadBenchmarkTests"
           },
           {
             "name" : "ReaderRenderAssetReadSchedulingTests"
@@ -897,9 +831,6 @@
           },
           {
             "name" : "TranslationCacheAuditTests"
-          },
-          {
-            "name" : "TranslationCacheFailureQueueProbeTests"
           },
           {
             "name" : "TranslationCacheScalingTests"

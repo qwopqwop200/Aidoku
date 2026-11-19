@@ -79,52 +79,6 @@ struct LibraryUnreadBatchRegressionTests {
         print("TWO_STORE_UNREAD persistedGrouped=3 persistedScalar=0 pendingGrouped=0 pendingScalar=257 manga=257")
     }
 
-    @Test func boundedPairedSQLiteTimingRetainsExactCounts() throws {
-        let fixture = try R2UnreadStore(twoStores: true)
-        defer { fixture.close() }
-        var ids: [MangaIdentifier] = []
-        for index in 0..<120 {
-            let id = fixture.addManga(index: index, language: nil, scanlators: nil)
-            ids.append(id)
-            for chapter in 0..<12 { fixture.addChapter(id: id, index: chapter, language: "en", scanlator: "A", history: chapter % 4, locked: chapter % 5 == 0) }
-        }
-        try fixture.context.save()
-        var rows: [[String: Any]] = []
-        for iteration in 0..<6 {
-            var expected: [MangaIdentifier: Int] = [:]
-            var actual: [MangaIdentifier: Int] = [:]
-            var scalarMS: Double = 0
-            var batchMS: Double = 0
-            var groupedQueries = 0
-            var scalarQueries = 0
-            func measureScalar() {
-                let start = ProcessInfo.processInfo.systemUptime
-                expected = scalar(ids, context: fixture.context)
-                scalarMS = (ProcessInfo.processInfo.systemUptime - start) * 1000
-            }
-            func measureBatch() {
-                let start = ProcessInfo.processInfo.systemUptime
-                actual = CoreDataManager.shared.unreadCounts(mangaIds: ids, context: fixture.context) { grouped in
-                    if grouped { groupedQueries += 1 } else { scalarQueries += 1 }
-                }
-                batchMS = (ProcessInfo.processInfo.systemUptime - start) * 1000
-            }
-            if iteration.isMultiple(of: 2) { measureScalar(); measureBatch() } else { measureBatch(); measureScalar() }
-            #expect(actual == expected)
-            #expect(groupedQueries == 1 && scalarQueries == 0)
-            rows.append(["iteration": iteration, "phase": iteration == 0 ? "warmup" : "measured",
-                "scalarFirst": iteration.isMultiple(of: 2), "scalarMS": scalarMS, "batchMS": batchMS,
-                "groupedQueries": groupedQueries, "scalarQueries": scalarQueries, "counts": ids.map { actual[$0] ?? -1 }])
-        }
-        let directory = URL.documentsDirectory.appendingPathComponent("Round2UnreadBatch")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let scope = "Separate production-schema Cloud+Local SQLite; 6 paired synchronous calls; "
-            + "alternating scalar/batch order; process-warm storage; not UI latency, not cold disk or peak-memory measurement"
-        let evidence: [String: Any] = ["manga": 120, "chaptersPerManga": 12, "scope": scope, "rows": rows]
-        try JSONSerialization.data(withJSONObject: evidence, options: [.prettyPrinted, .sortedKeys])
-            .write(to: directory.appendingPathComponent("paired-counts.json"), options: .atomic)
-    }
-
     private func scalar(_ ids: [MangaIdentifier], context: NSManagedObjectContext) -> [MangaIdentifier: Int] {
         var result: [MangaIdentifier: Int] = [:]
         for id in ids {

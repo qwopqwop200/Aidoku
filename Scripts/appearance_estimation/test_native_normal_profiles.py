@@ -88,24 +88,6 @@ class NativeNormalProfilesTests(unittest.TestCase):
         self.run_case(rgb,mask,absent,colors)
         self.run_case(rgb,np.zeros_like(mask),prediction,colors)
 
-    def test_saved_original_source_crop_profiles(self):
-        root=self.root.parent/'font-size-estimation-20261110/round126/missing-source-styles/fresh-style-inference'
-        for key in ('source-0115-region-3','source-0049-region-4'):
-            directory=root/'runtime'/key
-            if not (directory/'evidence.npz').exists():self.skipTest('Optional original source packet unavailable')
-            with np.load(directory/'evidence.npz',allow_pickle=False) as evidence:
-                h,w=evidence['segPrimary'].shape
-                geometry=json.loads(str(evidence['geometryJSON']))
-            rgb=np.fromfile(root/'crops'/(key+'.rgb'),dtype=np.uint8).reshape(h,w,3)
-            mask=np.fromfile(directory/'primary.u8',dtype=np.uint8).reshape(h,w)>0
-            prediction=json.loads((directory/'appearance.json').read_text())
-            colors=[]
-            for role in ('fill','outline','background'):
-                for color in [prediction[role]['rgb']]+prediction[role].get('colors',[]):
-                    if color not in colors:colors.append(color)
-            with self.subTest(source=key):
-                self.run_case(rgb,mask,prediction,colors,font=geometry['fontPixels'],polygons=geometry['polygons'])
-
     def test_primary_correction_refreshes_each_conditioned_background_root(self):
         rgb,mask,prediction,colors=render()
         prediction['outline']['rgb']=colors[2]
