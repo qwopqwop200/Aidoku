@@ -175,6 +175,7 @@
 
 // Settings
 "SETTINGS" = "Instellings";
+"SUPPPORT_DEVELOPMENT" = "Ondersteun Ontwikkeling";
 "GITHUB_REPO" = "GitHub-bewaarplek";
 "ABOUT" = "Oor";
 "DISCORD_SERVER" = "Discord-bediener";
@@ -1026,7 +1027,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "’n PP-OCRv6-model kon nie gelaai word nie.";
 
-"OCR_ERROR_DICTIONARY" = "Die PP-OCRv6-karakterwoordeboek ontbreek of is ongeldig.";
 
 "OCR_ERROR_IMAGE" = "Die beeld kon nie vir teksherkenning voorberei word nie.";
 

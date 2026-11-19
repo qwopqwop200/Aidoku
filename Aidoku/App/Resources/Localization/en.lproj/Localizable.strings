@@ -451,6 +451,7 @@
 "ABOUT" = "About";
 "GITHUB_REPO" = "GitHub Repository";
 "DISCORD_SERVER" = "Discord Server";
+"SUPPPORT_DEVELOPMENT" = "Support Development";
 "GENERAL" = "General";
 "ICLOUD_SYNC" = "iCloud Sync";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync is an experimental feature. Enabling or disabling it may trigger data loss.";
@@ -1017,7 +1018,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychain operation failed with status %d.";
 "OCR_ERROR_MODEL_MISSING" = "A required PP-OCRv6 model is missing.";
 "OCR_ERROR_MODEL_LOAD" = "A PP-OCRv6 model could not be loaded.";
-"OCR_ERROR_DICTIONARY" = "The PP-OCRv6 character dictionary is missing or invalid.";
 "OCR_ERROR_IMAGE" = "The image could not be prepared for text recognition.";
 "OCR_ERROR_OUTPUT" = "The PP-OCRv6 model returned invalid or unsupported output.";
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 text recognition failed. Try again with another image or OCR model.";

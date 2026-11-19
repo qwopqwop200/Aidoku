@@ -122,6 +122,7 @@
 "AUTH_TO_ENABLE" = "Удостоверете самоличността си, за да включите.";
 "AUTH_TO_DISABLE" = "Удостоверете самоличността си, за да изключите.";
 "GITHUB_REPO" = "GitHub хранилище";
+"SUPPPORT_DEVELOPMENT" = "Подкрепа на развитие";
 "GENERAL" = "Общи";
 "ICLOUD_SYNC" = "iCloud синхронизация";
 "INCOGNITO_MODE" = "Режим „инкогнито“";
@@ -1005,7 +1006,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Операцията с Keychain е неуспешна с код на състоянието %d.";
 "OCR_ERROR_MODEL_MISSING" = "Липсва необходим модел на PP-OCRv6.";
 "OCR_ERROR_MODEL_LOAD" = "Модел на PP-OCRv6 не може да бъде зареден.";
-"OCR_ERROR_DICTIONARY" = "Речникът със знаци на PP-OCRv6 липсва или е невалиден.";
 "OCR_ERROR_IMAGE" = "Изображението не може да бъде подготвено за разпознаване на текст.";
 "OCR_ERROR_OUTPUT" = "Моделът на PP-OCRv6 върна невалиден или неподдържан резултат.";
 "OCR_ERROR_PREDICTION" = "Разпознаването на текст с PP-OCRv6 е неуспешно. Опитайте с друго изображение или OCR модел.";

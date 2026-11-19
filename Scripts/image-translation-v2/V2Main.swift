@@ -11,34 +11,6 @@ import UniformTypeIdentifiers
 // Modes: live (default; real provider through V2Translation), --replay-translations
 // (saved translations, no provider call) and --ocr-only (S1-S4, no LLM/render).
 
-/// Bounds concurrent provider calls (the app's shared limiter caps page calls at three).
-actor V2ProviderGate {
-    private var available: Int
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-    init(_ count: Int) { available = max(1, count) }
-
-    func acquire() async {
-        if available > 0 { available -= 1; return }
-        await withCheckedContinuation { waiters.append($0) }
-    }
-
-    func release() {
-        if waiters.isEmpty { available += 1 } else { waiters.removeFirst().resume() }
-    }
-
-    func with<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
-        await acquire()
-        do {
-            let value = try await body()
-            release()
-            return value
-        } catch {
-            release()
-            throw error
-        }
-    }
-}
-
 /// Saved translations for `--replay-translations`: a legacy run (`page-index.json`) or a V2 run (`pages/*.json`).
 struct V2HostReplay: Sendable {
     private let legacy: V2TranslationReplay?
@@ -233,7 +205,8 @@ enum V2Main {
 
         let client = RemoteTranslationClient(credentialStore: settings.credentialStore)
         let configuration = settings.configuration
-        let gate = V2ProviderGate(settings.providerConcurrency)
+        // Bounds concurrent provider calls (the app's shared limiter caps page calls at three).
+        let gate = V2InstancePool([Void](repeating: (), count: settings.providerConcurrency))
         let sourceLanguage = settings.sourceLanguage, targetLanguage = settings.targetLanguage
         let fillUnmatched = settings.fillUnmatched
         let delay = settings.translateDelay
@@ -258,7 +231,7 @@ enum V2Main {
                 case .live:
                     guard !V2Translation.translatable(blocks).isEmpty else { return blocks }
                     let image = try await jpeg?.value
-                    return try await gate.with {
+                    return try await gate.with { _ in
                         try await V2Translation.translate(blocks, pageSize: CGSize(width: page.width, height: page.height),
                             client: client, configuration: configuration, sourceLanguage: sourceLanguage,
                             targetLanguage: targetLanguage, imageJPEG: image)

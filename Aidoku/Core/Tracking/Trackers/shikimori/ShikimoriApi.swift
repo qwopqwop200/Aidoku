@@ -235,8 +235,9 @@ private extension ShikimoriApi {
         let tokenExpired = await oauth.tokens?.expired == true
         guard await oauth.accountGeneration == issued else { throw CancellationError() }
 
-        let succeeded = statusCode.map { (200..<300).contains($0) } ?? false
+        // check if token expired
         // A successful mutation must not be repeated due to local expiry.
+        let succeeded = statusCode.map { (200..<300).contains($0) } ?? false
         if statusCode == 401 || (tokenExpired && !succeeded) {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "Shikimori")

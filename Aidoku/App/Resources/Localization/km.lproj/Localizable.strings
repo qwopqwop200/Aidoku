@@ -99,6 +99,7 @@
 "AUTH_TO_DISABLE" = "ផ្ទៀងផ្ទាត់ភាពត្រឹមត្រូវដើម្បីបិទ។";
 "GITHUB_REPO" = "ឃ្លាំង GitHub";
 "DISCORD_SERVER" = "ម៉ាស៊ីនមេ Discord";
+"SUPPPORT_DEVELOPMENT" = "បរិច្ចាគដល់កម្មវិធីនេះ";
 "GENERAL" = "ជាទូទៅ";
 "ICLOUD_SYNC" = "ការធ្វើសមកាលកម្ម iCloud";
 "INCOGNITO_MODE" = "របៀបអនាមិក";
@@ -1027,7 +1028,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "មិនអាចផ្ទុកម៉ូដែល PP-OCRv6 បានទេ។";
 
-"OCR_ERROR_DICTIONARY" = "វចនានុក្រមតួអក្សរ PP-OCRv6 បាត់ ឬមិនត្រឹមត្រូវ។";
 
 "OCR_ERROR_IMAGE" = "មិនអាចរៀបចំរូបភាពសម្រាប់ការស្គាល់អត្ថបទបានទេ។";
 

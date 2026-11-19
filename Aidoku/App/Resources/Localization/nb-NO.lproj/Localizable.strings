@@ -110,6 +110,7 @@
 "ABOUT" = "Om";
 "GITHUB_REPO" = "GitHub-kodelager";
 "DISCORD_SERVER" = "Discord-server";
+"SUPPPORT_DEVELOPMENT" = "Støtt utviklingen";
 "GENERAL" = "Generelt";
 "ICLOUD_SYNC" = "iCloud-synkronisering";
 "INCOGNITO_MODE" = "Inkognitomodus";
@@ -1026,7 +1027,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "En PP-OCRv6-modell kunne ikke lastes inn.";
 
-"OCR_ERROR_DICTIONARY" = "Tegnordboken for PP-OCRv6 mangler eller er ugyldig.";
 
 "OCR_ERROR_IMAGE" = "Bildet kunne ikke klargjøres for tekstgjenkjenning.";
 

@@ -140,7 +140,7 @@ enum ReaderTranslationLanguageFilter {
     /// classifier also keep the permissive fallback.
     static func identity(settings: ReaderTranslationSettings) -> [String]? {
         var language = languageIdentity(settings: settings)
-        if settings.usesOCRLanguagePolicy, settings.modelTier.restrictedSourceLanguageCodes != nil {
+        if settings.usesOCRLanguagePolicy {
             language = ["ocr-source-manga-v3-latin-neutral-symbols"] + (language ?? [])
         }
         if settings.filterBackgroundWithLLM { language = (language ?? []) + [TranslationHTTPCodec.backgroundPolicy] }
@@ -160,13 +160,14 @@ enum ReaderTranslationLanguageFilter {
 
     /// Classify against the complete language set first. Never force text into
     /// the model's list by constraining the classifier to it.
-    static func allowsModelSource(_ text: String, tier: IPhoneOCRModelTier) -> Bool {
+    static func allowsModelSource(_ text: String) -> Bool {
         if isLanguageNeutralSymbols(text) { return true }
-        guard let supported = tier.restrictedSourceLanguageCodes else { return true }
-        if let detected = AutomaticSourceLanguageDetector.detect(text) { return supported.contains(detected) }
+        if let detected = AutomaticSourceLanguageDetector.detect(text) {
+            return IPhoneOCRSettings.mangaSourceLanguageCodes.contains(detected)
+        }
         // Short shared Han names, interjections and Latin words ("OK", "Hey") are
         // often unclassifiable. Retain scripts the recognizer can spell without
-        // admitting others (Hangul, Cyrillic); Latin-only text needs a Latin language.
+        // admitting others (Hangul, Cyrillic).
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
         func cjk(_ scalar: Unicode.Scalar) -> Bool {
             (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value) ||
@@ -176,8 +177,7 @@ enum ReaderTranslationLanguageFilter {
             (0x41...0x5A).contains(scalar.value) || (0x61...0x7A).contains(scalar.value) ||
                 (0xC0...0x24F).contains(scalar.value)
         }
-        let readsLatin = !supported.isSubset(of: ["ja", "zh", "zh-Hant"])
-        return letters.contains { cjk($0) || readsLatin && latin($0) } && letters.allSatisfy { cjk($0) || latin($0) }
+        return !letters.isEmpty && letters.allSatisfy { cjk($0) || latin($0) }
     }
 
     /// Punctuation and symbols have no source language to reject. They still
@@ -194,14 +194,12 @@ enum ReaderTranslationLanguageFilter {
         regions.filter { allowsSource($0.source, settings: settings) }
     }
 
-    /// The per-text rule of `apply`. `tier` names the recognizer that read the
-    /// text (V2 always uses the manga recognizer, independent of the OCR setting).
-    static func allowsSource(_ text: String, settings: ReaderTranslationSettings,
-                             tier: IPhoneOCRModelTier? = nil) -> Bool {
+    /// The per-text rule of `apply`.
+    static func allowsSource(_ text: String, settings: ReaderTranslationSettings) -> Bool {
         let source = canonical(settings.sourceLanguage)
         let languages = normalized(settings.translationSourceLanguages)
         return isLanguageNeutralSymbols(text) ||
-            ((!settings.usesOCRLanguagePolicy || allowsModelSource(text, tier: tier ?? settings.modelTier)) &&
+            ((!settings.usesOCRLanguagePolicy || allowsModelSource(text)) &&
             !isAlreadyTargetLanguage(text, target: settings.targetLanguage) &&
             AutomaticSourceLanguageDetector.allowsOCRText(text, configuredSourceLanguage: source, automaticLanguageFilter: languages))
     }
@@ -214,7 +212,7 @@ enum ReaderTranslationLanguageFilter {
     /// between Japanese and Chinese. Such text is admitted whenever any
     /// Han-script language is allowed; other scripts follow the legacy rule.
     static func allowsV2Source(_ text: String, settings: ReaderTranslationSettings) -> Bool {
-        if allowsSource(text, settings: settings, tier: .manga) { return true }
+        if allowsSource(text, settings: settings) { return true }
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
         let han: (Unicode.Scalar) -> Bool = {
             (0x3400...0x9FFF).contains($0.value) || (0x20000...0x323AF).contains($0.value) || (0xF900...0xFAFF).contains($0.value)

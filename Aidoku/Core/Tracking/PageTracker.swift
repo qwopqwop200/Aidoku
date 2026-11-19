@@ -33,7 +33,6 @@ struct PageTrackUpdate: Codable, Equatable {
     var failCount: Int = 0
 }
 
-
 extension PageTrackUpdate {
     struct Key: Hashable {
         let tracker: String

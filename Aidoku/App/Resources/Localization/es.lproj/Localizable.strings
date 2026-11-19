@@ -91,6 +91,7 @@
 "ABOUT" = "Acerca de";
 "GITHUB_REPO" = "Repositorio de GitHub";
 "DISCORD_SERVER" = "Servidor de Discord";
+"SUPPPORT_DEVELOPMENT" = "Apoya el desarrollo";
 "GENERAL" = "General";
 "ICLOUD_SYNC" = "Sincronización con iCloud";
 "APPEARANCE" = "Apariencia";
@@ -1006,7 +1007,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "La operación del llavero falló con el código de estado %d.";
 "OCR_ERROR_MODEL_MISSING" = "Falta un modelo PP-OCRv6 necesario.";
 "OCR_ERROR_MODEL_LOAD" = "No se pudo cargar un modelo PP-OCRv6.";
-"OCR_ERROR_DICTIONARY" = "El diccionario de caracteres de PP-OCRv6 falta o no es válido.";
 "OCR_ERROR_IMAGE" = "No se pudo preparar la imagen para el reconocimiento de texto.";
 "OCR_ERROR_OUTPUT" = "El modelo PP-OCRv6 devolvió una salida no válida o no admitida.";
 "OCR_ERROR_PREDICTION" = "El reconocimiento de texto de PP-OCRv6 falló. Inténtalo de nuevo con otra imagen u otro modelo OCR.";

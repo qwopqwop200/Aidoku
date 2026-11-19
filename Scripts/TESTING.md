@@ -8,9 +8,7 @@ suites cannot resolve. The shared Aidoku scheme defaults to AidokuFast;
 AidokuFull has no suite filter. No skipped tests or zero-execution passes are
 accepted. A timeout is incomplete, never a pass.
 
-Page translation has one pipeline, V2 (`Docs/translation-v2.md`). The legacy
-page pipeline, its host CLI features (analysis report, render/resume runs) and
-its smokes, quality matrices and research tooling have been removed.
+Page translation has one pipeline, V2 (`Docs/translation-v2.md`).
 
 ## Commands
 
@@ -43,11 +41,9 @@ entry still applies to kept code and passes:
   text-role schema, segment ids, overlapping requests, input-ordered results,
   replay from a V2 run with no provider call, decode failures, exit codes and
   credential exclusion from every output file).
-- OCR and translation contracts over files the V2 host compiles: CTC collapse,
-  DB float digest, detector padding, DB child columns,
-  multiline column recovery, geometry deduplication, ROI probability evidence,
-  recognizer execution/observation/tensor identity, role verification planner,
-  codec source fidelity and the language filter.
+- OCR and translation contracts over files the V2 host compiles: CTC collapse
+  and n-gram correction, detector padding, role verification planner, codec
+  source fidelity and the language filter's excluded-source preservation.
 - Non-translation: Hoshi storage and sanitizer boundaries, blocking-task priority.
 
 The V2 host smoke uses `Scripts/tests/fixtures/v2-host/VerticalSingleGlyphBalloon.png`

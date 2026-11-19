@@ -49,31 +49,7 @@ struct ModelCodingTests {
 }
 
 struct PostcardBoundaryTests {
-    @Test func signedIntegerExtremaRoundTrip() throws {
-        func check<T: Codable & Equatable>(_ values: [T]) throws {
-            for value in values {
-                let data = try PostcardEncoder().encode(value)
-                #expect(try PostcardDecoder().decode(T.self, from: data) == value)
-            }
-        }
-        try check([Int16.min, .max, -1, 0, 1])
-        try check([Int32.min, .max, -1, 0, 1])
-        try check([Int64.min, .max, -1, 0, 1])
-    }
-
-    @Test func optionalElementsAndLongNestedSequencesRoundTrip() throws {
-        let values: [[Int?]] = [[], [nil], [1, nil, -2], Array(repeating: 3, count: 200)]
-        let data = try PostcardEncoder().encode(values)
-        #expect(try PostcardDecoder().decode([[Int?]].self, from: data) == values)
-    }
-
-    @Test func malformedLengthsAndPayloadsThrow() {
-        for data in [Data([1]), Data(repeating: 255, count: 20)] {
-            #expect(throws: (any Error).self) { try PostcardDecoder().decode([UInt8].self, from: data) }
-        }
-        for data in [Data([255,255,255,255,255,255,255,255,127]), Data([1,255])] {
-            #expect(throws: (any Error).self) { try PostcardDecoder().decode(String.self, from: data) }
-        }
+    @Test func overlongVarIntThrows() {
         #expect(throws: (any Error).self) { try PostcardDecoder().decode(UInt16.self, from: Data([255,255,127])) }
     }
 

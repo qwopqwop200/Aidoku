@@ -47,6 +47,7 @@
 "CATEGORY_ADD" = "Adaugă categorie";
 "GITHUB_REPO" = "Depozit GitHub";
 "DISCORD_SERVER" = "Server Discord";
+"SUPPPORT_DEVELOPMENT" = "Sprijină dezvoltarea aplicației";
 "GENERAL" = "General";
 "ICLOUD_SYNC" = "Sincronizare iCloud";
 "INCOGNITO_MODE" = "Modul Incognito";
@@ -1004,7 +1005,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operația Keychain a eșuat cu codul de stare %d.";
 "OCR_ERROR_MODEL_MISSING" = "Lipsește un model PP-OCRv6 necesar.";
 "OCR_ERROR_MODEL_LOAD" = "Un model PP-OCRv6 nu a putut fi încărcat.";
-"OCR_ERROR_DICTIONARY" = "Dicționarul de caractere PP-OCRv6 lipsește sau nu este valid.";
 "OCR_ERROR_IMAGE" = "Imaginea nu a putut fi pregătită pentru recunoașterea textului.";
 "OCR_ERROR_OUTPUT" = "Modelul PP-OCRv6 a returnat un rezultat nevalid sau neacceptat.";
 "OCR_ERROR_PREDICTION" = "Recunoașterea textului PP-OCRv6 a eșuat. Încercați din nou cu altă imagine sau alt model OCR.";

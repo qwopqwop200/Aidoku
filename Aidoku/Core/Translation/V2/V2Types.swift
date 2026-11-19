@@ -41,8 +41,6 @@ struct V2LayoutRegion: Sendable, Codable, Equatable {
     var kind: V2LayoutKind
     var bounds: CGRect
     var score: Float
-    /// Optional binary mask covering `bounds` (row-major, width = Int(bounds.width)).
-    var mask: [UInt8]?
 }
 
 enum V2Role: String, Sendable, Codable {

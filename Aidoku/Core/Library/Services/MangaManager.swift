@@ -465,53 +465,54 @@ extension MangaManager {
         if let libraryRefreshTask {
             // A caller joining an existing refresh does not own its cancellation or completion effects.
             return await libraryRefreshTask.value
-        }
+        } else {
+            // spawn new library refresh
+            nextAutomaticRefreshAttempt = Date.now.addingTimeInterval(300)
+            AppSettings.flags.libraryRefreshInProgress.set(true)
+            let worker = Task {
+                let tabController = await UIApplication.shared.firstKeyWindow?.rootViewController as? TabBarController
+                await doLibraryRefresh(
+                    category: category,
+                    skipReachabilityCheck: skipReachabilityCheck,
+                    forceAll: forceAll,
+                    refreshStarted: {
+                        await tabController?.showLibraryRefreshView()
 
-        nextAutomaticRefreshAttempt = Date.now.addingTimeInterval(300)
-        AppSettings.flags.libraryRefreshInProgress.set(true)
-        let worker = Task {
-            let tabController = await UIApplication.shared.firstKeyWindow?.rootViewController as? TabBarController
-            await doLibraryRefresh(
-                category: category,
-                skipReachabilityCheck: skipReachabilityCheck,
-                forceAll: forceAll,
-                refreshStarted: {
-                    await tabController?.showLibraryRefreshView()
-
-                    self.onLibraryRefreshProgress = { progress in
-                        tabController?.setLibraryRefreshProgress(Float(progress.fractionCompleted))
-                        task?.progress.totalUnitCount = progress.totalUnitCount
-                        task?.progress.completedUnitCount = progress.completedUnitCount
-                        if #available(iOS 26.0, *), let task = task as? BGContinuedProcessingTask {
-                            task.updateTitle(
-                                NSLocalizedString("REFRESHING_LIBRARY"),
-                                subtitle: String(format: NSLocalizedString("%i_OF_%i"), progress.completedUnitCount, progress.totalUnitCount)
-                            )
+                        self.onLibraryRefreshProgress = { progress in
+                            tabController?.setLibraryRefreshProgress(Float(progress.fractionCompleted))
+                            task?.progress.totalUnitCount = progress.totalUnitCount
+                            task?.progress.completedUnitCount = progress.completedUnitCount
+                            if #available(iOS 26.0, *), let task = task as? BGContinuedProcessingTask {
+                                task.updateTitle(
+                                    NSLocalizedString("REFRESHING_LIBRARY"),
+                                    subtitle: String(format: NSLocalizedString("%i_OF_%i"), progress.completedUnitCount, progress.totalUnitCount)
+                                )
+                            }
                         }
                     }
-                }
-            )
+                )
 
-            // Give the final progress update time to animate before removing its accessory.
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            libraryRefreshProgressTask?.cancel()
-            libraryRefreshProgressTask = nil
-            onLibraryRefreshProgress = nil
-            await tabController?.hideAccessoryView()
-            NotificationCenter.default.post(name: .updateLibrary, object: nil)
-            if Task.isCancelled {
-                nextAutomaticRefreshAttempt = Date.now.addingTimeInterval(300)
+                // wait 0.5s for final progress animation to complete
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                libraryRefreshProgressTask?.cancel()
+                libraryRefreshProgressTask = nil
+                onLibraryRefreshProgress = nil
+                await tabController?.hideAccessoryView()
+                NotificationCenter.default.post(name: .updateLibrary, object: nil)
+                if Task.isCancelled {
+                    nextAutomaticRefreshAttempt = Date.now.addingTimeInterval(300)
+                }
+                libraryRefreshTask = nil
+                AppSettings.flags.libraryRefreshInProgress.reset()
+                await scheduleLibraryRefresh()
+                return !Task.isCancelled
             }
-            AppSettings.flags.libraryRefreshInProgress.reset()
-            libraryRefreshTask = nil
-            await scheduleLibraryRefresh()
-            return !Task.isCancelled
-        }
-        libraryRefreshTask = worker
-        return await withTaskCancellationHandler {
-            await worker.value
-        } onCancel: {
-            worker.cancel()
+            libraryRefreshTask = worker
+            return await withTaskCancellationHandler {
+                await worker.value
+            } onCancel: {
+                worker.cancel()
+            }
         }
     }
 

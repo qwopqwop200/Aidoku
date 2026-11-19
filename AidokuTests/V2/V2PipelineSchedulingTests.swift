@@ -21,7 +21,7 @@ struct V2PipelineSchedulingTests {
     @Test func opaqueSRGBPageIsConvertedOnceAndMatchesBothFormats() throws {
         let image = Self.image(alpha: 1)
         let pixels = V2Pipeline.decodePixels(image)
-        #expect(pixels.conversions == 1 && pixels.failure == nil)
+        #expect(pixels.conversions == 1)
         let raster = try #require(pixels.raster)
         let frame = try #require(pixels.frame)
         #expect(raster.rgba == (try V2PageRaster(image)).rgba)

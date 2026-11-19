@@ -115,7 +115,7 @@ struct ReaderWebtoonLifecycleTests {
             manga: AidokuRunner.Manga(sourceKey: "test", key: "manga", title: "Test"),
             temporaryPageStore: ReaderTemporaryPageStore())
         controller.move(toPage: 1, animated: false)
-        #expect(controller.pageViewControllers.isEmpty)
+        #expect(controller.allPageViewControllers.isEmpty)
     }
 
     private func waitUntil(_ predicate: () -> Bool) async throws {

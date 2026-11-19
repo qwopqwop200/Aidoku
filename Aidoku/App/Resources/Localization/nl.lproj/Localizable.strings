@@ -121,6 +121,7 @@
 "ABOUT" = "Over";
 "GITHUB_REPO" = "GitHub-repository";
 "DISCORD_SERVER" = "Discord-server";
+"SUPPPORT_DEVELOPMENT" = "Ondersteun ontwikkeling";
 "GENERAL" = "Algemeen";
 "ICLOUD_SYNC" = "iCloud-synchronisatie";
 "INCOGNITO_MODE" = "Incognitomodus";
@@ -1028,7 +1029,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "Een PP-OCRv6-model kon niet worden geladen.";
 
-"OCR_ERROR_DICTIONARY" = "Het tekenwoordenboek van PP-OCRv6 ontbreekt of is ongeldig.";
 
 "OCR_ERROR_IMAGE" = "De afbeelding kon niet worden voorbereid voor tekstherkenning.";
 

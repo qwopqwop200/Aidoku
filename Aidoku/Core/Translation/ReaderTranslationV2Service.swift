@@ -15,7 +15,7 @@ actor ReaderTranslationV2Service {
     /// Bump whenever V2 output for the same page/settings can change.
     static let version = "v2-pipeline-1"
 
-    enum Failure: Error { case imageUnavailable, encodingFailed }
+    enum Failure: Error { case imageUnavailable }
 
     struct PoolSizes: Equatable, Sendable {
         var recognizer: Int
@@ -282,7 +282,7 @@ actor ReaderTranslationV2Service {
         try Task.checkCancellation()
         let translationGeneration = await cache?.currentGeneration(settings: settings, kind: .translation)
         let layoutGeneration = await cache?.currentGeneration(settings: settings, kind: .layout)
-        // Memory admission (reclaims caches/legacy OCR runtimes when short).
+        // Memory admission (reclaims caches and models when short).
         try await TranslationImageWorkBudget.shared.withPermit(
             priority: priority,
             decodedBytes: TranslationImageWorkBudget.decodedBytes(width: UInt64(source.width), height: UInt64(source.height))
@@ -566,7 +566,6 @@ final class V2TranslationFailureBox: @unchecked Sendable {
     var error: Error? { lock.withLock { stored } }
     func store(_ error: Error) { lock.withLock { if stored == nil { stored = error } } }
 }
-
 
 /// Build-time V2 performance profile. Builds compiled with the
 /// `AIDOKU_DEVELOPER_PERFORMANCE` condition (`Aidoku/Aidoku.xcconfig`) relax the

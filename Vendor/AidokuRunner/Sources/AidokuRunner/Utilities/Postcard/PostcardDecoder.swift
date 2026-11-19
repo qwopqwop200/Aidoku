@@ -55,19 +55,16 @@ private class DecodingContainer {
 
     func decode(_: String.Type) throws -> String {
         let length: UInt64 = try decodeVarInt(data, currentIndex: &currentIndex)
-        guard let length = Int(exactly: length), length <= data.endIndex - currentIndex else {
+        let endIndex = currentIndex.advanced(by: Int(truncatingIfNeeded: length))
+        guard endIndex <= data.endIndex, endIndex >= currentIndex else {
             throw DecodingError.dataCorrupted(DecodingError.Context(
                 codingPath: [],
                 debugDescription: "Invalid string length")
             )
         }
-        let endIndex = currentIndex + length
         let stringData = data[currentIndex..<endIndex]
         currentIndex = endIndex
-        guard let value = String(data: stringData, encoding: .utf8) else {
-            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid UTF-8"))
-        }
-        return value
+        return String(data: stringData, encoding: .utf8) ?? ""
     }
 
     func decode(_: Double.Type) throws -> Double {
@@ -80,7 +77,7 @@ private class DecodingContainer {
         }
         let value = Data(data[currentIndex..<endIndex])
         currentIndex = endIndex
-        return Double(bitPattern: value.withUnsafeBytes { $0.loadUnaligned(as: UInt64.self) }.littleEndian)
+        return Double(bitPattern: value.withUnsafeBytes { $0.load(as: UInt64.self) }.littleEndian)
     }
 
     func decode(_: Float.Type) throws -> Float {
@@ -93,7 +90,7 @@ private class DecodingContainer {
         }
         let value = Data(data[currentIndex..<endIndex])
         currentIndex = endIndex
-        return Float(bitPattern: value.withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) }.littleEndian)
+        return Float(bitPattern: value.withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian)
     }
 
     func decode(_: Int.Type) throws -> Int {
@@ -107,17 +104,17 @@ private class DecodingContainer {
 
     func decode(_: Int16.Type) throws -> Int16 {
         let value: UInt16 = try decode(UInt16.self)
-        return Int16(bitPattern: value >> 1) ^ -Int16(value & 1)
+        return decodeZigZag(Int16(value))
     }
 
     func decode(_: Int32.Type) throws -> Int32 {
         let value: UInt32 = try decode(UInt32.self)
-        return Int32(bitPattern: value >> 1) ^ -Int32(value & 1)
+        return decodeZigZag(Int32(value))
     }
 
     func decode(_: Int64.Type) throws -> Int64 {
         let value: UInt64 = try decode(UInt64.self)
-        return Int64(bitPattern: value >> 1) ^ -Int64(value & 1)
+        return decodeZigZag(Int64(value))
     }
 
     func decode(_: UInt.Type) throws -> UInt {
@@ -177,8 +174,8 @@ private class PostcardDecoding: Decoder {
         )
     }
 
-    func unkeyedContainer() throws -> any UnkeyedDecodingContainer {
-        try PostcardUnkeyedDecoding(
+    func unkeyedContainer() -> any UnkeyedDecodingContainer {
+        PostcardUnkeyedDecoding(
             decodingContainer: decodingContainer,
             codingPath: codingPath,
             userInfo: userInfo
@@ -414,8 +411,8 @@ private class PostcardKeyedDecoding<Key: CodingKey>: KeyedDecodingContainerProto
         )
     }
 
-    func nestedUnkeyedContainer(forKey _: Key) throws -> UnkeyedDecodingContainer {
-        try PostcardUnkeyedDecoding(
+    func nestedUnkeyedContainer(forKey _: Key) -> UnkeyedDecodingContainer {
+        PostcardUnkeyedDecoding(
             decodingContainer: decodingContainer,
             codingPath: codingPath,
             userInfo: userInfo
@@ -437,36 +434,32 @@ private class PostcardUnkeyedDecoding: UnkeyedDecodingContainer {
     var userInfo: [CodingUserInfoKey: Any]
 
     var currentIndex: Int {
-        currentCount
+        decodingContainer.currentIndex
     }
 
     var count: Int?
     var currentCount = 0
 
     var isAtEnd: Bool {
-        currentCount >= (count ?? 0)
+        decodingContainer.currentIndex >= decodingContainer.data.endIndex || currentCount > count ?? 0
+        // current count will be one ahead
     }
 
     init(
         decodingContainer: DecodingContainer,
         codingPath: [CodingKey],
         userInfo: [CodingUserInfoKey: Any]
-    ) throws {
+    ) {
         self.decodingContainer = decodingContainer
         self.codingPath = codingPath
         self.userInfo = userInfo
 
-        let length = try decodingContainer.decode(UInt64.self)
-        guard let length = Int(exactly: length) else {
-            throw DecodingError.dataCorrupted(.init(codingPath: codingPath, debugDescription: "Invalid sequence length"))
-        }
-        count = length
+        count = (try? decode(UInt64.self)).flatMap(Int.init)
     }
 
     func decodeNil() throws -> Bool {
-        let isNil = try decodingContainer.decodeNil()
-        if isNil { currentCount += 1 }
-        return isNil
+        currentCount += 1
+        return try decodingContainer.decodeNil()
     }
 
     func decode(_ type: Bool.Type) throws -> Bool {
@@ -692,9 +685,9 @@ private class PostcardUnkeyedDecoding: UnkeyedDecodingContainer {
         )
     }
 
-    func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
+    func nestedUnkeyedContainer() -> UnkeyedDecodingContainer {
         currentCount += 1
-        return try PostcardUnkeyedDecoding(
+        return PostcardUnkeyedDecoding(
             decodingContainer: decodingContainer,
             codingPath: codingPath,
             userInfo: userInfo

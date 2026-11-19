@@ -34,11 +34,7 @@ enum V2LineAssembly {
         static let standard = Parameters()
     }
 
-    static func assemble(_ lines: [V2Line], layout: [V2LayoutRegion]) -> [V2Line] {
-        assemble(lines, layout: layout, parameters: .standard)
-    }
-
-    static func assemble(_ lines: [V2Line], layout: [V2LayoutRegion], parameters: Parameters) -> [V2Line] {
+    static func assemble(_ lines: [V2Line], layout: [V2LayoutRegion], parameters: Parameters = .standard) -> [V2Line] {
         guard lines.count > 1 else { return lines }
         let balloons = layout.filter {
             $0.kind == .balloon && $0.score >= parameters.balloonMinimumScore && !$0.bounds.isEmpty

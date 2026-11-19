@@ -417,6 +417,9 @@ class ReaderViewController: BaseObservingViewController {
                 }
             }
         }
+        addObserver(forName: "Reader.autoScroll") { [weak self] _ in
+            self?.updateAutoScrollButton()
+        }
         addObserver(forName: AppSettings.reader.autoScrollPosition.key) { [weak self] _ in
             guard let self else { return }
             let visible = self.reader is ReaderWebtoonViewController && UserDefaults.standard.bool(forKey: "Reader.autoScroll")

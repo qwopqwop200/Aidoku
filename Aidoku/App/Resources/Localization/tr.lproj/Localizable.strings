@@ -124,6 +124,7 @@
 "ABOUT" = "Hakkında";
 "GITHUB_REPO" = "GitHub Deposu";
 "DISCORD_SERVER" = "Discord Sunucusu";
+"SUPPPORT_DEVELOPMENT" = "Geliştirmeyi Destekle";
 "CHAPTER_X" = "Bölüm %g";
 "RENAME_BACKUP_TEXT" = "Yedek için yeni bir isim girin";
 "SOURCE_LIST_ADD" = "Kaynak Listesi Ekle";
@@ -1027,7 +1028,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "Bir PP-OCRv6 modeli yüklenemedi.";
 
-"OCR_ERROR_DICTIONARY" = "PP-OCRv6 karakter sözlüğü eksik veya geçersiz.";
 
 "OCR_ERROR_IMAGE" = "Görüntü metin tanıma için hazırlanamadı.";
 

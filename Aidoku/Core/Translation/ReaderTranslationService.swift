@@ -117,7 +117,7 @@ actor ReaderTranslationService {
             plans.map(\.request), configuration: settings.configuration, service: service,
             maximumConcurrentRequests: concurrency, priority: .metadata(priority))
         for (index, result) in results.enumerated() {
-            _ = await progress.complete(index: index, result: result)
+            await progress.complete(index: index, result: result)
         }
         try Task.checkCancellation()
         return ReaderTranslationLanguageFilter.preservingExcludedSource(
@@ -199,7 +199,7 @@ actor ReaderTranslationProgress {
         }
     }
 
-    func complete(index: Int, result: RemoteTranslationBatchResult) -> [ReaderTranslationRegion] {
+    func complete(index: Int, result: RemoteTranslationBatchResult) {
         for segment in result.translations {
             if let inputIndex = inputIndices[index][segment.id], let identity = expected[inputIndex] {
                 regions[inputIndex].applyTranslation(segment)
@@ -207,7 +207,6 @@ actor ReaderTranslationProgress {
                 regions[inputIndex].translationRecoveryFailure = nil
             }
         }
-        return regions
     }
 
     func snapshot() -> [ReaderTranslationRegion] {

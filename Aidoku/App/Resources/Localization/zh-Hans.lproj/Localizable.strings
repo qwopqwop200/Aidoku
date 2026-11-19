@@ -144,6 +144,7 @@
 "ABOUT" = "关于";
 "GITHUB_REPO" = "GitHub 仓库";
 "DISCORD_SERVER" = "Discord 服务器";
+"SUPPPORT_DEVELOPMENT" = "支持开发";
 "GENERAL" = "通用";
 "ICLOUD_SYNC" = "iCloud 同步";
 "INCOGNITO_MODE" = "无痕模式";
@@ -1009,7 +1010,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "钥匙串操作失败（状态码 %d）。";
 "OCR_ERROR_MODEL_MISSING" = "缺少所需的 PP-OCRv6 模型。";
 "OCR_ERROR_MODEL_LOAD" = "无法加载 PP-OCRv6 模型。";
-"OCR_ERROR_DICTIONARY" = "PP-OCRv6 字符字典缺失或无效。";
 "OCR_ERROR_IMAGE" = "无法准备用于文字识别的图像。";
 "OCR_ERROR_OUTPUT" = "PP-OCRv6 模型返回了无效或不受支持的输出。";
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 文字识别失败。请使用其他图像或 OCR 模型重试。";

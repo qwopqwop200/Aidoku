@@ -102,6 +102,7 @@
 "SETTINGS" = "Pengaturan";
 "AUTH_TO_ENABLE" = "Otentikasi untuk mengaktifkan.";
 "ABOUT" = "Tentang";
+"SUPPPORT_DEVELOPMENT" = "Dukungan Pengembangan";
 "GENERAL" = "Umum";
 "ICLOUD_SYNC" = "Sinkronisasi iCloud";
 "INCOGNITO_MODE" = "Mode Penyamaran";
@@ -1025,7 +1026,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "Model PP-OCRv6 tidak dapat dimuat.";
 
-"OCR_ERROR_DICTIONARY" = "Kamus karakter PP-OCRv6 tidak ditemukan atau tidak valid.";
 
 "OCR_ERROR_IMAGE" = "Gambar tidak dapat disiapkan untuk pengenalan teks.";
 

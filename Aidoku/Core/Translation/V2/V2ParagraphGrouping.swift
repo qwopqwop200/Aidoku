@@ -4,15 +4,11 @@ import CoreGraphics
 /// V2-owned copy of the model-free paragraph graph (NativeSimpleParagraphGrouping,
 /// policy "simple-paragraph-v2-literal-native-...-row-boundary-v1"), adapted to V2
 /// values: one detection operation, Bool orientation. RF boxes are hints, never
-/// contours. Only `Parameters` differ from the legacy constants.
+/// contours. Only `balloonEdgeCoverage` differs from the legacy constants.
 enum V2ParagraphGrouping {
-    struct Parameters: Sendable, Equatable {
-        /// Minimum fraction of a line inside an owning balloon for an edge to
-        /// a line of that balloon (legacy 0.9; V2 selects 0.7, see V2Grouping).
-        var balloonEdgeCoverage: CGFloat = 0.7
-        /// Legacy constants, for parity checks.
-        static let legacy = Parameters(balloonEdgeCoverage: 0.9)
-    }
+    /// Minimum fraction of a line inside an owning balloon for an edge to
+    /// a line of that balloon (legacy 0.9; V2 selects 0.7).
+    static let balloonEdgeCoverage: CGFloat = 0.7
     struct Scope {
         let owner: Int
         let box: CGRect
@@ -227,8 +223,7 @@ enum V2ParagraphGrouping {
     }
 
     /// Nil means invalid geometry, not an empty or filtered page.
-    static func group(_ inputs: [Input], textScopes: [Scope], balloons: [Scope],
-                      parameters: Parameters = Parameters()) -> [Group]? {
+    static func group(_ inputs: [Input], textScopes: [Scope], balloons: [Scope]) -> [Group]? {
         guard inputs.allSatisfy({ $0.polygon.count >= 3 && $0.polygon.allSatisfy { $0.x.isFinite && $0.y.isFinite } }),
               (textScopes+balloons).allSatisfy({
                   !$0.box.isNull && [$0.box.minX, $0.box.minY, $0.box.maxX, $0.box.maxY].allSatisfy(\.isFinite)
@@ -254,8 +249,8 @@ enum V2ParagraphGrouping {
             guard a.input.vertical == b.input.vertical else { continue }
             if let x = a.balloon, let y = b.balloon, x.owner != y.owner { continue }
             if let known = a.balloon {
-                if coverage(b.box, known.box) < parameters.balloonEdgeCoverage { continue }
-            } else if let known = b.balloon, coverage(a.box, known.box) < parameters.balloonEdgeCoverage { continue }
+                if coverage(b.box, known.box) < balloonEdgeCoverage { continue }
+            } else if let known = b.balloon, coverage(a.box, known.box) < balloonEdgeCoverage { continue }
             guard let relation = distance(a, b) else { continue }
             // Keep weak unsupported parallel atoms separate; do not drop their source.
             let ca = a.input.confidence, cb = b.input.confidence

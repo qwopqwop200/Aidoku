@@ -297,12 +297,10 @@ struct TitleTranslationTests {
         settings.sourceLabelSourceLanguages = []
         settings.targetLanguage = "ko"
         let options = (0..<1000).map { "Tag \($0)" }
-        let labels = SourceMenuTranslation.labelsToTranslate(options: options, title: "Tags")
-        #expect(labels == ["Tags"])
-        _ = await SourceMenuTranslation.translate(labels, settings: settings, service: service, diskCache: fixture.disk)
+        #expect(SourceMenuTranslation.labelsToTranslate(options: options).isEmpty)
+        _ = await SourceMenuTranslation.translate(["Tags"], settings: settings, service: service, diskCache: fixture.disk)
         #expect(await client.requests.flatMap(\.segments).map(\.text) == ["Tags"])
         #expect(!SourceMenuTranslation.translatesOptions(count: options.count))
-        #expect(SourceMenuTranslation.labelsToTranslate(options: options).isEmpty)
         #expect(SourceMenuTranslation.labelsToTranslate(options: Array(options.prefix(100))).count == 100)
         #expect(SourceMenuTranslation.labelsToTranslate(options: Array(options.prefix(101))).isEmpty)
     }
@@ -314,8 +312,8 @@ struct TitleTranslationTests {
         var settings = ReaderTranslationSettings(defaults: defaults)
         #expect(!settings.translateLargeFilterOptions)
         let options = (0..<101).map { "Option \($0)" }
-        #expect(SourceMenuTranslation.labelsToTranslate(options: options, title: "Tags",
-            includeLargeLists: settings.translateLargeFilterOptions) == ["Tags"])
+        #expect(SourceMenuTranslation.labelsToTranslate(options: options,
+            includeLargeLists: settings.translateLargeFilterOptions).isEmpty)
         settings.translateLargeFilterOptions = true
         try settings.autosave(defaults: defaults)
         #expect(ReaderTranslationSettings(defaults: defaults).translateLargeFilterOptions)

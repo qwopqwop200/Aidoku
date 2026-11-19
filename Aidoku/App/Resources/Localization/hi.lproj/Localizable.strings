@@ -153,6 +153,7 @@
 // Settings
 "SETTINGS" = "सेटिंग्स";
 "DISCORD_SERVER" = "डिस्कॉर्ड सर्वर";
+"SUPPPORT_DEVELOPMENT" = "सपोर्ट डिवेलप्मेंट";
 "APPEARANCE_LIGHT" = "हल्का";
 "APPEARANCE_DARK" = "गहरा";
 "USE_SYSTEM_APPEARANCE" = "सिस्टम के अनुसार दिखावट";
@@ -1025,7 +1026,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "PP-OCRv6 मॉडल लोड नहीं हो सका।";
 
-"OCR_ERROR_DICTIONARY" = "PP-OCRv6 का वर्ण शब्दकोश मौजूद नहीं है या अमान्य है।";
 
 "OCR_ERROR_IMAGE" = "टेक्स्ट पहचानने के लिए छवि तैयार नहीं हो सकी।";
 

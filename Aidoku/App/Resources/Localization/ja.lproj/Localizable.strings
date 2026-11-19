@@ -152,6 +152,7 @@
 "AUTH_TO_ENABLE" = "有効にするには認証が必要です。";
 "AUTH_TO_DISABLE" = "無効にするには認証が必要です。";
 "ABOUT" = "このアプリについて";
+"SUPPPORT_DEVELOPMENT" = "開発をサポートする";
 "GENERAL" = "一般";
 "ICLOUD_SYNC" = "iCloud同期";
 "INCOGNITO_MODE" = "シークレットモード";
@@ -1007,7 +1008,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychainの操作に失敗しました（ステータスコード%d）。";
 "OCR_ERROR_MODEL_MISSING" = "必要なPP-OCRv6モデルがありません。";
 "OCR_ERROR_MODEL_LOAD" = "PP-OCRv6モデルを読み込めませんでした。";
-"OCR_ERROR_DICTIONARY" = "PP-OCRv6の文字辞書が見つからないか、無効です。";
 "OCR_ERROR_IMAGE" = "文字認識用の画像を準備できませんでした。";
 "OCR_ERROR_OUTPUT" = "PP-OCRv6モデルが無効または未対応の出力を返しました。";
 "OCR_ERROR_PREDICTION" = "PP-OCRv6の文字認識に失敗しました。別の画像またはOCRモデルで再試行してください。";

@@ -36,7 +36,6 @@ struct V2ReaderPipelineTests {
                      forKey: ReaderTranslationSettings.keyPrefix + "ocr")
         defaults.set(Data("{\"unexpected\":true}".utf8), forKey: ReaderTranslationSettings.keyPrefix + "overlay")
         let settings = ReaderTranslationSettings(defaults: defaults)
-        #expect(settings.modelTier == .manga)
         #expect(settings.overlay.visible)
         try settings.autosave(defaults: defaults, credentialStore: V2NoCredentials())
         for key in ReaderTranslationSettings.retiredKeys { #expect(defaults.object(forKey: key) == nil, "\(key)") }
@@ -52,11 +51,6 @@ struct V2ReaderPipelineTests {
         settings.readingDirection = .topToBottom
         let topToBottom = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
         #expect(Set([rightToLeft, leftToRight, topToBottom]).count == 3)
-        // Right-to-left keeps the key rows were cached under before direction-aware ordering.
-        settings.readingDirection = .rightToLeft
-        #expect(settings.rightToLeftPanelOrder)
-        settings.rightToLeftPanelOrder = false
-        #expect(settings.readingDirection == .leftToRight)
     }
 
     @Test func memoryCacheEvictsLeastRecentlyUsedWithinBudget() {
@@ -136,14 +130,12 @@ struct V2ReaderPipelineTests {
         configurations.append(fixed)
         for settings in configurations {
             let eligible = ReaderTranslationV2Service.eligibleForTranslation(blocks, settings: settings)
-            // Same per-text rule as the legacy region filter (manga recognizer tier).
-            var legacySettings = settings
-            legacySettings.modelTier = .manga
+            // Same per-text rule as the legacy region filter (manga recognizer).
             for candidate in blocks {
                 let region = ReaderTranslationRegion(id: "\(candidate.id)", rect: CGRect(x: 0, y: 0, width: 0.1, height: 0.1),
                     source: candidate.sourceText)
                 // Never stricter than the legacy region filter.
-                if !ReaderTranslationLanguageFilter.apply([region], settings: legacySettings).isEmpty {
+                if !ReaderTranslationLanguageFilter.apply([region], settings: settings).isEmpty {
                     #expect(eligible.contains(candidate.id), "\(candidate.sourceText)")
                 }
             }

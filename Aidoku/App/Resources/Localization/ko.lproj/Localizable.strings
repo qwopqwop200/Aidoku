@@ -190,6 +190,7 @@
 "MARK_PREVIOUS" = "이전 챕터 읽음 상태 변경";
 "MARK_UNREAD" = "읽지 않음으로 표시";
 "CURRENT_COLON" = "현재:";
+"SUPPPORT_DEVELOPMENT" = "개발 지원";
 "GENERAL" = "일반";
 "READING_MODE" = "읽기 모드";
 "DEFAULT" = "기본값";
@@ -977,7 +978,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychain 작업에 실패했습니다(상태 코드 %d).";
 "OCR_ERROR_MODEL_MISSING" = "필요한 PP-OCRv6 모델이 없습니다.";
 "OCR_ERROR_MODEL_LOAD" = "PP-OCRv6 모델을 불러올 수 없습니다.";
-"OCR_ERROR_DICTIONARY" = "PP-OCRv6 문자 사전이 없거나 올바르지 않습니다.";
 "OCR_ERROR_IMAGE" = "글자 인식에 사용할 이미지를 준비할 수 없습니다.";
 "OCR_ERROR_OUTPUT" = "PP-OCRv6 모델이 올바르지 않거나 지원하지 않는 출력을 반환했습니다.";
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 글자 인식에 실패했습니다. 다른 이미지나 OCR 모델로 다시 시도하세요.";

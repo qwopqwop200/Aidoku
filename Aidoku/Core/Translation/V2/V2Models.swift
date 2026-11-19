@@ -132,15 +132,12 @@ final class V2Models: @unchecked Sendable {
     /// S2 text detectors (PP-OCRv6 manga DB, legacy implementation), resident.
     /// Use `detectors.with { ... }`; never call one instance concurrently.
     let detectors: V2InstancePool<NativeCoreMLDetector>
-    /// The first detector, for single-page callers and tests.
-    var detector: NativeCoreMLDetector { detectors.all[0] }
     /// S3 recognizer: independent resident handles (owned by V2Recognition.swift).
     let recognition: V2RecognitionEngine
     /// S1 RF-DETR 648 layout model.
     let layout: V2RFDETRModel
     /// S7 AOT 1024 inpainting models (independent instances; one prediction each at a time).
     let inpainters: V2InstancePool<V2AOTModel>
-    var inpainter: V2AOTModel { inpainters.all[0] }
     /// Wall-clock milliseconds spent loading each model, for the run summary.
     let loadMilliseconds: [String: Double]
 
@@ -197,7 +194,7 @@ final class V2Models: @unchecked Sendable {
                 group.addTask { _ = try await V2Detection.detect(page, detector: detector) }
             }
             for model in inpainters.all {
-                group.addTask { _ = try await model.executor.run { try model.restore(raster, removal: mask) } }
+                group.addTask { _ = try await model.executor.run { try model.restoreImage(raster, removal: mask) } }
             }
             try await group.waitForAll()
         }

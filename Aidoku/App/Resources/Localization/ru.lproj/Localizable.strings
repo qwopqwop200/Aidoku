@@ -109,6 +109,7 @@
 "AUTH_TO_ENABLE" = "Подтвердите личность для включения.";
 "GITHUB_REPO" = "Репозиторий GitHub";
 "DISCORD_SERVER" = "Сервер Discord";
+"SUPPPORT_DEVELOPMENT" = "Поддержка Разработки";
 "GENERAL" = "Основное";
 "ICLOUD_SYNC" = "Синхронизация с iCloud";
 "APPEARANCE" = "Внешний вид";
@@ -1007,7 +1008,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Операция со связкой ключей завершилась ошибкой с кодом %d.";
 "OCR_ERROR_MODEL_MISSING" = "Отсутствует необходимая модель PP-OCRv6.";
 "OCR_ERROR_MODEL_LOAD" = "Не удалось загрузить модель PP-OCRv6.";
-"OCR_ERROR_DICTIONARY" = "Словарь символов PP-OCRv6 отсутствует или недействителен.";
 "OCR_ERROR_IMAGE" = "Не удалось подготовить изображение к распознаванию текста.";
 "OCR_ERROR_OUTPUT" = "Модель PP-OCRv6 вернула некорректный или неподдерживаемый результат.";
 "OCR_ERROR_PREDICTION" = "Не удалось распознать текст с помощью PP-OCRv6. Попробуйте другое изображение или модель OCR.";

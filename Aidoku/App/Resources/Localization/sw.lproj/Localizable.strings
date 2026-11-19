@@ -544,6 +544,7 @@
 "ABOUT" = "Kuhusu";
 "GITHUB_REPO" = "Hifadhi ya GitHub";
 "DISCORD_SERVER" = "Seva ya Discord";
+"SUPPPORT_DEVELOPMENT" = "Saidia Maendeleo";
 "GENERAL" = "Jumla";
 "ICLOUD_SYNC" = "Usawazishaji wa iCloud";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Usawazishaji wa iCloud ni kipengele cha majaribio. Kuiwezesha au kuizima kunaweza kusababisha upotezaji wa data.";
@@ -1005,7 +1006,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "Modeli ya PP-OCRv6 haikuweza kupakiwa.";
 
-"OCR_ERROR_DICTIONARY" = "Kamusi ya herufi ya PP-OCRv6 haipo au si halali.";
 
 "OCR_ERROR_IMAGE" = "Picha haikuweza kuandaliwa kwa utambuzi wa maandishi.";
 

@@ -68,12 +68,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var translationSourceLanguages: [String] = []
     // Metadata has no OCR model and must retain its independent language choices.
     var usesOCRLanguagePolicy = true
-    var supportedOCRSourceLanguageCodes: Set<String> {
-        modelTier.restrictedSourceLanguageCodes ?? AutomaticSourceLanguageDetector.supportedLanguageCodes
-    }
+    /// The page pipeline has one fixed manga detector/recognizer.
+    var supportedOCRSourceLanguageCodes: Set<String> { IPhoneOCRSettings.mangaSourceLanguageCodes }
 
     mutating func normalizeOCRSourceLanguages() {
-        guard modelTier.restrictedSourceLanguageCodes != nil else { return }
         if sourceLanguage != "auto", !supportedOCRSourceLanguageCodes.contains(ReaderTranslationLanguageFilter.canonical(sourceLanguage)) {
             sourceLanguage = "auto"
         }
@@ -86,20 +84,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     /// Transient chapter direction, supplied by the reader coordinator (or the
     /// manga's viewer for downloads). V2 orders blocks and panels by it.
     var readingDirection: V2ReadingDirection = .rightToLeft
-    var rightToLeftPanelOrder: Bool {
-        get { readingDirection == .rightToLeft }
-        set { readingDirection = newValue ? .rightToLeft : .leftToRight }
-    }
-    /// The page pipeline has one fixed manga detector/recognizer; changing the
-    /// tier only re-applies its source-language contract.
-    var modelTier = IPhoneOCRSettings.defaultModelTier {
-        didSet { if modelTier != oldValue { normalizeOCRSourceLanguages() } }
-    }
-    static let defaultOverlay = IPhoneOverlaySettings(
+    var overlay = IPhoneOverlaySettings(
         visible: true, mode: .translateOnly, colorMode: .white, opacity: 0.84,
         textPlacement: .replace, subtitlePosition: .bottom, subtitleMaxLines: 2, subtitleContextSentences: 0
     )
-    var overlay = Self.defaultOverlay
     var maximumConcurrentRequests = 16
     // Internal context for metadata translation; never loaded from user preferences.
     var metadataInstructions = ""
@@ -199,7 +187,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
                 languages.allSatisfy { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
         })
         else { throw RemoteTranslationError.invalidRequest("Invalid translation source-language filter.") }
-        if usesOCRLanguagePolicy, let supported = modelTier.restrictedSourceLanguageCodes {
+        if usesOCRLanguagePolicy {
+            let supported = supportedOCRSourceLanguageCodes
             guard sourceLanguage == "auto" || supported.contains(ReaderTranslationLanguageFilter.canonical(sourceLanguage)),
                   translationSourceLanguages.allSatisfy({ supported.contains(ReaderTranslationLanguageFilter.canonical($0)) }) else {
                 throw RemoteTranslationError.invalidRequest(NSLocalizedString("TRANSLATION_OCR_MANGA_HELP"))

@@ -230,6 +230,7 @@
 "UNPIN" = "Odepnout";
 "REORDER" = "Změnit pořadí";
 "ABOUT" = "O aplikaci";
+"SUPPPORT_DEVELOPMENT" = "Podpora vývoje";
 "GENERAL" = "Obecné";
 "ICLOUD_SYNC" = "Synchronizace s iCloudem";
 "PORTRAIT" = "Na výšku";
@@ -1005,7 +1006,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operace s Klíčenkou selhala se stavovým kódem %d.";
 "OCR_ERROR_MODEL_MISSING" = "Chybí požadovaný model PP-OCRv6.";
 "OCR_ERROR_MODEL_LOAD" = "Model PP-OCRv6 se nepodařilo načíst.";
-"OCR_ERROR_DICTIONARY" = "Slovník znaků PP-OCRv6 chybí nebo je neplatný.";
 "OCR_ERROR_IMAGE" = "Obrázek se nepodařilo připravit k rozpoznávání textu.";
 "OCR_ERROR_OUTPUT" = "Model PP-OCRv6 vrátil neplatný nebo nepodporovaný výstup.";
 "OCR_ERROR_PREDICTION" = "Rozpoznávání textu pomocí PP-OCRv6 selhalo. Zkuste jiný obrázek nebo model OCR.";

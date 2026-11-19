@@ -10,7 +10,6 @@ struct MangaOCRDefaultsTests {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let settings = ReaderTranslationSettings(defaults: defaults)
-        #expect(settings.modelTier == .manga)
         #expect(settings.sourceLanguage == "auto")
         #expect(settings.targetLanguage == "ko")
         // The manga dictionary spells CJK and Latin-script text (no Hangul, Cyrillic or Vietnamese).
@@ -20,16 +19,15 @@ struct MangaOCRDefaultsTests {
         #expect(NativeCoreMLDetector.modelResourceName == V2Models.detectorResourceName)
     }
 
-    @Test func modelSelectionNormalizesOnlyPageSourceLanguages() throws {
+    @Test func normalizationRestrictsOnlyPageSourceLanguages() throws {
         let suite = "MangaOCRSources.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         var settings = ReaderTranslationSettings(defaults: defaults)
-        settings.modelTier = .medium
         settings.sourceLanguage = "vi"
         settings.translationSourceLanguages = ["en", "ja", "vi", "zh-Hans", "zh-Hant"]
         settings.mangaTitleSourceLanguages = ["en", "fr"]
-        settings.modelTier = .manga
+        settings.normalizeOCRSourceLanguages()
         #expect(settings.sourceLanguage == "auto")
         #expect(settings.translationSourceLanguages == ["en", "ja", "zh", "zh-Hant"])
         #expect(settings.mangaTitleSourceLanguages == ["en", "fr"])

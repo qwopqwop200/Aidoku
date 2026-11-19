@@ -94,6 +94,7 @@
 "ABOUT" = "عن التطبيق";
 "GITHUB_REPO" = "مستودع GitHub";
 "DISCORD_SERVER" = "خادم Discord";
+"SUPPPORT_DEVELOPMENT" = "ادعم التطوير";
 "GENERAL" = "عام";
 "ICLOUD_SYNC" = "مزامنة iCloud";
 "APPEARANCE" = "المظهر";
@@ -1027,7 +1028,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "تعذر تحميل نموذج PP-OCRv6.";
 
-"OCR_ERROR_DICTIONARY" = "قاموس أحرف PP-OCRv6 مفقود أو غير صالح.";
 
 "OCR_ERROR_IMAGE" = "تعذر تجهيز الصورة للتعرف على النص.";
 

@@ -65,7 +65,6 @@ final class CoreDataManager: @unchecked Sendable {
         }
         .store(in: &cancellables)
 
-
     }
 
     static func createContainer(usesCloudKitMirroring: Bool) -> NSPersistentCloudKitContainer {
@@ -457,5 +456,4 @@ extension CoreDataManager {
             }
         }
     }
-
 }

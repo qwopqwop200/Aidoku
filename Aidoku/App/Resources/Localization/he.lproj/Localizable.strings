@@ -97,6 +97,7 @@
 // Settings
 "SETTINGS" = "הגדרות";
 "AUTH_TO_ENABLE" = "הזדהה על מנת לאפשר.";
+"SUPPPORT_DEVELOPMENT" = "תמיכה בפיתוח";
 "GENERAL" = "כללי";
 "ICLOUD_SYNC" = "סנכרון iCloud";
 "INCOGNITO_MODE" = "קריאה בסתר";
@@ -1025,7 +1026,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "לא ניתן לטעון מודל PP-OCRv6.";
 
-"OCR_ERROR_DICTIONARY" = "מילון התווים של PP-OCRv6 חסר או אינו תקין.";
 
 "OCR_ERROR_IMAGE" = "לא ניתן להכין את התמונה לזיהוי טקסט.";
 

@@ -81,6 +81,7 @@
 "ABOUT" = "აპლიკაციის შესახებ";
 "GITHUB_REPO" = "GitHub საცავი";
 "DISCORD_SERVER" = "Discord სერვერი";
+"SUPPPORT_DEVELOPMENT" = "განვითარების მხარდაჭერა";
 "GENERAL" = "ზოგადი";
 "ICLOUD_SYNC" = "iCloud სინქრონიზაცია";
 "INCOGNITO_MODE" = "ინკოგნიტო რეჟიმი";
@@ -1025,7 +1026,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "PP-OCRv6 მოდელის ჩატვირთვა ვერ მოხერხდა.";
 
-"OCR_ERROR_DICTIONARY" = "PP-OCRv6-ის სიმბოლოების ლექსიკონი ვერ მოიძებნა ან არასწორია.";
 
 "OCR_ERROR_IMAGE" = "სურათის ტექსტის ამოცნობისთვის მომზადება ვერ მოხერხდა.";
 

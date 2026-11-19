@@ -22,19 +22,16 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     /// Explicit optional-recovery failure stored with older cache rows.
     var translationRecoveryFailure: String? = nil
 
-    @discardableResult
-    mutating func applyTranslation(_ segment: RemoteTranslatedSegment) -> Bool {
+    mutating func applyTranslation(_ segment: RemoteTranslatedSegment) {
         // A false OCR detection is not lettering: keep its original pixels and
         // ignore any schema-required text returned with the error role.
         if segment.textRole == .error {
-            let changed = translation != source || rendersUnchangedSymbols || keepsClassifiedSFXSource
             translation = source
             keepsClassifiedSFXSource = false
             rendersUnchangedSymbols = false
-            return changed
+            return
         }
-        let classifiedSFX = segment.isSFX == true || segment.textRole == .sfx
-        let keepSFX = classifiedSFX
+        let keepSFX = segment.isSFX == true || segment.textRole == .sfx
         let effectiveText = segment.textRole == .background ? source : segment.text
         let original = source.trimmingCharacters(in: .whitespacesAndNewlines)
         let sourceScalars = original.unicodeScalars
@@ -44,13 +41,10 @@ struct ReaderTranslationRegion: Equatable, Sendable {
                 CharacterSet.punctuationCharacters.contains($0) || CharacterSet.symbols.contains($0) ||
                     CharacterSet.whitespacesAndNewlines.contains($0)
             }
-        let changed = translation != effectiveText || rendersUnchangedSymbols != renderSymbols ||
-            keepsClassifiedSFXSource != keepSFX
         // Object lettering is translated by the provider for diagnostics, but
         // its original pixels must not receive a speech-style overlay.
         translation = effectiveText
         keepsClassifiedSFXSource = keepSFX
         rendersUnchangedSymbols = renderSymbols
-        return changed
     }
 }

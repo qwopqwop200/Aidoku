@@ -529,13 +529,7 @@ extension LocalFileManager {
 
         // Commit series and chapter together. Failed commits retain the inbox for
         // retry and cannot be mistaken for a successful import by its caller.
-        let cover = coverURL?.toAidokuImageUrl()?.absoluteString ?? {
-            for ext in Self.allowedImageExtensions {
-                let coverPath = mangaFolder.appendingPathComponent("cover.\(ext)")
-                if coverPath.exists { return coverPath.toAidokuImageUrl()?.absoluteString }
-            }
-            return nil
-        }()
+        let cover = coverURL?.toAidokuImageUrl()?.absoluteString
         let title: String?
         if let chapterName {
             title = chapterName.isEmpty ? nil : chapterName

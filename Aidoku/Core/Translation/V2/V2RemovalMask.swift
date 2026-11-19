@@ -141,10 +141,6 @@ enum V2RemovalMask {
                         blurHalf: blurHalf, frame: Frame(x: x0, y: y0, width: x1 - x0, height: y1 - y0))
     }
 
-    static func segment(_ block: V2Block, pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int) -> BlockMask? {
-        geometry(block, width: width, height: height).flatMap { segment($0, pixels: pixels, width: width, height: height) }
-    }
-
     static func segment(_ geometry: Geometry, pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int) -> BlockMask? {
         let frame = geometry.frame
         guard frame.pixels <= maximumBlockPixels else { return polygonMask(geometry.polygons, width: width, height: height) }
@@ -577,20 +573,7 @@ enum V2RemovalMask {
                                 hidden: V2RemovalMaskWeights.stage2Hidden)
 
     /// Two ReLU layers and a sigmoid output. `input` is feature-major: feature f of row r at
-    /// f * rows + r (extra trailing planes are ignored).
-    static func mlp(_ input: [Float], rows: Int, network net: Network) -> [Float] {
-        precondition(input.count >= rows * net.features)
-        var output = [Float](repeating: 0, count: rows)
-        guard rows > 0 else { return output }
-        input.withUnsafeBufferPointer { ip in
-            output.withUnsafeMutableBufferPointer { op in
-                mlp(ip.baseAddress!, rows: rows, network: net, output: op.baseAddress!)
-            }
-        }
-        return output
-    }
-
-    /// Pointer form of `mlp(_:rows:network:)`. Rows are evaluated in fixed chunks of 16 384
+    /// f * rows + r (extra trailing planes are ignored). Rows are evaluated in fixed chunks of 16 384
     /// (each chunk is one identical BLAS call however they are scheduled); `parallel` runs the
     /// chunks concurrently, and a single chunk reads the input planes in place.
     static func mlp(_ input: UnsafePointer<Float>, rows: Int, network net: Network, output: UnsafeMutablePointer<Float>,

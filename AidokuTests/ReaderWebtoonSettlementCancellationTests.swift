@@ -118,7 +118,7 @@ struct ReaderWebtoonSettlementCancellationTests {
         let before = controller.collectionNode.view.convert(frame, to: window).minY
         // Reproduce the real node-resize flag persisting until the next prepare.
         // The appended placeholder heights must not be treated as added above.
-        layout.isInsertingCellsAbove = true
+        layout.preserveOffsetAcrossChangeAbove()
         controller.viewModel.preloadedChapter = next
         controller.viewModel.preloadedPages = (0..<5).map {
             Page(sourceId: "test", chapterId: next.key, index: $0)

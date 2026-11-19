@@ -130,15 +130,11 @@ actor ReaderTranslationDiskCache {
         if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
     }
 
-    /// A memory read budget preserves oversized entries. A caller with a permanent
-    /// format limit may discard them atomically, before decoding or another write.
-    func data(for key: String, kind: Kind, maximumBytes: Int? = nil, discardOversized: Bool = false) throws -> Data? {
+    func data(for key: String, kind: Kind) throws -> Data? {
         try Task.checkCancellation()
         try prepare()
         let name = fileName(key, kind: kind)
-        guard let unpacked = try database?.unpackedData(
-            name, maximumBytes: maximumBytes, discardOversized: discardOversized
-        ) else { return nil }
+        guard let unpacked = try database?.unpackedData(name) else { return nil }
         recordRead(name)
         return unpacked
     }
@@ -154,71 +150,49 @@ actor ReaderTranslationDiskCache {
         return try database?.exists(fileName(key, kind: kind)) ?? false
     }
 
-    struct ReplacementCondition: Sendable {
-        let maximumBytes: Int
-        let matches: @Sendable (Data) -> Bool
-    }
-
     /// Clear invalidates in-flight writers. A transaction preserves the previous entry on write failure.
     func store(_ data: Data, for key: String, kind: Kind, generation expected: UInt64) throws {
-        _ = try store(data, for: key, kind: kind, generation: expected, replacing: nil)
-    }
-
-    func store(_ data: Data, for key: String, kind: Kind, generation expected: UInt64,
-               replacing condition: ReplacementCondition?) throws -> Bool {
         try Task.checkCancellation()
         try prepare()
-        guard storageGeneration(for: kind) == expected, kind != .snapshot else { return false }
-        let name = fileName(key, kind: kind)
+        guard storageGeneration(for: kind) == expected, kind != .snapshot else { return }
         let packed = ReaderTranslationCacheCodec.pack(data)
-        guard Int64(packed.count) <= byteLimit, try storePayload(packed, name: name, replacing: condition) else { return false }
+        guard Int64(packed.count) <= byteLimit else { return }
+        try storePayload(packed, name: fileName(key, kind: kind))
         try trim()
-        return true
     }
 
     func regions(for key: String, kind: Kind) throws -> [ReaderTranslationRegion]? {
-        try regionRecord(for: key, kind: kind)?.regions
-    }
-
-    /// A source-checked lookup must supply the observed full processed raster,
-    /// not a page locator or a digest inferred from an old cache row.
-    func regionRecord(for key: String, kind: Kind, matching sourceRasterClaim: ReaderTranslationSourceRasterClaim? = nil)
-        throws -> ReaderTranslationRegionArchive.Record? {
         try Task.checkCancellation()
         try prepare()
         let name = fileName(key, kind: kind)
         guard let record = try database?.regionRecord(name) else { return nil }
-        if let sourceRasterClaim, record.sourceRasterClaim != sourceRasterClaim { return nil }
         recordRead(name)
-        return record
+        return record.regions
     }
 
-    func storeRegions(_ regions: [ReaderTranslationRegion], for key: String, kind: Kind, generation: UInt64,
-                      sourceRasterClaim: ReaderTranslationSourceRasterClaim? = nil) throws {
+    func storeRegions(_ regions: [ReaderTranslationRegion], for key: String, kind: Kind, generation: UInt64) throws {
         try Task.checkCancellation()
         try prepare()
         guard storageGeneration(for: kind) == generation else { return }
         guard kind != .translation || !regions.contains(where: { $0.translationRecoveryFailure != nil }) else { return }
-        if regions.isEmpty, sourceRasterClaim == nil {
+        if regions.isEmpty {
             try store(Data("[]".utf8), for: key, kind: kind, generation: generation)
             return
         }
-        let archive = try ReaderTranslationRegionArchive(regions, sourceRasterClaim: sourceRasterClaim)
+        let archive = try ReaderTranslationRegionArchive(regions)
         guard Int64(archive.base.count + archive.variant.count) <= byteLimit else { return }
         try storePayload(archive.variant, name: fileName(key, kind: kind), base: archive.base)
         try trim()
     }
 
-    @discardableResult
-    private func storePayload(_ data: Data, name: String, base: Data? = nil, replacing condition: ReplacementCondition? = nil) throws -> Bool {
-        guard let database else { return false }
+    private func storePayload(_ data: Data, name: String, base: Data? = nil) throws {
+        guard let database else { return }
         // Preserve exact read-before-write LRU order in the content transaction.
         // A failed write rolls back touches too, so keep them queued for retry.
-        guard try database.store(data, name: name, base: base, touching: pendingTouches, replacing: condition) else { return false }
+        try database.store(data, name: name, base: base, touching: pendingTouches)
         touchFlushTask?.cancel()
         touchFlushTask = nil
         pendingTouches.removeAll()
-        return true
     }
 
     func remove(_ key: String, kind: Kind) throws {
@@ -517,7 +491,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
 
     /// Decode inside the statement lifetime so compressed BLOBs need no full
     /// intermediate copy. Capture the snapshot version only when a row needs removal.
-    func unpackedData(_ name: String, maximumBytes: Int?, discardOversized: Bool) throws -> Data? {
+    func unpackedData(_ name: String) throws -> Data? {
         var rejectedVersion: Int64?
         let data: Data? = try statement("SELECT cache.data, region_bases.data FROM \(lookupTable) LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
             + "region_bases.name=region_links.base WHERE cache.name=?", name: name) { pointer in
@@ -528,15 +502,11 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                 if sqlite3_column_type(pointer, 1) != SQLITE_NULL {
                     // Shared archives keep their existing owned buffers; restore
                     // produces independent JSON for the compatibility data API.
-                    let data = try ReaderTranslationRegionArchive.restore(base: blob(pointer, column: 1), variant: blob(pointer, column: 0))
-                    if let maximumBytes, data.count > maximumBytes { throw CocoaError(.fileReadTooLarge) }
-                    return data
+                    return try ReaderTranslationRegionArchive.restore(base: blob(pointer, column: 1), variant: blob(pointer, column: 0))
                 }
-                return try unpackedBlob(pointer, column: 0, maximumBytes: maximumBytes)
+                return try unpackedBlob(pointer, column: 0)
             } catch is CancellationError {
                 throw CancellationError()
-            } catch let error as CocoaError where error.code == .fileReadTooLarge && !discardOversized {
-                return nil
             } catch {
                 // The active SELECT pins the rejected bytes and this version together.
                 rejectedVersion = try integer("PRAGMA data_version")
@@ -547,18 +517,15 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         return data
     }
 
-    private func unpackedBlob(_ pointer: OpaquePointer, column: Int32, maximumBytes: Int?) throws -> Data {
-        if let maximumBytes, maximumBytes < 0 { throw CocoaError(.fileReadTooLarge) }
+    private func unpackedBlob(_ pointer: OpaquePointer, column: Int32) throws -> Data {
         let count = Int(sqlite3_column_bytes(pointer, column))
         guard count > 0, let bytes = sqlite3_column_blob(pointer, column) else { return Data() }
         let borrowed = Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes), count: count, deallocator: .none)
         guard ReaderTranslationCacheCodec.isPacked(borrowed) else {
-            if let maximumBytes, count > maximumBytes { throw CocoaError(.fileReadTooLarge) }
             // The codec's raw fast path returns its input. Materialize it here so
             // no SQLite pointer escapes step/reset/finalize, even for legacy JSON.
             return Data(bytes: bytes, count: count)
         }
-        if let maximumBytes { return try ReaderTranslationCacheCodec.unpack(borrowed, maximumBytes: maximumBytes) }
         return try ReaderTranslationCacheCodec.unpack(borrowed)
     }
 
@@ -716,23 +683,10 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         }
     }
 
-    @discardableResult
-    func store(_ data: Data, name: String, base: Data? = nil, preservingAccess: Bool = false, touching names: [String] = [],
-               replacing condition: ReaderTranslationDiskCache.ReplacementCondition? = nil) throws -> Bool {
+    func store(_ data: Data, name: String, base: Data? = nil, preservingAccess: Bool = false, touching names: [String] = []) throws {
         recentRegions.removeAll { $0.name == name }
         try execute("BEGIN IMMEDIATE")
         do {
-            if let condition {
-                // Replay repairs compare the actual row while holding the SQLite writer lock.
-                let matches = try statement("SELECT data FROM \(lookupTable) WHERE name=?", name: name) { pointer in
-                    let status = sqlite3_step(pointer)
-                    if status == SQLITE_DONE { return false }
-                    guard status == SQLITE_ROW else { throw failure() }
-                    return try condition.matches(unpackedBlob(pointer, column: 0, maximumBytes: condition.maximumBytes))
-                }
-                guard matches else { try execute("ROLLBACK"); return false }
-                try Task.checkCancellation()
-            }
             for name in names { try touch(name) }
             let accessed: Int64? = preservingAccess ? try statement("SELECT accessed FROM cache WHERE name=?", name: name) { pointer in
                 guard sqlite3_step(pointer) == SQLITE_ROW else { throw failure() }
@@ -765,7 +719,6 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                 }
             }
             try execute("COMMIT")
-            return true
         } catch {
             try? execute("ROLLBACK")
             throw error

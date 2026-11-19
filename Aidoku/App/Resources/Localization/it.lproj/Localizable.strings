@@ -141,6 +141,7 @@
 "HISTORY_LOCKED" = "La cronologia è bloccata.";
 "AUTH_TO_ENABLE" = "Autenticati per abilitare.";
 "AUTH_TO_DISABLE" = "Autenticati per disabilitare.";
+"SUPPPORT_DEVELOPMENT" = "Sostieni lo sviluppo";
 "GENERAL" = "Generale";
 "ICLOUD_SYNC" = "Sincronizzazione iCloud";
 "INCOGNITO_MODE" = "Modalità Incognito";
@@ -1006,7 +1007,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "L’operazione del portachiavi non è riuscita con il codice di stato %d.";
 "OCR_ERROR_MODEL_MISSING" = "Manca un modello PP-OCRv6 necessario.";
 "OCR_ERROR_MODEL_LOAD" = "Impossibile caricare un modello PP-OCRv6.";
-"OCR_ERROR_DICTIONARY" = "Il dizionario dei caratteri PP-OCRv6 è mancante o non valido.";
 "OCR_ERROR_IMAGE" = "Impossibile preparare l’immagine per il riconoscimento del testo.";
 "OCR_ERROR_OUTPUT" = "Il modello PP-OCRv6 ha restituito un output non valido o non supportato.";
 "OCR_ERROR_PREDICTION" = "Il riconoscimento del testo PP-OCRv6 non è riuscito. Riprova con un’altra immagine o un altro modello OCR.";

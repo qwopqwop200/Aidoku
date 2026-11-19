@@ -247,12 +247,9 @@ struct KavitaVolume: Codable, Sendable {
 }
 
 extension KavitaVolume.Chapter {
-    /// Kavita reports page counts from the server; a hostile or corrupt value such as
-    /// `Int.max` must not drive page-array or URL construction.
+    /// Server page counts are untrusted: negative is invalid, huge values are clamped.
     static let maximumPageCount = 10_000
 
-    /// Returns the number of pages to build, or nil for a negative count.
-    /// Counts above `maximumPageCount` are clamped so the reader stays usable.
     static func boundedPageCount(_ pages: Int) -> Int? {
         guard pages >= 0 else { return nil }
         return min(pages, maximumPageCount)

@@ -105,7 +105,7 @@ Other test suites, each run from the repository root:
 
 **Translation pipeline** (`Core/Translation`, `Features/Reader/Translation`): page translation has one pipeline, V2 (`Core/Translation/V2`, `Docs/translation-v2.md`).
 - `ReaderTranslationV2Service` runs pages and translated downloads through `V2Pipeline`: S1 RF-DETR layout || S2 PP-OCRv6 manga detection, S3 recognition, S4 grouping/roles, S5 one provider request per page, S6 removal mask, S7 AOT inpainting, S8 style, S9 layout, S10 Core Text paint. Models load lazily and are released on memory warnings; results are cached under `v2-` keys in `ReaderTranslationDiskCache`.
-- `NativeEngine/OCR` supplies the Core ML detector and recognizer V2 reuses; models and dictionaries are in `Aidoku/Resources/Translation`.
+- `NativeEngine/OCR` supplies the Core ML detector and the recognition helpers (preprocessing, CTC decoding, n-gram) V2 reuses; models and dictionaries are in `Aidoku/Resources/Translation`.
 - `NativeEngine/Translation` handles remote OpenAI-compatible clients, batching, endpoint policy and Keychain-stored credentials; `ReaderTranslationService.translateV2` applies the mandatory page settings and shared provider limit. Metadata (title/description/menu) translation uses the same client.
 - `NativeDictionaryPopupView` renders dictionary content with UIKit (independent of page translation).
 

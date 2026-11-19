@@ -86,6 +86,7 @@
 "VIEW_MORE" = "Vidi plu";
 "GITHUB_REPO" = "GitHub-deponejo";
 "DISCORD_SERVER" = "Discord-servilo";
+"SUPPPORT_DEVELOPMENT" = "Subteni la disvolvadon";
 "INCOGNITO_MODE" = "Privata reĝimo";
 "LANDSCAPE" = "Horizontala formato";
 "PORTRAIT" = "Vertikala formato";
@@ -1026,7 +1027,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "Ne eblis ŝargi PP-OCRv6-modelon.";
 
-"OCR_ERROR_DICTIONARY" = "La signovortaro de PP-OCRv6 mankas aŭ estas nevalida.";
 
 "OCR_ERROR_IMAGE" = "Ne eblis prepari la bildon por tekstrekono.";
 

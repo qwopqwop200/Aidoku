@@ -7,11 +7,10 @@ struct ReaderTranslationLanguageFilterTests {
     @Test func languageNeutralSymbolsReachTheExistingMangaRequest() {
         let fixture = LanguageFilterFixture()
         var settings = fixture.settings
-        settings.modelTier = .manga
         settings.sourceLanguage = "ja"
         settings.translationSourceLanguages = ["ja"]
         let region = ReaderTranslationRegion(id: "symbols", rect: .zero, source: "『…?』")
-        #expect(ReaderTranslationLanguageFilter.allowsModelSource(region.source, tier: .manga))
+        #expect(ReaderTranslationLanguageFilter.allowsModelSource(region.source))
         #expect(ReaderTranslationLanguageFilter.apply([region], settings: settings).map(\.id) == [region.id])
     }
 
@@ -64,8 +63,8 @@ struct ReaderTranslationLanguageFilterTests {
         settings.sourceLanguage = "az"
         #expect(ReaderTranslationLanguageFilter.apply(Self.mixed, settings: settings).map(\.id) == ["en", "ja", "zh", "han"])
         // Scripts the manga dictionary cannot spell stay excluded.
-        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("이미 한국어 문장입니다", tier: .manga))
-        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("Это русский текст", tier: .manga))
+        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("이미 한국어 문장입니다"))
+        #expect(!ReaderTranslationLanguageFilter.allowsModelSource("Это русский текст"))
     }
 
     @Test func v2SourceRuleAdmitsSharedHanDialogueOnlyForHanLanguages() {

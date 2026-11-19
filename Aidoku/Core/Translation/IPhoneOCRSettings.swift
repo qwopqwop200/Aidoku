@@ -1,17 +1,6 @@
 import Foundation
 
-// The bundled Core ML packages require iOS 18.
-enum IPhoneOCRModelTier: String, Codable, CaseIterable, Sendable {
-    case medium
-    case small
-    case tiny
-    case manga
-
-    /// Nil retains the unified models' existing source-language contract.
-    var restrictedSourceLanguageCodes: Set<String>? {
-        self == .manga ? Self.mangaSourceLanguageCodes : nil
-    }
-
+enum IPhoneOCRSettings {
     /// Languages `ppocrv6_manga_rec_character_dict.txt` can spell: CJK, kana,
     /// ASCII and Latin-1/Extended-A/B letters. It has no Hangul or Cyrillic and
     /// almost none of Vietnamese's stacked diacritics (U+1EA0...U+1EF9), so
@@ -25,13 +14,8 @@ enum IPhoneOCRModelTier: String, Codable, CaseIterable, Sendable {
         "mi", "oc", "sk", "sl", "sq", "sw", "tl", "uz", "la",
         "sr-Latn", "ca", "eu", "gl", "lb", "rm", "qu",
     ]
-}
-
-enum IPhoneOCRSettings {
-    static let defaultModelTier: IPhoneOCRModelTier = .manga
-    static let maximumRecognizerWidth = 1_184
     static let mangaMaximumRecognizerWidth = 2_400
     static let defaultDetectorMaximumSide = 1_120
-    static let defaultRecognizerMaximumWidth = maximumRecognizerWidth
+    static let defaultRecognizerMaximumWidth = 1_184
     static let mangaConfidenceThreshold = 0.30
 }

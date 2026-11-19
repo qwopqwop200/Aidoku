@@ -149,6 +149,7 @@
 "ABOUT" = "Thông tin";
 "GITHUB_REPO" = "Mã nguồn trên GitHub";
 "DISCORD_SERVER" = "Discord";
+"SUPPPORT_DEVELOPMENT" = "Ủng hộ nhà phát triển";
 "GENERAL" = "Chung";
 "ICLOUD_SYNC" = "Đồng bộ hoá với iCloud";
 "INCOGNITO_MODE" = "Chế độ ẩn danh";
@@ -1028,7 +1029,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "Không thể tải mô hình PP-OCRv6.";
 
-"OCR_ERROR_DICTIONARY" = "Từ điển ký tự PP-OCRv6 bị thiếu hoặc không hợp lệ.";
 
 "OCR_ERROR_IMAGE" = "Không thể chuẩn bị hình ảnh để nhận dạng văn bản.";
 

@@ -46,10 +46,8 @@ final class SourceListingViewModel: ObservableObject {
         entries = []
         bookmarkedItems = []
         home = nil
-        error = nil
         nextPage = 1
         hasMore = true
-        loadingInitial = true
         await start(initial: true)
     }
 

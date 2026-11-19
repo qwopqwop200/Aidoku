@@ -103,63 +103,33 @@ struct V2CoreTests {
         #expect(restored == expected)
     }
 
-    @Test func rfDecodeKeepsConfidentQueriesWithMasks() throws {
+    @Test func rfDecodeKeepsConfidentQueries() throws {
         let boxes = try MLMultiArray(shape: [1, 300, 4], dataType: .float32)
         let logits = try MLMultiArray(shape: [1, 300, 5], dataType: .float32)
-        let masks = try MLMultiArray(shape: [1, 300, 162, 162], dataType: .float32)
         let box = boxes.dataPointer.assumingMemoryBound(to: Float.self)
         let logit = logits.dataPointer.assumingMemoryBound(to: Float.self)
-        let mask = masks.dataPointer.assumingMemoryBound(to: Float.self)
         for i in 0..<(300 * 4) { box[i] = 0.1 }
         for i in 0..<(300 * 5) { logit[i] = -10 }
-        for i in 0..<(300 * 162 * 162) { mask[i] = -1 }
-        // Query 3: a balloon centered at (0.5, 0.5), 0.2 x 0.4 of the page, mask positive everywhere.
-        box[12] = 0.5; box[13] = 0.5; box[14] = 0.2; box[15] = 0.4
-        logit[3 * 5 + 2] = 4
-        for i in 0..<(162 * 162) { mask[3 * 162 * 162 + i] = 1 }
-        let raw = V2RFDETRModel.RawOutput(boxes: boxes, logits: logits, masks: masks)
-        let regions = try V2LayoutDetection.decode(raw, width: 1000, height: 2000)
-        #expect(regions.count == 1)
-        #expect(regions[0].kind == .balloon)
-        let bounds = regions[0].bounds
-        #expect(bounds == bounds.integral)
-        #expect(abs(bounds.minX - 400) <= 1 && abs(bounds.minY - 600) <= 1)
-        #expect(abs(bounds.width - 200) <= 2 && abs(bounds.height - 800) <= 2)
-        #expect(regions[0].mask?.count == Int(bounds.width) * Int(bounds.height))
-        #expect(regions[0].mask?.allSatisfy { $0 == 255 } == true)
-    }
-
-    @Test func rfDecodeWithoutMasksKeepsRegionsAndSkipsMaskOutput() throws {
-        let boxes = try MLMultiArray(shape: [1, 300, 4], dataType: .float32)
-        let logits = try MLMultiArray(shape: [1, 300, 5], dataType: .float32)
-        let masks = try MLMultiArray(shape: [1, 300, 162, 162], dataType: .float32)
-        let box = boxes.dataPointer.assumingMemoryBound(to: Float.self)
-        let logit = logits.dataPointer.assumingMemoryBound(to: Float.self)
-        let mask = masks.dataPointer.assumingMemoryBound(to: Float.self)
-        for i in 0..<(300 * 4) { box[i] = 0.1 }
-        for i in 0..<(300 * 5) { logit[i] = -10 }
-        for i in 0..<(300 * 162 * 162) { mask[i] = i % 3 == 0 ? 1 : -1 }
+        // Query 3: a balloon centered at (0.5, 0.5), 0.2 x 0.4 of the page; query 10: a weaker frame.
         box[12] = 0.5; box[13] = 0.5; box[14] = 0.2; box[15] = 0.4
         logit[3 * 5 + 2] = 4
         box[40] = 0.3; box[41] = 0.6; box[42] = 0.5; box[43] = 0.3
         logit[10 * 5 + 3] = 2
-        let full = try V2LayoutDetection.decode(V2RFDETRModel.RawOutput(boxes: boxes, logits: logits, masks: masks),
-                                                width: 1000, height: 2000)
-        let bare = try V2LayoutDetection.decode(V2RFDETRModel.RawOutput(boxes: boxes, logits: logits, masks: nil),
-                                                width: 1000, height: 2000, masks: false)
-        #expect(full.count == 2)
-        #expect(bare == full.map { V2LayoutRegion(kind: $0.kind, bounds: $0.bounds, score: $0.score, mask: nil) })
-        #expect(throws: V2RFDETRModel.Failure.self) {
-            try V2LayoutDetection.decode(V2RFDETRModel.RawOutput(boxes: boxes, logits: logits, masks: nil),
-                                         width: 1000, height: 2000)
-        }
+        let regions = try V2LayoutDetection.decode(V2RFDETRModel.RawOutput(boxes: boxes, logits: logits),
+                                                   width: 1000, height: 2000)
+        #expect(regions.map(\.kind) == [.balloon, .frame])
+        let bounds = regions[0].bounds
+        #expect(bounds == bounds.integral)
+        #expect(abs(bounds.minX - 400) <= 1 && abs(bounds.minY - 600) <= 1)
+        #expect(abs(bounds.width - 200) <= 2 && abs(bounds.height - 800) <= 2)
     }
 
     @Test func rfPreprocessIntoReusedTensorMatchesFreshTensor() throws {
         let width = 37, height = 1201
         let rgba = (0..<(width * height * 4)).map { UInt8(truncatingIfNeeded: $0 &* 2_654_435_761 >> 7) }
         let raster = V2PageRaster(width: width, height: height, rgba: rgba)
-        let fresh = try V2RFDETRModel.preprocess(raster)
+        let fresh = try V2RFDETRModel.makeInput()
+        V2RFDETRModel.preprocess(raster, into: fresh)
         let reused = try V2RFDETRModel.makeInput()
         V2RFDETRModel.preprocess(V2PageRaster(width: 5, height: 9, rgba: [UInt8](repeating: 7, count: 180)), into: reused)
         V2RFDETRModel.preprocess(raster, into: reused)

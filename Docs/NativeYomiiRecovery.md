@@ -2,7 +2,7 @@
 
 The backed `ko.yomii` v7 package had no matching public Rust source in the current Aidoku-Community sources tree or either modern/legacy GitHub path history. This adapter was derived from the actual backed module, not from a guessed generic scraper.
 
-- Package: `output/pipeline-speed-0929/depth-after/ApplicationSupport/Sources/ko.yomii`
+- Package: the backed-up installed `ko.yomii` v7 source package.
 - `main.wasm` SHA-256: `d1fa9dbcb1167d2e54356888daafad693b292b165e9aa76d35968b158766a670`
 - Recovery tool: official WebAssembly/wabt 1.0.37 macOS release, `wasm-decompile`; disassembly and static data recovered with official wabt 1.0.42 `wasm2wat`.
 - Module export functions: home 91; image request 103; listing 112; details 113; pages 120; search 124; deep link 153.

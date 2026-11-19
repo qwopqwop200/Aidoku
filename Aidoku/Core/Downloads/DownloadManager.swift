@@ -262,8 +262,7 @@ extension DownloadManager {
                 tmpDirectory.removeItem()
                 await cache.remove(chapter: chapter)
 
-                // Prune an empty manga without cancelling unrelated queue work.
-                // New staging paths may arrive while cache removal is awaited.
+                // check if all chapters have been removed (then remove manga directory)
                 let manga = chapter.mangaIdentifier
                 if Self.pruneEmptyMangaDirectory(cache.directory(for: manga)) {
                     let sourceDirectory = cache.directory(sourceKey: manga.sourceKey)
@@ -319,8 +318,7 @@ extension DownloadManager {
         cache.directory(for: manga).removeItem()
         await cache.remove(manga: manga)
 
-        // Remove only an empty source; never recursively erase another manga
-        // after a failed enumeration or a concurrent download starts.
+        // remove source directory if there are no more manga folders
         let sourceDirectory = cache.directory(sourceKey: manga.sourceKey)
         sourceDirectory.withUnsafeFileSystemRepresentation { path in
             if let path { _ = Darwin.rmdir(path) }
@@ -629,6 +627,7 @@ extension DownloadManager {
         for chapter in directory.contentsIncludingHidden.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             if let info = DownloadedChapterFile.comicInfo(in: chapter) { return info }
         }
+
         return nil
     }
 

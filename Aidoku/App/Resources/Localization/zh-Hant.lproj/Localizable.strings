@@ -196,6 +196,7 @@
 "AUTH_FOR_HISTORY" = "驗證身分以查看閱讀記錄。";
 "BUILD" = "版號";
 "MISSING_SOURCE" = "缺少來源";
+"SUPPPORT_DEVELOPMENT" = "支持開發";
 "INCOGNITO_MODE_TEXT" = "啟用時不會記住閱讀記錄";
 "SOURCE_LIST_ADD_TEXT" = "輸入來源列表連結";
 "OPEN_READER_VIEW" = "開啟閱讀介面";
@@ -1007,7 +1008,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "鑰匙圈操作失敗（狀態碼 %d）。";
 "OCR_ERROR_MODEL_MISSING" = "缺少所需的 PP-OCRv6 模型。";
 "OCR_ERROR_MODEL_LOAD" = "無法載入 PP-OCRv6 模型。";
-"OCR_ERROR_DICTIONARY" = "PP-OCRv6 字元字典遺失或無效。";
 "OCR_ERROR_IMAGE" = "無法準備用於文字辨識的圖片。";
 "OCR_ERROR_OUTPUT" = "PP-OCRv6 模型傳回了無效或不支援的輸出。";
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 文字辨識失敗。請使用其他圖片或 OCR 模型重試。";

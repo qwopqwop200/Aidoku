@@ -90,11 +90,6 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
             IPhoneOverlayColorMode.self,
             forKey: .colorMode
         )
-        preserveSourceTextColor = try container.decodeIfPresent(Bool.self, forKey: .preserveSourceTextColor) ?? false
-        preserveSourceBackgroundColor = try container.decodeIfPresent(Bool.self, forKey: .preserveSourceBackgroundColor) ?? false
-        inpaintingEnabled = false
-        preserveSourceTextColor = false
-        preserveSourceBackgroundColor = false
         opacity = try container.decode(Double.self, forKey: .opacity)
         textPlacement = try container.decode(
             IPhoneOverlayTextPlacement.self,

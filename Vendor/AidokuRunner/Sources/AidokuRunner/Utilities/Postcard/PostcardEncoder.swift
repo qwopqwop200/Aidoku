@@ -16,7 +16,7 @@ public class PostcardEncoder: TopLevelEncoder {
 
     public func encode<T: Encodable>(_ value: T) throws -> Data {
         let stringsEncoding = PostcardEncoding()
-        try stringsEncoding.encodeValue(value)
+        try value.encode(to: stringsEncoding)
         return stringsEncoding.data.data
     }
 }
@@ -117,14 +117,6 @@ struct PostcardEncoding: Encoder {
 
     init(to encodedData: PostcardContainer = PostcardContainer()) {
         self.data = encodedData
-    }
-
-    func encodeValue<T: Encodable>(_ value: T) throws {
-        if let optional = value as? PostcardOptionalEncoding {
-            try optional.encodeOptional(to: self)
-        } else {
-            try value.encode(to: self)
-        }
     }
 
     var codingPath: [CodingKey] = []
@@ -358,7 +350,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
             data.encode(UInt64(intValue))
         }
         let encoding = PostcardEncoding(to: data)
-        try encoding.encodeValue(value)
+        try value.encode(to: encoding)
         count += prependLength ? 1 : 0
     }
 
@@ -601,7 +593,7 @@ private class PostcardKeyedEncoding<Key: CodingKey>: KeyedEncodingContainerProto
         if let value {
             data.encode(UInt8(1))
             let encoding = PostcardEncoding(to: data)
-            try encoding.encodeValue(value)
+            try value.encode(to: encoding)
         } else {
             data.encodeNil()
         }
@@ -708,7 +700,7 @@ private class PostcardUnkeyedEncoding: UnkeyedEncodingContainer {
 
     func encode<T: Encodable>(_ value: T) throws {
         let encoding = PostcardEncoding(to: data)
-        try encoding.encodeValue(value)
+        try value.encode(to: encoding)
         count += 1
     }
 
@@ -952,22 +944,6 @@ private struct PostcardSingleValueEncoding: SingleValueEncodingContainer {
 
     mutating func encode<T: Encodable>(_ value: T) throws {
         let encoding = PostcardEncoding(to: data)
-        try encoding.encodeValue(value)
-    }
-}
-
-private protocol PostcardOptionalEncoding {
-    func encodeOptional(to encoder: PostcardEncoding) throws
-}
-
-extension Optional: PostcardOptionalEncoding where Wrapped: Encodable {
-    fileprivate func encodeOptional(to encoder: PostcardEncoding) throws {
-        switch self {
-        case .none:
-            encoder.data.encodeNil()
-        case .some(let value):
-            encoder.data.encode(UInt8(1))
-            try encoder.encodeValue(value)
-        }
+        try value.encode(to: encoding)
     }
 }

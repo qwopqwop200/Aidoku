@@ -82,8 +82,7 @@ enum V2Grouping {
         layout: [V2LayoutRegion],
         pageSize: CGSize,
         raster: V2GrayRaster? = nil,
-        direction: V2ReadingDirection = .rightToLeft,
-        parameters: V2ParagraphGrouping.Parameters = .init()
+        direction: V2ReadingDirection = .rightToLeft
     ) -> [V2Block] {
         let usable = lines.filter { line in
             line.polygon.count >= 3 && line.polygon.allSatisfy { $0.x.isFinite && $0.y.isFinite }
@@ -100,7 +99,7 @@ enum V2Grouping {
                 confidence: Double(line.confidence), source: line.text)
         }
         let groups = V2ParagraphGrouping.group(inputs, textScopes: scopes(textScopeKind),
-                                               balloons: scopes(balloonScopeKind), parameters: parameters)
+                                               balloons: scopes(balloonScopeKind))
             // Invalid scope geometry: keep every line as its own block.
             ?? usable.indices.map { index in
                 V2ParagraphGrouping.Group(members: [index], representative: index, readingOrder: [index],

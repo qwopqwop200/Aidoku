@@ -28,8 +28,6 @@ final class V2AOTModel: @unchecked Sendable {
     /// Preallocated `raw_rgb` backing: Core ML writes the prediction here (no per-page output allocation).
     private let output: MLMultiArray
     private let options = MLPredictionOptions()
-    /// Last restore's phase timings in ms (fill, predict, scatter); diagnostics only.
-    private(set) var lastPhases: [Double] = [0, 0, 0]
 
     init(compiledURL: URL) throws {
         let configuration = MLModelConfiguration()
@@ -48,31 +46,18 @@ final class V2AOTModel: @unchecked Sendable {
         options.outputBackings = ["raw_rgb": output]
     }
 
-    /// Synchronous whole-page restore (legacy transport); call through `executor`.
-    /// `removal` is page-sized, nonzero = erase.
-    func restore(_ raster: V2PageRaster, removal: [UInt8]) throws -> V2PageRaster {
-        guard removal.count == raster.width * raster.height else { throw Failure.maskSize }
-        guard removal.contains(where: { $0 != 0 }) else { return raster }
-        var restored = raster
-        try restoreInPlace(&restored, removal: removal)
-        return restored
-    }
-
-    /// `restore` straight into the bytes of the returned image: one page copy
-    /// instead of two (raster copy + `image()` copy). Same pixels as
-    /// `try restore(raster, removal:).image()`.
+    /// Synchronous whole-page restore (legacy transport) straight into the bytes of the
+    /// returned image; call through `executor`. `removal` is page-sized, nonzero = erase.
     func restoreImage(_ raster: V2PageRaster, removal: [UInt8]) throws -> CGImage {
         guard removal.count == raster.width * raster.height else { throw Failure.maskSize }
         let width = raster.width, height = raster.height
         var data = raster.rgba.withUnsafeBytes { Data($0) }
         if removal.contains(where: { $0 != 0 }) {
             let content = try predict(rgba: raster.rgba, removal: removal, width: width, height: height)
-            let t2 = DispatchTime.now().uptimeNanoseconds
             try data.withUnsafeMutableBytes { bytes in
                 try Self.scatter(into: bytes.bindMemory(to: UInt8.self), mask: removal, width: width, height: height,
                                  raw: output, content: content)
             }
-            lastPhases[2] = Double(DispatchTime.now().uptimeNanoseconds - t2) / 1e6
         }
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
               let provider = CGDataProvider(data: data as CFData),
@@ -85,14 +70,10 @@ final class V2AOTModel: @unchecked Sendable {
         return image
     }
 
-    /// Fill + prediction into `output`; records the fill/predict phases. Returns the content size.
+    /// Fill + prediction into `output`. Returns the content size.
     private func predict(rgba: [UInt8], removal: [UInt8], width: Int, height: Int) throws -> (Int, Int) {
-        let t0 = DispatchTime.now().uptimeNanoseconds
         let content = Self.fill(rgba: rgba, mask: removal, width: width, height: height, image: image, maskTensor: mask)
-        let t1 = DispatchTime.now().uptimeNanoseconds
         let result = try autoreleasepool { try model.prediction(from: provider, options: options) }
-        let t2 = DispatchTime.now().uptimeNanoseconds
-        lastPhases = [Double(t1 - t0) / 1e6, Double(t2 - t1) / 1e6, 0]
         // Core ML may decline the backing (then the returned array holds the prediction).
         guard let raw = result.featureValue(for: "raw_rgb")?.multiArrayValue,
               raw.shape.map(\.intValue) == [1, 3, 1024, 1024], raw.dataType == .float16 else {
@@ -103,45 +84,6 @@ final class V2AOTModel: @unchecked Sendable {
             output.dataPointer.copyMemory(from: raw.dataPointer, byteCount: 3 * Self.side * Self.side * 2)
         }
         return content
-    }
-
-    /// Restores one raster (page or crop) in place; only nonzero `removal` pixels change.
-    func restoreInPlace(_ raster: inout V2PageRaster, removal: [UInt8]) throws {
-        let width = raster.width, height = raster.height
-        let content = try predict(rgba: raster.rgba, removal: removal, width: width, height: height)
-        let t2 = DispatchTime.now().uptimeNanoseconds
-        try raster.rgba.withUnsafeMutableBufferPointer { pixels in
-            try Self.scatter(into: pixels, mask: removal, width: width, height: height, raw: output, content: content)
-        }
-        lastPhases[2] = Double(DispatchTime.now().uptimeNanoseconds - t2) / 1e6
-    }
-
-    /// Restores one window of the page: crop, native-resolution AOT when the
-    /// window fits 1024. Every mask pixel of the crop is a hole for the model;
-    /// the caller writes back only `owned` pixels (nonzero).
-    func restore(window: V2Inpaint.Window, page raster: V2PageRaster, removal: [UInt8]) throws
-        -> (crop: V2PageRaster, owned: [UInt8]) {
-        let r = window.rect
-        let x0 = Int(r.minX), y0 = Int(r.minY), w = Int(r.width), h = Int(r.height), page = raster.width
-        var crop = V2PageRaster(width: w, height: h, rgba: [UInt8](repeating: 0, count: w * h * 4))
-        var cropMask = [UInt8](repeating: 0, count: w * h)
-        var owned = [UInt8](repeating: 0, count: w * h)
-        raster.rgba.withUnsafeBufferPointer { source in
-            crop.rgba.withUnsafeMutableBufferPointer { target in
-                for y in 0..<h {
-                    (target.baseAddress! + y * w * 4).update(from: source.baseAddress! + ((y0 + y) * page + x0) * 4, count: w * 4)
-                }
-            }
-        }
-        for y in 0..<h {
-            for x in 0..<w where removal[(y0 + y) * page + x0 + x] != 0 {
-                cropMask[y * w + x] = 255
-                let p = CGPoint(x: x0 + x, y: y0 + y)
-                if window.owned.contains(where: { $0.contains(p) }) { owned[y * w + x] = 255 }
-            }
-        }
-        try restoreInPlace(&crop, removal: cropMask)
-        return (crop, owned)
     }
 
     /// Legacy `fillInputTensors` with 4-component input. Returns the content size.
@@ -283,167 +225,18 @@ final class V2AOTModel: @unchecked Sendable {
 
 @available(iOS 18.0, macOS 15.0, *)
 enum V2Inpaint {
-    /// One AOT prediction: a page window and the mask components it owns.
-    struct Window: Sendable, Equatable {
-        var rect: CGRect
-        var owned: [CGRect]
-    }
-
-    /// wholePage: legacy transport (whole page downscaled into 1024).
-    /// maskBounds: one prediction on the padded mask bounding box (less downscale, smaller fill/scatter).
-    /// windows: native-resolution 1024 windows per mask cluster (several predictions).
-    enum Mode: String, Sendable, CaseIterable { case wholePage, maskBounds, windows }
-
-    /// Default restore mode for the pipeline.
-    static let mode: Mode = .wholePage
-    static let cell = 16
-    static let contextPadding = 48
-
-    /// Mask components (connected on a 16 px grid after `contextPadding`
-    /// dilation) covered by native-resolution windows of at most 1024 px.
-    /// Pages that fit 1024 always use one whole-page window.
-    static func plan(mask: [UInt8], width: Int, height: Int) -> [Window] {
-        let page = CGRect(x: 0, y: 0, width: width, height: height)
-        let side = V2AOTModel.side
-        if width <= side && height <= side { return mask.contains { $0 != 0 } ? [Window(rect: page, owned: [page])] : [] }
-        let gw = (width + cell - 1) / cell, gh = (height + cell - 1) / cell
-        var occupied = [Bool](repeating: false, count: gw * gh)
-        for y in 0..<height {
-            let row = y * width, gy = y / cell
-            for x in 0..<width where mask[row + x] != 0 { occupied[gy * gw + x / cell] = true }
-        }
-        let pad = (contextPadding + cell - 1) / cell
-        var dilated = [Bool](repeating: false, count: gw * gh)
-        for gy in 0..<gh {
-            for gx in 0..<gw where occupied[gy * gw + gx] {
-                for yy in max(0, gy - pad)...min(gh - 1, gy + pad) {
-                    for xx in max(0, gx - pad)...min(gw - 1, gx + pad) { dilated[yy * gw + xx] = true }
-                }
-            }
-        }
-        // Connected components of the dilated grid; each keeps the bounds of its real mask cells.
-        var label = [Int](repeating: -1, count: gw * gh)
-        var components: [CGRect] = []
-        for start in 0..<(gw * gh) where dilated[start] && label[start] < 0 {
-            var stack = [start]
-            label[start] = components.count
-            var minX = Int.max, minY = Int.max, maxX = -1, maxY = -1
-            while let c = stack.popLast() {
-                let cx = c % gw, cy = c / gw
-                if occupied[c] { minX = min(minX, cx); minY = min(minY, cy); maxX = max(maxX, cx); maxY = max(maxY, cy) }
-                for (nx, ny) in [(cx - 1, cy), (cx + 1, cy), (cx, cy - 1), (cx, cy + 1)]
-                where nx >= 0 && ny >= 0 && nx < gw && ny < gh && dilated[ny * gw + nx] && label[ny * gw + nx] < 0 {
-                    label[ny * gw + nx] = components.count
-                    stack.append(ny * gw + nx)
-                }
-            }
-            guard maxX >= 0 else { continue }
-            components.append(CGRect(x: minX * cell, y: minY * cell, width: (maxX - minX + 1) * cell,
-                                     height: (maxY - minY + 1) * cell).intersection(page))
-        }
-        components.sort { ($0.minY, $0.minX) < ($1.minY, $1.minX) }
-        var windows: [Window] = []
-        var covered = [Bool](repeating: false, count: components.count)
-        for (index, component) in components.enumerated() where !covered[index] {
-            let padded = component.insetBy(dx: -CGFloat(contextPadding), dy: -CGFloat(contextPadding)).intersection(page)
-            var rect: CGRect
-            if padded.width <= CGFloat(side) && padded.height <= CGFloat(side) {
-                // Widest native context: a 1024 window centered on the component.
-                let w = min(CGFloat(side), page.width), h = min(CGFloat(side), page.height)
-                let x = min(max(0, padded.midX - w / 2), page.width - w)
-                let y = min(max(0, padded.midY - h / 2), page.height - h)
-                rect = CGRect(x: x, y: y, width: w, height: h).integral.intersection(page)
-            } else {
-                rect = padded.integral
-            }
-            var owned: [CGRect] = []
-            for other in index..<components.count where !covered[other] && rect.contains(components[other]) {
-                covered[other] = true
-                owned.append(components[other])
-            }
-            if owned.isEmpty { owned = [component]; covered[index] = true; rect = rect.union(component) }
-            windows.append(Window(rect: rect, owned: owned))
-        }
-        return windows
-    }
-
-    /// One window: the mask bounding box padded by `boundsPadding`, clipped to the page.
-    static let boundsPadding = 96
-
-    static func boundsWindow(mask: [UInt8], width: Int, height: Int) -> Window? {
-        var minX = width, minY = height, maxX = -1, maxY = -1
-        for y in 0..<height {
-            let row = y * width
-            var first = -1, last = -1
-            for x in 0..<width where mask[row + x] != 0 { if first < 0 { first = x }; last = x }
-            guard first >= 0 else { continue }
-            minX = min(minX, first); maxX = max(maxX, last); minY = min(minY, y); maxY = y
-        }
-        guard maxX >= 0 else { return nil }
-        let page = CGRect(x: 0, y: 0, width: width, height: height)
-        let rect = CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
-            .insetBy(dx: -CGFloat(boundsPadding), dy: -CGFloat(boundsPadding)).integral.intersection(page)
-        return Window(rect: rect, owned: [rect])
-    }
-
     /// Restores `mask` (page-size, nonzero = erase) with AOT. Pixels outside the mask are unchanged.
     static func restore(_ page: V2Page, mask: [UInt8], models: V2Models) async throws -> CGImage {
         guard mask.contains(where: { $0 != 0 }) else { return page.image }
         return try await restoreImage(V2PageRaster(page.image), mask: mask, models: models)
     }
 
-    /// `restore(raster, mask:, models:).image()` with one page copy in whole-page mode (same pixels).
-    static func restoreImage(_ raster: V2PageRaster, mask: [UInt8], models: V2Models,
-                             mode: Mode = V2Inpaint.mode) async throws -> CGImage {
-        guard mode == .wholePage else { return try await restore(raster, mask: mask, models: models, mode: mode).image() }
+    /// Whole-page restore of `raster` (legacy transport) as an image, with one page copy.
+    static func restoreImage(_ raster: V2PageRaster, mask: [UInt8], models: V2Models) async throws -> CGImage {
         guard mask.count == raster.width * raster.height else { throw V2AOTModel.Failure.maskSize }
         guard mask.contains(where: { $0 != 0 }) else { return try raster.image() }
         return try await models.inpainters.with { model in
             try await model.executor.run { try model.restoreImage(raster, removal: mask) }
-        }
-    }
-
-    static func restore(_ raster: V2PageRaster, mask: [UInt8], models: V2Models,
-                        mode: Mode = V2Inpaint.mode) async throws -> V2PageRaster {
-        guard mask.count == raster.width * raster.height else { throw V2AOTModel.Failure.maskSize }
-        guard mask.contains(where: { $0 != 0 }) else { return raster }
-        switch mode {
-        case .wholePage:
-            return try await models.inpainters.with { model in
-                try await model.executor.run { try model.restore(raster, removal: mask) }
-            }
-        case .maskBounds, .windows:
-            let windows = mode == .windows ? plan(mask: mask, width: raster.width, height: raster.height)
-                : boundsWindow(mask: mask, width: raster.width, height: raster.height).map { [$0] } ?? []
-            // Windows own disjoint mask pixels, so they run concurrently on the pool.
-            let results = try await withThrowingTaskGroup(of: (Int, V2PageRaster, [UInt8]).self) { group in
-                for (index, window) in windows.enumerated() {
-                    group.addTask {
-                        try await models.inpainters.with { model in
-                            try await model.executor.run {
-                                let result = try model.restore(window: window, page: raster, removal: mask)
-                                return (index, result.crop, result.owned)
-                            }
-                        }
-                    }
-                }
-                var collected: [(Int, V2PageRaster, [UInt8])] = []
-                for try await item in group { collected.append(item) }
-                return collected
-            }
-            var page = raster
-            page.rgba.withUnsafeMutableBufferPointer { target in
-                for (index, crop, owned) in results {
-                    let r = windows[index].rect, x0 = Int(r.minX), y0 = Int(r.minY), w = crop.width
-                    for y in 0..<crop.height {
-                        for x in 0..<w where owned[y * w + x] != 0 {
-                            let to = ((y0 + y) * raster.width + x0 + x) * 4, from = (y * w + x) * 4
-                            for c in 0..<4 { target[to + c] = crop.rgba[from + c] }
-                        }
-                    }
-                }
-            }
-            return page
         }
     }
 }

@@ -6,50 +6,39 @@ import UIKit
 
 @Suite(.serialized)
 struct ReaderTranslationDiskCacheTests {
-    @Test func reopenedCacheRepairsOnlyTheObservedPayload() async throws {
+    @Test func reopenedCacheRecreatesKeyOnlyIndex() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
         let first = ReaderTranslationDiskCache(directory: root)
-        let old = Data("old".utf8), newer = Data("newer".utf8), repair = Data("repair".utf8)
+        let old = Data("old".utf8)
         try await first.store(old, for: "page", kind: .layout, generation: 0)
         try databaseExecute(root, "DROP INDEX cache_key_only")
         let reopened = ReaderTranslationDiskCache(directory: root)
         #expect(try await reopened.data(for: "page", kind: .layout) == old)
         #expect(try databaseInteger(root, "SELECT count(*) FROM sqlite_master WHERE name='cache_key_only' AND type='index'") == 1)
-        let observed = ReaderTranslationDiskCache.ReplacementCondition(maximumBytes: 64) { $0 == old }
-        try await first.store(newer, for: "page", kind: .layout, generation: 0)
-        #expect(try await !reopened.store(repair, for: "page", kind: .layout, generation: 0, replacing: observed))
-        #expect(try await first.data(for: "page", kind: .layout) == newer)
-        let replacement = ReaderTranslationDiskCache.ReplacementCondition(maximumBytes: 64) { $0 == newer }
-        #expect(try await reopened.store(repair, for: "page", kind: .layout, generation: 0, replacing: replacement))
-        #expect(try await first.data(for: "page", kind: .layout) == repair)
     }
 
-    @Test func revisitingDecodedPagesPreservesClaimsAndObservesReplacements() async throws {
+    @Test func revisitingDecodedPagesReusesRecordsAndObservesReplacements() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
         let cache = ReaderTranslationDiskCache(directory: root)
         let secondConnection = ReaderTranslationDiskCache(directory: root)
-        let claim = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "a", count: 64)))
-        let otherClaim = try #require(ReaderTranslationSourceRasterClaim(processedFullSourceSHA256: String(repeating: "b", count: 64)))
         let original = [ReaderTranslationRegion(id: "one", rect: .zero, source: "original", translation: "첫 번역")]
-        try await cache.storeRegions(original, for: "page", kind: .translation, generation: 0, sourceRasterClaim: claim)
-        let first = try #require(try await cache.regionRecord(for: "page", kind: .translation, matching: claim))
-        let repeatRead = try #require(try await cache.regionRecord(for: "page", kind: .translation, matching: claim))
-        let reusedBuffer = first.regions.withUnsafeBufferPointer { firstBuffer in
-            repeatRead.regions.withUnsafeBufferPointer { $0.baseAddress == firstBuffer.baseAddress }
+        try await cache.storeRegions(original, for: "page", kind: .translation, generation: 0)
+        let first = try #require(try await cache.regions(for: "page", kind: .translation))
+        let repeatRead = try #require(try await cache.regions(for: "page", kind: .translation))
+        let reusedBuffer = first.withUnsafeBufferPointer { firstBuffer in
+            repeatRead.withUnsafeBufferPointer { $0.baseAddress == firstBuffer.baseAddress }
         }
         #expect(reusedBuffer)
-        #expect(try await cache.regionRecord(for: "page", kind: .translation, matching: otherClaim) == nil)
 
         let replacement = [ReaderTranslationRegion(id: "two", rect: .zero, source: "replacement", translation: "새 번역")]
-        try await secondConnection.storeRegions(replacement, for: "page", kind: .translation, generation: 0, sourceRasterClaim: otherClaim)
-        #expect(try await cache.regionRecord(for: "page", kind: .translation, matching: claim) == nil)
-        #expect(try await cache.regionRecord(for: "page", kind: .translation, matching: otherClaim)?.regions == replacement)
-        try await cache.storeRegions(original, for: "page", kind: .translation, generation: 0, sourceRasterClaim: claim)
-        #expect(try await cache.regionRecord(for: "page", kind: .translation, matching: claim)?.regions == original)
+        try await secondConnection.storeRegions(replacement, for: "page", kind: .translation, generation: 0)
+        #expect(try await cache.regions(for: "page", kind: .translation) == replacement)
+        try await cache.storeRegions(original, for: "page", kind: .translation, generation: 0)
+        #expect(try await cache.regions(for: "page", kind: .translation) == original)
         try await cache.remove("page", kind: .translation)
-        #expect(try await cache.regionRecord(for: "page", kind: .translation) == nil)
+        #expect(try await cache.regions(for: "page", kind: .translation) == nil)
     }
 
     @Test(arguments: [false, true])
@@ -777,7 +766,7 @@ struct ReaderTranslationDiskCacheTests {
         settings.cacheLimitBytes = 200_000_000
         settings.automaticallyTranslate.toggle()
         settings.translateMangaTitles.toggle()
-        settings.rightToLeftPanelOrder = true // A chapter's reading direction is not a global model switch.
+        settings.readingDirection = .rightToLeft // A chapter's reading direction is not a global model switch.
         try await cache.synchronizeSettings(settings)
         #expect(await cache.currentGeneration(settings: settings) == generation)
         #expect(try await cache.statistics().entries == 4) // OCR, translation, metadata and layout; no persisted raster.

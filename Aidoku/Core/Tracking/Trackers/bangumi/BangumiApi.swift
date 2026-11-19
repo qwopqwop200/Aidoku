@@ -169,8 +169,9 @@ extension BangumiApi {
         let tokenExpired = await oauth.tokens?.expired == true
         guard await oauth.accountGeneration == issued else { throw CancellationError() }
 
-        let succeeded = statusCode.map { (200..<300).contains($0) } ?? false
+        // Check if token expired (401 Unauthorized)
         // A successful mutation must not be repeated due to local expiry.
+        let succeeded = statusCode.map { (200..<300).contains($0) } ?? false
         if statusCode == 401 || statusCode == 40101 || statusCode == 40102 || (tokenExpired && !succeeded) {
             // ensure we have a refresh token, otherwise we need to fully re-auth
             let reloginNeeded = await oauth.checkIfReloginNeeded(trackerName: "Bangumi")

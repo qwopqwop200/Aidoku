@@ -18,12 +18,6 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
         isChangingCellsAbove = true
     }
 
-    // Compatibility for callers predating preserveOffsetAcrossChangeAbove().
-    var isInsertingCellsAbove: Bool {
-        get { isChangingCellsAbove }
-        set { isChangingCellsAbove = newValue }
-    }
-
     var spacing: CGFloat {
         get { minimumLineSpacing }
         set { minimumLineSpacing = newValue }

@@ -8,7 +8,7 @@ still use WebKit. The app as a whole therefore still has a browser component.
 | Area | Current execution | Main entry points |
 | --- | --- | --- |
 | Page translation (V2) | Core ML layout/OCR/inpainting plus Swift grouping, removal mask, style and Core Text paint | `ReaderTranslationV2Service`, `V2Pipeline` (`Docs/translation-v2.md`) |
-| OCR models | Core ML PP-OCRv6 manga detector and recognizer reused by V2 | `NativeCoreMLDetector`, `NativeCoreMLRecognizer` |
+| OCR models | Core ML PP-OCRv6 manga detector and recognizer, run by V2 | `NativeCoreMLDetector`, `V2Recognition` |
 | Translation requests | Swift URLSession transport, parsing and bounded batching | `RemoteTranslationClient`, `ReaderTranslationService` |
 | Reader display and export | The finished V2 page bitmap is attached above the source image and saved as is | `ReaderTranslationPage`, `ReaderTranslationImageExporter` |
 | Dictionary popup | UIKit text, links and view layout | `NativeDictionaryPopupView` |
@@ -17,9 +17,7 @@ still use WebKit. The app as a whole therefore still has a browser component.
 | Image translation CLI | Native production algorithms with an AppKit/Core Graphics host adapter | `Scripts/image-translation.swift` |
 
 Historical `Browser…` names can remain on pure Swift OCR data types. A type
-name alone does not imply browser execution. The production translation and
-dictionary path does not load the old overlay JavaScript or instantiate the old
-Web popup.
+name alone does not imply browser execution.
 
 ## Host image translation
 
@@ -30,11 +28,8 @@ swift Scripts/image-translation.swift --ocr-only /path/to/page.png
 
 The launcher builds the V2 pipeline (`Docs/translation-v2.md`) from current
 source with incremental object/model caches on Apple Silicon macOS 15+ with the
-Xcode command-line tools. See `Scripts/image-translation/README.md`. Host font
-and raster behavior is not proof of exact iPhone output.
-
-See [CLI configuration and outputs](../Scripts/image-translation/README.md),
-including `.env`, saved phone settings, replay and bounded concurrency.
+Xcode command-line tools. See [CLI configuration and outputs](../Scripts/image-translation/README.md).
+Host font and raster behavior is not proof of exact iPhone output.
 
 ## Native allocation policy
 
@@ -46,12 +41,4 @@ explicit pixelated images preserve their original pixels.
 
 ## Verification
 
-The previous Web renderer, its JavaScript/WASM oracle, comparison captures and
-legacy regression tests have been removed. Native rendering, restoration,
-export, cache and resource-lifetime suites validate the current implementation
-directly. Existing native input fixtures remain where they support these tests.
-No legacy-renderer pixel-equivalence gate remains.
-
-See [test commands](../Scripts/TESTING.md). Web login and Cloudflare still use
-WebKit; the CLI's interactive analysis report uses JavaScript to display saved
-native results. Neither runs the removed translation renderer.
+See [test commands](../Scripts/TESTING.md).

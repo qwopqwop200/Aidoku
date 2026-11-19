@@ -33,6 +33,7 @@
 
 // Settings
 "SETTINGS" = "Подешавања";
+"SUPPPORT_DEVELOPMENT" = "Подржи развој";
 "INCOGNITO_MODE_TEXT" = "Паузира бележење историје читања када је омогућено";
 "APPEARANCE" = "Изглед";
 "USE_SYSTEM_APPEARANCE" = "Користи системски изглед";
@@ -1007,7 +1008,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Операција са Keychain-ом није успела уз статусни код %d.";
 "OCR_ERROR_MODEL_MISSING" = "Недостаје потребан модел PP-OCRv6.";
 "OCR_ERROR_MODEL_LOAD" = "Није могуће учитати модел PP-OCRv6.";
-"OCR_ERROR_DICTIONARY" = "Речник знакова за PP-OCRv6 недостаје или није исправан.";
 "OCR_ERROR_IMAGE" = "Није могуће припремити слику за препознавање текста.";
 "OCR_ERROR_OUTPUT" = "Модел PP-OCRv6 је вратио неисправан или неподржан излаз.";
 "OCR_ERROR_PREDICTION" = "Препознавање текста помоћу PP-OCRv6 није успело. Покушајте са другом сликом или OCR моделом.";

@@ -94,13 +94,12 @@ enum V2Pipeline {
     }
 
     static func run(_ source: V2Page, models: V2Models, translate: V2Translator,
-                    hooks: V2PipelineHooks = V2PipelineHooks(),
-                    maxPixels: Int = ImagePixelCap.maxPixels) async -> V2PageResult {
+                    hooks: V2PipelineHooks = V2PipelineHooks()) async -> V2PageResult {
         let started = DispatchTime.now().uptimeNanoseconds
         // Every stage, the translator and the painted output use the capped page, so
         // coordinates stay consistent; the reader presents the output aspect-fit in
         // place of the source, so a smaller same-aspect bitmap displays the same.
-        guard let page = cappedPage(source, maxPixels: maxPixels) else {
+        guard let page = cappedPage(source) else {
             return V2PageResult(pageID: source.id, blocks: [], placed: [], output: source.image, removalMask: nil,
                                 timings: V2Timings(), failure: "decode: page exceeds the pixel cap and could not be downscaled")
         }
@@ -318,7 +317,6 @@ enum V2Pipeline {
         let pixels = decodePixels(page.image)
         front.stages[Stage.decode] = milliseconds(since: decodeStart)
         front.stages[Stage.conversions] = Double(pixels.conversions)
-        if let failure = pixels.failure { front.failures.append(failure) }
         let frame = pixels.frame
         // One RGBA frame feeds both the detector and the recognizer (S3 reuses it).
         async let detected: (Result<[V2Line], Error>, Double) = {
@@ -327,7 +325,7 @@ enum V2Pipeline {
                 let lines: [V2Line]
                 if let frame {
                     // Geometry-only detection: same polygons/scores, no legacy evidence (V2Detection.swift).
-                    lines = try await V2Detection.detect(frame: frame, page: page, models: models)
+                    lines = try await V2Detection.detect(frame: frame, models: models)
                 } else {
                     lines = try await V2Detection.detect(page, models: models)
                 }
@@ -354,23 +352,16 @@ enum V2Pipeline {
 
     // MARK: - Shared page pixels
 
-    /// Set AIDOKU_V2_VERIFY_SHARED_RASTER=1 to also convert separately and check the shared bytes.
-    static let verifiesSharedRaster = ProcessInfo.processInfo.environment["AIDOKU_V2_VERIFY_SHARED_RASTER"] == "1"
-
     /// Decodes the page once. The detector/recognizer frame (DeviceRGB, `.copy`) and the
     /// canonical raster (sRGB on a white matte) are the same bytes for an opaque sRGB page, so
     /// one buffer serves both (and S6); any other page pays a second conversion.
     static func decodePixels(_ image: CGImage)
-        -> (raster: V2PageRaster?, frame: NativeOCRRGBAFrame?, conversions: Int, failure: String?) {
+        -> (raster: V2PageRaster?, frame: NativeOCRRGBAFrame?, conversions: Int) {
         let frame = NativeOCRCGImageAdapter.makeRGBAFrame(from: image)
         if let frame, canShare(image, frame: frame) {
-            let shared = V2PageRaster(width: frame.width, height: frame.height, rgba: frame.bytes)
-            guard verifiesSharedRaster else { return (shared, frame, 1, nil) }
-            let separate = try? V2PageRaster(image)
-            if separate?.rgba == shared.rgba { return (shared, frame, 2, nil) }
-            return (separate, frame, 2, "decode: shared raster mismatch")
+            return (V2PageRaster(width: frame.width, height: frame.height, rgba: frame.bytes), frame, 1)
         }
-        return (try? V2PageRaster(image), frame, frame == nil ? 1 : 2, nil)
+        return (try? V2PageRaster(image), frame, frame == nil ? 1 : 2)
     }
 
     static func canShare(_ image: CGImage, frame: NativeOCRRGBAFrame) -> Bool {

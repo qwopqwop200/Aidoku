@@ -120,7 +120,7 @@ actor KomgaSourceRunner: Runner {
             storedTags: storedTags,
             lastWorkingMirror: &lastWorkingMirrorCopy
         )
-        let sortOptions = [
+        let sortOption = [
             "metadata.titleSort", // name
             "createdDate", // date added
             "lastModifiedDate", // date updated
@@ -129,8 +129,7 @@ actor KomgaSourceRunner: Runner {
             "name", // folder name
             "booksCount", // books count
             "random" // random
-        ]
-        let sortOption = sortOptions[sortOptions.indices.contains(sort.value) ? sort.value : 0]
+        ][safe: sort.value] ?? "metadata.titleSort"
         let res: KomgaPageResponse<[KomgaSeries]> = try await helper.request(
             path: "api/v1/series/list?page=\(page - 1)&size=20&sort=\(sortOption)%2C\(sort.ascending ? "asc" : "desc")",
             method: .POST,

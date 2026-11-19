@@ -111,6 +111,7 @@
 "INCOGNITO_MODE_TEXT" = "Pausar läshistoriken om aktiverad";
 "MISSING_SOURCES_TEXT" = "Den återställda säkerhetskopian kan innehålla data från följande källor, som inte är installerade för närvarande:";
 "LOGOUT_FROM_%@" = "Logga ut från %@?";
+"SUPPPORT_DEVELOPMENT" = "Stöd utveckling";
 "CATEGORY_ADD_TEXT" = "Ange namnet på den nya kategorin som ska skapas.";
 "LOG_SERVER" = "Loggserver";
 "EDIT_CATEGORIES" = "Redigera kategorier";
@@ -1026,7 +1027,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "En PP-OCRv6-modell kunde inte läsas in.";
 
-"OCR_ERROR_DICTIONARY" = "Teckenordboken för PP-OCRv6 saknas eller är ogiltig.";
 
 "OCR_ERROR_IMAGE" = "Bilden kunde inte förberedas för textigenkänning.";
 

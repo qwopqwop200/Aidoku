@@ -74,7 +74,7 @@ This Japanese/Chinese model is the factory default for both detection and recogn
 Manga source-language selection and filtering are limited to Japanese/Chinese;
 translation targets and text-only metadata translation remain independent.
 
-Rebuild with Scripts/models/convert_manga_ocr.py and its pinned requirements.
+Rebuild with Scripts/models/refresh_manga_v03.py and Scripts/models/manga-requirements.txt.
 CoreMLSources.json records upstream and converted weight/dictionary hashes.
 
 

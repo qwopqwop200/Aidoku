@@ -7,18 +7,14 @@ import Foundation
 // Numerics follow the legacy NativeRFDETRLayoutTensorContract exactly: sRGB
 // white-matted RGB, PyTorch antialiased triangle resize to 648x648 with
 // half-pixel centers, ImageNet normalization, global top-160 (query, class)
-// ranking with per-class floors, 162x162 instance-mask logits sampled
-// bilinearly (logit > 0). The legacy actor's caches, raw-cache policy,
-// semantic grids and support grids are not needed by V2 and are omitted.
-// No V2 stage reads region masks, so `detect` neither reads the 31 MB mask
-// output (Core ML materializes it lazily) nor samples it; `decode` keeps the
-// mask path for callers that ask for it.
+// ranking with per-class floors. The legacy actor's caches, raw-cache policy,
+// instance masks, semantic grids and support grids are not needed by V2 and are
+// omitted (the 31 MB mask output is never read; Core ML materializes it lazily).
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2RFDETRModel: @unchecked Sendable {
     static let resourceName = "KoharuHighres648FP16"
     static let side = 648
-    static let maskSide = 162
     static let queries = 300
     static let classes = 5
     static let mean: [Float] = [0.485, 0.456, 0.406]
@@ -32,8 +28,6 @@ final class V2RFDETRModel: @unchecked Sendable {
     struct RawOutput: @unchecked Sendable {
         let boxes: MLMultiArray
         let logits: MLMultiArray
-        /// Nil when predicted with `masks: false`.
-        let masks: MLMultiArray?
     }
 
     let model: MLModel
@@ -57,9 +51,8 @@ final class V2RFDETRModel: @unchecked Sendable {
     /// Model-owned input tensor, refilled for every page (calls are serialized by `executor`).
     private var input: MLMultiArray?
 
-    /// Synchronous inference; call through `executor`. Pass `masks: false` when the
-    /// instance masks are not needed (the output is then not validated or read).
-    func predict(_ raster: V2PageRaster, masks: Bool = true) throws -> RawOutput {
+    /// Synchronous inference; call through `executor`.
+    func predict(_ raster: V2PageRaster) throws -> RawOutput {
         let input = try self.input ?? Self.makeInput()
         self.input = input
         Self.preprocess(raster, into: input)
@@ -72,10 +65,8 @@ final class V2RFDETRModel: @unchecked Sendable {
             }
             return value
         }
-        let maskShape = [1, Self.queries, Self.maskSide, Self.maskSide]
         return RawOutput(boxes: try array("boxes", [1, Self.queries, 4]),
-                         logits: try array("logits", [1, Self.queries, Self.classes]),
-                         masks: masks ? try array("instance_masks", maskShape) : nil)
+                         logits: try array("logits", [1, Self.queries, Self.classes]))
     }
 
     /// Flattened per-output-pixel filter taps: output `i` reads source
@@ -167,12 +158,6 @@ final class V2RFDETRModel: @unchecked Sendable {
         try MLMultiArray(shape: [1, 3, NSNumber(value: side), NSNumber(value: side)], dataType: .float32)
     }
 
-    static func preprocess(_ raster: V2PageRaster) throws -> MLMultiArray {
-        let result = try makeInput()
-        preprocess(raster, into: result)
-        return result
-    }
-
     /// Fills a contiguous [1, 3, side, side] Float32 tensor.
     static func preprocess(_ raster: V2PageRaster, into result: MLMultiArray) {
         let output = result.dataPointer.assumingMemoryBound(to: Float.self)
@@ -192,16 +177,10 @@ final class V2RFDETRModel: @unchecked Sendable {
 
 @available(iOS 18.0, macOS 15.0, *)
 enum V2LayoutDetection {
-    static func detect(_ page: V2Page, models: V2Models) async throws -> [V2LayoutRegion] {
-        try await detect(V2PageRaster(page.image), models: models)
-    }
-
     static func detect(_ raster: V2PageRaster, models: V2Models) async throws -> [V2LayoutRegion] {
         let model = models.layout
         return try await model.executor.run {
-            // No V2 stage reads `V2LayoutRegion.mask`, so S1 skips mask sampling.
-            let raw = try model.predict(raster, masks: false)
-            return try decode(raw, width: raster.width, height: raster.height, masks: false)
+            try decode(model.predict(raster), width: raster.width, height: raster.height)
         }
     }
 
@@ -219,12 +198,9 @@ enum V2LayoutDetection {
         value >= 0 ? 1 / (1 + exp(-value)) : exp(value) / (1 + exp(value))
     }
 
-    /// Pure decode of one RF-DETR output into page-pixel regions, ordered by
-    /// descending score. With `masks`, each region's mask covers its integral
-    /// bounds; without, `mask` is nil and `raw.masks` is never read.
-    static func decode(_ raw: V2RFDETRModel.RawOutput, width: Int, height: Int,
-                       masks: Bool = true) throws -> [V2LayoutRegion] {
-        let queries = V2RFDETRModel.queries, classes = V2RFDETRModel.classes, maskSide = V2RFDETRModel.maskSide
+    /// Pure decode of one RF-DETR output into page-pixel regions, ordered by descending score.
+    static func decode(_ raw: V2RFDETRModel.RawOutput, width: Int, height: Int) throws -> [V2LayoutRegion] {
+        let queries = V2RFDETRModel.queries, classes = V2RFDETRModel.classes
         let boxData = raw.boxes.dataPointer.assumingMemoryBound(to: Float.self)
         let logitData = raw.logits.dataPointer.assumingMemoryBound(to: Float.self)
         let boxStride = raw.boxes.strides.map(\.intValue), logitStride = raw.logits.strides.map(\.intValue)
@@ -255,36 +231,7 @@ enum V2LayoutDetection {
                              width: CGFloat(v[2]) * CGFloat(width), height: CGFloat(v[3]) * CGFloat(height))
             let bounds = box.integral.intersection(page)
             guard !bounds.isNull, bounds.width >= 1, bounds.height >= 1 else { continue }
-            guard masks else {
-                regions.append(V2LayoutRegion(kind: kind, bounds: bounds, score: candidate.confidence, mask: nil))
-                continue
-            }
-            guard let maskArray = raw.masks else { throw V2RFDETRModel.Failure.modelContract("instance_masks") }
-            let maskData = maskArray.dataPointer.assumingMemoryBound(to: Float.self)
-            let maskStride = maskArray.strides.map(\.intValue)
-            let plane = maskData + q * maskStride[1]
-            let rowStride = maskStride[2], pixelStride = maskStride[3]
-            let x0 = Int(bounds.minX), y0 = Int(bounds.minY), w = Int(bounds.width), h = Int(bounds.height)
-            var mask = [UInt8](repeating: 0, count: w * h)
-            // Legacy NativeRFDETRLayoutMask.contains: half-pixel bilinear sampling, logit > 0.
-            var columns = [(Int, Int, Float)](repeating: (0, 0, 0), count: w)
-            for x in 0..<w {
-                let sx = max(0, (Float(x0 + x) + 0.5) * Float(maskSide) / Float(width) - 0.5)
-                let a = min(maskSide - 1, Int(sx))
-                columns[x] = (a, min(maskSide - 1, a + 1), sx - Float(a))
-            }
-            for y in 0..<h {
-                let sy = max(0, (Float(y0 + y) + 0.5) * Float(maskSide) / Float(height) - 0.5)
-                let a = min(maskSide - 1, Int(sy)), b = min(maskSide - 1, a + 1), dy = sy - Float(a)
-                let top = plane + a * rowStride, bottom = plane + b * rowStride
-                for x in 0..<w {
-                    let (l, r, dx) = columns[x]
-                    let upper = top[l * pixelStride] * (1 - dx) + top[r * pixelStride] * dx
-                    let lower = bottom[l * pixelStride] * (1 - dx) + bottom[r * pixelStride] * dx
-                    if upper * (1 - dy) + lower * dy > 0 { mask[y * w + x] = 255 }
-                }
-            }
-            regions.append(V2LayoutRegion(kind: kind, bounds: bounds, score: candidate.confidence, mask: mask))
+            regions.append(V2LayoutRegion(kind: kind, bounds: bounds, score: candidate.confidence))
         }
         return regions
     }

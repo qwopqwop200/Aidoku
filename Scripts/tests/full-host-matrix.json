@@ -92,6 +92,6 @@
     }
   ],
   "notes": [
-    "Host tooling and V2 host checks, plus OCR/translation contracts over files the V2 pipeline compiles. The legacy page pipeline and its smokes were removed."
+    "Host tooling and V2 host checks, plus OCR/translation contracts over files the V2 pipeline compiles."
   ]
 }

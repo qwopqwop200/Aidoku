@@ -166,7 +166,7 @@ struct V2DetectionTests {
         let fromFrame = try await detector.detectGeometry(frame: frame)
         #expect(!fromImage.isEmpty)
         #expect(fromFrame == fromImage)
-        let lines = try await V2Detection.detect(frame: frame, page: V2Page(id: "p", image: image), detector: detector)
+        let lines = try await V2Detection.detect(frame: frame, detector: detector)
         #expect(lines == fromImage.compactMap { V2Detection.line(polygon: $0.polygon, score: $0.score) })
     }
 }

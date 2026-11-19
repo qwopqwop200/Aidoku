@@ -82,17 +82,6 @@ struct ReaderTranslationPanelOrderTests {
         #expect(ranks([input(-0.1, 0.1), input(0.7, 0.1), input(0.3, 0.65)]) == [0, 1, 2])
         #expect(ranks([input(0.1, 0.1), input(0.7, 0.1)], pixels: []) == [0, 1])
     }
-    @Test func ineligibleImagePairsKeepOriginalRank() throws {
-        let provider = try #require(CGDataProvider(data: Data(ruledPanels) as CFData))
-        let image = try #require(CGImage(width: 40, height: 40, bitsPerComponent: 8, bitsPerPixel: 8,
-            bytesPerRow: 40, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: 0),
-            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
-        let alreadyOrdered = [input(0.7, 0.1), input(0.1, 0.1), input(0.3, 0.65)]
-        #expect(ReaderTranslationPanelOrder.rightToLeftRanks(image: image, inputs: alreadyOrdered) == [0, 1, 2])
-        let horizontal = [input(0.1, 0.1, vertical: false), input(0.7, 0.1, vertical: false)]
-        #expect(ReaderTranslationPanelOrder.rightToLeftRanks(image: image, inputs: horizontal) == [0, 1])
-    }
-
     @Test func explicitVerticalPanelCutOrdersPanelsBeforeTheirInternalText() {
         var pixels = [UInt8](repeating: 0, count: 1600)
         for y in 0..<40 { for x in 18..<22 { pixels[y * 40 + x] = 255 } }
@@ -139,31 +128,12 @@ struct ReaderTranslationPanelOrderTests {
         #expect(ranks(boxes, pixels: pixels) == [2, 0, 3, 1])
     }
 
-    @Test func horizontalGutterRestoresTopPanelBeforeBottomPanel() throws {
-        let boxes = [input(0.3, 0.65), input(0.3, 0.1)]
-        #expect(ranks(boxes) == [1, 0])
-        let provider = try #require(CGDataProvider(data: Data(ruledPanels) as CFData))
-        let image = try #require(CGImage(width: 40, height: 40, bitsPerComponent: 8, bitsPerPixel: 8,
-            bytesPerRow: 40, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: 0),
-            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
-        // Exercises the image entry point's preflight, not only the pixel helper.
-        #expect(ReaderTranslationPanelOrder.rightToLeftRanks(image: image, inputs: boxes) == [1, 0])
+    @Test func horizontalGutterRestoresTopPanelBeforeBottomPanel() {
+        #expect(ranks([input(0.3, 0.65), input(0.3, 0.1)]) == [1, 0])
     }
 
     @Test func textCrossingGutterPreventsUnsupportedPanelSplit() {
         let crossing = ReaderTranslationPanelOrder.Input(rect: CGRect(x: 0.2, y: 0.35, width: 0.15, height: 0.3), isVertical: true)
         #expect(ranks([input(0.1, 0.1), input(0.7, 0.1), crossing]) == [0, 1, 2])
     }
-
-    @Test func staggeredTextInTallPanelStillTriggersImageAnalysis() throws {
-        var pixels = [UInt8](repeating: 0, count: 1600)
-        for y in 0..<40 { for x in 18..<22 { pixels[y * 40 + x] = 255 } }
-        let boxes = [input(0.7, 0.1, vertical: false), input(0.1, 0.3, vertical: false), input(0.7, 0.65, vertical: false)]
-        let provider = try #require(CGDataProvider(data: Data(pixels) as CFData))
-        let image = try #require(CGImage(width: 40, height: 40, bitsPerComponent: 8, bitsPerPixel: 8,
-            bytesPerRow: 40, space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: 0),
-            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
-        #expect(ReaderTranslationPanelOrder.rightToLeftRanks(image: image, inputs: boxes) == [0, 2, 1])
-    }
-
 }

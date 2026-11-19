@@ -262,6 +262,7 @@
 "ABOUT" = "Rreth aplikacionit";
 "GITHUB_REPO" = "Depoja në GitHub";
 "DISCORD_SERVER" = "Serveri në Discord";
+"SUPPPORT_DEVELOPMENT" = "Mbështet Zhvillimin";
 "GENERAL" = "Të Përgjithshme";
 "ICLOUD_SYNC" = "Sinkronizimi me iCloud";
 "INCOGNITO_MODE_TEXT" = "Pezullon regjistrimin e historisë së leximit kur aktivizohet";
@@ -1004,7 +1005,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "Një model PP-OCRv6 nuk mund të ngarkohej.";
 
-"OCR_ERROR_DICTIONARY" = "Fjalori i karaktereve PP-OCRv6 mungon ose është i pavlefshëm.";
 
 "OCR_ERROR_IMAGE" = "Imazhi nuk mund të përgatitej për njohjen e tekstit.";
 

@@ -147,6 +147,7 @@
 "AUTH_TO_DISABLE" = "Uwierzytelnij się, aby wyłączyć.";
 "ABOUT" = "O aplikacji";
 "GITHUB_REPO" = "Repozytorium GitHub";
+"SUPPPORT_DEVELOPMENT" = "Wspomóż twórcę";
 "INCOGNITO_MODE_TEXT" = "Wstrzymuje zapisywanie historii czytania, gdy jest włączony";
 "APPEARANCE" = "Wygląd";
 "APPEARANCE_LIGHT" = "Jasny";
@@ -1005,7 +1006,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operacja na pęku kluczy nie powiodła się (kod stanu %d).";
 "OCR_ERROR_MODEL_MISSING" = "Brakuje wymaganego modelu PP-OCRv6.";
 "OCR_ERROR_MODEL_LOAD" = "Nie udało się wczytać modelu PP-OCRv6.";
-"OCR_ERROR_DICTIONARY" = "Słownik znaków PP-OCRv6 nie istnieje lub jest nieprawidłowy.";
 "OCR_ERROR_IMAGE" = "Nie udało się przygotować obrazu do rozpoznawania tekstu.";
 "OCR_ERROR_OUTPUT" = "Model PP-OCRv6 zwrócił nieprawidłowy lub nieobsługiwany wynik.";
 "OCR_ERROR_PREDICTION" = "Rozpoznawanie tekstu przez PP-OCRv6 nie powiodło się. Spróbuj ponownie z innym obrazem lub modelem OCR.";

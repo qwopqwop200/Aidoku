@@ -23,7 +23,7 @@ enum V2Detection {
     }
 
     /// Detection from an RGBA frame the caller already converted (shared with S3 recognition).
-    static func detect(frame: NativeOCRRGBAFrame, page: V2Page, detector: NativeCoreMLDetector) async throws -> [V2Line] {
+    static func detect(frame: NativeOCRRGBAFrame, detector: NativeCoreMLDetector) async throws -> [V2Line] {
         let boxes = try await detector.detectGeometry(frame: frame, configuration: configuration)
         return boxes.compactMap { line(polygon: $0.polygon, score: $0.score) }
     }
@@ -34,8 +34,8 @@ enum V2Detection {
     }
 
     /// Frame-sharing variant used by the pipeline (S3 reuses the same frame).
-    static func detect(frame: NativeOCRRGBAFrame, page: V2Page, models: V2Models) async throws -> [V2Line] {
-        try await models.detectors.with { try await detect(frame: frame, page: page, detector: $0) }
+    static func detect(frame: NativeOCRRGBAFrame, models: V2Models) async throws -> [V2Line] {
+        try await models.detectors.with { try await detect(frame: frame, detector: $0) }
     }
 
     static func line(polygon: [CGPoint], score: Double) -> V2Line? {

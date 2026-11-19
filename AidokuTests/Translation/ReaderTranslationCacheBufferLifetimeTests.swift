@@ -21,9 +21,7 @@ struct ReaderTranslationCacheBufferLifetimeTests {
         }
         try await disk.store(stored, for: "large", kind: .layout, generation: 0)
         let unlimited = try #require(try await disk.data(for: "large", kind: .layout))
-        let bounded = try #require(try await disk.data(for: "large", kind: .layout, maximumBytes: original.count))
         #expect(unlimited == original)
-        #expect(bounded == original)
         // Reuse SQLite's row storage before touching the first results again.
         // Borrowed compressed input must not become borrowed returned content.
         for index in 0..<4 {
@@ -33,27 +31,9 @@ struct ReaderTranslationCacheBufferLifetimeTests {
         }
         try await disk.clear()
         #expect(unlimited == original)
-        #expect(bounded == original)
     }
 
-    @Test func rawAndEmptyReadBudgetsPreserveDurableBytes() async throws {
-        let root = directory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let disk = ReaderTranslationDiskCache(directory: root)
-        let raw = randomBytes(count: 256 * 1024)
-        try await disk.store(raw, for: "raw", kind: .layout, generation: 0)
-        #expect(try await disk.data(for: "raw", kind: .layout, maximumBytes: raw.count - 1) == nil)
-        #expect(try await disk.contains("raw", kind: .layout))
-        #expect(try await disk.data(for: "raw", kind: .layout, maximumBytes: raw.count) == raw)
-        try await disk.store(Data(), for: "empty", kind: .layout, generation: 0)
-        #expect(try await disk.data(for: "empty", kind: .layout, maximumBytes: -1) == nil)
-        #expect(try await disk.contains("empty", kind: .layout))
-        #expect(try await disk.data(for: "empty", kind: .layout, maximumBytes: 0) == Data())
-        #expect(try await disk.data(for: "raw", kind: .layout, maximumBytes: raw.count - 1, discardOversized: true) == nil)
-        #expect(try await !disk.contains("raw", kind: .layout))
-    }
-
-    @Test func sharedArchiveCompatibilityDataKeepsOwnershipAndBudget() async throws {
+    @Test func sharedArchiveCompatibilityDataKeepsOwnership() async throws {
         let root = directory()
         defer { try? FileManager.default.removeItem(at: root) }
         let disk = ReaderTranslationDiskCache(directory: root)
@@ -62,9 +42,6 @@ struct ReaderTranslationCacheBufferLifetimeTests {
         try await disk.storeRegions(regions, for: "page", kind: .translation, generation: 0)
         let data = try #require(try await disk.data(for: "page", kind: .translation))
         #expect(try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: data).map(\.region) == regions)
-        #expect(try await disk.data(for: "page", kind: .translation, maximumBytes: data.count - 1) == nil)
-        #expect(try await disk.contains("page", kind: .translation))
-        #expect(try await disk.data(for: "page", kind: .translation, maximumBytes: data.count) != nil)
         try await disk.clear()
         #expect(try JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: data).map(\.region) == regions)
     }

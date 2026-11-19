@@ -44,6 +44,7 @@ struct BackupInfo: Hashable, Identifiable, Sendable {
            let info = loadFromBinaryPlist(scanner, url: url, size: size) {
             return info
         }
+        // xml/ json don't have any way to get counts like plist, so resort to full decode
         guard let backup = Backup.decode(data) else { return nil }
         return BackupInfo(url: url, size: size, backup: backup)
     }

@@ -8,9 +8,8 @@ enum SourceMenuTranslation {
         includeLargeLists || count <= maximumTranslatedOptions
     }
 
-    static func labelsToTranslate(options: [String], title: String? = nil, includeLargeLists: Bool = false) -> [String] {
-        let headings = [title].compactMap { $0 }
-        return translatesOptions(count: options.count, includeLargeLists: includeLargeLists) ? headings + options : headings
+    static func labelsToTranslate(options: [String], includeLargeLists: Bool = false) -> [String] {
+        translatesOptions(count: options.count, includeLargeLists: includeLargeLists) ? options : []
     }
 
     static func translate(_ originals: [String], settings: ReaderTranslationSettings, kind: TitleTranslationKind = .sourceLabel,

@@ -9,5 +9,3 @@ Source checkpoint SHA256: 878d541c68648969bc1b042a6e997f3a58e49b6c07c5636ad55130
 The converted model repository declares MIT. Its model card explicitly advises
 reviewing upstream project/checkpoint terms when redistributing derived artifacts.
 This provenance note does not establish a completed redistribution-license audit.
-Conversion and measured parity provenance are retained in
-build/inpainting-mobile/aot/benchmark-report.json and Scripts/models/benchmark_aot_mobile.py.

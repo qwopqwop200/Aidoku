@@ -175,6 +175,7 @@
 "READING_MODE" = "Mode de lecture";
 "VERTICAL_SCROLL" = "Défilement vertical";
 "DISCORD_SERVER" = "Serveur Discord";
+"SUPPPORT_DEVELOPMENT" = "Soutenez le développement";
 "INCOGNITO_MODE_TEXT" = "Suspend l’enregistrement de l’historique de lecture lorsque ce mode est activé";
 "APPEARANCE_DARK" = "Sombre";
 "RESTORE_BACKUP" = "Restaurer cette sauvegarde ?";
@@ -1007,7 +1008,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "L’opération du trousseau a échoué avec le code d’état %d.";
 "OCR_ERROR_MODEL_MISSING" = "Un modèle PP-OCRv6 requis est manquant.";
 "OCR_ERROR_MODEL_LOAD" = "Impossible de charger un modèle PP-OCRv6.";
-"OCR_ERROR_DICTIONARY" = "Le dictionnaire de caractères PP-OCRv6 est manquant ou non valide.";
 "OCR_ERROR_IMAGE" = "Impossible de préparer l’image pour la reconnaissance du texte.";
 "OCR_ERROR_OUTPUT" = "Le modèle PP-OCRv6 a renvoyé une sortie non valide ou non prise en charge.";
 "OCR_ERROR_PREDICTION" = "La reconnaissance du texte PP-OCRv6 a échoué. Réessayez avec une autre image ou un autre modèle OCR.";

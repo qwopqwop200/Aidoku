@@ -91,6 +91,7 @@
 "AUTH_TO_ENABLE" = "ยืนยันตัวตนเพื่อเปิดใช้งาน";
 "AUTH_TO_DISABLE" = "ยืนยันตัวตนเพื่อปิดใช้งาน";
 "ABOUT" = "เกี่ยวกับ";
+"SUPPPORT_DEVELOPMENT" = "สนับสนุนผู้พัฒนา";
 "GENERAL" = "ทั่วไป";
 "ICLOUD_SYNC" = "ซิงค์ iCloud";
 "INCOGNITO_MODE" = "โหมดไม่ระบุตัวตน";
@@ -1028,7 +1029,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "ไม่สามารถโหลดโมเดล PP-OCRv6 ได้";
 
-"OCR_ERROR_DICTIONARY" = "ไม่พบพจนานุกรมอักขระ PP-OCRv6 หรือพจนานุกรมไม่ถูกต้อง";
 
 "OCR_ERROR_IMAGE" = "ไม่สามารถเตรียมภาพสำหรับการรู้จำข้อความได้";
 

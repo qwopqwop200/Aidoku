@@ -87,7 +87,7 @@ enum TitleTranslation {
         result.metadataInstructions = kind.instructions
         result.filterSFXWithLLM = false
         result.filterBackgroundWithLLM = false
-        result.rightToLeftPanelOrder = false
+        result.readingDirection = .leftToRight
         return result
     }
 

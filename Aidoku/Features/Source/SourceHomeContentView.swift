@@ -316,7 +316,6 @@ extension SourceHomeContentView {
                 withAnimation { self.error = error }
             }
         }
-        guard homeGeneration == requestGeneration else { return }
         guard !Task.isCancelled, homeGeneration == requestGeneration else { return }
 
         withAnimation {

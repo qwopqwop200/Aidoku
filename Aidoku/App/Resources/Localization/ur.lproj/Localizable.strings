@@ -560,6 +560,7 @@
 "ABOUT" = "بارے میں";
 "GITHUB_REPO" = "GitHub ذخیرہ";
 "DISCORD_SERVER" = "Discord سرور";
+"SUPPPORT_DEVELOPMENT" = "ترقی میں تعاون کریں";
 "GENERAL" = "عمومی";
 "ICLOUD_SYNC" = "iCloud مطابقت پذیری";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync ایک تجرباتی خصوصیت ہے۔ اسے فعال یا غیر فعال کرنے سے ڈیٹا ضائع ہو سکتا ہے۔";
@@ -1021,7 +1022,6 @@
 
 "OCR_ERROR_MODEL_LOAD" = "PP-OCRv6 ماڈل لوڈ نہیں ہو سکا۔";
 
-"OCR_ERROR_DICTIONARY" = "PP-OCRv6 کی حروف کی لغت موجود نہیں ہے یا درست نہیں ہے۔";
 
 "OCR_ERROR_IMAGE" = "متن کی شناخت کے لیے تصویر تیار نہیں ہو سکی۔";
 

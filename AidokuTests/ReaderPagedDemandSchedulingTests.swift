@@ -8,7 +8,7 @@ import UIKit
 struct ReaderPagedDemandSchedulingTests {
     @Test func rebuildingControllersReleasesDiscardedPageLoads() throws {
         try withReader(preload: 3) { reader, _ in
-            let old = reader.pageViewControllers
+            let old = reader.allPageViewControllers
             reader.loadPage(at: 10)
             reader.loadPage(at: 11)
             #expect(old[10].page != nil)
@@ -19,13 +19,13 @@ struct ReaderPagedDemandSchedulingTests {
             #expect(old[10].page == nil)
             #expect(old[11].page == nil)
             #expect(old[10].pageView?.imageView.image == nil)
-            #expect(reader.pageViewControllers[10] !== old[10])
+            #expect(reader.allPageViewControllers[10] !== old[10])
         }
     }
 
     @Test func chapterRebuildPreservesTransferredPreviewResources() throws {
         try withReader(preload: 0, adjacentChapters: true) { reader, _ in
-            let old = reader.pageViewControllers
+            let old = reader.allPageViewControllers
             let preview = try #require(old.last)
             preview.setPage(Page(sourceId: "demand-tests", chapterId: "next", index: 0))
             reader.loadPage(at: 10)
@@ -35,7 +35,7 @@ struct ReaderPagedDemandSchedulingTests {
 
             reader.loadPageControllers(chapter: next)
 
-            #expect(reader.pageViewControllers.contains { $0 === preview })
+            #expect(reader.allPageViewControllers.contains { $0 === preview })
             #expect(preview.page?.chapterId == "next")
             #expect(old[11].page == nil)
         }
@@ -43,7 +43,7 @@ struct ReaderPagedDemandSchedulingTests {
 
     @Test func zeroLookaheadStillLoadsDestinationAndReleasesDistantPages() throws {
         try withReader(preload: 0) { reader, pager in
-            let controllers = reader.pageViewControllers
+            let controllers = reader.allPageViewControllers
             pager.setViewControllers([controllers[2]], direction: .forward, animated: false)
             reader.pageViewController(pager, didFinishAnimating: true, previousViewControllers: [], transitionCompleted: true)
             #expect(reader.currentPage == 2)
@@ -60,7 +60,7 @@ struct ReaderPagedDemandSchedulingTests {
 
     @Test func incomingDragPromotesImageRequestAndCancellationRestoresPriority() throws {
         try withReader(preload: 3) { reader, pager in
-            let controllers = reader.pageViewControllers
+            let controllers = reader.allPageViewControllers
             pager.setViewControllers([controllers[10]], direction: .forward, animated: false)
             reader.pageViewController(pager, didFinishAnimating: true, previousViewControllers: [], transitionCompleted: true)
             #expect(controllers[11].pageView?.imageLoadPriority == .low)
@@ -78,7 +78,7 @@ struct ReaderPagedDemandSchedulingTests {
 
     @Test func memoryWarningKeepsBothSpreadsUntilTheSwipeSettles() throws {
         try withReader(preload: 0, doublePages: true) { reader, pager in
-            let controllers = reader.pageViewControllers
+            let controllers = reader.allPageViewControllers
             let outgoing = ReaderDoublePageViewController(firstPage: controllers[10], secondPage: controllers[11], direction: .ltr)
             let incoming = ReaderDoublePageViewController(firstPage: controllers[12], secondPage: controllers[13], direction: .ltr)
             pager.setViewControllers([outgoing], direction: .forward, animated: false)
@@ -109,7 +109,7 @@ struct ReaderPagedDemandSchedulingTests {
             UserDefaults.standard.set("auto", forKey: "Reader.pagedPageLayout")
             reader.view.bounds.size = CGSize(width: 390, height: 844)
             reader.updatePageLayout()
-            let page = reader.pageViewControllers[21]
+            let page = reader.allPageViewControllers[21]
             pager.setViewControllers([page], direction: .forward, animated: false)
             reader.pageViewController(pager, didFinishAnimating: true, previousViewControllers: [], transitionCompleted: true)
             let poster = try #require(UIImage(systemName: "book"))
@@ -146,7 +146,7 @@ struct ReaderPagedDemandSchedulingTests {
 
     @Test func cancelledChapterPreviewDragPreservesPreviewWithZeroLookahead() throws {
         try withReader(preload: 0, adjacentChapters: true) { reader, pager in
-            let controllers = reader.pageViewControllers
+            let controllers = reader.allPageViewControllers
             // One previous preview shifts content pages by one controller slot.
             pager.setViewControllers([controllers[51]], direction: .forward, animated: false)
             reader.pageViewController(pager, didFinishAnimating: true, previousViewControllers: [], transitionCompleted: true)
@@ -171,7 +171,7 @@ struct ReaderPagedDemandSchedulingTests {
     @Test(arguments: [false, true])
     func sustainedReversalMovesBoundedWindowWithoutSingleStepJitter(doublePages: Bool) throws {
         try withReader(preload: 3, doublePages: doublePages) { reader, pager in
-            let controllers = reader.pageViewControllers
+            let controllers = reader.allPageViewControllers
             func settle(_ page: Int) {
                 pager.setViewControllers([controllers[page]], direction: .forward, animated: false)
                 reader.pageViewController(pager, didFinishAnimating: true, previousViewControllers: [], transitionCompleted: true)
@@ -224,7 +224,7 @@ struct ReaderPagedDemandSchedulingTests {
         reader.loadViewIfNeeded()
         reader.loadPageControllers(chapter: chapter)
         let pager = try #require(reader.children.compactMap { $0 as? UIPageViewController }.first)
-        defer { reader.pageViewControllers.forEach { $0.clearPage() } }
+        defer { reader.allPageViewControllers.forEach { $0.clearPage() } }
         try withExtendedLifetime(delegate) { try body(reader, pager) }
     }
 }

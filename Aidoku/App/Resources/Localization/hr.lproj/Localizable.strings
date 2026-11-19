@@ -147,6 +147,7 @@
 "%@_AGO" = "prije %@";
 "PAGE_X" = "Stranica %i";
 "GITHUB_REPO" = "GitHub repozitorij";
+"SUPPPORT_DEVELOPMENT" = "Podrška razvoju";
 "GENERAL" = "Općenito";
 "ICLOUD_SYNC" = "iCloud sinkronizacija";
 "PORTRAIT" = "Uspravno";
@@ -1007,7 +1008,6 @@
 "TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operacija s Keychainom nije uspjela uz kod statusa %d.";
 "OCR_ERROR_MODEL_MISSING" = "Nedostaje potreban model PP-OCRv6.";
 "OCR_ERROR_MODEL_LOAD" = "Nije moguće učitati model PP-OCRv6.";
-"OCR_ERROR_DICTIONARY" = "Rječnik znakova za PP-OCRv6 nedostaje ili nije valjan.";
 "OCR_ERROR_IMAGE" = "Nije moguće pripremiti sliku za prepoznavanje teksta.";
 "OCR_ERROR_OUTPUT" = "Model PP-OCRv6 vratio je nevaljan ili nepodržan izlaz.";
 "OCR_ERROR_PREDICTION" = "Prepoznavanje teksta s pomoću PP-OCRv6 nije uspjelo. Pokušaj s drugom slikom ili OCR modelom.";

@@ -7,47 +7,9 @@ import Foundation
 /// Horizontal lettering retains its within-panel order. Callers
 /// must use the reader's explicit direction, never the OCR/source language.
 enum ReaderTranslationPanelOrder {
-    // Shared by persisted OCR evidence and translation identity.
-    static let cacheVersion = "rtl-panel-order-v6-band-orientation"
-
     struct Input: Sendable {
         let rect: CGRect // Normalized top-left image coordinates.
         let isVertical: Bool
-    }
-
-    static func rightToLeftRanks(image: CGImage, inputs: [Input]) -> [Int] {
-        let unchanged = Array(inputs.indices)
-        guard inputs.count >= 2, inputs.count <= 512, !Task.isCancelled else { return unchanged }
-        // Skip raster work only when neither a panel-row reversal nor a RTL
-        // reversal is possible. Detector output can interleave different panels.
-        var hasReversedPair = false
-        for first in inputs.indices {
-            for second in inputs.indices where second > first {
-                let a = inputs[first].rect, b = inputs[second].rect
-                if b.maxY < a.minY || a.maxX <= b.minX {
-                    hasReversedPair = true
-                    break
-                }
-            }
-            if hasReversedPair { break }
-        }
-        guard hasReversedPair, !Task.isCancelled else { return unchanged }
-        let scale = min(1, 768 / CGFloat(max(image.width, image.height)))
-        let width = max(1, Int(CGFloat(image.width) * scale))
-        let height = max(1, Int(CGFloat(image.height) * scale))
-        var pixels = [UInt8](repeating: 255, count: width * height)
-        let drawn = pixels.withUnsafeMutableBytes { bytes -> Bool in
-            guard let context = CGContext(data: bytes.baseAddress, width: width, height: height,
-                bitsPerComponent: 8, bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
-                bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return false }
-            context.setFillColor(gray: 1, alpha: 1)
-            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-            context.interpolationQuality = .medium
-            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-            return true
-        }
-        guard drawn else { return unchanged }
-        return rightToLeftRanks(pixels: pixels, width: width, height: height, inputs: inputs)
     }
 
     static func rightToLeftRanks(pixels: [UInt8], width: Int, height: Int, inputs: [Input]) -> [Int] {

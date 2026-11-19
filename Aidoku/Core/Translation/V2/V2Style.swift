@@ -32,8 +32,6 @@ struct V2StyleMeasurement: Sendable, Equatable {
 }
 
 enum V2StyleEstimator {
-    static let identity = "v2-style-cheap-kmeans-ring-v1"
-
     static func estimate(_ page: V2Page, blocks: [V2Block]) -> [V2Block] {
         let measured = measure(page, blocks: blocks)
         return zip(blocks, measured).map { block, measurement in
@@ -43,15 +41,14 @@ enum V2StyleEstimator {
         }
     }
 
-    static func measure(_ page: V2Page, blocks: [V2Block], concurrent: Bool = true) -> [V2StyleMeasurement] {
+    static func measure(_ page: V2Page, blocks: [V2Block]) -> [V2StyleMeasurement] {
         let fonts = V2SimpleFont.estimate(blocks)
-        var analyses = analyzeAll(page.image, blocks: blocks, fonts: fonts, concurrent: concurrent)
+        var analyses = analyzeAll(page.image, blocks: blocks, fonts: fonts)
         return decide(&analyses, fonts: fonts)
     }
 
     /// Blocks are independent; measure them concurrently.
-    static func analyzeAll(_ image: CGImage, blocks: [V2Block], fonts: [CGFloat], concurrent: Bool = true) -> [BlockAnalysis?] {
-        guard concurrent else { return blocks.indices.map { analyze(image, block: blocks[$0], font: fonts[$0]) } }
+    static func analyzeAll(_ image: CGImage, blocks: [V2Block], fonts: [CGFloat]) -> [BlockAnalysis?] {
         let results = UnsafeMutableBufferPointer<BlockAnalysis?>.allocate(capacity: blocks.count)
         results.initialize(repeating: nil)
         defer { results.deallocate() }

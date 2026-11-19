@@ -54,17 +54,10 @@ final class V2RecognitionEngine: @unchecked Sendable {
     let dictionary: [String]
     let languageModel: NativeMangaNGram?
     let handleCount: Int
-    let loadMilliseconds: Double
     private let pool: HandlePool
 
     /// `modelURL` is a compiled `.mlmodelc` (or an `.mlpackage`, compiled here).
-    init(
-        modelURL: URL,
-        dictionaryURL: URL,
-        languageModelURL: URL?,
-        handles: Int = V2RecognitionEngine.defaultHandleCount
-    ) throws {
-        let started = DispatchTime.now().uptimeNanoseconds
+    init(modelURL: URL, dictionaryURL: URL, languageModelURL: URL?) throws {
         let compiledURL = modelURL.pathExtension == "mlmodelc"
             ? modelURL : try MLModel.compileModel(at: modelURL)
         dictionary = try Self.parseDictionary(Data(contentsOf: dictionaryURL, options: .mappedIfSafe))
@@ -75,7 +68,7 @@ final class V2RecognitionEngine: @unchecked Sendable {
         languageModel = try languageModelURL.map {
             try NativeMangaNGram(data: Data(contentsOf: $0, options: .mappedIfSafe))
         }
-        let count = max(1, handles)
+        let count = Self.defaultHandleCount
         // The legacy configuration: every compute unit, frequent reshapes.
         let configuration = MLModelConfiguration()
 #if targetEnvironment(simulator)
@@ -93,10 +86,9 @@ final class V2RecognitionEngine: @unchecked Sendable {
         }
         pool = HandlePool(try slots.models())
         handleCount = count
-        loadMilliseconds = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
     }
 
-    static func load(bundle: Bundle = .main, handles: Int = defaultHandleCount) throws -> V2RecognitionEngine {
+    static func load(bundle: Bundle = .main) throws -> V2RecognitionEngine {
         func find(_ name: String, _ extensions: [String]) -> URL? {
             extensions.lazy.compactMap { bundle.url(forResource: name, withExtension: $0) }.first
         }
@@ -107,7 +99,7 @@ final class V2RecognitionEngine: @unchecked Sendable {
             throw Failure.resourceMissing(dictionaryResourceName)
         }
         return try V2RecognitionEngine(modelURL: model, dictionaryURL: dictionary,
-            languageModelURL: find(languageModelResourceName, ["bin"]), handles: handles)
+            languageModelURL: find(languageModelResourceName, ["bin"]))
     }
 
     func withHandle<T>(_ body: (MLModel) async throws -> T) async throws -> T {
@@ -194,22 +186,20 @@ enum V2Recognition {
     static func recognize(
         _ page: V2Page,
         lines: [V2Line],
-        engine: V2RecognitionEngine,
-        minimumConfidence: Double = V2Recognition.minimumConfidence
+        engine: V2RecognitionEngine
     ) async throws -> [V2Line] {
         guard !lines.isEmpty else { return [] }
         guard let frame = NativeOCRCGImageAdapter.makeRGBAFrame(from: page.image) else {
             throw V2RecognitionEngine.Failure.imageConversionFailed
         }
-        return try await recognize(frame: frame, lines: lines, engine: engine, minimumConfidence: minimumConfidence)
+        return try await recognize(frame: frame, lines: lines, engine: engine)
     }
 
     /// Frame overload so the orchestrator can share the detector's RGBA frame.
     static func recognize(
         frame: NativeOCRRGBAFrame,
         lines: [V2Line],
-        engine: V2RecognitionEngine,
-        minimumConfidence: Double = V2Recognition.minimumConfidence
+        engine: V2RecognitionEngine
     ) async throws -> [V2Line] {
         let reads = try await read(frame: frame, polygons: lines.map(\.polygon), engine: engine)
         return zip(lines, reads).compactMap { line, read in
