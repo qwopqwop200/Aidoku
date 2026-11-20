@@ -1078,7 +1078,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Visible Pages Only";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Source %@ version %d is not supported by this app. Install a supported version.";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 reads Japanese, Chinese (Simplified and Traditional), English and other Latin-script source text, but not Korean, Cyrillic or Vietnamese. Automatic source detection and source-language choices are limited to these languages. You can still translate into any target language. Choosing Manga applies detector thresholds of 0.85 and 0.25; its default detection size is 1120 px.";
 

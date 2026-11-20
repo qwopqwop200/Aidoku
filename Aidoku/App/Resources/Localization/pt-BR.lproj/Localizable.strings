@@ -1054,7 +1054,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Somente páginas visíveis";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "A fonte %@ versão %d não é compatível com este aplicativo. Instale uma versão compatível.";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 reconhece texto de origem em japonês, chinês (simplificado e tradicional), inglês e outros idiomas de escrita latina, mas não coreano, cirílico nem vietnamita. A identificação automática do idioma de origem e as opções de idioma de origem se limitam a esses idiomas. Você ainda pode traduzir para qualquer idioma de destino. Selecionar Manga aplica os limiares de detecção de 0.85 e 0.25; o tamanho de detecção padrão é 1120 px.";
 

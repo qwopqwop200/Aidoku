@@ -1,3 +1,4 @@
+import AidokuRunner
 import Foundation
 import ZIPFoundation
 
@@ -98,5 +99,16 @@ enum SourcePackageExtractor {
         let components = path.split(whereSeparator: { $0 == "/" || $0 == "\\" })
         guard !components.contains("..") else { return nil }
         return components.filter { $0 != "." }.joined(separator: "/")
+    }
+}
+
+extension SourcePackageExtractor {
+    /// Reads the source key from a staged package's `source.json` (current or 0.6 API) without running it.
+    static func sourceKey(at payload: URL) throws -> String {
+        let data = try Data(contentsOf: payload.appendingPathComponent("source.json"))
+        if let info = try? JSONDecoder().decode(AidokuRunner.SourceInfo.self, from: data) {
+            return info.info.id
+        }
+        return try JSONDecoder().decode(Source.SourceManifest.self, from: data).info.id
     }
 }

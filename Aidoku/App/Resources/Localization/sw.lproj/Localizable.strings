@@ -1061,7 +1061,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Kurasa zinazoonekana pekee";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Chanzo %@ toleo %d hakitumiki katika programu hii. Sakinisha toleo linalotumika.";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 inasoma maandishi asilia ya Kijapani, Kichina (kilichorahisishwa na cha jadi), Kiingereza na lugha nyingine za herufi za Kilatini, lakini si Kikorea, Kisiriliki wala Kivietinamu. Utambuzi wa kiotomatiki wa lugha asilia na machaguo ya lugha asilia pia yamewekewa mipaka ya lugha hizi. Bado unaweza kutafsiri kwenda lugha yoyote lengwa. Kuchagua Manga huweka viwango vya kugundua maandishi kuwa 0.85 na 0.25; ukubwa chaguomsingi wa ugunduzi ni pikseli 1120.";
 

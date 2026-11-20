@@ -44,16 +44,26 @@ struct SourceObjectData: Sendable {
 }
 
 extension SourceObjectData {
+    func toSource() -> Source? {
+        if apiVersion == "0.6", let path {
+            return try? Source(from: FileManager.default.applicationSupportDirectory.appendingPathComponent(path))
+        }
+        return nil
+    }
+
     func toNewSource() async -> AidokuRunner.Source? {
         try? await loadNewSource()
     }
 
     func loadNewSource() async throws -> AidokuRunner.Source? {
-        if let data = customSource, let config = try? CustomSourceConfig(from: data) {
+        if apiVersion == "0.6", let path {
+            let source = try Source(from: FileManager.default.applicationSupportDirectory.appendingPathComponent(path))
+            return .legacy(source: source)
+        } else if let data = customSource, let config = try? CustomSourceConfig(from: data) {
             return config.toSource()
         } else if let path {
             let url = FileManager.default.applicationSupportDirectory.appendingPathComponent(path)
-            return try await NativeSourceRegistration.loadPackage(at: url, expectedKey: id)
+            return try await AidokuRunner.Source(key: id, url: url)
         }
         return nil
     }
@@ -70,7 +80,7 @@ extension SourceObjectData {
         if apiVersion == "0.6" {
             if
                 let data = try? Data(contentsOf: url.appendingPathComponent("source.json")),
-                let manifest = try? JSONDecoder().decode(LegacySourceManifest.self, from: data)
+                let manifest = try? JSONDecoder().decode(Source.SourceManifest.self, from: data)
             {
                 return .init(
                     sourceId: id,
@@ -81,7 +91,7 @@ extension SourceObjectData {
                     languages: manifest.languages?.map(\.code) ?? [manifest.info.lang],
                     version: manifest.info.version,
                     contentRating: .init(rawValue: manifest.info.nsfw ?? 0) ?? .safe,
-                    external: true,
+                    external: false,
                     externalInfo: nil
                 )
             }
@@ -99,7 +109,7 @@ extension SourceObjectData {
                     languages: sourceInfo.info.languages,
                     version: sourceInfo.info.version,
                     contentRating: sourceInfo.info.contentRating ?? .safe,
-                    external: true,
+                    external: false,
                     externalInfo: nil
                 )
             }

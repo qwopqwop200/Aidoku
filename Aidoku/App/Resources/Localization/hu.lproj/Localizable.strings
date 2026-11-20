@@ -1079,7 +1079,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Csak a látható oldalak";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "A(z) %@ forrás %d verzióját ez az alkalmazás nem támogatja. Telepítsen támogatott verziót.";
 
 "TRANSLATION_OCR_MANGA_HELP" = "A Manga v0.3 japán, kínai (egyszerűsített és hagyományos), angol és más latin betűs forrásszöveget olvas, koreait, cirill betűset és vietnámit azonban nem. A forrásnyelv automatikus felismerése és a választható forrásnyelvek köre is ezekre a nyelvekre korlátozódik. Bármely célnyelvre továbbra is lehet fordítani. A Manga kiválasztása 0,85 és 0,25 értékre állítja az észlelési küszöbértékeket; az alapértelmezett észlelési méret 1120 px.";
 

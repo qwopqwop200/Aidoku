@@ -96,6 +96,8 @@ extension SourceManager {
             await publishSourceState()
             guard sourceLoadOwnership.isCurrent(ticket) else { return }
             notifySourcesLoaded(keys: sourcesByKey.keys)
+
+            await loadLegacySourceFilters()
             return
         }
     }
@@ -160,6 +162,19 @@ extension SourceManager {
             }
         }
         return snapshot
+    }
+
+    private func loadLegacySourceFilters() async {
+        await withTaskGroup(of: Void.self) { group in
+            for source in sourcesByKey.values {
+                if let legacySource = source.legacySource {
+                    group.addTask {
+                        _ = try? await legacySource.getFilters()
+                    }
+                }
+            }
+        }
+        NotificationCenter.default.post(name: .loadedSourceFilters, object: nil)
     }
 }
 
@@ -563,7 +578,7 @@ extension SourceManager {
         let sourceKey: String
         do {
             try Task.checkCancellation()
-            sourceKey = try NativeSourceRegistration.packageKey(at: payload)
+            sourceKey = try SourcePackageExtractor.sourceKey(at: payload)
         } catch {
             LogManager.logger.error("Failed to load source: \(error)")
             throw error
@@ -611,11 +626,22 @@ extension SourceManager {
 
         // Initialize once at the final location. A failure restores the previous package.
         let result: AidokuRunner.Source
+        let legacySource: Source?
         do {
-            result = try await NativeSourceRegistration.loadPackage(at: destination, expectedKey: sourceKey)
+            result = try await AidokuRunner.Source(key: sourceKey, url: destination)
+            legacySource = nil
         } catch {
-            LogManager.logger.error("Failed to load moved source: \(error)")
-            throw error
+            // Packages for the 0.6 source API run on the legacy runtime.
+            guard let source = try? Source(from: destination) else {
+                LogManager.logger.error("Failed to load moved source: \(error)")
+                throw error
+            }
+            legacySource = source
+            result = .legacy(source: source)
+        }
+        guard result.key == sourceKey else {
+            LogManager.logger.error("Source key does not match its manifest: \(sourceKey)")
+            return nil
         }
 
         // remove old source version (on update) and add new version to coredata
@@ -644,6 +670,12 @@ extension SourceManager {
         {
             Task { @MainActor in
                 UIApplication.shared.appDelegate?.handleSourceMigration(source: result)
+            }
+        }
+
+        if let legacySource {
+            Task {
+                _ = try? await legacySource.getFilters()
             }
         }
 
@@ -851,9 +883,6 @@ extension SourceManager {
         for object in objects {
             sourceKeys.append(object.id)
 
-            if let source = sourcesByKey[object.id], source.runner is NativeSourceRunnerLifecycle {
-                await source.clearCache()
-            }
             removeSettings(from: object.id)
             await removeEnhancedTrackerItems(for: object.id)
 
@@ -900,10 +929,6 @@ extension SourceManager {
         }
         guard let data else { return }
 
-        // Invalidate a removed native adapter only after persistence succeeds.
-        if let source = sourcesByKey[sourceKey], source.runner is NativeSourceRunnerLifecycle {
-            await source.clearCache()
-        }
         if let path = data.path {
             let url = FileManager.default.applicationSupportDirectory.appendingPathComponent(path)
             try? FileManager.default.removeItem(at: url)

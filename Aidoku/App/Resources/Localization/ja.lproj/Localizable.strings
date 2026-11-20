@@ -1065,7 +1065,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "表示中のページのみ";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "ソース %@ のバージョン %d はこのアプリでサポートされていません。対応するバージョンをインストールしてください。";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3は日本語、中国語（簡体字・繁体字）、英語などラテン文字の原文を認識できますが、韓国語、キリル文字、ベトナム語は認識できません。原文言語の自動判定と選択も、これらの言語に限定されます。翻訳先の言語は自由に選択できます。Mangaを選択すると、検出のしきい値に0.85と0.25が適用されます。標準の検出サイズは1120pxです。";
 

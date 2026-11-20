@@ -1082,7 +1082,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Alleen zichtbare pagina’s";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Bron %@ versie %d wordt niet ondersteund door deze app. Installeer een ondersteunde versie.";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 leest Japanse, Chinese (vereenvoudigd en traditioneel), Engelse en andere brontekst in Latijns schrift, maar geen Koreaans, Cyrillisch of Vietnamees. Automatische herkenning van de brontaal en de beschikbare brontalen zijn beperkt tot deze talen. Je kunt nog steeds naar elke doeltaal vertalen. Als je Manga kiest, worden de detectiedrempels 0.85 en 0.25 toegepast; de standaardgrootte voor detectie is 1120 px.";
 

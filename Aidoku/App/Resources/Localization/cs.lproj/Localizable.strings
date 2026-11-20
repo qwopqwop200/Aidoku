@@ -1053,7 +1053,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Pouze viditelné stránky";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Zdroj %@ verze %d tato aplikace nepodporuje. Nainstalujte podporovanou verzi.";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 čte zdrojový text v japonštině, čínštině (zjednodušené i tradiční), angličtině a dalších jazycích psaných latinkou, nikoli však korejštinu, cyrilici ani vietnamštinu. Automatické určení zdrojového jazyka i výběr zdrojového jazyka jsou omezeny na tyto jazyky. Překlad do libovolného cílového jazyka je nadále možný. Výběrem modelu Manga se nastaví prahové hodnoty detektoru na 0,85 a 0,25; výchozí velikost pro detekci je 1120 px.";
 

@@ -8,6 +8,18 @@
 import AidokuRunner
 import Foundation
 
+extension InterpreterConfiguration {
+    static func defaultConfig(for sourceId: String) -> Self {
+        .init(
+            printHandler: { message in
+                LogManager.logger.log("[\(sourceId)] \(message)")
+            },
+            // Source session (HTTPS bypass, cookies), bounded bodies and Cloudflare handling.
+            requestHandler: NativeSourceNetwork.fetch(sourceKey: sourceId)
+        )
+    }
+}
+
 private final class URLSessionUnsecureDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
     func urlSession(
         _ session: URLSession,
@@ -21,9 +33,15 @@ private final class URLSessionUnsecureDelegate: NSObject, URLSessionDelegate, @u
 }
 
 extension AidokuRunner.Source {
+    convenience init(key: String, url: URL) async throws {
+        try await self.init(
+            url: url,
+            interpreterConfig: .defaultConfig(for: key)
+        )
+    }
+
     var isExternal: Bool {
-        // An installed package remains external when its executable is replaced by Swift.
-        url != nil
+        runner is Interpreter
     }
 
     func toInfo() -> SourceInfo {

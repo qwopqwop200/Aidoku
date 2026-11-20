@@ -1094,7 +1094,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Chỉ các trang đang hiển thị";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Ứng dụng này không hỗ trợ nguồn %@ phiên bản %d. Hãy cài đặt phiên bản được hỗ trợ.";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 đọc được văn bản nguồn bằng tiếng Nhật, tiếng Trung (Giản thể và Phồn thể), tiếng Anh và các ngôn ngữ dùng chữ Latinh khác, nhưng không đọc được tiếng Hàn, chữ Kirin hay tiếng Việt. Tính năng tự động xác định ngôn ngữ nguồn và các lựa chọn ngôn ngữ nguồn cũng chỉ giới hạn ở các ngôn ngữ này. Bạn vẫn có thể dịch sang bất kỳ ngôn ngữ đích nào. Khi chọn Manga, ngưỡng phát hiện được đặt thành 0.85 và 0.25; kích thước phát hiện mặc định là 1120 px.";
 

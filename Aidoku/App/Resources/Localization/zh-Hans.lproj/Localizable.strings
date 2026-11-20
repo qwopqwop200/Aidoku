@@ -1072,7 +1072,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "仅当前显示的页面";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "此应用不支持图源 %@ 的版本 %d。请安装受支持的版本。";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 可识别日语、中文（简体、繁体）、英语及其他拉丁字母语言的原文，但无法识别韩语、西里尔字母和越南语。自动检测原文语言和手动选择原文语言的范围也仅限于这些语言。仍可翻译成任意目标语言。选择 Manga 后，检测阈值会设为 0.85 和 0.25；默认检测尺寸为 1120px。";
 

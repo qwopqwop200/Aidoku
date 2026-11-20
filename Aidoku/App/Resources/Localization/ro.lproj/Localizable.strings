@@ -1052,7 +1052,6 @@
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "Doar paginile vizibile";
 
 // Unsupported installed source package version
-"NATIVE_SOURCE_UNSUPPORTED_VERSION" = "Sursa %@ versiunea %d nu este acceptată de această aplicație. Instalați o versiune acceptată.";
 
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 citește text sursă în japoneză, chineză (simplificată și tradițională), engleză și alte limbi cu alfabet latin, dar nu și coreeană, chirilică sau vietnameză. Detectarea automată a limbii sursă și opțiunile de selectare a limbii sursă sunt limitate la aceste limbi. Traducerea în orice limbă țintă este în continuare posibilă. Selectarea modelului Manga aplică pragurile de detectare 0,85 și 0,25; dimensiunea implicită pentru detectare este de 1120 px.";
 

@@ -53,9 +53,6 @@
             "name" : "DownloadPathContainmentTests"
           },
           {
-            "name" : "EHentaiNativeSourceTests"
-          },
-          {
             "name" : "FixedAPIDateFormatTests"
           },
           {
@@ -86,43 +83,10 @@
             "name" : "MangaDescriptionTranslationTests"
           },
           {
-            "name" : "NativeHitomiSourceTests"
-          },
-          {
-            "name" : "NativeImageCodecTests"
-          },
-          {
-            "name" : "NativeJapaneseGroupATests"
-          },
-          {
             "name" : "NativeOCRRecognitionRegressionTests"
           },
           {
-            "name" : "NativeRawkumaSourceTests"
-          },
-          {
-            "name" : "NativeRawOtakuSourceTests"
-          },
-          {
-            "name" : "NativeSenMangaSourceTests"
-          },
-          {
-            "name" : "NativeSoraRawSourceTests"
-          },
-          {
-            "name" : "NativeSourceRoutingTests"
-          },
-          {
-            "name" : "NativeSpoilerPlusSourceTests"
-          },
-          {
             "name" : "NativeWebLoginPolicyTests"
-          },
-          {
-            "name" : "NativeYomiiSourceTests"
-          },
-          {
-            "name" : "NHentaiNativeSourceTests"
           },
           {
             "name" : "PageInterceptorProcessorTests"

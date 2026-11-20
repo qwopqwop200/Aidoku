@@ -13,7 +13,7 @@ A free and open source manga reading application for iOS, iPadOS, and macOS.
 - No ads
 - Local file reading (CBZ)
 - Built-in reading service providers (Komga, Kavita, Suwayomi)
-- Native Swift source adapters with versioned package metadata
+- WASM external source system
 - Downloads
 - Tracker integration (AniList, MyAnimeList, etc.)
 - On-device OCR and native dictionary lookup

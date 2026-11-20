@@ -7,6 +7,7 @@
 
 import AidokuRunner
 import Foundation
+import Wasm3
 
 extension Error {
     func aidokuDescription() -> String {
@@ -29,11 +30,12 @@ extension Error {
                 default:
                     NSLocalizedString("UNKNOWN_ERROR")
             }
-        } else if let error = self as? AidokuRunner.Source.InitError {
-            if case .unsupportedNativeSource(let sourceKey, let version) = error {
-                String(format: NSLocalizedString("NATIVE_SOURCE_UNSUPPORTED_VERSION"), sourceKey, version)
-            } else {
-                error.localizedDescription
+        } else if let error = self as? Wasm3Error {
+            switch error {
+                case .trap, .runtimeDisabled:
+                    NSLocalizedString("SOURCE_CRASHED")
+                default:
+                    NSLocalizedString("UNKNOWN_ERROR")
             }
         } else if self is DecodingError {
             NSLocalizedString("DECODING_ERROR")
