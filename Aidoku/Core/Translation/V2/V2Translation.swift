@@ -72,6 +72,7 @@ enum V2Translation {
             guard !V2TranslationLengthCap.copiesSource(segment.text, block.sourceText) else { return output }
             output.translation = V2TranslationLengthCap.capped(segment.text, sourceText: block.sourceText)
             if segment.isSFX == true || segment.textRole == .sfx { output.role = .sfx }
+            if segment.textRole == .narration || segment.textRole == .storyText { output.role = .narration }
             // A provider "error" (not text: misread art, noise) keeps its source pixels, as
             // background text does (the legacy restore-source rule).
             if segment.textRole == .background || segment.textRole == .error { output.role = .background }
@@ -268,6 +269,7 @@ struct V2TranslationReplay: Sendable {
         let texts = entries.compactMap(\.translation).filter { !$0.isEmpty }
         if !texts.isEmpty { block.translation = texts.joined(separator: " ") }
         if entries.allSatisfy({ $0.role == "sfx" }) { block.role = .sfx }
+        if entries.allSatisfy({ $0.role == "narration" || $0.role == "story_text" }) { block.role = .narration }
         if entries.allSatisfy({ $0.role == "background" || $0.role == "error" }) { block.role = .background }
         if let translation = block.translation, V2TranslationLengthCap.copiesSource(translation, block.sourceText) {
             block.translation = nil

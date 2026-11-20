@@ -411,6 +411,12 @@ struct V2StageTests {
         #expect(V2Layout.displayText("아ー 좋아") == "아~ 좋아")
     }
 
+    @Test func narrationRoleIsKeptAndPainted() {
+        let block = V2Block(id: 0, lines: [], bounds: .zero, polygon: [], vertical: false, readingOrder: 0, sourceText: "説明")
+        let narration = V2Translation.apply([block]) { _ in RemoteTranslatedSegment(id: "x", text: "설명", textRole: .narration) }
+        #expect(narration[0].role == .narration && V2Layout.isPaintable(narration[0]))
+    }
+
     @Test func pageRequestsUseThePageLetteringContract() {
         let block = V2Block(id: 0, lines: [], bounds: CGRect(x: 10, y: 10, width: 50, height: 50), polygon: [], vertical: true,
                             readingOrder: 0, sourceText: "こんにちは")

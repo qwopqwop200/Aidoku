@@ -232,7 +232,7 @@ enum V2Painter {
     /// per line with its measured width. Vertical: one per character.
     /// Colour does not change shaping or typographic width.
     private static func runs(for item: V2PlacedText, stroke: CGFloat, pitch: CGFloat, metrics: V2Layout.FontMetrics,
-                             font: CTFont, color: CGColor) -> [(text: String, origin: CGPoint, line: CTLine)] {
+                             font: CTFont, color: CGColor, leading: Bool = false) -> [(text: String, origin: CGPoint, line: CTLine)] {
         let size = item.fontPixels
         let ascent = metrics.ascent * size, glyph = (metrics.ascent + metrics.descent) * size
         var result: [(String, CGPoint, CTLine)] = []
@@ -242,8 +242,9 @@ enum V2Painter {
                 let shaped = line(text, font: font, color: color)
                 let width = CGFloat(CTLineGetTypographicBounds(shaped, nil, nil, nil))
                 let top = item.frame.minY + stroke + CGFloat(index) * lineHeight
-                result.append((text, CGPoint(x: item.frame.midX - width / 2, y: top + (lineHeight - glyph) / 2 + ascent),
-                               shaped))
+                // Captions (narration) start each line at the frame's left edge; other text is centred.
+                let x = leading ? item.frame.minX + stroke : item.frame.midX - width / 2
+                result.append((text, CGPoint(x: x, y: top + (lineHeight - glyph) / 2 + ascent), shaped))
             }
             return result
         }
@@ -290,7 +291,8 @@ enum V2Painter {
         // Layout insets the frame by the style's outline; an added halo sits in the clip margin.
         let stroke = V2Layout.strokeWidth(for: job.block, fontPixels: item.fontPixels)
         let outline = job.paint.strokeWidth
-        let runs = runs(for: item, stroke: stroke, pitch: V2Layout.lineHeightEm, metrics: metrics, font: font, color: fill)
+        let runs = runs(for: item, stroke: stroke, pitch: V2Layout.lineHeightEm, metrics: metrics, font: font, color: fill,
+                        leading: job.block.role == .narration)
         context.saveGState()
         // Never paint outside the page (layout already clamps frames to it).
         context.clip(to: job.clip)

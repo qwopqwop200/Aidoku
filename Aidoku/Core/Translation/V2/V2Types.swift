@@ -44,7 +44,9 @@ struct V2LayoutRegion: Sendable, Codable, Equatable {
 }
 
 enum V2Role: String, Sendable, Codable {
-    case dialogue, sfx, background
+    /// `narration`: a caption or story text (provider roles narration/story_text); painted
+    /// like dialogue except that horizontal lines start at the frame's left edge.
+    case dialogue, sfx, background, narration
 }
 
 struct V2RGB: Sendable, Codable, Equatable {
@@ -89,6 +91,7 @@ struct V2RowSpans: Sendable, Codable, Equatable {
     var halfWidths: [CGFloat]
 
     var bottom: CGFloat { top + CGFloat(halfWidths.count) * step }
+
 
     /// The narrowest half-width over the rows that [y0, y1) touches; 0 outside the spans.
     func halfWidth(_ y0: CGFloat, _ y1: CGFloat) -> CGFloat {

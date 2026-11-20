@@ -158,11 +158,43 @@ actor ReaderTranslationService {
         let concurrency = V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
         await limiter.setMaximumConcurrentRequests(concurrency)
         let client = client
-        return try await limiter.withPermit(priority: priority) {
-            try await V2Translation.translate(
-                blocks, pageSize: pageSize, client: client, configuration: configuration,
-                sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,
-                imageJPEG: imageJPEG)
+        // Transient provider failures are retried twice (after 1 s and 3 s, as the legacy reader
+        // session did), outside the provider permit; an invalid response is retried once.
+        var attempt = 0
+        while true {
+            do {
+                return try await limiter.withPermit(priority: priority) {
+                    try await V2Translation.translate(
+                        blocks, pageSize: pageSize, client: client, configuration: configuration,
+                        sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,
+                        imageJPEG: imageJPEG)
+                }
+            } catch {
+                guard attempt < Self.retryDelays.count, Self.isTransient(error, attempt: attempt), !Task.isCancelled else {
+                    throw error
+                }
+                try await Task.sleep(nanoseconds: Self.retryDelays[attempt])
+                attempt += 1
+            }
+        }
+    }
+
+    static let retryDelays: [UInt64] = [1_000_000_000, 3_000_000_000]
+
+    /// Provider failures worth an automatic retry: request timeouts, conflicts, rate limits and
+    /// server errors, dropped connections and timeouts, and (on the first attempt only) a
+    /// malformed response.
+    static func isTransient(_ error: Error, attempt: Int) -> Bool {
+        switch error as? RemoteTranslationError {
+        case .httpStatus(let status, _)?:
+            return [408, 409, 425, 429].contains(status) || (500...599).contains(status)
+        case .transport(let code)?:
+            return [.timedOut, .networkConnectionLost, .cannotConnectToHost, .cannotFindHost,
+                    .dnsLookupFailed, .secureConnectionFailed].contains(code)
+        case .invalidResponse?:
+            return attempt == 0
+        default:
+            return (error as? URLError).map { [.timedOut, .networkConnectionLost].contains($0.code) } ?? false
         }
     }
 }

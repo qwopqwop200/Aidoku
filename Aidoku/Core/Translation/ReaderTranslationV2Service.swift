@@ -307,8 +307,21 @@ actor ReaderTranslationV2Service {
                 return try await Self.translateEligible(blocks, settings: settings) { eligible in
                     let jpeg = try await jpegTask?.value
                     try Task.checkCancellation()
-                    return try await translate(eligible, CGSize(width: page.width, height: page.height),
-                                               settings, jpeg, priority)
+                    let pageSize = CGSize(width: page.width, height: page.height)
+                    let ids = Set(eligible.map(\.id))
+                    // A sent provider request is paid for: when the page is left (cancelled)
+                    // while it runs, the call finishes on its own and its translations are
+                    // stored, so coming back replays them instead of paying again.
+                    let request = Task { () throws -> [V2Block] in
+                        let translated = try await translate(eligible, pageSize, settings, jpeg, priority)
+                        if let key, let cache, let translationGeneration,
+                           let data = try? JSONEncoder().encode(Self.merged(translated, into: blocks, eligible: ids)) {
+                            try? await cache.store(data, for: Self.blocksKey(key), kind: .translation,
+                                                   generation: translationGeneration)
+                        }
+                        return translated
+                    }
+                    return try await V2PaidRequest.awaitUnlessCancelled(request)
                 }
             } catch {
                 failure.store(error)
@@ -375,6 +388,10 @@ actor ReaderTranslationV2Service {
         let eligible = eligibleForTranslation(blocks, settings: settings)
         guard !eligible.isEmpty else { return blocks }
         let translated = try await translate(blocks.filter { eligible.contains($0.id) })
+        return merged(translated, into: blocks, eligible: eligible)
+    }
+
+    static func merged(_ translated: [V2Block], into blocks: [V2Block], eligible: Set<Int>) -> [V2Block] {
         let byID = Dictionary(translated.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return blocks.map { eligible.contains($0.id) ? byID[$0.id] ?? $0 : $0 }
     }
@@ -677,4 +694,81 @@ struct V2PerformanceProfile: Equatable, Sendable {
 
     /// V2 provider concurrency for the user's request-concurrency setting.
     func providerConcurrency(setting: Int) -> Int { max(1, min(providerConcurrencyCap, setting)) }
+}
+
+/// Awaits a provider request without cancelling it when the waiting page is cancelled:
+/// the waiter throws `CancellationError` at once, the request keeps running (at most
+/// `maximumOrphans` at a time; beyond that it is cancelled as before) and stores its result.
+enum V2PaidRequest {
+    static let maximumOrphans = 2
+    private static let orphans = V2OrphanCounter()
+
+    static func awaitUnlessCancelled<T: Sendable>(_ request: Task<T, Error>) async throws -> T {
+        let once = V2ResumeOnce<T>()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
+                once.install(continuation)
+                Task {
+                    let result = await request.result
+                    once.resume(with: result)
+                }
+            }
+        } onCancel: {
+            if orphans.adopt(request, limit: maximumOrphans) == false { request.cancel() }
+            once.resume(with: .failure(CancellationError()))
+        }
+    }
+}
+
+/// Counts provider requests that outlive their page; each is released when it finishes.
+final class V2OrphanCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    func adopt<T: Sendable>(_ request: Task<T, Error>, limit: Int) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard count < limit else { return false }
+        count += 1
+        Task { [weak self] in
+            _ = await request.result
+            self?.release()
+        }
+        return true
+    }
+
+    var current: Int { lock.lock(); defer { lock.unlock() }; return count }
+
+    private func release() { lock.lock(); count -= 1; lock.unlock() }
+}
+
+/// Resumes a continuation exactly once (result or cancellation, whichever comes first),
+/// including a resume that arrives before the continuation is installed.
+final class V2ResumeOnce<T: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T, Error>?
+    private var pending: Result<T, Error>?
+    private var done = false
+
+    func install(_ continuation: CheckedContinuation<T, Error>) {
+        lock.lock()
+        if let pending {
+            done = true
+            lock.unlock()
+            continuation.resume(with: pending)
+            return
+        }
+        self.continuation = continuation
+        lock.unlock()
+    }
+
+    func resume(with result: Result<T, Error>) {
+        lock.lock()
+        guard !done else { lock.unlock(); return }
+        guard let continuation else { pending = pending ?? result; lock.unlock(); return }
+        done = true
+        self.continuation = nil
+        lock.unlock()
+        continuation.resume(with: result)
+    }
 }

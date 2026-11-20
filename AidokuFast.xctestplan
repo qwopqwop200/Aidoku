@@ -152,6 +152,9 @@
             "name" : "TranslationStreamingTests"
           },
           {
+            "name" : "V2PaidRequestTests"
+          },
+          {
             "name" : "V2ReaderPipelineTests"
           },
           {
