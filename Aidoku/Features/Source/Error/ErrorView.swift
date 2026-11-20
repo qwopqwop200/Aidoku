@@ -7,6 +7,7 @@
 
 import AidokuRunner
 import SwiftUI
+import Wasm3
 
 // source error warning triangle with associated text and retry button if applicable
 struct ErrorView: View {
@@ -35,6 +36,20 @@ struct ErrorView: View {
                         // don't show retry button
                     } else {
                         retryButton(action: retry)
+                    }
+                } else if let restart, let error = error as? Wasm3Error {
+                    switch error {
+                        case .trap, .runtimeDisabled:
+                            retryButton(title: NSLocalizedString("RESTART")) {
+                                do {
+                                    try await restart()
+                                    await retry()
+                                } catch {
+                                    LogManager.logger.error("Failed to restart source: \(error)")
+                                }
+                            }
+                        default:
+                            EmptyView()
                     }
                 } else {
                     retryButton(action: retry)

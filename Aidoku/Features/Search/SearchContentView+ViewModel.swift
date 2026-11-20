@@ -13,6 +13,7 @@ extension SearchContentView {
     class ViewModel: ObservableObject {
         struct SearchResult: Identifiable, Equatable {
             let source: AidokuRunner.Source
+            let result: AidokuRunner.MangaPageResult
             let links: [HomeComponent.Value.Link]
             let contentID: String
 
@@ -20,6 +21,7 @@ extension SearchContentView {
 
             init(source: AidokuRunner.Source, result: AidokuRunner.MangaPageResult) {
                 self.source = source
+                self.result = result
                 var hasher = Hasher()
                 links = result.entries.map {
                     hasher.combine($0)

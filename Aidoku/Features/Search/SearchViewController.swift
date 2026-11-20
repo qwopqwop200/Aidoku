@@ -341,8 +341,21 @@ class SearchViewController: UIViewController {
     }
 
     private func open(result: SearchContentView.ViewModel.SearchResult) {
-        let sourceController = NewSourceViewController(source: result.source, onlySearch: true, searchQuery: searchText)
-        navigationController?.pushViewController(sourceController, animated: true)
+        if let legacySource = result.source.legacySource {
+            let sourceController = SourceViewController(source: legacySource)
+            sourceController.hidesListings = true
+            sourceController.navigationItem.searchController?.searchBar.text = searchText
+            Task {
+                await sourceController.viewModel.setTitleQuery(searchText)
+                await sourceController.viewModel.setCurrentPage(1)
+                await sourceController.viewModel.setManga(result.result.entries.map { $0.toOld().toInfo() })
+                await sourceController.viewModel.setHasMore(result.result.hasNextPage)
+                navigationController?.pushViewController(sourceController, animated: true)
+            }
+        } else {
+            let sourceController = NewSourceViewController(source: result.source, onlySearch: true, searchQuery: searchText)
+            navigationController?.pushViewController(sourceController, animated: true)
+        }
     }
 }
 
