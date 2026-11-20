@@ -79,8 +79,6 @@ enum TranslationPerformanceDiagnostics {
             .firstBodyByteMilliseconds: metrics.firstBodyByteMilliseconds ?? -1,
             .bodyMilliseconds: metrics.bodyMilliseconds ?? -1, .totalMilliseconds: metrics.totalMilliseconds ?? -1])
         // `-1` means a custom/test transport could not provide this phase.
-        // The delegate-backed production transport records response headers,
-        // first body byte, body receive, and full transport duration separately.
         logger.notice(
             "transport_complete segments=\(segmentCount, privacy: .public) response_bytes=\(responseBytes, privacy: .public) status_code=\(statusCode, privacy: .public) status_class=\(statusClass, privacy: .public) response_headers_ms=\(metrics.responseHeadersMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) first_body_byte_ms=\(metrics.firstBodyByteMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) body_ms=\(metrics.bodyMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) total_ms=\(metrics.totalMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public)"
         )
@@ -104,7 +102,6 @@ enum TranslationPerformanceDiagnostics {
         switch source {
         case .network: 0
         case .memoryCache: 1
-        case .diskCache: 2
         }
     }
 
@@ -200,7 +197,6 @@ actor TranslationProviderRequestLimiter {
     private(set) var maximumConcurrentRequests: Int
     private var activeRequests = 0
     private var waiters: [Waiter] = []
-    var queuedRequestCount: Int { waiters.count }
 
     init(maximumConcurrentRequests: Int) {
         precondition(maximumConcurrentRequests > 0)
@@ -296,7 +292,6 @@ actor TranslationService {
     private let cache: TranslationCache
     private let providerRequestLimiter: TranslationProviderRequestLimiter?
     private var inFlight: [TranslationCacheKey: InFlightRequest] = [:]
-    var inFlightConsumerCount: Int { inFlight.values.reduce(0) { $0 + $1.waiters.count } }
     private var purgeGeneration: UInt64 = 0
     private var purgeTask: Task<Void, Error>?
 
@@ -320,18 +315,36 @@ actor TranslationService {
         let canonical = request.canonicalizedForTranslationSemantics()
         let key = TranslationCacheKey(configuration: configuration,
                                       endpoint: try configuration.validatedEndpoint(), request: canonical.request)
+        let admission = try await admittedCacheLookup(for: key, request: canonical.request)
+        guard let cached = admission.cached else { return nil }
+        return try canonical.restoringCallerSegmentIDs(in: RemoteTranslationBatchResult(
+            translations: cached.translations, source: cached.source, providerRequestID: nil
+        ))
+    }
+
+    /// A user purge is an admission barrier as well as a storage operation.
+    /// Recheck its epoch after the cache actor hop so a request cannot pass
+    /// the gate just before a concurrent purge starts. Cached translations in
+    /// the wrong language are treated as a miss.
+    private func admittedCacheLookup(
+        for key: TranslationCacheKey,
+        request: RemoteTranslationRequest
+    ) async throws -> (cached: CachedTranslation?, storageGeneration: UInt64, purgeGeneration: UInt64) {
         while true {
             try Task.checkCancellation()
             let admittedGeneration = purgeGeneration
-            if let purgeTask { try await purgeTask.value; continue }
+            if let purgeTask {
+                try await purgeTask.value
+                continue
+            }
+            // Cache storage is an optimization; a miss never disables translation.
             let lookup = await cache.lookup(for: key)
             try Task.checkCancellation()
             guard admittedGeneration == purgeGeneration, purgeTask == nil else { continue }
-            guard let cached = lookup.value,
-                  !ReaderTranslationLanguageFilter.containsWrongLanguage(cached.translations, request: canonical.request) else { return nil }
-            return try canonical.restoringCallerSegmentIDs(in: RemoteTranslationBatchResult(
-                translations: cached.translations, source: cached.source, providerRequestID: nil
-            ))
+            let cached = lookup.value.flatMap {
+                ReaderTranslationLanguageFilter.containsWrongLanguage($0.translations, request: request) ? nil : $0
+            }
+            return (cached, lookup.storageGeneration, admittedGeneration)
         }
     }
 
@@ -355,53 +368,28 @@ actor TranslationService {
             endpoint: endpoint,
             request: canonicalRequest.request
         )
-        var cacheStorageGeneration: UInt64 = 0
-        var purgeAdmissionGeneration: UInt64 = 0
-
-        // A user purge is an admission barrier as well as a storage operation.
-        // Recheck its epoch after the cache actor hop so a request cannot pass
-        // the gate just before a concurrent purge starts.
-        while true {
-            try Task.checkCancellation()
-            let admittedGeneration = purgeGeneration
-            if let purgeTask {
-                try await purgeTask.value
-                continue
-            }
-
-            // Cache storage is an optimization. A corrupt or unavailable cache
-            // must not disable translation; the cache retains its own safe
-            // diagnostic.
-            let lookup = await cache.lookup(for: key)
-            try Task.checkCancellation()
-            guard admittedGeneration == purgeGeneration,
-                  purgeTask == nil
-            else {
-                continue
-            }
-            if let cached = lookup.value, !ReaderTranslationLanguageFilter.containsWrongLanguage(cached.translations, request: canonicalRequest.request) {
-                let canonicalResult = RemoteTranslationBatchResult(
-                    translations: cached.translations,
-                    source: cached.source,
-                    providerRequestID: nil
-                )
-                let result = try canonicalRequest.restoringCallerSegmentIDs(
-                    in: canonicalResult
-                )
-                TranslationPerformanceDiagnostics.serviceCompleted(
-                    source: result.source,
-                    segmentCount: segmentCount,
-                    sourceBytes: sourceBytes,
-                    elapsedMilliseconds:
-                        TranslationPerformanceDiagnostics
-                            .elapsedMilliseconds(since: startedAt)
-                )
-                return result
-            }
-            cacheStorageGeneration = lookup.storageGeneration
-            purgeAdmissionGeneration = admittedGeneration
-            break
+        let admission = try await admittedCacheLookup(for: key, request: canonicalRequest.request)
+        if let cached = admission.cached {
+            let canonicalResult = RemoteTranslationBatchResult(
+                translations: cached.translations,
+                source: cached.source,
+                providerRequestID: nil
+            )
+            let result = try canonicalRequest.restoringCallerSegmentIDs(
+                in: canonicalResult
+            )
+            TranslationPerformanceDiagnostics.serviceCompleted(
+                source: result.source,
+                segmentCount: segmentCount,
+                sourceBytes: sourceBytes,
+                elapsedMilliseconds:
+                    TranslationPerformanceDiagnostics
+                        .elapsedMilliseconds(since: startedAt)
+            )
+            return result
         }
+        let cacheStorageGeneration = admission.storageGeneration
+        let purgeAdmissionGeneration = admission.purgeGeneration
 
         let waiterID = UUID()
         return try await withTaskCancellationHandler {
@@ -617,19 +605,17 @@ actor TranslationService {
                 let isRepairable = Self.isStructuredOutputRetryable(error)
                 if allowsFormatRepair, isRepairable, attempt == 1, request.segments.count > 1 {
                     // Split on the first malformed multi-segment answer to avoid
-                    // another full-batch round trip. Reduce the problem while keeping
-                    // the original IDs, context, validation and cancellation.
+                    // another full-batch round trip.
                     try Task.checkCancellation()
                     ReaderTranslationDiagnostics.record("api_batch_split", count: request.segments.count)
                     let middle = request.segments.count / 2
-                    let parts = [Array(request.segments[..<middle]), Array(request.segments[middle...])].map { segments in
-                        var part = RemoteTranslationRequest(sourceLanguage: request.sourceLanguage,
-                            targetLanguage: request.targetLanguage, segments: segments)
-                        part.copyImageRepresentation(from: request)
-                        part.filtersSFX = request.filtersSFX
-                        part.filtersBackground = request.filtersBackground
-                        part.translatesPageLettering = request.translatesPageLettering
-                        return part
+                    let parts = [Array(request.segments[..<middle]), Array(request.segments[middle...])].map {
+                        request.replacingSegments($0)
+                    }
+                    let translatePart: @Sendable (RemoteTranslationRequest) async throws -> [RemoteTranslatedSegment] = { part in
+                        try await requestProvider(client: client, request: part, configuration: configuration,
+                            providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
+                            maximumRetries: splitDescendantMaximumRetries).translations
                     }
                     let recovered: [RemoteTranslatedSegment]
                     if allowsParallelSplit, providerRequestLimiter != nil {
@@ -637,12 +623,7 @@ actor TranslationService {
                         // are serial so malformed responses cannot grow a task tree.
                         recovered = try await withThrowingTaskGroup(of: (Int, [RemoteTranslatedSegment]).self) { group in
                             for (index, part) in parts.enumerated() {
-                                group.addTask {
-                                    let value = try await requestProvider(client: client, request: part, configuration: configuration,
-                                        providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
-                                        maximumRetries: splitDescendantMaximumRetries)
-                                    return (index, value.translations)
-                                }
+                                group.addTask { try await (index, translatePart(part)) }
                             }
                             var values = [[RemoteTranslatedSegment]](repeating: [], count: parts.count)
                             for try await (index, translations) in group { values[index] = translations }
@@ -650,12 +631,7 @@ actor TranslationService {
                         }
                     } else {
                         var values: [RemoteTranslatedSegment] = []
-                        for part in parts {
-                            let value = try await requestProvider(client: client, request: part, configuration: configuration,
-                                providerRequestLimiter: providerRequestLimiter, priority: priority, allowsParallelSplit: false,
-                                maximumRetries: splitDescendantMaximumRetries)
-                            values.append(contentsOf: value.translations)
-                        }
+                        for part in parts { values.append(contentsOf: try await translatePart(part)) }
                         recovered = values
                     }
                     return RemoteTranslationBatchResult(translations: recovered, source: .network, providerRequestID: nil)
@@ -682,10 +658,6 @@ actor TranslationService {
                 guard willRetry else {
                     throw error
                 }
-                // Retry malformed or incomplete structured output up to five
-                // times after the initial request, but never retry
-                // credentials, policy, refusals, HTTP failures, transport
-                // failures, or cancellation.
                 try Task.checkCancellation()
                 try await Task.sleep(
                     nanoseconds:

@@ -93,7 +93,6 @@ struct RemoteTranslationSegment: Codable, Hashable, Sendable {
     let id: String
     let text: String
     var bounds: [Double]? = nil
-    var roleEvidence: NativeTranslationRoleEvidence? = nil
 }
 
 /// Provider classification whose spelling/schema was validated, not independent
@@ -131,7 +130,6 @@ private final class TranslationImageDigestMemo: @unchecked Sendable {
     }
 }
 
-
 struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     static let singleSegmentID = "segment-0"
     static let maximumSegments = 64
@@ -142,12 +140,8 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     var imageJPEG: Data? = nil {
         didSet {
             imageDigestMemo = imageJPEG == nil ? nil : TranslationImageDigestMemo()
-            roleEvidenceSourceImageIdentity = nil
         }
     }
-    // Canonical original RGB identity, supplied by the caller that attached
-    // this exact image. It is not inferred from a hint or a resized JPEG.
-    var roleEvidenceSourceImageIdentity: String? = nil
     private var imageDigestMemo: TranslationImageDigestMemo?
     var imageDigest: String? {
         guard let imageJPEG else { return nil }
@@ -157,25 +151,21 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     mutating func copyImageRepresentation(from request: Self) {
         imageJPEG = request.imageJPEG
         imageDigestMemo = request.imageDigestMemo
-        roleEvidenceSourceImageIdentity = request.roleEvidenceSourceImageIdentity
     }
     private enum CodingKeys: String, CodingKey {
         case imageJPEG, filtersSFX, filtersBackground, translatesPageLettering, sourceLanguage, targetLanguage, segments
-        case roleEvidenceSourceImageIdentity
     }
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.imageJPEG == rhs.imageJPEG && lhs.filtersSFX == rhs.filtersSFX && lhs.filtersBackground == rhs.filtersBackground
             && lhs.translatesPageLettering == rhs.translatesPageLettering && lhs.sourceLanguage == rhs.sourceLanguage && lhs.targetLanguage == rhs.targetLanguage
             && lhs.segments == rhs.segments
-            && lhs.roleEvidenceSourceImageIdentity == rhs.roleEvidenceSourceImageIdentity
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(imageJPEG); hasher.combine(filtersSFX); hasher.combine(filtersBackground); hasher.combine(translatesPageLettering)
         hasher.combine(sourceLanguage); hasher.combine(targetLanguage)
         hasher.combine(segments)
-        hasher.combine(roleEvidenceSourceImageIdentity)
     }
 
     var filtersSFX: Bool? = nil
@@ -324,8 +314,6 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     }
 }
 
-/// Bounded provider bytes and provenance captured from the same decoded page.
-/// Never derive the source identity from lossy/resized JPEG bytes or OCR hints.
 struct RemoteTranslationConfiguration: Hashable, Sendable {
     static let defaultInstructions =
         "Preserve tone, emphasis and vocal expression naturally."
@@ -465,11 +453,9 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
 /// Every field that can change translation semantics is stored directly.
 /// Deliberately avoid lossy hashes here: cache equality must remain exact.
 struct TranslationCacheKey: Codable, Hashable, Sendable {
-    // Explicit language names/direction replace code-only model instructions.
     static let schemaVersion = 25
 
     let imageDigest: String?
-    let roleEvidenceSourceImageIdentity: String?
     let roleVerificationPolicy: String?
     let imageSupportRevision: Int?
     let sfxPolicy: String?
@@ -508,7 +494,6 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
             : nil
         letteringPolicy = request.translatesPageLettering == true ? TranslationHTTPCodec.letteringPolicy : nil
         imageDigest = request.imageDigest
-        roleEvidenceSourceImageIdentity = request.roleEvidenceSourceImageIdentity
         roleVerificationPolicy = request.imageJPEG != nil && (request.filtersSFX == true || request.filtersBackground == true)
             ? TranslationHTTPCodec.roleVerificationPolicy : nil
         imageSupportRevision = request.imageJPEG == nil ? nil : TranslationImageSupport.shared.revision(for: configuration)
@@ -535,7 +520,6 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
 enum TranslationResultSource: String, Codable, Hashable, Sendable {
     case network
     case memoryCache
-    case diskCache
 }
 
 struct RemoteTranslationBatchResult: Hashable, Sendable {
@@ -622,21 +606,23 @@ extension RemoteTranslationRequest {
     func canonicalizedForTranslationSemantics()
         -> CanonicalRemoteTranslationRequest
     {
-        var canonical = RemoteTranslationRequest(
-            sourceLanguage: sourceLanguage,
-            targetLanguage: targetLanguage,
-            segments: segments.enumerated().map { index, segment in
-                RemoteTranslationSegment(
-                    id: Self.batchLocalSegmentID(at: index),
-                    text: segment.text, bounds: segment.bounds, roleEvidence: segment.roleEvidence
-                )
-            }
-        )
-        canonical.copyImageRepresentation(from: self)
-        canonical.filtersSFX = filtersSFX
-        canonical.filtersBackground = filtersBackground
-        canonical.translatesPageLettering = translatesPageLettering
+        let canonical = replacingSegments(segments.enumerated().map { index, segment in
+            RemoteTranslationSegment(
+                id: Self.batchLocalSegmentID(at: index),
+                text: segment.text, bounds: segment.bounds
+            )
+        })
         return CanonicalRemoteTranslationRequest(request: canonical, callerSegmentIDs: segments.map(\.id))
+    }
+
+    /// The same image, languages and role settings over different segments.
+    func replacingSegments(_ segments: [RemoteTranslationSegment]) -> Self {
+        var copy = Self(sourceLanguage: sourceLanguage, targetLanguage: targetLanguage, segments: segments)
+        copy.copyImageRepresentation(from: self)
+        copy.filtersSFX = filtersSFX
+        copy.filtersBackground = filtersBackground
+        copy.translatesPageLettering = translatesPageLettering
+        return copy
     }
 }
 
@@ -647,9 +633,6 @@ extension Collection where Element == RemoteTranslationBatchResult {
         guard !isEmpty else { return nil }
         if contains(where: { $0.source == .network }) {
             return .network
-        }
-        if contains(where: { $0.source == .diskCache }) {
-            return .diskCache
         }
         return .memoryCache
     }

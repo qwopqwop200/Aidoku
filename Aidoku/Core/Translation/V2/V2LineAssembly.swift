@@ -145,8 +145,8 @@ enum V2LineAssembly {
         return bestCoverage >= parameters.balloonInside ? best : nil
     }
 
-    /// Share of `box`'s area inside `region`.
-    private static func coverage(_ box: CGRect, _ region: CGRect) -> CGFloat {
+    /// Share of `box`'s area inside `region` (shared with `V2ParagraphGrouping`).
+    static func coverage(_ box: CGRect, _ region: CGRect) -> CGFloat {
         guard box.width > 0, box.height > 0 else { return 0 }
         let width = max(0, min(box.maxX, region.maxX) - max(box.minX, region.minX))
         let height = max(0, min(box.maxY, region.maxY) - max(box.minY, region.minY))

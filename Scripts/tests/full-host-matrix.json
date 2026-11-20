@@ -56,13 +56,6 @@
       ]
     },
     {
-      "name": "native-host: TranslationRoleVerificationPlanner planner/DTO synthetic checks",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-role-verification-planner-smoke.py"
-      ]
-    },
-    {
       "name": "native-host: translation codec source/ID fidelity and mocked recovery helper (local mock, no network)",
       "command": [
         "$PYTHON",

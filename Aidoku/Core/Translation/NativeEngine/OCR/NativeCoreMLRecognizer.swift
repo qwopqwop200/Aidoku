@@ -199,10 +199,9 @@ enum NativeCoreMLRecognitionPreprocessor {
         let axis = isAffine && homography.b == 0 && homography.d == 0
             ? sampleAxisAligned(frame: frame, plan: plan, columns: columnCoordinates) : nil
 
-        // This remains the exact scalar Paddle/OpenCV sampling contract, but
-        // all CGPoint construction and nested per-channel closures are removed.
-        // The immutable source and disjoint output slots also make this kernel
-        // safe for the recognizer's bounded region-level task group.
+        // Exact scalar Paddle/OpenCV sampling contract. The immutable source and
+        // disjoint output slots make this kernel safe for the recognizer's
+        // bounded region-level task group.
         values.withUnsafeMutableBufferPointer { destination in
             frame.bytes.withUnsafeBufferPointer { sourceBytes in
                 guard let output = destination.baseAddress,

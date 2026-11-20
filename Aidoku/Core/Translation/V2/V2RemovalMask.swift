@@ -10,7 +10,7 @@ import Foundation
 /// contrast, signed polygon distance) feed a two-stage auto-context MLP fit on train GT
 /// `text_glyph_instance_mask` (the out-of-repo research scripts (scripts-mask)). The stage-2 probability is
 /// thresholded low and dilated 2 px so antialiased fringes and outline bands are
-/// erased. No RF-DETR evidence or legacy forest is needed.
+/// erased.
 enum V2RemovalMask {
     static let roiScale = 0.3
     static let roiMinimum = 8
@@ -163,7 +163,6 @@ enum V2RemovalMask {
         guard !roiIndices.isEmpty else { return nil }
         let rows = roiIndices.count
 
-        // Colour planes.
         let red = space.plane(), green = space.plane(), blue = space.plane()
         let luma = space.plane(), high = space.plane(), low = space.plane()
         for y in 0..<h {
@@ -478,7 +477,6 @@ enum V2RemovalMask {
         }
     }
 
-    /// Value at each index, ascending.
     static func sortedValues(_ plane: UnsafePointer<Float>, at indices: [Int]) -> [Float] {
         guard !indices.isEmpty else { return [] }
         var values = gathered(plane, at: indices)
@@ -486,7 +484,7 @@ enum V2RemovalMask {
         return values
     }
 
-    /// Gathered values; `orderMedian` / `orderPercentile` equal `median` / `percentile(sorted:)` of
+    /// Gathered values; `orderMedian` / `orderPercentile` equal the median / `percentile(sorted:)` of
     /// them (exact order statistics by selection instead of a full sort).
     static func gathered(_ plane: UnsafePointer<Float>, at indices: [Int]) -> [Float] {
         [Float](unsafeUninitializedCapacity: indices.count) { buffer, count in
@@ -631,12 +629,6 @@ enum V2RemovalMask {
 
     /// Square (2r+1) max/min filter, separable (van Herk / Gil-Werman over whole rows with
     /// vDSP, O(1) per pixel); samples outside the frame are ignored.
-    static func morph(_ plane: inout [Float], width w: Int, height h: Int, radius r: Int, max isMax: Bool) {
-        guard r > 0, w > 0, h > 0 else { return }
-        let space = Workspace(width: w, height: h)
-        plane.withUnsafeMutableBufferPointer { morph($0.baseAddress!, width: w, height: h, radius: r, max: isMax, space: space) }
-    }
-
     static func morph(_ p: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int, max isMax: Bool,
                       space: Workspace) {
         guard r > 0, w > 0, h > 0 else { return }
@@ -710,13 +702,6 @@ enum V2RemovalMask {
     }
 
     /// Normalised box blur of size 2r+1 with reflect-101 borders (OpenCV `blur` default).
-    static func boxBlur(_ plane: [Float], width w: Int, height h: Int, radius r: Int) -> [Float] {
-        var output = plane
-        let space = Workspace(width: w, height: h)
-        output.withUnsafeMutableBufferPointer { boxBlur($0.baseAddress!, width: w, height: h, radius: r, space: space) }
-        return output
-    }
-
     static func boxBlur(_ p: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int, space: Workspace) {
         let t = space.plane()
         blurColumns(p, width: w, height: h, radius: r, space: space)
@@ -752,16 +737,8 @@ enum V2RemovalMask {
     }
 
     /// 3x3 chamfer distance (OpenCV DIST_L2 mask 3: 0.955 / 1.3693) from each nonzero
-    /// pixel to the nearest zero pixel; zero pixels get 0.
-    static func chamfer(_ plane: [Float], width w: Int, height h: Int) -> [Float] {
-        var d = [Float](repeating: 0, count: w * h)
-        plane.withUnsafeBufferPointer { p in
-            d.withUnsafeMutableBufferPointer { chamfer(p.baseAddress!, into: $0.baseAddress!, width: w, height: h, inverted: false) }
-        }
-        return d
-    }
-
-    /// Pointer form of `chamfer`; `inverted` measures the zero pixels of `plane` instead.
+    /// pixel to the nearest zero pixel; zero pixels get 0. `inverted` measures the zero
+    /// pixels of `plane` instead.
     /// Each pass takes the minimum over the same candidates as the classic raster scan (min is
     /// exact and order-free; zero pixels stay 0 because every candidate is >= 0), so only the
     /// bounding box of the nonzero pixels is scanned: the previous-row terms vectorise, then one
@@ -906,12 +883,6 @@ enum V2RemovalMask {
     static func roundEven(_ value: Double) -> Int { Int(value.rounded(.toNearestOrEven)) }
 
     static func median(_ values: [Double]) -> Double {
-        let s = values.sorted()
-        guard !s.isEmpty else { return 0 }
-        return s.count % 2 == 1 ? s[s.count / 2] : (s[s.count / 2 - 1] + s[s.count / 2]) / 2
-    }
-
-    static func median(_ values: [Float]) -> Float {
         let s = values.sorted()
         guard !s.isEmpty else { return 0 }
         return s.count % 2 == 1 ? s[s.count / 2] : (s[s.count / 2 - 1] + s[s.count / 2]) / 2

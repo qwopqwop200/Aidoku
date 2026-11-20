@@ -106,7 +106,6 @@ struct V2PageResult: Sendable {
     var blocks: [V2Block]
     var placed: [V2PlacedText]
     var output: CGImage?
-    var removalMask: [UInt8]?
     var timings: V2Timings
     var failure: String?
 }

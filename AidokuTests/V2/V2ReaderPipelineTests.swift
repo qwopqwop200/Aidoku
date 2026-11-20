@@ -163,7 +163,6 @@ struct V2ReaderPipelineAdmissionTests {
         #expect(calls.ids.count == 1)
         #expect(first.image.width == page.width && first.image.height == page.height && !first.fromCache)
         #expect(second.image.width == page.width)
-        #expect(await service.inflightCount == 0)
     }
 }
 

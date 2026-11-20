@@ -4,31 +4,30 @@ import CoreFoundation
 
 enum TranslationHTTPCodec {
     static let maxOutputTokens = 8192
-    static var samplingTemperature: Double {
-        guard let raw = ProcessInfo.processInfo.environment["AIDOKU_TRANSLATION_TEMPERATURE"],
-              let value = Double(raw), value.isFinite, (0...2).contains(value) else { return 1.0 }
+    private static func environmentValue<Value: LosslessStringConvertible>(
+        _ name: String, default fallback: Value, isValid: (Value) -> Bool
+    ) -> Value {
+        guard let raw = ProcessInfo.processInfo.environment[name],
+              let value = Value(raw), isValid(value) else { return fallback }
         return value
+    }
+    static var samplingTemperature: Double {
+        environmentValue("AIDOKU_TRANSLATION_TEMPERATURE", default: 1.0) { $0.isFinite && (0...2).contains($0) }
     }
     static var samplingTopP: Double {
-        guard let raw = ProcessInfo.processInfo.environment["AIDOKU_TRANSLATION_TOP_P"],
-              let value = Double(raw), value.isFinite, value > 0, value <= 1 else { return 0.95 }
-        return value
+        environmentValue("AIDOKU_TRANSLATION_TOP_P", default: 0.95) { $0.isFinite && $0 > 0 && $0 <= 1 }
     }
     static var samplingTopK: Int {
-        guard let raw = ProcessInfo.processInfo.environment["AIDOKU_TRANSLATION_TOP_K"],
-              let value = Int(raw), value > 0 else { return 64 }
-        return value
+        environmentValue("AIDOKU_TRANSLATION_TOP_K", default: 64) { $0 > 0 }
     }
     static var samplingRepetitionPenalty: Double {
-        guard let raw = ProcessInfo.processInfo.environment["AIDOKU_TRANSLATION_REPETITION_PENALTY"],
-              let value = Double(raw), value.isFinite, value > 0 else { return 1.08 }
-        return value
+        environmentValue("AIDOKU_TRANSLATION_REPETITION_PENALTY", default: 1.08) { $0.isFinite && $0 > 0 }
     }
     static let roleVerificationPolicy = "source-bound-focused-role-verification-v262"
-    static let backgroundPolicy = TranslationBackgroundRolePolicy.version
+    static let backgroundPolicy = "background-v15-explicit-objects-and-screens"
     static let textOnlyBackgroundPolicy = "llm-background-text-v4-defined-roles"
     static let textOnlySFXPolicy = "llm-sfx-text-v4-defined-roles"
-    static let sfxPolicy = TranslationSFXEvidencePolicy.cacheVersion
+    static let sfxPolicy = "llm-sfx-v73-dialogue-typography"
     static let letteringPolicy = "page-lettering-v36-gt-preserving-role-definitions"
 
     static let imageInstructions =
@@ -50,7 +49,7 @@ enum TranslationHTTPCodec {
 
     static func backgroundInstructions(hasImage: Bool) -> String {
         guard hasImage else { return textOnlyBackgroundInstructions }
-        return TranslationBackgroundRolePolicy.instructions
+        return "background=writing on depicted objects or screens, including partial signs and labels; not balloons or overlays."
     }
 
     /// An exact long output shared by substantially different long sources is a
@@ -137,9 +136,7 @@ enum TranslationHTTPCodec {
 
     /// `.standard` uses the protocol's portable JSON schema. For custom
     /// endpoints positively identified as vLLM, an exact whitespace-free
-    /// grammar (`structured_outputs.regex`) replaces that schema. Responses
-    /// stays buffered; Chat Completions can stream with an optional generous
-    /// token cap. Prompt, image input and validation remain unchanged.
+    /// grammar (`structured_outputs.regex`) replaces that schema.
     struct ChatWireOptions: Equatable, Sendable {
         var compactStructuredOutput = false
         var stream = false
@@ -193,9 +190,34 @@ enum TranslationHTTPCodec {
         if let jpeg = request.imageJPEG {
             let url = "data:image/jpeg;base64," + jpeg.base64EncodedString()
             // Present the page before fallible OCR for visual SFX classification.
-            // Reorder the same parts without adding another image or request.
             responsesContent.insert(["type": "input_image", "image_url": url, "detail": "high"], at: filtersSFX ? 0 : responsesContent.count)
             chatContent.insert(["type": "image_url", "image_url": ["url": url, "detail": "high"]], at: filtersSFX ? 0 : chatContent.count)
+        }
+        // Shared vLLM-compatible extensions. Key order is irrelevant: the body
+        // is serialized with sorted keys.
+        func addCustomExtensions(to root: inout [String: Any]) throws {
+            if configuration.provider == .custom {
+                root["top_k"] = samplingTopK
+                root["repetition_penalty"] = samplingRepetitionPenalty
+            }
+            // The private vLLM endpoint supports cache_salt. Opt in for corpus
+            // verification when identical zero-temperature requests have produced
+            // divergent text under a warm prefix cache. A fresh 256-bit salt
+            // isolates this call without changing prompt semantics.
+            if ProcessInfo.processInfo.environment["AIDOKU_VLLM_FRESH_PREFIX"] == "1" {
+                var generator = SystemRandomNumberGenerator()
+                root["cache_salt"] = Data((0..<32).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
+                    .base64EncodedString()
+            }
+            if chatOptions.compactStructuredOutput {
+                root["structured_outputs"] = [
+                    "regex": try compactOutputPattern(
+                        segmentIDs: request.segments.map(\.id),
+                        filtersSFX: filtersSFX,
+                        filtersBackground: filtersBackground
+                    ),
+                ]
+            }
         }
         let root: [String: Any]
         switch configuration.apiProtocol {
@@ -221,30 +243,9 @@ enum TranslationHTTPCodec {
                     ],
                 ],
             ]
-            if configuration.provider == .custom {
-                responsesRoot["top_k"] = samplingTopK
-                responsesRoot["repetition_penalty"] = samplingRepetitionPenalty
-            }
-            // The private vLLM Responses endpoint supports cache_salt. Opt in
-            // for corpus verification when identical zero-temperature requests
-            // have produced divergent text under a warm prefix cache. A fresh
-            // 256-bit salt isolates this call without changing prompt semantics.
-            if ProcessInfo.processInfo.environment["AIDOKU_VLLM_FRESH_PREFIX"] == "1" {
-                var generator = SystemRandomNumberGenerator()
-                responsesRoot["cache_salt"] = Data((0..<32).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
-                    .base64EncodedString()
-            }
-            if chatOptions.compactStructuredOutput {
-                // vLLM rejects text.format together with structured_outputs.
-                responsesRoot.removeValue(forKey: "text")
-                responsesRoot["structured_outputs"] = [
-                    "regex": try compactOutputPattern(
-                        segmentIDs: request.segments.map(\.id),
-                        filtersSFX: filtersSFX,
-                        filtersBackground: filtersBackground
-                    ),
-                ]
-            }
+            try addCustomExtensions(to: &responsesRoot)
+            // vLLM rejects text.format together with structured_outputs.
+            if chatOptions.compactStructuredOutput { responsesRoot.removeValue(forKey: "text") }
             if configuration.reasoningEffort != .modelDefault {
                 responsesRoot["reasoning"] = [
                     "effort": configuration.reasoningEffort.rawValue,
@@ -272,24 +273,8 @@ enum TranslationHTTPCodec {
             chatRoot[configuration.provider == .openAI ||
                 (configuration.reasoningEffort != .none && configuration.reasoningEffort != .modelDefault)
                 ? "max_completion_tokens" : "max_tokens"] = maxOutputTokens
-            if configuration.provider == .custom {
-                chatRoot["top_k"] = samplingTopK
-                chatRoot["repetition_penalty"] = samplingRepetitionPenalty
-            }
-            if ProcessInfo.processInfo.environment["AIDOKU_VLLM_FRESH_PREFIX"] == "1" {
-                var generator = SystemRandomNumberGenerator()
-                chatRoot["cache_salt"] = Data((0..<32).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
-                    .base64EncodedString()
-            }
-            if chatOptions.compactStructuredOutput {
-                chatRoot["structured_outputs"] = [
-                    "regex": try compactOutputPattern(
-                        segmentIDs: request.segments.map(\.id),
-                        filtersSFX: filtersSFX,
-                        filtersBackground: filtersBackground
-                    ),
-                ]
-            } else {
+            try addCustomExtensions(to: &chatRoot)
+            if !chatOptions.compactStructuredOutput {
                 chatRoot["response_format"] = [
                     "type": "json_schema",
                     "json_schema": [
@@ -539,16 +524,8 @@ enum TranslationHTTPCodec {
                 "expected exactly one chat completion choice at index zero"
             )
         }
-        let finishReason = choice["finish_reason"] as? String
-        if finishReason == "content_filter" || (message["refusal"] as? String)?.isEmpty == false {
-            throw RemoteTranslationError.refused
-        }
-        if finishReason == "length" {
-            throw RemoteTranslationError.invalidResponse("the chat completion was truncated")
-        }
-        guard finishReason == "stop" else {
-            throw RemoteTranslationError.invalidResponse("the chat completion did not finish with text")
-        }
+        try validateChatFinish(reason: choice["finish_reason"] as? String,
+                               refused: (message["refusal"] as? String)?.isEmpty == false)
         if let content = message["content"] as? String {
             return content
         }
@@ -571,6 +548,18 @@ enum TranslationHTTPCodec {
         throw RemoteTranslationError.invalidResponse(
             "missing chat completion message content"
         )
+    }
+
+    private static func validateChatFinish(reason: String?, refused: Bool) throws {
+        if refused || reason == "content_filter" {
+            throw RemoteTranslationError.refused
+        }
+        if reason == "length" {
+            throw RemoteTranslationError.invalidResponse("the chat completion was truncated")
+        }
+        guard reason == "stop" else {
+            throw RemoteTranslationError.invalidResponse("the chat completion did not finish with text")
+        }
     }
 
     private static func parseTranslationEnvelope(
@@ -703,15 +692,7 @@ enum TranslationHTTPCodec {
         var decoder = ChatCompletionStreamDecoder()
         _ = try decoder.consume(body)
         _ = try decoder.finish()
-        if decoder.refused || decoder.finishReason == "content_filter" {
-            throw RemoteTranslationError.refused
-        }
-        if decoder.finishReason == "length" {
-            throw RemoteTranslationError.invalidResponse("the chat completion was truncated")
-        }
-        guard decoder.finishReason == "stop" else {
-            throw RemoteTranslationError.invalidResponse("the chat completion did not finish with text")
-        }
+        try validateChatFinish(reason: decoder.finishReason, refused: decoder.refused)
         return try parseTranslationEnvelope(
             decoder.content,
             expectedSegmentIDs: expectedSegmentIDs, sfxSourceTexts: sfxSourceTexts,

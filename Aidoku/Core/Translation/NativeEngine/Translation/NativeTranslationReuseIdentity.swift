@@ -55,7 +55,6 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
               let expectedSegment = expected.cacheKey.segments.first(where: { $0.id == expected.segmentID }) else { return false }
         return sourceSegment.text == expectedSegment.text &&
             sourceSegment.bounds == expectedSegment.bounds &&
-            sourceSegment.roleEvidence == expectedSegment.roleEvidence &&
             hasSameTranslationConfiguration(as: expected)
     }
 
@@ -67,7 +66,6 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
         as expected: NativeTranslationReuseIdentity
     ) -> Bool {
         cacheKey.imageDigest == expected.cacheKey.imageDigest &&
-            cacheKey.roleEvidenceSourceImageIdentity == expected.cacheKey.roleEvidenceSourceImageIdentity &&
             cacheKey.roleVerificationPolicy == expected.cacheKey.roleVerificationPolicy &&
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&

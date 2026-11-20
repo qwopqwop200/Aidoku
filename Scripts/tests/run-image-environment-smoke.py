@@ -14,8 +14,7 @@ SOURCES = [ROOT / 'Scripts/image-translation-v2/V2HostSettings.swift',
            ROOT / 'Aidoku/Extensions/Foundation/NSLocalizedString.swift'] + [
     TRANSLATION / f'{name}.swift' for name in (
         'TranslationModels', 'TranslationEndpointPolicy', 'TranslationHTTPCodec', 'TranslationImageSupport',
-        'TranslationStreamDecoder', 'TranslationBackgroundRolePolicy', 'TranslationSFXEvidencePolicy',
-        'TranslationRoleVerificationPlanner', 'KeychainTranslationCredentialStore')]
+        'TranslationStreamDecoder', 'KeychainTranslationCredentialStore')]
 CHECK = r'''
 import Foundation
 @main struct Check {

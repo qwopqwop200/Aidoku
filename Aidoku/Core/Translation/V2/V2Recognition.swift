@@ -4,18 +4,12 @@ import Foundation
 
 // S3: PP-OCRv6 manga line recognition for the V2 pipeline.
 //
-// The legacy recognizer's text comes from exact-width batch-one predictions of
-// the dynamic-width Core ML program. On every measured Apple runtime that
-// program executes on the CPU (compute-unit choice, batching and reshape hints
-// change nothing), and one `MLModel` handle serializes its predictions, so the
-// legacy path was bounded by at most two handles, re-loaded a dropped replica
-// after eight idle seconds, and gained nothing from same-width batching.
-//
-// V2 keeps every numeric step identical (same crop plan, sampling, tensor,
-// model, compact top-k packing, n-gram corrected CTC decode and 0.30 gate)
-// and only changes scheduling: a resident pool of independent handles
-// predicts crops longest-first in parallel. No cache, task-local, audit
-// recorder or environment switch is consulted.
+// The dynamic-width Core ML program runs on the CPU on every measured Apple
+// runtime and one `MLModel` handle serializes its predictions, so a resident
+// pool of independent handles predicts exact-width crops longest-first in
+// parallel. Every numeric step (crop plan, sampling, tensor, model, compact
+// top-k packing, n-gram corrected CTC decode and 0.30 gate) matches the legacy
+// recognizer.
 
 /// Resident recognizer state. `V2Models` owns one instance for the process.
 @available(iOS 18.0, *)

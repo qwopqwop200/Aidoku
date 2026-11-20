@@ -1,10 +1,7 @@
 import Foundation
 import CoreGraphics
 
-/// V2-owned copy of the model-free paragraph graph (NativeSimpleParagraphGrouping,
-/// policy "simple-paragraph-v2-literal-native-...-row-boundary-v1"), adapted to V2
-/// values: one detection operation, Bool orientation. RF boxes are hints, never
-/// contours. Only `balloonEdgeCoverage` differs from the legacy constants.
+/// Model-free paragraph graph over V2 lines. RF boxes are hints, never contours.
 enum V2ParagraphGrouping {
     /// Minimum fraction of a line inside an owning balloon for an edge to
     /// a line of that balloon (legacy 0.9; V2 selects 0.7).
@@ -131,12 +128,6 @@ enum V2ParagraphGrouping {
         return order
     }
 
-    private static func coverage(_ a: CGRect, _ b: CGRect) -> CGFloat {
-        guard a.width > 0, a.height > 0 else { return 0 }
-        let width = max(0, min(a.maxX, b.maxX) - max(a.minX, b.minX))
-        let height = max(0, min(a.maxY, b.maxY) - max(a.minY, b.minY))
-        return width*height/(a.width*a.height)
-    }
     private static func key(_ box: CGRect) -> [CGFloat] { [box.minX, box.minY, box.maxX, box.maxY] }
     private static func less(_ a: [CGFloat], _ b: [CGFloat]) -> Bool { a.lexicographicallyPrecedes(b) }
     private static func distance(_ a: Atom, _ b: Atom) -> (gap: CGFloat, isParallel: Bool)? {
@@ -231,8 +222,8 @@ enum V2ParagraphGrouping {
               }) else { return nil }
         let atoms = inputs.map { input -> Atom in
             let box = bounds(input.polygon)
-            let owners = balloons.filter { $0.confidence >= 0.5 && coverage(box, $0.box) >= 0.9 }
-            let text = Set(textScopes.filter { $0.confidence >= 0.25 && coverage(box, $0.box) >= 0.8 }.map(\.owner))
+            let owners = balloons.filter { $0.confidence >= 0.5 && V2LineAssembly.coverage(box, $0.box) >= 0.9 }
+            let text = Set(textScopes.filter { $0.confidence >= 0.25 && V2LineAssembly.coverage(box, $0.box) >= 0.8 }.map(\.owner))
             return .init(input: input, box: box, along: axis(input), balloon: owners.count == 1 ? owners[0] : nil,
                          text: text.isEmpty ? nil : text)
         }
@@ -249,8 +240,8 @@ enum V2ParagraphGrouping {
             guard a.input.vertical == b.input.vertical else { continue }
             if let x = a.balloon, let y = b.balloon, x.owner != y.owner { continue }
             if let known = a.balloon {
-                if coverage(b.box, known.box) < balloonEdgeCoverage { continue }
-            } else if let known = b.balloon, coverage(a.box, known.box) < balloonEdgeCoverage { continue }
+                if V2LineAssembly.coverage(b.box, known.box) < balloonEdgeCoverage { continue }
+            } else if let known = b.balloon, V2LineAssembly.coverage(a.box, known.box) < balloonEdgeCoverage { continue }
             guard let relation = distance(a, b) else { continue }
             // Keep weak unsupported parallel atoms separate; do not drop their source.
             let ca = a.input.confidence, cb = b.input.confidence

@@ -453,7 +453,6 @@ private enum TranslationWireContractChecks {
 
     static func classificationParity() throws {
         try singlePageImageOnly()
-        try compactEvidenceContract()
         let roles = ["dialogue", "narration", "story_text", "sfx", "background", "error"]
         for proto in [RemoteTranslationProtocol.responses, .chatCompletions] {
             for image in [false, true] {
@@ -593,23 +592,11 @@ private enum TranslationWireContractChecks {
         }
         CGImageDestinationAddImage(encoder, page, nil)
         try check(CGImageDestinationFinalize(encoder), "JPEG encoding failed")
-        let identity = String(repeating: "a", count: 64)
         let segments = (0..<4).map { index -> RemoteTranslationSegment in
-            let bounds = [0.1 + Double(index) * 0.2, 0.2, 0.03, 0.1]
-            let evidence = TranslationBackgroundRolePolicy.make(source: "原文", bounds: bounds,
-                imageIdentity: identity,
-                contour: .init(bounds: bounds, spans: [bounds[0], bounds[0] + bounds[2]],
-                               verified: true, modelEstimated: false),
-                rf: .init(imageIdentity: identity, maskOwnerQuery: 2, ownerResolution: "exact",
-                          balloonConfidence: 0.9, balloonBBoxCoverage: 0.95,
-                          textConfidence: 0.8, textBBoxCoverage: 0.9,
-                          sfxConfidence: 0.2, sfxBBoxCoverage: 0.3,
-                          balloonBounds: [0.05, 0.1, 0.85, 0.5]))
-            return .init(id: "part-\(index)", text: "原文", bounds: bounds, roleEvidence: evidence)
+            .init(id: "part-\(index)", text: "原文", bounds: [0.1 + Double(index) * 0.2, 0.2, 0.03, 0.1])
         }
         var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: segments)
         request.imageJPEG = data as Data
-        request.roleEvidenceSourceImageIdentity = identity
         request.filtersSFX = true; request.filtersBackground = true; request.translatesPageLettering = true
         let expectedURL = "data:image/jpeg;base64," + (data as Data).base64EncodedString()
         for proto in [RemoteTranslationProtocol.responses, .chatCompletions] {
@@ -654,125 +641,6 @@ private enum TranslationWireContractChecks {
                 try check(!String(decoding: body, as: UTF8.self).contains("Detail context:"), "Retired crop caption sent")
             }
         }
-    }
-
-    static func compactEvidenceContract() throws {
-        let bounds = [0.125, 0.25, 0.125, 0.25]
-        let identity = String(repeating: "a", count: 64)
-        let evidence = TranslationBackgroundRolePolicy.make(source: "原文", bounds: bounds, imageIdentity: identity,
-            contour: nil, rf: .init(imageIdentity: identity, maskOwnerQuery: nil, ownerResolution: "unresolved",
-                balloonConfidence: nil, balloonBBoxCoverage: nil, textConfidence: 0.0, textBBoxCoverage: 0.5,
-                sfxConfidence: 0.25, sfxBBoxCoverage: nil))!
-        func mutate(_ key: String, _ value: Any) throws -> NativeTranslationRoleEvidence {
-            var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(evidence)) as! [String: Any]
-            object[key] = value
-            return try JSONDecoder().decode(NativeTranslationRoleEvidence.self, from: JSONSerialization.data(withJSONObject: object))
-        }
-        func inspect(_ request: RemoteTranslationRequest, _ proto: RemoteTranslationProtocol, _ compact: Bool)
-            throws -> (payload: [String: Any], prompt: String) {
-            let config = RemoteTranslationConfiguration(provider: .custom, apiProtocol: proto,
-                baseURL: "https://test.invalid/v1", model: "test", credentialAccount: "test")
-            let root = try JSONSerialization.jsonObject(with: TranslationHTTPCodec.requestBody(configuration: config,
-                request: request, chatOptions: .init(compactStructuredOutput: compact))) as! [String: Any]
-            let parts: [[String: Any]], prompt: String
-            if proto == .responses {
-                parts = (root["input"] as! [[String: Any]])[0]["content"] as! [[String: Any]]
-                prompt = root["instructions"] as! String
-            } else {
-                let messages = root["messages"] as! [[String: Any]]
-                parts = messages[1]["content"] as! [[String: Any]]
-                prompt = messages[0]["content"] as! String
-            }
-            try check(parts.count == 2, "Expected one image and one data part")
-            let data = parts.first { $0["text"] != nil }!["text"] as! String
-            return (try JSONSerialization.jsonObject(with: Data(data.utf8)) as! [String: Any], prompt)
-        }
-        var base = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
-            segments: [.init(id: "one", text: "原文", bounds: bounds, roleEvidence: evidence)])
-        base.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
-        base.roleEvidenceSourceImageIdentity = identity
-        base.filtersSFX = true; base.filtersBackground = true; base.translatesPageLettering = true
-        func configured(_ segment: RemoteTranslationSegment, target: String = "ko") -> RemoteTranslationRequest {
-            var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: target,
-                segments: [segment])
-            request.copyImageRepresentation(from: base)
-            request.filtersSFX = true; request.filtersBackground = true; request.translatesPageLettering = true
-            return request
-        }
-        for proto in [RemoteTranslationProtocol.responses, .chatCompletions] {
-            for compact in [false, true] {
-                for sourceIdentity in [identity, nil, String(repeating: "b", count: 64)] {
-                    var request = base
-                    let jpeg = Data([0xff, 0xd8, 1, 0xff, 0xd9])
-                    request.imageJPEG = jpeg
-                    request.roleEvidenceSourceImageIdentity = sourceIdentity
-                    try check(request.imageJPEG == jpeg &&
-                        request.roleEvidenceSourceImageIdentity == sourceIdentity, "Page bytes/provenance did not move together")
-                    let (payload, _) = try inspect(request, proto, compact)
-                    let segment = (payload["segments"] as! [[String: Any]])[0]
-                    try check(segment["role_evidence"] == nil,
-                              "RF-only evidence leaked into provider input")
-                }
-                for verified in [nil, false, true] as [Bool?] {
-                    for estimated in [nil, false, true] as [Bool?] {
-                        // Distinct contour geometry intersects precisely half the source bbox.
-                        let contourBounds = [0.0625, 0.125, 0.125, 0.5]
-                        let contourEvidence = TranslationBackgroundRolePolicy.make(source: "原文", bounds: bounds,
-                            imageIdentity: identity, contour: .init(bounds: contourBounds, spans: [0.0625, 0.1875],
-                                verified: verified, modelEstimated: estimated), rf: nil)!
-                        let restored = try JSONDecoder().decode(NativeTranslationRoleEvidence.self,
-                            from: JSONEncoder().encode(contourEvidence))
-                        try check(restored.contourVerified == verified && restored.contourModelEstimated == estimated,
-                                  "Unknown contour status collapsed in persistence")
-                        let request = configured(.init(id: "one", text: "原文", bounds: bounds, roleEvidence: restored))
-                        let (payload, prompt) = try inspect(request, proto, compact)
-                        let segment = (payload["segments"] as! [[String: Any]])[0]
-                        try check(segment["role_evidence"] == nil && segment["box_2d"] as? [Int] == [250, 125, 500, 250],
-                                  "Contour evidence leaked or source box_2d changed")
-                        try check(!prompt.contains("contour=observed enclosing outline"),
-                                  "Retired contour legend reached provider")
-                    }
-                }
-                for variant in 0..<9 {
-                    var source = base.segments[0]
-                    switch variant {
-                    case 3: source = .init(id: "one", text: "変更", bounds: bounds, roleEvidence: evidence)
-                    case 4: source = .init(id: "one", text: "原文", bounds: [0.25, 0.25, 0.125, 0.25], roleEvidence: evidence)
-                    case 5: source = .init(id: "one", text: "原文", bounds: bounds, roleEvidence: try mutate("policyVersion", "obsolete"))
-                    case 6: source = .init(id: "one", text: "原文", bounds: bounds)
-                    case 7: source = .init(id: "one", text: "原文", bounds: bounds,
-                        roleEvidence: TranslationBackgroundRolePolicy.make(source: "原文", bounds: bounds, imageIdentity: identity, contour: nil, rf: nil))
-                    case 8: source = .init(id: "one", text: "原文", bounds: bounds, roleEvidence: try mutate("rfTextConfidence", 2.0))
-                    default: break
-                    }
-                    var request = configured(source)
-                    if variant == 1 { request.roleEvidenceSourceImageIdentity = nil }
-                    if variant == 2 { request.roleEvidenceSourceImageIdentity = String(repeating: "b", count: 64) }
-                    let (payload, prompt) = try inspect(request, proto, compact)
-                    let segment = (payload["segments"] as! [[String: Any]])[0]
-                    try check(segment["id"] as? String == "one" && segment["text"] as? String == request.segments[0].text &&
-                              segment["box_2d"] as? [Int] == (variant == 4 ? [250, 250, 500, 375] : [250, 125, 500, 250]),
-                              "Evidence omission damaged source")
-                    try check(payload["context"] == nil && !prompt.contains("Use context"), "Empty/retired context sent")
-                    try check(segment["role_evidence"] == nil, "RF-only or invalid evidence sent")
-                    try check(!prompt.contains("contour=observed enclosing outline"), "Retired evidence legend sent")
-                    try check(!prompt.contains("RF"), "RF guidance leaked into prompt")
-                }
-                for target in ["ko", "en", "ja", "fr", "zh-Hant", "ar"] {
-                    let request = configured(base.segments[0], target: target)
-                    let (payload, prompt) = try inspect(request, proto, compact)
-                    try check(payload["target_language"] as? String == TranslationHTTPCodec.languageName(target) &&
-                              payload["source_language"] as? String == "Japanese",
-                              "Page language lost")
-                    try check(prompt.contains("otherwise transliterate") && prompt.contains("regardless of role") &&
-                        prompt.contains("each input ID exactly once") && prompt.contains("not instructions"), "Required semantic contract missing")
-                    for role in ["background=", "dialogue=", "narration=", "sfx=", "story_text=", "error="] {
-                        try check(prompt.contains(role), "Role definition lost")
-                    }
-                }
-            }
-        }
-        print("PASS 36 evidence omission/zero/unknown + 36 partial contour + 12 prepared-page provenance + 24 multilingual cases")
     }
 
     static func finishAndCanonicalValidation() throws {

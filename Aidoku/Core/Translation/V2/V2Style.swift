@@ -3,8 +3,8 @@ import Foundation
 
 // S8 source style estimation for the V2 pipeline (see Docs/translation-v2.md).
 // Cheap, model-free per-block measurement on a bounded crop:
-// - font px: the legacy simple geometric rule (NativeSimpleSourceFont with the
-//   production minimal-policy calibration and member-logratio grouping), ported.
+// - font px: a simple geometric rule (production minimal-policy calibration and
+//   member-logratio grouping).
 // - fill: candidates are k-means colour clusters inside the line polygons, their
 //   parts cut off from the surroundings, and a re-clustering of interior pixels;
 //   small TRAIN-fit boosted trees (V2StyleParameters) pick the fill from cheap
@@ -22,29 +22,16 @@ extension V2Style {
     }
 }
 
-/// Measurement detail (includes the local background colour, which V2Style
-/// does not carry) for harness evaluation.
-struct V2StyleMeasurement: Sendable, Equatable {
-    var style: V2Style
-    var background: V2RGB?
-    var outlineScore: Double
-    var strokeRatio: Double
-}
-
 enum V2StyleEstimator {
     static func estimate(_ page: V2Page, blocks: [V2Block]) -> [V2Block] {
-        let measured = measure(page, blocks: blocks)
-        return zip(blocks, measured).map { block, measurement in
-            var block = block
-            block.style = measurement.style
-            return block
-        }
-    }
-
-    static func measure(_ page: V2Page, blocks: [V2Block]) -> [V2StyleMeasurement] {
         let fonts = V2SimpleFont.estimate(blocks)
         var analyses = analyzeAll(page.image, blocks: blocks, fonts: fonts)
-        return decide(&analyses, fonts: fonts)
+        let styles = decide(&analyses, fonts: fonts)
+        return zip(blocks, styles).map { block, style in
+            var block = block
+            block.style = style
+            return block
+        }
     }
 
     /// Blocks are independent; measure them concurrently.
@@ -263,7 +250,6 @@ extension V2StyleEstimator {
         let ringRadius2 = ringRadius * ringRadius
         crop.crop.ring = crop.crop.lineDistance2.map { Double($0) > ringRadius2 }
         if crop.crop.ring.reduce(0, { $0 + ($1 ? 1 : 0) }) < 16 { crop.crop.ring = crop.crop.lines.map { !$0 } }
-        // k-means on line pixels
         let centres = kMeans(crop.crop, k: clusterCount, include: crop.crop.lines)
         crop.crop.assignment = assign(crop.crop, centres: centres)
         let k = clusterCount
@@ -896,11 +882,6 @@ extension V2StyleEstimator {
         }
     }
 
-    static func median(_ values: [Double]) -> Double {
-        let sorted = values.sorted(), middle = sorted.count / 2
-        return sorted.count % 2 == 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
-    }
-
     /// Fill-candidate features (order matches model.py cand_x + twin).
     static func candidateFeatures(_ f: V2StyleFeatures, _ j: Int, consensus: [Double]?) -> [Double] {
         let cl = f.clusters, c = cl[j], font = f.font
@@ -1011,17 +992,15 @@ extension V2StyleEstimator {
         return V2RGB(r: channel(c[0]), g: channel(c[1]), b: channel(c[2]))
     }
 
-    static func decide(_ analyses: inout [BlockAnalysis?], fonts: [CGFloat]) -> [V2StyleMeasurement] {
+    static func decide(_ analyses: inout [BlockAnalysis?], fonts: [CGFloat]) -> [V2Style] {
         typealias P = V2StyleParameters
         // pass 1: per-block fill pick, page consensus colour
         let picked = analyses.compactMap { analysis in
             analysis.flatMap { a in pickFill(a.features, forest: P.fillPass1, consensus: nil).map { a.features.clusters[$0].core } }
         }
         let consensus = picked.isEmpty ? nil : median(picked)
-        var results: [V2StyleMeasurement] = fonts.map {
-            V2StyleMeasurement(style: V2Style(fontPixels: $0, bold: false, textColor: V2RGB(r: 0, g: 0, b: 0),
-                                              strokeColor: nil, strokeWidth: 0),
-                               background: nil, outlineScore: -.infinity, strokeRatio: 0)
+        var results: [V2Style] = fonts.map {
+            V2Style(fontPixels: $0, bold: false, textColor: V2RGB(r: 0, g: 0, b: 0), strokeColor: nil, strokeWidth: 0)
         }
         var observations: [OutlineObservation?] = Array(repeating: nil, count: analyses.count)
         var scores: [Double?] = Array(repeating: nil, count: analyses.count)
@@ -1033,10 +1012,8 @@ extension V2StyleEstimator {
             let rings = profile.compactMap { $0 }
             let background = (rings.isEmpty ? f.ringBackground : median(rings.suffix(3).map(\.median)))
                 .map { $0.rounded(.toNearestOrEven) }
-            results[index].style.textColor = rgb(f.clusters[j].core)
-            results[index].background = rgb(background)
-            results[index].strokeRatio = f.clusters[j].strokeWidth / f.font
-            results[index].style.bold = results[index].strokeRatio >= P.boldStrokeRatio
+            results[index].textColor = rgb(f.clusters[j].core)
+            results[index].bold = f.clusters[j].strokeWidth / f.font >= P.boldStrokeRatio
             if let observation = outlineObservation(f, fill: j, rings: profile, background: background) {
                 observations[index] = observation
                 scores[index] = P.outline.logit(observation.features)
@@ -1046,15 +1023,14 @@ extension V2StyleEstimator {
         // pass 2: page consensus of the outline score (lettering is consistent within a page)
         let present = scores.compactMap { $0 }
         guard !present.isEmpty else { return results }
-        let pageScore = median(present)
+        let pageScore = V2RemovalMask.median(present)
         for index in analyses.indices {
             guard let score = scores[index], let observation = observations[index] else { continue }
             let z = P.outlinePage[0] * score + P.outlinePage[1] * pageScore + P.outlinePage[2]
-            results[index].outlineScore = z
             if z >= 0 {
-                results[index].style.strokeColor = rgb(observation.colour)
+                results[index].strokeColor = rgb(observation.colour)
                 let width = P.outlineWidthRing * observation.ringWidth + P.outlineWidthFont * Double(fonts[index]) + P.outlineWidthBias
-                results[index].style.strokeWidth = CGFloat(max(0, width))
+                results[index].strokeWidth = CGFloat(max(0, width))
             }
         }
         return results

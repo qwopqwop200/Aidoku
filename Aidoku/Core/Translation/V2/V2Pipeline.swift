@@ -74,7 +74,6 @@ enum V2Pipeline {
 
     /// Restored background for one paint set (S6 + S7).
     private struct Erased: Sendable {
-        var removal: [UInt8]?
         var background: CGImage?
         var failure: String?
         var stages: [String: Double] = [:]
@@ -100,7 +99,7 @@ enum V2Pipeline {
         // coordinates stay consistent; the reader presents the output aspect-fit in
         // place of the source, so a smaller same-aspect bitmap displays the same.
         guard let page = cappedPage(source) else {
-            return V2PageResult(pageID: source.id, blocks: [], placed: [], output: source.image, removalMask: nil,
+            return V2PageResult(pageID: source.id, blocks: [], placed: [], output: source.image,
                                 timings: V2Timings(), failure: "decode: page exceeds the pixel cap and could not be downscaled")
         }
         var timings = V2Timings()
@@ -165,7 +164,7 @@ enum V2Pipeline {
             if admitted { hooks.releaseBack() }
             failures.append("cancelled")
             timings.stages[Stage.tail] = milliseconds(since: tailStart)
-            return V2PageResult(pageID: page.id, blocks: blocks, placed: [], output: page.image, removalMask: nil,
+            return V2PageResult(pageID: page.id, blocks: blocks, placed: [], output: page.image,
                                 timings: timings, failure: failures.joined(separator: "; "))
         }
 
@@ -224,7 +223,7 @@ enum V2Pipeline {
         timings.stages[Stage.total] = total
         timings.stages[Stage.nonLLM] = total - translateMilliseconds
         return V2PageResult(pageID: page.id, blocks: finalBlocks, placed: painted, output: output,
-                            removalMask: erased?.removal, timings: timings,
+                            timings: timings,
                             failure: failures.isEmpty ? nil : failures.joined(separator: "; "))
     }
 
@@ -296,7 +295,6 @@ enum V2Pipeline {
             }
             return V2RemovalMask.build(page, blocks: paintable, layout: layout)
         }
-        erased.removal = removal
         do {
             erased.background = try await timings.record(Stage.inpaint) { () async throws -> CGImage in
                 guard removal.count == page.width * page.height else { throw V2PipelineFailure.maskSize }
@@ -324,7 +322,6 @@ enum V2Pipeline {
             do {
                 let lines: [V2Line]
                 if let frame {
-                    // Geometry-only detection: same polygons/scores, no legacy evidence (V2Detection.swift).
                     lines = try await V2Detection.detect(frame: frame, models: models)
                 } else {
                     lines = try await V2Detection.detect(page, models: models)

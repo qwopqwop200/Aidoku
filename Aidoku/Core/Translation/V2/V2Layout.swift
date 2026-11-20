@@ -64,11 +64,12 @@ enum V2Layout {
         let descent: CGFloat
     }
 
+    private static func registered() -> Bool {
+        CTFontCopyPostScriptName(CTFontCreateWithName(fontName as CFString, 12, nil)) as String == fontName
+    }
+
     private static let registration: Bool = {
-        func registered() -> Bool {
-            CTFontCopyPostScriptName(CTFontCreateWithName(fontName as CFString, 12, nil)) as String == fontName
-        }
-        if registered() { return true }
+        if V2Layout.registered() { return true }
         var urls: [URL] = []
         if let url = Bundle.main.url(forResource: fontName, withExtension: "woff2") { urls.append(url) }
         if let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] {
@@ -76,9 +77,9 @@ enum V2Layout {
                 .appendingPathComponent("Aidoku/Resources/Translation/\(fontName).woff2"))
         }
         for url in urls where FileManager.default.fileExists(atPath: url.path) {
-            if CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) || registered() { return true }
+            if CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) || V2Layout.registered() { return true }
         }
-        return registered()
+        return V2Layout.registered()
     }()
 
     /// Registers the bundled face from an explicit file (host/test harnesses).
@@ -86,11 +87,11 @@ enum V2Layout {
     static func registerFont(at url: URL) -> Bool {
         if isBundledFontAvailable { return true }
         _ = CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
-        return CTFontCopyPostScriptName(CTFontCreateWithName(fontName as CFString, 12, nil)) as String == fontName
+        return registered()
     }
 
     static var isBundledFontAvailable: Bool {
-        registration || CTFontCopyPostScriptName(CTFontCreateWithName(fontName as CFString, 12, nil)) as String == fontName
+        registration || registered()
     }
 
     static let referenceSize: CGFloat = 100

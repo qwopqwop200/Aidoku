@@ -32,10 +32,6 @@ final class CompactChatOutputRegistry: @unchecked Sendable {
         let timeout: Task<Void, Never>
     }
     private var metadataWaiters: [UUID: MetadataWaiter] = [:]
-    var metadataWaiterCount: Int {
-        lock.lock(); defer { lock.unlock() }
-        return metadataWaiters.count
-    }
 
     func beginMetadataProbe(endpoint: String, account: String, now: TimeInterval) -> Bool {
         lock.lock(); defer { lock.unlock() }
@@ -271,8 +267,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         defer { compactOutput.finishMetadataProbe(endpoint: compactKey, account: configuration.credentialAccount) }
         do {
             let secret = try credentialStore.secret(for: configuration.credentialAccount)
-            guard !secret.isEmpty, secret.utf8.count <= KeychainTranslationCredentialStore.maximumSecretBytes,
-                  !secret.contains("\r"), !secret.contains("\n"), !secret.contains("\0") else { return }
+            guard Self.isUsableSecret(secret) else { return }
             var base = endpoint.deletingLastPathComponent()
             if configuration.apiProtocol == .chatCompletions { base.deleteLastPathComponent() }
             var request = URLRequest(url: base.appendingPathComponent("models"),
@@ -289,8 +284,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             compactOutput.markEligible(compactKey)
             ReaderTranslationDiagnostics.record("api_compact_metadata_ready")
         } catch {
-            // Metadata is optional. Ordinary translation retains its existing
-            // credential errors, timeout policy and portable response format.
+            // Metadata is optional; translation reports its own errors.
         }
     }
 
@@ -300,10 +294,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     ) async throws -> RemoteTranslationBatchResult {
         try Task.checkCancellation()
         try request.validate()
-        // Page-lettering classification is a single-pass decision. Do not
-        // silently spend additional provider calls on focused role checks,
-        // source-alignment retries, protocol fallback, or image downgrade.
-        // A failed primary request remains a failure for the caller to report.
+        // Page-lettering classification is a single-pass decision: no
+        // source-alignment retries, protocol fallback or image downgrade.
         if request.translatesPageLettering == true {
             guard request.imageJPEG != nil, request.filtersSFX == true, request.filtersBackground == true else {
                 throw RemoteTranslationError.invalidRequest("page translation requires image, SFX and background roles")
@@ -315,50 +307,24 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             effectiveRequest.imageJPEG = nil
         }
         do {
-            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration)
-            if effectiveRequest.imageJPEG != nil {
-                imageSupport.record(.supported, for: configuration)
-            }
-            let verified = try await recoveringSourceRoles(effectiveRequest, result: result, configuration: configuration)
-            return try await recoveringIndependentSourceAlignment(effectiveRequest, result: verified,
-                configuration: configuration)
+            return try await translateRecoveringSourceAlignment(effectiveRequest, configuration: configuration)
         } catch is UnsupportedImageInput {
             try Task.checkCancellation()
             imageSupport.record(.unsupported, for: configuration)
             effectiveRequest.imageJPEG = nil
-            let result = try await translateUsingSupportedProtocol(effectiveRequest, configuration: configuration)
-            let verified = try await recoveringSourceRoles(effectiveRequest, result: result, configuration: configuration)
-            return try await recoveringIndependentSourceAlignment(effectiveRequest, result: verified,
-                configuration: configuration)
+            return try await translateRecoveringSourceAlignment(effectiveRequest, configuration: configuration)
         }
     }
 
-    private func recoveringSourceRoles(_ request: RemoteTranslationRequest, result: RemoteTranslationBatchResult,
-        configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
-        var receipts = [TranslationRoleVerificationPlanner.Verification]()
-        for focused in TranslationRoleVerificationPlanner.candidates(request: request, result: result) {
-            try Task.checkCancellation()
-            let started = ProcessInfo.processInfo.systemUptime
-            do {
-                let response = try await translateUsingSupportedProtocol(focused, configuration: configuration)
-                receipts.append(.init(request: focused, result: response))
-            } catch is CancellationError { throw CancellationError() }
-            catch {
-                // An optional recheck cannot destroy the completed primary
-                // response. It also cannot be counted as a successful fix.
-                TranslationPerformanceDiagnostics.clientPhaseCompleted(phase: "role_verification_failed",
-                    segmentCount: focused.segments.count,
-                    elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: started))
-            }
-        }
-        return TranslationRoleVerificationPlanner.merging(request: request, original: result, verifications: receipts)
-    }
-
-    private func recoveringIndependentSourceAlignment(
-        _ request: RemoteTranslationRequest, result: RemoteTranslationBatchResult,
+    private func translateRecoveringSourceAlignment(
+        _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
-        try await TranslationHTTPCodec.recoveringIndependentSourceAlignment(request: request, result: result) { isolated in
+        let result = try await translateUsingSupportedProtocol(request, configuration: configuration)
+        if request.imageJPEG != nil {
+            imageSupport.record(.supported, for: configuration)
+        }
+        return try await TranslationHTTPCodec.recoveringIndependentSourceAlignment(request: request, result: result) { isolated in
             // Call below this recovery entry point: an independently confirmed
             // coinciding translation is accepted without recursively retrying.
             try await self.translateUsingSupportedProtocol(isolated, configuration: configuration)
@@ -398,28 +364,35 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             ) ?? configured
         }
 
+        struct UnsupportedEndpoint: Error {}
+        func attempt(
+            _ apiProtocol: RemoteTranslationProtocol,
+            configuration: RemoteTranslationConfiguration,
+            allowsFallback: Bool
+        ) async throws -> RemoteTranslationBatchResult {
+            do {
+                let result = try await translateOnce(request, configuration: configuration)
+                await protocolPreferences.reportSuccess(key: key, apiProtocol: apiProtocol)
+                return result
+            } catch let error as UnsupportedImageInput {
+                // The endpoint exists; only its image input was rejected.
+                await protocolPreferences.reportSuccess(key: key, apiProtocol: apiProtocol)
+                throw error
+            } catch let error as RemoteTranslationError where allowsFallback && Self.isUnsupportedEndpoint(error) {
+                throw UnsupportedEndpoint()
+            } catch {
+                await protocolPreferences.finishProbeFailure(key: key, token: probeToken)
+                throw error
+            }
+        }
+
         let preferredConfiguration = try Self.configuration(
             configuration,
             replacingAPIProtocol: preferredProtocol
         )
         do {
-            let result = try await translateOnce(
-                request,
-                configuration: preferredConfiguration
-            )
-            await protocolPreferences.reportSuccess(
-                key: key,
-                apiProtocol: preferredProtocol
-            )
-            return result
-        } catch let error as RemoteTranslationError {
-            guard Self.isUnsupportedEndpoint(error) else {
-                await protocolPreferences.finishProbeFailure(
-                    key: key,
-                    token: probeToken
-                )
-                throw error
-            }
+            return try await attempt(preferredProtocol, configuration: preferredConfiguration, allowsFallback: true)
+        } catch is UnsupportedEndpoint {
             let alternateProtocol: RemoteTranslationProtocol =
                 preferredProtocol == .responses
                     ? .chatCompletions
@@ -433,33 +406,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                 failedProtocol: preferredProtocol,
                 alternateProtocol: alternateProtocol
             )
-            do {
-                let result = try await translateOnce(
-                    request,
-                    configuration: alternateConfiguration
-                )
-                await protocolPreferences.reportSuccess(
-                    key: key,
-                    apiProtocol: alternateProtocol
-                )
-                return result
-            } catch is UnsupportedImageInput {
-                // The endpoint exists; only its image input was rejected.
-                await protocolPreferences.reportSuccess(key: key, apiProtocol: alternateProtocol)
-                throw UnsupportedImageInput()
-            } catch {
-                await protocolPreferences.finishProbeFailure(
-                    key: key,
-                    token: probeToken
-                )
-                throw error
-            }
-        } catch is UnsupportedImageInput {
-            await protocolPreferences.reportSuccess(key: key, apiProtocol: preferredProtocol)
-            throw UnsupportedImageInput()
-        } catch {
-            await protocolPreferences.finishProbeFailure(key: key, token: probeToken)
-            throw error
+            return try await attempt(alternateProtocol, configuration: alternateConfiguration, allowsFallback: false)
         }
     }
 
@@ -486,12 +433,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         } catch {
             throw RemoteTranslationError.credentialAccessFailed
         }
-        guard !apiKey.isEmpty,
-              apiKey.utf8.count <= KeychainTranslationCredentialStore.maximumSecretBytes,
-              !apiKey.contains("\r"),
-              !apiKey.contains("\n"),
-              !apiKey.contains("\0")
-        else {
+        guard Self.isUsableSecret(apiKey) else {
             throw RemoteTranslationError.credentialAccessFailed
         }
         TranslationPerformanceDiagnostics.clientPhaseCompleted(
@@ -562,7 +504,6 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         configuration: RemoteTranslationConfiguration,
         request: RemoteTranslationRequest
     ) -> TranslationHTTPCodec.ChatWireOptions {
-        // Responses remains buffered; Chat Completions can stream.
         if configuration.apiProtocol == .responses {
             return .init(compactStructuredOutput: true)
         }
@@ -708,6 +649,12 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                     vllmVersionHeader: response.value(forHTTPHeaderField: "X-vLLM-Version")
                 )
         )
+    }
+
+    /// The key is sent verbatim in an HTTP header.
+    private static func isUsableSecret(_ secret: String) -> Bool {
+        !secret.isEmpty && secret.utf8.count <= KeychainTranslationCredentialStore.maximumSecretBytes &&
+            !secret.contains("\r") && !secret.contains("\n") && !secret.contains("\0")
     }
 
     private static func isUnsupportedEndpoint(

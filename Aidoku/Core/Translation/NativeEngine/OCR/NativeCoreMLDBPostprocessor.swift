@@ -104,9 +104,6 @@ enum NativeCoreMLDBPostprocessor {
     ) throws -> [NativeCoreMLDetectionBox] {
         guard sourceWidth > 0, sourceHeight > 0 else { return [] }
         // 0 = background, 1 = unvisited foreground, 2 = visited foreground.
-        // The old implementation kept equally sized `mask` and `visited`
-        // arrays. A single byte of state preserves the exact threshold and
-        // 8-connectivity semantics while halving the full-map scratch storage.
         var state = foregroundState(
             values: map.values,
             threshold: configuration.threshold

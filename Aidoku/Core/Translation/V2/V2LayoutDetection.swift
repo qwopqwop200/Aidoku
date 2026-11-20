@@ -7,9 +7,8 @@ import Foundation
 // Numerics follow the legacy NativeRFDETRLayoutTensorContract exactly: sRGB
 // white-matted RGB, PyTorch antialiased triangle resize to 648x648 with
 // half-pixel centers, ImageNet normalization, global top-160 (query, class)
-// ranking with per-class floors. The legacy actor's caches, raw-cache policy,
-// instance masks, semantic grids and support grids are not needed by V2 and are
-// omitted (the 31 MB mask output is never read; Core ML materializes it lazily).
+// ranking with per-class floors. The 31 MB mask output is never read (Core ML
+// materializes it lazily).
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2RFDETRModel: @unchecked Sendable {

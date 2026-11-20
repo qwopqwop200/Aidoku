@@ -397,7 +397,6 @@ with tempfile.TemporaryDirectory(prefix='aidoku-source-fidelity-') as folder:
     start = time.monotonic()
     subprocess.run(['xcrun', 'swiftc', '-O', '-parse-as-library',
         *[str(BASE / f) for f in ['TranslationModels.swift', 'TranslationHTTPCodec.swift',
-            'TranslationBackgroundRolePolicy.swift', 'TranslationSFXEvidencePolicy.swift',
             'TranslationStreamDecoder.swift', 'TranslationEndpointPolicy.swift', 'TranslationImageSupport.swift']],
         str(main), '-o', str(binary)], check=True)
     print(f'Build seconds {time.monotonic() - start:.3f}', flush=True)

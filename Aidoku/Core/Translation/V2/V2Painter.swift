@@ -209,8 +209,7 @@ enum V2Painter {
         if stroke > 0, let strokeColor {
             for run in runs {
                 let shaped = line(run.text, font: font, color: strokeColor)
-                if let prepared = NativeCTFontStrokePainter.prepare(line: shaped, includesFill: true,
-                                                                    additionalFillStrokeWidth: stroke * 2) {
+                if let prepared = NativeCTFontStrokePainter.prepare(line: shaped, additionalFillStrokeWidth: stroke * 2) {
                     NativeCTFontStrokePainter.draw(prepared: prepared, context: context, anchor: run.origin)
                 } else {
                     fallback(run.text, font: font, attributes: [

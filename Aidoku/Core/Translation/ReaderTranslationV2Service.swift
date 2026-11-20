@@ -257,7 +257,6 @@ actor ReaderTranslationV2Service {
         if flight.consumers <= 0, inflight[key] === flight { inflight[key] = nil }
     }
 
-    var inflightCount: Int { inflight.count }
     func consumerCount(_ key: String) -> Int { inflight[key]?.consumers ?? 0 }
 
     private func compute(
@@ -391,8 +390,8 @@ actor ReaderTranslationV2Service {
     }
 }
 
-/// Bounded LRU of finished V2 page bitmaps. The normal budget follows the legacy
-/// translated-bitmap memory budget: at least 32 MB, otherwise a quarter of
+/// Bounded LRU of finished V2 page bitmaps. The normal budget is at least
+/// 32 MB, otherwise a quarter of
 /// the headroom above the image-work reserve, at most 192 MB
 /// (`V2PerformanceProfile` relaxes it in developer builds).
 struct V2PageMemoryCache {

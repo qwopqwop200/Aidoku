@@ -43,11 +43,10 @@ do {
     let hostFiles = try manager.contentsOfDirectory(at: root.appendingPathComponent("Scripts/image-translation-v2"),
         includingPropertiesForKeys: nil).filter { $0.pathExtension == "swift" }.sorted { $0.path < $1.path }
     // Production compile closure of the V2 stages outside Translation/V2 (detector,
-    // recognizer, translation client, simple grouping, painters). Found by iterative
+    // recognizer, translation client, painters). Found by iterative
     // typecheck; update it when these app files move or are split.
     let closure = [
         "Extensions/Foundation/NSLocalizedString.swift",
-        "Core/Translation/NativeSimpleParagraphGrouping.swift",
         "Core/Translation/ReaderTranslationPanelOrder.swift",
     ] + ["NativeTranslationFontFitSearch", "NativeCTFontHorizontalFillPainter", "NativeCTFontStrokePainter"]
         .map { "Core/Translation/NativeEngine/Overlay/\($0).swift" }
@@ -56,8 +55,7 @@ do {
          "NativeMangaNGram", "NativeOCRScopeGeometry"].map { "Core/Translation/NativeEngine/OCR/\($0).swift" }
       + ["RemoteTranslationClient", "TranslationHTTPCodec", "BoundedURLSessionTransport",
          "KeychainTranslationCredentialStore", "TranslationImageSupport", "TranslationModels",
-         "TranslationRoleVerificationPlanner", "TranslationStreamDecoder", "TranslationBackgroundRolePolicy",
-         "TranslationSFXEvidencePolicy", "TranslationEndpointPolicy"].map { "Core/Translation/NativeEngine/Translation/\($0).swift" }
+         "TranslationStreamDecoder", "TranslationEndpointPolicy"].map { "Core/Translation/NativeEngine/Translation/\($0).swift" }
       + ["Core/Translation/IPhoneOCRSettings.swift"]
     let closureFiles = closure.map { root.appendingPathComponent("Aidoku/" + $0) }
     let allV2 = v2Files + hostFiles + closureFiles

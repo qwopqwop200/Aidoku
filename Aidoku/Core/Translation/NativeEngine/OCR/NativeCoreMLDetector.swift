@@ -17,20 +17,6 @@ struct NativeCoreMLDetectionCanvas: Equatable, Hashable, Sendable {
     var inputShape: [Int] { [1, 3, height, width] }
     var outputShape: [Int] { [1, 1, height, width] }
 
-    init?(inputShape: [Int]) {
-        guard inputShape.count == 4,
-              inputShape[0] == 1,
-              inputShape[1] == 3,
-              (32...2_000).contains(inputShape[2]),
-              (32...2_000).contains(inputShape[3]),
-              inputShape[2].isMultiple(of: 32),
-              inputShape[3].isMultiple(of: 32)
-        else {
-            return nil
-        }
-        self.init(width: inputShape[3], height: inputShape[2])
-    }
-
     static func exact(
         sourceWidth: Int,
         sourceHeight: Int,

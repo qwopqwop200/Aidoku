@@ -2,9 +2,9 @@ import Foundation
 import CoreGraphics
 import CoreText
 
-/// Preserve CoreText stroke geometry using the native text-matrix orientation.
-/// Only horizontal stroke-only frames qualify. A refusal leaves the caller's
-/// existing CTLineDraw path responsible for the entire line.
+/// Strokes each glyph run of a fill-colored line with an explicit outline width,
+/// using the native text-matrix orientation. A refusal leaves the caller's
+/// CTLineDraw fallback responsible for the entire line.
 enum NativeCTFontStrokePainter {
     fileprivate struct Run {
         let font: CTFont
@@ -18,10 +18,9 @@ enum NativeCTFontStrokePainter {
         fileprivate let records: [Run]
     }
 
-    /// Split paint attributes without asking Core Text to shape the same line again.
-    /// The combined mode accepts the negative stroke widths used by measured layouts.
-    static func prepare(line: CTLine, includesFill: Bool = false,
-                        additionalFillStrokeWidth: CGFloat = 0) -> PreparedLine? {
+    /// The outline is `additionalFillStrokeWidth` wide in each run's foreground
+    /// color; the caller paints the fill separately.
+    static func prepare(line: CTLine, additionalFillStrokeWidth: CGFloat) -> PreparedLine? {
         var records: [Run] = []
         var glyphCount = 0
         let additional = additionalFillStrokeWidth.isFinite && additionalFillStrokeWidth > 0
@@ -36,22 +35,13 @@ enum NativeCTFontStrokePainter {
             let fontSize = CTFontGetSize(font)
             guard CTFontGetMatrix(font) == .identity, fontSize.isFinite, fontSize > 0,
                   !CTFontGetSymbolicTraits(font).contains(.traitColorGlyphs) else { return nil }
-            let percent = additional > 0 ? additional * 100 / fontSize
-                : CGFloat((attrs[kCTStrokeWidthAttributeName] as? NSNumber)?.doubleValue ?? 0)
-            guard percent.isFinite, includesFill || percent >= 0 else { return nil }
-            func color(_ object: Any?) -> CGColor? {
-                guard let object, CFGetTypeID(object as CFTypeRef) == CGColor.typeID else { return nil }
-                return (object as! CGColor)
-            }
-            if percent == 0 {
-                // Combined layouts keep ordinary fill-only runs; they contribute
-                // no outline. Legacy stroke-only frames make those runs transparent.
-                guard includesFill || color(attrs[kCTForegroundColorAttributeName])?.alpha == 0 else { return nil }
-                continue
-            }
-            let stroke = additional > 0 ? color(attrs[kCTForegroundColorAttributeName])
-                : color(attrs[kCTStrokeColorAttributeName]) ?? color(attrs[kCTForegroundColorAttributeName])
-            guard let stroke else { return nil }
+            let percent = additional * 100 / fontSize
+            guard percent.isFinite else { return nil }
+            // A non-positive or non-finite requested width contributes no outline.
+            if percent == 0 { continue }
+            guard let strokeObject = attrs[kCTForegroundColorAttributeName],
+                  CFGetTypeID(strokeObject as CFTypeRef) == CGColor.typeID else { return nil }
+            let stroke = strokeObject as! CGColor
             let lineWidth = abs(percent) * fontSize / 100
             guard lineWidth.isFinite, lineWidth > 0 else { return nil }
             let count = CTRunGetGlyphCount(raw)
@@ -71,17 +61,8 @@ enum NativeCTFontStrokePainter {
     }
 
     @discardableResult
-    static func draw(line: CTLine, context: CGContext, anchor: CGPoint,
-                     horizontalScale: CGFloat = 1) -> Bool {
-        guard let prepared = prepare(line: line) else { return false }
-        return draw(prepared: prepared, context: context, anchor: anchor, horizontalScale: horizontalScale)
-    }
-
-    @discardableResult
-    static func draw(prepared: PreparedLine, context: CGContext, anchor: CGPoint,
-                     horizontalScale: CGFloat = 1) -> Bool {
-        guard anchor.x.isFinite, anchor.y.isFinite, Float(anchor.x).isFinite, Float(anchor.y).isFinite,
-              horizontalScale.isFinite, horizontalScale > 0 else { return false }
+    static func draw(prepared: PreparedLine, context: CGContext, anchor: CGPoint) -> Bool {
+        guard anchor.x.isFinite, anchor.y.isFinite, Float(anchor.x).isFinite, Float(anchor.y).isFinite else { return false }
         // Quartz text state is not part of the saved graphics state. Preserve
         // it explicitly so the following CTLine fill pass keeps its orientation.
         let textMatrix = context.textMatrix
@@ -93,7 +74,6 @@ enum NativeCTFontStrokePainter {
             context.textPosition = textPosition
         }
         context.translateBy(x: CGFloat(Float(anchor.x)), y: CGFloat(Float(anchor.y)))
-        context.scaleBy(x: horizontalScale, y: 1)
         context.textMatrix = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: 0)
         context.textPosition = .zero
         context.setTextDrawingMode(.stroke)

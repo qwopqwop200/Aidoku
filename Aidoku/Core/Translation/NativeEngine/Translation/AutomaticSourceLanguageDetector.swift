@@ -22,11 +22,8 @@ enum AutomaticSourceLanguageDetector {
     private static let minimumConfidence = 0.45
     private static let minimumConfidenceGap = 0.15
 
-    /// OCR covers more Latin languages than Apple's bundled language
-    /// recognizer. This set includes the PP-OCRv6 languages backed by Apple's
-    /// documented `NLLanguage` identifiers, plus the Tagalog/Filipino raw tags
-    /// and lexical refinement already exercised by the simulator suite.
-    /// Explicit OCR remains available for every code in
+    /// The PP-OCRv6 languages Apple's `NLLanguage` recognizer can classify
+    /// (OCR covers more). Explicit OCR remains available for every code in
     /// `supportedLanguageCodes`.
     static let automaticallyClassifiableLanguageCodes: Set<String> = [
         "zh", "zh-Hant", "en", "ja", "ca", "hr", "cs", "da", "nl",
@@ -150,12 +147,9 @@ enum AutomaticSourceLanguageDetector {
                 return "zh-Hant"
             }
 
-            // The unified PP-OCRv6 recognizer does not return a per-line
-            // language tag. A user-selected OCR source is therefore the
-            // native browser's conservative document hint, equivalent to the
-            // backend hint used by the original Rust LineLanguageDetector.
-            // Use it only for Han-only text after strong simplified/traditional
-            // markers have had a chance to win.
+            // PP-OCRv6 returns no per-line language tag, so a user-selected
+            // OCR source is the document hint. Use it only for Han-only text
+            // after strong simplified/traditional markers have had a chance to win.
             let hasOnlyHanLetters = scalars
                 .filter { $0.properties.isAlphabetic && !isSharedProlongedSoundMark($0) }
                 .allSatisfy(isHan)
@@ -218,8 +212,7 @@ enum AutomaticSourceLanguageDetector {
         return selectedLanguageCodes.contains(detected)
     }
 
-    /// Applies the browser's OCR source contract before temporal tracking and
-    /// overlay publication. A fixed source is a one-language allowlist. Auto
+    /// A fixed source is a one-language allowlist. Auto
     /// mode uses the optional multi-language translation-source filter; an
     /// empty auto filter preserves the translate-every-line mode.
     static func allowsOCRText(

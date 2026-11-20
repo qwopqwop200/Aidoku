@@ -9,8 +9,6 @@ import Foundation
 // binary mask, masked RGB zeroed, edge-extended padding), one prediction,
 // then clamped half-pixel bilinear upsampling of `raw_rgb` written ONLY at
 // mask pixels. Every pixel outside the mask is byte-identical to the input.
-// The legacy tensor caches, raw replay, prediction budget and alpha audit
-// are not used by V2.
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2AOTModel: @unchecked Sendable {

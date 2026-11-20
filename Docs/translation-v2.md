@@ -141,8 +141,8 @@ Stage-level dev results: mask recall 0.99827 (edge 0.99728) at 34 ms vs ~430 ms
 legacy; style fill ΔE 0.99 vs 1.16 at 14 ms vs 389 ms; recognition text identical
 to legacy at 94 ms vs 323 ms median; layout+paint 7 ms vs 282 ms median (21.6 s max).
 
-The training/fitting scripts that generated `V2RemovalMaskWeights.swift` and
-`V2StyleParameters.swift`, and the per-stage experiment reports, are kept outside
+The training/fitting scripts that generated the tables in
+`Resources/Translation/V2Weights.bin` (read by `V2Weights.swift`), and the per-stage experiment reports, are kept outside
 the repository (they depend on private page data). `Scripts/v2/eval.py` scores a
 V2 run against the GT split.
 
