@@ -128,7 +128,8 @@ enum V2Pipeline {
         var blocks = timings.record(Stage.group) {
             let grouped = V2Grouping.group(read, layout: layout, pageSize: pageSize, raster: front.gray,
                                            direction: page.readingDirection)
-            return V2RoleFilter.classify(grouped, layout: layout)
+            let classified = V2RoleFilter.classify(grouped, layout: layout)
+            return V2Interior.apply(classified, raster: front.gray, pageSize: pageSize, layout: layout)
         }
         timings.stages[Stage.front] = milliseconds(since: started)
         hooks.frontFinished()

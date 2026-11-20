@@ -14,7 +14,9 @@ import Foundation
 // one binary search (<= 12 probes), at most 6 growth steps and at most 4 overlap
 // shrink steps; there are no retries, DFS or recovery passes.
 enum V2Layout {
-    static let fontName = "AidokuSerifKR-Bold"
+    static let fontName = "AidokuSerifKR-Regular"
+    static let boldFontName = "AidokuSerifKR-Bold"
+    static let fontNames = [fontName, boldFontName]
     /// Smallest size the fit search may choose before the box is allowed to grow.
     static let floorPixels: CGFloat = 10
     // Tunables (selected on dev; see the out-of-repo research scripts (scripts-layout)).
@@ -28,6 +30,24 @@ enum V2Layout {
     static let verticalAdvanceEm: CGFloat = 1.02
     /// Fraction of the box width used for wrapping, leaving room for kerning drift.
     static let widthSlack: CGFloat = 0.97
+    /// Smallest whole-word size, relative to the split-word size, that is preferred over splitting.
+    static let wholeWordRatio: CGFloat = 0.85
+    /// Horizontal scale of a condensed fit (whole words narrowed rather than split).
+    static let condenseScale: CGFloat = 0.9
+    /// Tilted text keeps the source tilt down to this share of its upright size.
+    static let rotationSizeRatio: CGFloat = 0.9
+    /// The strict Korean line-break rules yield when the fit they allow is below this share of the relaxed one.
+    static let strictRuleRatio: CGFloat = 0.9
+    /// A stacked horizontal fit yields to vertical columns at no less than this share of its size.
+    static let stackedVerticalRatio: CGFloat = 0.85
+
+    /// Horizontal lines averaging under two graphemes (three or more lines): a vertical
+    /// stack set with horizontal line spacing.
+    static func isStacked(_ fit: Fit) -> Bool {
+        guard !fit.vertical, fit.lines.count >= 3 else { return false }
+        let graphemes = fit.lines.reduce(0) { $0 + $1.filter { $0 != " " }.count }
+        return graphemes < fit.lines.count * 2
+    }
 
     // MARK: - Contract
 
@@ -38,16 +58,41 @@ enum V2Layout {
             ($0.readingOrder, $0.id) < ($1.readingOrder, $1.id)
         }
         let sourceBounds = paintable.map { $0.bounds.intersection(page) }
+        let plan = V2Cohort.plan(paintable, sources: paintable.map(sourcePixels), capRatio: capRatio, floor: floorPixels)
+        func obstacles(_ index: Int, _ frames: [CGRect]) -> [CGRect] {
+            frames + sourceBounds.enumerated().compactMap { other, rect in other != index && !rect.isNull ? rect : nil }
+        }
         var placed: [V2PlacedText] = []
         var frames: [CGRect] = []
         for (index, block) in paintable.enumerated() {
-            var obstacles = frames
-            for (other, rect) in sourceBounds.enumerated() where other != index && !rect.isNull {
-                obstacles.append(rect)
-            }
-            let result = placeBlock(block, page: page, obstacles: obstacles, placedFrames: frames)
+            let result = placeBlock(block, page: page, obstacles: obstacles(index, frames), placedFrames: frames,
+                                    source: plan.sources[index], cap: plan.caps[index])
             placed.append(result)
-            frames.append(result.frame)
+            frames.append(result.bounds)
+        }
+        // Cohorts: members shrink toward a common size (never grow past pass 1, so the
+        // smaller frames cannot collide); kept only when the page gets more consistent.
+        for cohort in plan.cohorts {
+            guard let targets = V2Cohort.targets(fits: cohort.map { placed[$0].fontPixels }, floor: floorPixels) else {
+                continue
+            }
+            var trial = placed
+            for (member, index) in cohort.enumerated() where targets[member] < placed[index].fontPixels - 0.01 {
+                let others = frames.enumerated().compactMap { $0.offset != index ? $0.element : nil }
+                let result = placeBlock(paintable[index], page: page, obstacles: obstacles(index, others),
+                                        placedFrames: others, source: plan.sources[index], cap: targets[member])
+                if result.fontPixels <= placed[index].fontPixels, !intersectsAny(result.bounds, others) {
+                    trial[index] = result
+                }
+            }
+            let before = V2Cohort.inconsistency(sizes: placed.map(\.fontPixels), plan: plan)
+            let after = V2Cohort.inconsistency(sizes: trial.map(\.fontPixels), plan: plan)
+            let spreadBefore = V2Cohort.spread(cohort.map { placed[$0].fontPixels })
+            let spreadAfter = V2Cohort.spread(cohort.map { trial[$0].fontPixels })
+            if after <= before, spreadAfter <= spreadBefore - V2Cohort.minimumGain {
+                placed = trial
+                frames = placed.map(\.bounds)
+            }
         }
         return placed
     }
@@ -64,43 +109,49 @@ enum V2Layout {
         let descent: CGFloat
     }
 
-    private static func registered() -> Bool {
-        CTFontCopyPostScriptName(CTFontCreateWithName(fontName as CFString, 12, nil)) as String == fontName
+    private static func registered(_ name: String) -> Bool {
+        CTFontCopyPostScriptName(CTFontCreateWithName(name as CFString, 12, nil)) as String == name
     }
 
-    private static let registration: Bool = {
-        if V2Layout.registered() { return true }
+    /// Registers each bundled face (app bundle, else the host's pipeline root) once.
+    private static let registration: [String: Bool] = Dictionary(uniqueKeysWithValues: fontNames.map { name in
+        if registered(name) { return (name, true) }
         var urls: [URL] = []
-        if let url = Bundle.main.url(forResource: fontName, withExtension: "woff2") { urls.append(url) }
+        if let url = Bundle.main.url(forResource: name, withExtension: "woff2") { urls.append(url) }
         if let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] {
-            urls.append(URL(fileURLWithPath: root)
-                .appendingPathComponent("Aidoku/Resources/Translation/\(fontName).woff2"))
+            urls.append(URL(fileURLWithPath: root).appendingPathComponent("Aidoku/Resources/Translation/\(name).woff2"))
         }
         for url in urls where FileManager.default.fileExists(atPath: url.path) {
-            if CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) || V2Layout.registered() { return true }
+            if CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) || registered(name) { return (name, true) }
         }
-        return V2Layout.registered()
-    }()
+        return (name, registered(name))
+    })
 
-    /// Registers the bundled face from an explicit file (host/test harnesses).
+    /// Registers the bundled faces from an explicit folder (host/test harnesses).
     @discardableResult
-    static func registerFont(at url: URL) -> Bool {
-        if isBundledFontAvailable { return true }
-        _ = CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
-        return registered()
+    static func registerFonts(in folder: URL) -> Bool {
+        fontNames.allSatisfy { name in
+            if available(name) { return true }
+            _ = CTFontManagerRegisterFontsForURL(folder.appendingPathComponent("\(name).woff2") as CFURL, .process, nil)
+            return registered(name)
+        }
     }
 
-    static var isBundledFontAvailable: Bool {
-        registration || registered()
-    }
+    private static func available(_ name: String) -> Bool { registration[name] == true || registered(name) }
+
+    static var isBundledFontAvailable: Bool { fontNames.allSatisfy(available) }
 
     static let referenceSize: CGFloat = 100
 
-    /// Bundled serif when registered, otherwise a system Korean bold face.
-    static func font(size: CGFloat) -> CTFont {
-        let name = isBundledFontAvailable ? fontName : "AppleSDGothicNeo-Bold"
-        return CTFontCreateWithName(name as CFString, size, nil)
+    /// The bundled serif in the source weight (Regular unless S8 found bold lettering),
+    /// otherwise the system Korean face of that weight.
+    static func font(size: CGFloat, bold: Bool = false) -> CTFont {
+        let name = bold ? boldFontName : fontName
+        let face = available(name) ? name : (bold ? "AppleSDGothicNeo-Bold" : "AppleSDGothicNeo-Regular")
+        return CTFontCreateWithName(face as CFString, size, nil)
     }
+
+    static func isBold(_ block: V2Block) -> Bool { block.style?.bold ?? false }
 
     static func metrics() -> FontMetrics {
         let font = font(size: referenceSize)
@@ -110,7 +161,9 @@ enum V2Layout {
     static func strokeWidth(for block: V2Block, fontPixels: CGFloat) -> CGFloat {
         if let style = block.style {
             guard style.strokeColor != nil, style.strokeWidth.isFinite, style.strokeWidth > 0 else { return 0 }
-            return min(style.strokeWidth, fontPixels * 0.25)
+            // The source outline keeps its proportion to the lettering when the size changes.
+            let scaled = style.fontPixels > 0 ? style.strokeWidth * fontPixels / style.fontPixels : style.strokeWidth
+            return min(max(scaled, fontPixels * 0.035), fontPixels * 0.25)
         }
         return max(1, fontPixels / 12)
     }
@@ -129,6 +182,11 @@ enum V2Layout {
         var paragraphs: [[Word]]
         var spaceWidth: CGFloat
         var characterCount: Int
+        /// Korean phrase coupling, no lone trailing syllable and no line-initial suffix
+        /// mark (S9 drops them when they cost more than 10% of the size).
+        var strict = true
+        /// Horizontal scale the widths were measured at (1, or the condense scale).
+        var scale: CGFloat = 1
 
         init(_ text: String, font: CTFont) {
             func line(_ string: String) -> CTLine {
@@ -139,10 +197,10 @@ enum V2Layout {
             spaceWidth = CGFloat(CTLineGetTypographicBounds(line(" "), nil, nil, nil))
             var count = 0
             paragraphs = text.components(separatedBy: .newlines).compactMap { paragraph in
-                let words = paragraph.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\u{3000}" })
+                let words = Self.glued(paragraph.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\u{3000}" || $0 == "\u{200B}" })
+                    .map(String.init))
                 guard !words.isEmpty else { return nil }
-                return words.map { piece in
-                    let string = String(piece)
+                return words.map { string in
                     let shaped = line(string)
                     var characters: [String] = []
                     var offsets: [CGFloat] = [0]
@@ -169,6 +227,92 @@ enum V2Layout {
         /// Words longer than this (UTF-16 units) take their caret offsets from one enumeration.
         static let longWord = 256
 
+        /// Punctuation that must not begin a line (closing brackets and sentence marks).
+        /// Ellipses may: Korean lines often open with one, and holding a long "……" run
+        /// to the previous grapheme would force much smaller sizes in narrow balloons.
+        static let closing: Set<Character> = Set("!?,.:;~)]}」』）】〉》〕〙〛’”。、，．！？：；～")
+        static let ellipses: Set<Character> = Set("…‥·・")
+        /// Suffix marks and dashes stay with the ink before them.
+        static let suffixMarks: Set<Character> = Set("♡♥❤♪♫♬♩☆★※†‡—–―─")
+        static let determiners: Set<String> = ["몇", "한", "두", "세", "네", "각", "모든", "어떤", "무슨", "이런", "그런", "저런",
+                                               "이", "그", "저", "못", "안", "더", "덜", "잘", "꼭", "좀"]
+        static let dependentNouns = ["것", "거", "게", "걸", "건", "수", "줄", "데", "뿐", "때", "듯", "적", "척", "만큼", "대로", "채", "바", "리"]
+
+        /// Two characters of one Latin word or number: ASCII letters/digits, or a digit next
+        /// to its grouping or decimal mark.
+        static func joinsLatinOrNumber(_ a: Character, _ b: Character) -> Bool {
+            func word(_ c: Character) -> Bool { c.isASCII && (c.isLetter || c.isNumber) }
+            return (word(a) && word(b)) || (a.isNumber && ",.%".contains(b)) || (",.".contains(a) && b.isNumber)
+        }
+
+        /// Whether a break between `previous` and `next` would split a Korean phrase.
+        static func couples(_ previous: String, _ next: String) -> Bool {
+            if determiners.contains(previous) { return true }
+            let stem = next.prefix { !closing.contains($0) && !ellipses.contains($0) }
+            return dependentNouns.contains { stem.hasPrefix($0) && stem.count <= $0.count + 2 }
+        }
+        /// Punctuation that must not end a line (opening brackets and quotes).
+        static let opening: Set<Character> = Set("([{「『（【〈《〔〘〚‘“")
+
+        /// Joins a space-separated piece made only of punctuation to its neighbour, so
+        /// a break never isolates it: closing marks stay with the word before, opening
+        /// marks with the word after (the space is kept inside the joined word).
+        static func glued(_ pieces: [String]) -> [String] {
+            var result: [String] = []
+            var pendingOpen: String?
+            for piece in pieces {
+                if piece.allSatisfy({ opening.contains($0) }) {
+                    pendingOpen = pendingOpen.map { $0 + " " + piece } ?? piece
+                    continue
+                }
+                let word = pendingOpen.map { $0 + " " + piece } ?? piece
+                pendingOpen = nil
+                let numeric = result.last.map { last in
+                    last.allSatisfy { $0.isNumber || ",.%$".contains($0) } && word.count <= 3
+                        && !word.contains { closing.contains($0) || ellipses.contains($0) }
+                } ?? false
+                if let last = result.last,
+                   numeric || word.allSatisfy({ closing.contains($0) || ellipses.contains($0) || suffixMarks.contains($0) }) {
+                    result[result.count - 1] = last + " " + word
+                } else {
+                    result.append(word)
+                }
+            }
+            if let pendingOpen {
+                if let last = result.last { result[result.count - 1] = last + " " + pendingOpen } else { result.append(pendingOpen) }
+            }
+            return result
+        }
+
+        /// Moves a split point so the next segment does not start with closing
+        /// punctuation and this one does not end with opening punctuation: earlier when
+        /// that keeps a grapheme on this segment, otherwise later (the wider segment then
+        /// fails the fit check, so the search picks a smaller size). `end` is unchanged
+        /// when neither move helps.
+        static func adjustedSplit(_ characters: [String], start: Int, end: Int, strict: Bool = true) -> Int {
+            func bad(_ index: Int) -> Bool {
+                guard index > start, index < characters.count else { return false }
+                let next = characters[index].first.map { closing.contains($0) || (strict && suffixMarks.contains($0)) } ?? false
+                let previous = characters[index - 1].last.map { opening.contains($0) } ?? false
+                // Nor leave a segment of punctuation alone ("……" on its own line), nor a
+                // single syllable at the end of a word of three or more.
+                let alone = characters[index...].allSatisfy { $0.allSatisfy { closing.contains($0) || ellipses.contains($0) } }
+                let lone = strict && characters.count >= 3 && characters.count - index == 1
+                // Nor cut inside a Latin word or a number ("10,000", "Chulsoo").
+                let inside = strict && characters[index - 1].last.map { a in
+                    characters[index].first.map { b in Self.joinsLatinOrNumber(a, b) } ?? false
+                } ?? false
+                return next || previous || alone || lone || inside
+            }
+            guard bad(end) else { return end }
+            var candidate = end
+            while bad(candidate), candidate - 1 > start { candidate -= 1 }
+            if !bad(candidate) { return candidate }
+            candidate = end
+            while bad(candidate), candidate < characters.count { candidate += 1 }
+            return bad(candidate) ? end : candidate
+        }
+
         /// First leading-edge caret offset reported for each UTF-16 index of `line`.
         static func leadingCarets(_ line: CTLine, length: Int) -> [CGFloat?] {
             var carets = [CGFloat?](repeating: nil, count: length + 1)
@@ -178,9 +322,40 @@ enum V2Layout {
             return carets
         }
 
+        /// The same words at `scale` horizontal width (arithmetic, no re-shaping).
+        func condensed(by scale: CGFloat) -> MeasuredText {
+            var copy = self
+            copy.scale *= scale
+            copy.spaceWidth *= scale
+            copy.paragraphs = paragraphs.map { words in
+                words.map { word in
+                    var word = word
+                    word.width *= scale
+                    word.offsets = word.offsets.map { $0 * scale }
+                    return word
+                }
+            }
+            return copy
+        }
+
+        /// Widest single word, in reference units.
+        var widestWord: CGFloat {
+            paragraphs.lazy.flatMap { $0 }.map(\.width).max() ?? 0
+        }
+
         /// Greedy word wrap at `limit` reference units: breaks only at spaces unless a
-        /// single word is wider than the line, which is then split between graphemes.
+        /// single word is wider than the line, which is then split between graphemes
+        /// (never before closing or after opening punctuation when another split exists).
         func wrap(limit: CGFloat) -> (lines: [String], widest: CGFloat) {
+            let wrapped = wrap(limits: { _ in limit })
+            return (wrapped.lines, wrapped.widest)
+        }
+
+        /// The same wrap with a limit per line index (rows of a rounded balloon); also
+        /// reports each line's width and whether a word had to be split.
+        func wrap(limits limit: (Int) -> CGFloat) -> (lines: [String], widest: CGFloat, widths: [CGFloat], split: Bool) {
+            var widths: [CGFloat] = []
+            var split = false
             var lines: [String] = []
             var widest: CGFloat = 0
             for paragraph in paragraphs {
@@ -188,27 +363,52 @@ enum V2Layout {
                 var width: CGFloat = 0
                 func flush() {
                     lines.append(current)
+                    widths.append(width)
                     widest = max(widest, width)
                     current = ""
                     width = 0
                 }
+                var last: Word?
+                var lastStart = ""
+                var lastStartWidth: CGFloat = 0
                 for word in paragraph {
-                    if !current.isEmpty, width + spaceWidth + word.width <= limit {
+                    defer { last = word }
+                    if !current.isEmpty, width + spaceWidth + word.width <= limit(lines.count) {
+                        lastStart = current
+                        lastStartWidth = width
                         current += " " + word.text
                         width += spaceWidth + word.width
                         continue
                     }
+                    // Korean phrase coupling: a determiner or negation stays with the next
+                    // word and a dependent noun with the previous one, by carrying the
+                    // previous word down when the pair fits a line.
+                    if strict, let previous = last, current != previous.text, current.hasSuffix(" " + previous.text),
+                       Self.couples(previous.text, word.text), previous.width + spaceWidth + word.width <= limit(lines.count + 1) {
+                        current = lastStart
+                        width = lastStartWidth
+                        flush()
+                        current = previous.text + " " + word.text
+                        width = previous.width + spaceWidth + word.width
+                        lastStart = previous.text
+                        lastStartWidth = previous.width
+                        continue
+                    }
                     if !current.isEmpty { flush() }
-                    if word.width <= limit {
+                    lastStart = ""
+                    lastStartWidth = 0
+                    if word.width <= limit(lines.count) {
                         current = word.text
                         width = word.width
                         continue
                     }
                     // Over-long word: split between graphemes, at least one per line.
+                    split = true
                     var start = 0
                     while start < word.characters.count {
                         var end = start + 1
-                        while end < word.characters.count, word.offsets[end + 1] - word.offsets[start] <= limit { end += 1 }
+                        while end < word.characters.count, word.offsets[end + 1] - word.offsets[start] <= limit(lines.count) { end += 1 }
+                        end = Self.adjustedSplit(word.characters, start: start, end: end, strict: strict)
                         current = word.characters[start..<end].joined()
                         width = word.offsets[end] - word.offsets[start]
                         if end < word.characters.count { flush() }
@@ -217,7 +417,7 @@ enum V2Layout {
                 }
                 if !current.isEmpty { flush() }
             }
-            return (lines, widest)
+            return (lines, widest, widths, split)
         }
 
         /// Vertical columns: each column holds `cells` characters; words never split
@@ -237,12 +437,13 @@ enum V2Layout {
                         continue
                     }
                     if !current.isEmpty { result.append(current.joined()); current = []; used = 0 }
-                    var remaining = word.characters[...]
-                    while remaining.count > cells {
-                        result.append(remaining.prefix(cells).joined())
-                        remaining = remaining.dropFirst(cells)
+                    var start = 0
+                    while word.characters.count - start > cells {
+                        let end = Self.adjustedSplit(word.characters, start: start, end: start + cells, strict: strict)
+                        result.append(word.characters[start..<end].joined())
+                        start = end
                     }
-                    current = Array(remaining)
+                    current = Array(word.characters[start...])
                     used = CGFloat(current.count)
                 }
                 if !current.isEmpty { result.append(current.joined()) }
@@ -257,20 +458,24 @@ enum V2Layout {
         /// Text block extent, excluding stroke.
         var extent: CGSize
         var vertical: Bool
+        /// Measured with the 0.9 horizontal condense (S10 paints the lines narrowed).
+        var condensed = false
     }
 
-    static func horizontalFit(_ text: MeasuredText, size: CGFloat, width: CGFloat) -> Fit {
+    static func horizontalFit(_ text: MeasuredText, size: CGFloat, width: CGFloat, pitch: CGFloat = lineHeightEm) -> Fit {
         let scale = size / referenceSize
         let wrapped = text.wrap(limit: max(width * widthSlack, 1) / scale)
-        let extent = CGSize(width: wrapped.widest * scale, height: CGFloat(wrapped.lines.count) * size * lineHeightEm)
+        let extent = CGSize(width: wrapped.widest * scale, height: CGFloat(wrapped.lines.count) * size * pitch)
         return Fit(size: size, lines: wrapped.lines, extent: extent, vertical: false)
     }
 
-    static func verticalFit(_ text: MeasuredText, size: CGFloat, height: CGFloat) -> Fit {
+    static func verticalFit(_ text: MeasuredText, size: CGFloat, height: CGFloat, pitch: CGFloat = lineHeightEm) -> Fit {
         let cells = max(1, Int(height / (size * verticalAdvanceEm)))
         let columns = text.columns(cells: cells)
         let longest = columns.map { CGFloat($0.count) }.max() ?? 0
-        let extent = CGSize(width: CGFloat(columns.count) * size * lineHeightEm, height: longest * size * verticalAdvanceEm)
+        // Columns advance by the line height; the last one only needs its 1 em glyph width.
+        let extent = CGSize(width: columns.isEmpty ? 0 : (CGFloat(columns.count - 1) * pitch + 1) * size,
+                            height: longest * size * verticalAdvanceEm)
         return Fit(size: size, lines: columns, extent: extent, vertical: true)
     }
 
@@ -280,9 +485,10 @@ enum V2Layout {
 
     /// Largest quarter-pixel size in [minimum, maximum] that fits, or nil.
     static func largestFit(_ text: MeasuredText, box: CGSize, vertical: Bool,
-                           minimum: CGFloat, maximum: CGFloat) -> Fit? {
+                           minimum: CGFloat, maximum: CGFloat, pitch: (CGFloat) -> CGFloat = { _ in lineHeightEm }) -> Fit? {
         func probe(_ size: CGFloat) -> Fit {
-            vertical ? verticalFit(text, size: size, height: box.height) : horizontalFit(text, size: size, width: box.width)
+            vertical ? verticalFit(text, size: size, height: box.height, pitch: pitch(size))
+                : horizontalFit(text, size: size, width: box.width, pitch: pitch(size))
         }
         guard let size = NativeTranslationFontFitSearch.largestFitting(
             minimum: minimum, maximum: max(minimum, maximum), fits: { fits(probe($0), in: box) }
@@ -339,34 +545,107 @@ enum V2Layout {
         return clipExpansion(original: base, expanded: expanded, obstacles: obstacles)
     }
 
+    // MARK: - Display text
+
+    /// The translation as painted: provider markup for the source's line breaks
+    /// (`<br>`, `|` in Hangul text, line/paragraph separators, zero-width spaces)
+    /// becomes a space so the text re-wraps for its new box, runs of spaces collapse,
+    /// a long-vowel mark after Hangul becomes a tilde, and a stray sokuon (っ/ッ) left in
+    /// otherwise kana-free Hangul text is dropped.
+    /// Explicit newlines stay hard breaks. Stored translations are not changed.
+    static func displayText(_ text: String) -> String {
+        guard text.unicodeScalars.contains(where: { $0.value >= 0x80 || $0 == "<" || $0 == "|" }) else { return text }
+        var result = text.replacingOccurrences(of: "<br\\s*/?>", with: " ", options: [.regularExpression, .caseInsensitive])
+        let hangul = result.unicodeScalars.contains { (0xAC00...0xD7A3).contains($0.value) }
+        result = String(String.UnicodeScalarView(result.unicodeScalars.map { scalar -> Unicode.Scalar in
+            switch scalar.value {
+            case 0x2028, 0x2029, 0x200B, 0xFEFF: " "
+            case 0x7C where hangul: " "
+            default: scalar
+            }
+        }))
+        if hangul {
+            // A Japanese long-vowel mark after Hangul is a tilde in Korean ("아ー" -> "아~").
+            result = result.replacingOccurrences(of: "(?<=[가-힣])[ーｰ]+", with: "~", options: .regularExpression)
+            let kana = result.unicodeScalars.filter { (0x3040...0x30FF).contains($0.value) }
+            if !kana.isEmpty, kana.allSatisfy({ $0 == "っ" || $0 == "ッ" }) {
+                result = result.replacingOccurrences(of: "[っッ]", with: "", options: .regularExpression)
+            }
+        }
+        result = result.replacingOccurrences(of: "[ \\t]{2,}", with: " ", options: .regularExpression)
+        return result.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
+    }
+
     // MARK: - Per block
 
     private static func placeBlock(_ block: V2Block, page: CGRect, obstacles: [CGRect],
-                                   placedFrames: [CGRect]) -> V2PlacedText {
+                                   placedFrames: [CGRect], source: CGFloat, cap: CGFloat) -> V2PlacedText {
         // Bounds text from every path (live, replay, saved block caches) before shaping.
-        let text = MeasuredText(V2TranslationLengthCap.capped(block.translation ?? "", sourceText: block.sourceText),
-                                font: font(size: referenceSize))
-        let source = sourcePixels(block)
+        let text = MeasuredText(displayText(V2TranslationLengthCap.capped(block.translation ?? "",
+                                                                          sourceText: block.sourceText)),
+                                font: font(size: referenceSize, bold: isBold(block)))
         let target = targetBox(block, page: page, source: source, obstacles: obstacles)
-        let cap = max(floorPixels, source * capRatio)
 
         func strokeInset(_ size: CGFloat) -> CGFloat { strokeWidth(for: block, fontPixels: size) }
+        // The strict line-break rules are kept unless they cost more than 10% of the size.
+        var loose = text
+        loose.strict = false
+        var active = text
         func fit(in box: CGRect) -> Fit? {
+            let strict = fit(in: box, text: text)
+            guard let strictSize = strict?.size, let relaxed = fit(in: box, text: loose) else {
+                active = strict?.condensed == true ? text.condensed(by: condenseScale) : text
+                return strict
+            }
+            let keep = strictSize >= relaxed.size * strictRuleRatio
+            let chosen = keep ? strict : relaxed
+            let base = keep ? text : loose
+            active = chosen?.condensed == true ? base.condensed(by: condenseScale) : base
+            return chosen
+        }
+        func fit(in box: CGRect, text: MeasuredText) -> Fit? {
             let inset = strokeInset(cap)
             let inner = CGSize(width: max(1, box.width - 2 * inset), height: max(1, box.height - 2 * inset))
-            guard let horizontal = largestFit(text, box: inner, vertical: false, minimum: floorPixels, maximum: cap) else {
-                return verticalOption(in: inner, horizontal: nil)
+            guard var horizontal = largestFit(text, box: inner, vertical: false, minimum: floorPixels, maximum: cap) else {
+                return verticalOption(in: inner, horizontal: nil, text: text)
             }
-            return verticalOption(in: inner, horizontal: horizontal) ?? horizontal
+            // Prefer whole words: the largest size at which no word is split wins
+            // unless it is much smaller than the size that needs splits.
+            let widest = text.widestWord
+            if widest > 0, horizontal.lines.count > 1 {
+                let whole = inner.width * widthSlack * referenceSize / widest
+                if whole < horizontal.size, whole >= max(floorPixels, horizontal.size * wholeWordRatio),
+                   let unsplit = largestFit(text, box: inner, vertical: false, minimum: floorPixels, maximum: whole) {
+                    horizontal = unsplit
+                } else if whole < horizontal.size, whole / condenseScale >= max(floorPixels, horizontal.size * wholeWordRatio) {
+                    // Before splitting a word: the same words narrowed to 0.9 width (legacy late
+                    // word repair), when that keeps them whole within the size allowance.
+                    let narrow = text.condensed(by: condenseScale)
+                    if var unsplit = largestFit(narrow, box: inner, vertical: false, minimum: floorPixels,
+                                                maximum: min(horizontal.size, whole / condenseScale)) {
+                        unsplit.condensed = true
+                        horizontal = unsplit
+                    }
+                }
+            }
+            return verticalOption(in: inner, horizontal: horizontal, text: text) ?? horizontal
         }
-        // Korean is set horizontally. Vertical is kept only for a vertical source in a
-        // very tall, narrow box (h >= 3w) where horizontal would be < 2/3 the vertical size.
-        func verticalOption(in inner: CGSize, horizontal: Fit?) -> Fit? {
-            guard block.vertical, inner.height >= inner.width * 3, text.characterCount <= 24 else { return nil }
+        // Korean is set horizontally. A vertical source switches to vertical columns when
+        // the horizontal fit has degenerated into a stack of one or two graphemes per
+        // line (a narrow vertical balloon), or in a very tall, narrow box (h >= 3w,
+        // <= 24 characters) where horizontal would be < 2/3 the vertical size.
+        func verticalOption(in inner: CGSize, horizontal: Fit?, text: MeasuredText) -> Fit? {
+            guard block.vertical, inner.height >= inner.width * 1.5 else { return nil }
+            let stacked = horizontal.map(isStacked) ?? false
+            guard stacked || (inner.height >= inner.width * 3 && text.characterCount <= 24) else { return nil }
             guard let vertical = largestFit(text, box: inner, vertical: true, minimum: floorPixels, maximum: cap) else {
                 return nil
             }
-            if let horizontal, horizontal.size * 1.5 >= vertical.size { return nil }
+            if let horizontal {
+                if stacked ? vertical.size < horizontal.size * stackedVerticalRatio : horizontal.size * 1.5 >= vertical.size {
+                    return nil
+                }
+            }
             return vertical
         }
 
@@ -382,41 +661,67 @@ enum V2Layout {
             for step in 1...6 {
                 let dx = start.width * 0.2 * CGFloat(step) + source * CGFloat(step)
                 let dy = start.height * 0.1 * CGFloat(step)
-                let expanded = start.insetBy(dx: -dx, dy: -dy).intersection(page)
+                // Never across the panel border (S4b's panel frame), when the block sits in one.
+                let expanded = start.insetBy(dx: -dx, dy: -dy).intersection(block.panel.map { $0.union(start) } ?? page)
+                    .intersection(page)
                 box = clipExpansion(original: anchor, expanded: expanded, obstacles: obstacles).union(start)
                 if let found = fit(in: box) { chosen = found; break }
             }
         }
-        let fitted: Fit
+        var fitted: Fit
         if let chosen {
-            fitted = chosen
+            fitted = compact(chosen, text: active, box: box, stroke: strokeInset(chosen.size), sourceHeight: block.bounds.height,
+                             pitch: lineHeightEm)
         } else {
             // Floor size, allowed to overflow the grown box vertically.
             let inset = strokeInset(floorPixels)
             var size = floorPixels
-            var candidate = horizontalFit(text, size: size, width: max(1, box.width - 2 * inset))
+            var candidate = horizontalFit(active, size: size, width: max(1, box.width - 2 * inset))
             // Keep the text inside the page even for pathological inputs (bounded halving).
             var guardCount = 0
             while candidate.extent.height + 2 * inset > page.height || candidate.extent.width + 2 * inset > page.width,
                   guardCount < 6 {
                 size /= 2
-                candidate = horizontalFit(text, size: size, width: min(page.width, max(box.width, page.width / 2)))
+                candidate = horizontalFit(active, size: size, width: min(page.width, max(box.width, page.width / 2)))
                 guardCount += 1
             }
             fitted = candidate
         }
 
         var current = fitted
-        var frame = frameFor(current, in: box, stroke: strokeInset(current.size), page: page)
-        if intersectsAny(frame, placedFrames) {
+        // Over the source: centred on the source text, kept inside the box.
+        let anchor = CGPoint(x: block.bounds.midX, y: block.bounds.midY)
+        var frame = frameFor(current, in: box, stroke: strokeInset(current.size), page: page, anchor: anchor)
+        // Rounded balloon: lines as wide as the clean row spans allow, when that is >= 3% larger.
+        var shaped = false
+        if let rows = block.rows, !fitted.vertical, box == target, target == start {
+            let whole = active.widestWord * fitted.size / referenceSize <= (box.width - 2 * strokeInset(fitted.size)) * widthSlack
+            func probe(_ size: CGFloat) -> (fit: Fit, top: CGFloat)? {
+                spanFit(active, size: size, rows: rows, centreY: anchor.y, stroke: strokeInset(size), whole: whole)
+            }
+            if let size = NativeTranslationFontFitSearch.largestFitting(minimum: fitted.size * 1.03, maximum: cap,
+                                                                         fits: { probe($0) != nil }),
+               let found = probe(size) {
+                let stroke = strokeInset(size)
+                let candidate = CGRect(x: rows.centre - found.fit.extent.width / 2 - stroke, y: found.top - stroke,
+                                       width: found.fit.extent.width + 2 * stroke, height: found.fit.extent.height + 2 * stroke)
+                if page.contains(candidate.insetBy(dx: 0.5, dy: 0.5)), !intersectsAny(candidate, placedFrames) {
+                    current = found.fit
+                    fitted = found.fit
+                    frame = candidate
+                    shaped = true
+                }
+            }
+        }
+        if !shaped, intersectsAny(frame, placedFrames) {
             // Bounded overlap resolution: alternate anchors in the box, then shrink.
             var resolved = false
             for attempt in 0...4 {
                 if attempt > 0 {
                     let size = max(min(floorPixels, current.size), current.size * 0.85)
                     guard size < current.size else { break }
-                    current = current.vertical ? verticalFit(text, size: size, height: box.height)
-                        : horizontalFit(text, size: size, width: box.width - 2 * strokeInset(size))
+                    current = current.vertical ? verticalFit(active, size: size, height: box.height)
+                        : horizontalFit(active, size: size, width: box.width - 2 * strokeInset(size))
                 }
                 let stroke = strokeInset(current.size)
                 if let free = alignedFrames(current, in: box, stroke: stroke, page: page)
@@ -428,11 +733,41 @@ enum V2Layout {
             }
             if !resolved {
                 current = fitted
-                frame = frameFor(current, in: box, stroke: strokeInset(current.size), page: page)
+                frame = frameFor(current, in: box, stroke: strokeInset(current.size), page: page, anchor: anchor)
             }
         }
-        return V2PlacedText(blockID: block.id, frame: frame, fontPixels: current.size,
-                            vertical: current.vertical, lines: current.lines)
+        // Every wrap after the fit used `active`, so its scale is the painted one.
+        var placed = V2PlacedText(blockID: block.id, frame: frame, fontPixels: current.size,
+                                  vertical: current.vertical, lines: current.lines,
+                                  condense: !current.vertical && active.scale != 1 ? active.scale : nil)
+        // Tilted source lettering: the same text at the source tilt when its rotated bounds
+        // fit the box at no more than a 10% size cost and stay clear of placed frames.
+        let angle = shaped ? 0 : V2Rotation.angle(block)
+        if angle != 0, !current.vertical {
+            let stroke = strokeInset(current.size)
+            let inner = CGSize(width: box.width - 2 * stroke, height: box.height - 2 * stroke)
+            let capInset = strokeInset(cap)
+            if let room = V2Rotation.inscribed(inner, angle: angle),
+               let found = fit(in: CGRect(x: 0, y: 0, width: room.width + 2 * capInset, height: room.height + 2 * capInset)),
+               !found.vertical, found.size <= current.size + 0.01, found.size >= current.size * rotationSizeRatio {
+                let tilted = compact(found, text: active, box: CGRect(origin: .zero, size: room), stroke: 0,
+                                     sourceHeight: block.bounds.height, pitch: lineHeightEm)
+                let pad = 2 * strokeInset(tilted.size)
+                let text = CGSize(width: tilted.extent.width + pad, height: tilted.extent.height + pad)
+                let outer = V2Rotation.bounds(CGRect(origin: .zero, size: text), angle: angle)
+                let shell = Fit(size: tilted.size, lines: tilted.lines, extent: outer.size, vertical: false)
+                let rotatedBounds = frameFor(shell, in: box, stroke: 0, page: page, anchor: anchor)
+                if !intersectsAny(rotatedBounds, placedFrames), page.contains(rotatedBounds.insetBy(dx: 0.5, dy: 0.5)) {
+                    placed = V2PlacedText(blockID: block.id,
+                                          frame: CGRect(x: rotatedBounds.midX - text.width / 2,
+                                                        y: rotatedBounds.midY - text.height / 2,
+                                                        width: text.width, height: text.height),
+                                          fontPixels: tilted.size, vertical: false, lines: tilted.lines, angle: angle,
+                                          condense: active.scale != 1 ? active.scale : nil)
+                }
+            }
+        }
+        return placed
     }
 
     /// Largest axis-aligned remainder of `box` after removing each intersecting frame
@@ -483,10 +818,73 @@ enum V2Layout {
     }
 
     /// Centred text frame (including stroke) clamped inside the page.
-    static func frameFor(_ fit: Fit, in box: CGRect, stroke: CGFloat, page: CGRect) -> CGRect {
+    /// Text frame (including stroke) centred on `anchor` (default: the box centre), moved
+    /// inside the box where it fits and clamped inside the page.
+    static func frameFor(_ fit: Fit, in box: CGRect, stroke: CGFloat, page: CGRect, anchor: CGPoint? = nil) -> CGRect {
         let size = CGSize(width: fit.extent.width + 2 * stroke, height: fit.extent.height + 2 * stroke)
-        return clamp(CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2,
-                            width: size.width, height: size.height), page: page)
+        let centre = anchor ?? CGPoint(x: box.midX, y: box.midY)
+        func axis(_ centre: CGFloat, _ length: CGFloat, _ low: CGFloat, _ high: CGFloat) -> CGFloat {
+            let start = centre - length / 2
+            guard length <= high - low else { return (low + high - length) / 2 }
+            return min(max(start, low), high - length)
+        }
+        // Keep a small margin from the page edge when the frame fits inside it (legacy page-edge fit).
+        let margin = min(12, max(2, (fit.size * 0.12).rounded(.up)))
+        let inner = page.insetBy(dx: margin, dy: margin)
+        let edge = inner.width >= size.width && inner.height >= size.height ? inner : page
+        return clamp(CGRect(x: axis(centre.x, size.width, box.minX, box.maxX),
+                            y: axis(centre.y, size.height, box.minY, box.maxY),
+                            width: size.width, height: size.height), page: edge)
+    }
+
+    /// Horizontal fit at `size` whose line i may be as wide as the clean row spans at its
+    /// height, the text centred vertically on `centreY` and kept inside the spans: the middle
+    /// lines of a rounded balloon get its full width. Line counts are tried in increasing
+    /// order (bounded); nil when no count fits (or when a word would split and `whole`).
+    static func spanFit(_ text: MeasuredText, size: CGFloat, rows: V2RowSpans, centreY: CGFloat, stroke: CGFloat,
+                        whole: Bool) -> (fit: Fit, top: CGFloat)? {
+        let pitch = size * lineHeightEm, scale = size / referenceSize
+        let most = Int((rows.bottom - rows.top - 2 * stroke) / pitch)
+        guard most >= 1, scale > 0 else { return nil }
+        for count in 1...min(most, 40) {
+            let height = CGFloat(count) * pitch
+            let top = min(max(centreY - height / 2, rows.top + stroke), rows.bottom - stroke - height)
+            let halves = (0..<count).map { line in
+                rows.halfWidth(top + CGFloat(line) * pitch - stroke, top + CGFloat(line + 1) * pitch + stroke) - stroke
+            }
+            let wrapped = text.wrap(limits: { line in line < count ? max(0, 2 * halves[line] * widthSlack / scale) : 0 })
+            guard wrapped.lines.count == count, !(whole && wrapped.split),
+                  zip(wrapped.widths, halves).allSatisfy({ $0 * scale <= 2 * $1 + 0.01 }) else { continue }
+            return (Fit(size: size, lines: wrapped.lines, extent: CGSize(width: wrapped.widest * scale, height: height),
+                        vertical: false), top)
+        }
+        return nil
+    }
+
+    /// The narrowest wrap of a horizontal fit, at its size, that keeps its words whole (when
+    /// they were), is no taller than the source text (or the fit itself) and fits the box:
+    /// a grown box must not spread the text into long lines away from the source.
+    static func compact(_ fit: Fit, text: MeasuredText, box: CGRect, stroke: CGFloat, sourceHeight: CGFloat,
+                        pitch: CGFloat) -> Fit {
+        guard !fit.vertical, fit.lines.count >= 2 else { return fit }
+        let scale = fit.size / referenceSize
+        let maxHeight = min(box.height - 2 * stroke, max(sourceHeight, fit.extent.height))
+        let whole = text.widestWord * scale / widthSlack
+        // Never narrower than the widest word: compaction adds no split.
+        var low = max(1, whole), high = fit.extent.width / widthSlack + 1
+        guard low < high else { return fit }
+        var best = fit
+        for _ in 0..<10 {
+            let middle = (low + high) / 2
+            let candidate = horizontalFit(text, size: fit.size, width: middle, pitch: pitch)
+            if candidate.extent.height <= maxHeight + 0.01, candidate.extent.width <= fit.extent.width + 0.01 {
+                best = candidate
+                high = middle
+            } else {
+                low = middle
+            }
+        }
+        return best
     }
 
     private static func alignedFrames(_ fit: Fit, in box: CGRect, stroke: CGFloat, page: CGRect) -> [CGRect] {

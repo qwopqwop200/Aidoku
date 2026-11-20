@@ -12,7 +12,9 @@ import Foundation
 //   The colour is the median of the candidate's stroke-core pixels.
 // - outline: colour profile of distance rings around the fill mask; presence by
 //   boosted trees plus page consensus, width by ring-colour persistence.
-// - bold: always regular (no cheap signal; one bold face is bundled).
+// - bold: glyph stroke thickness / size >= boldStrokeRatio. The ratio does not separate the
+//   GT bold labels (1.5% of sources; best train F1 0.3), so it is kept out of reach and S10
+//   paints the bundled Regular face, the weight of 98.5% of source lettering.
 // Constants were fit on TRAIN and selected on DEV (the out-of-repo research scripts (scripts-style)).
 
 extension V2Style {

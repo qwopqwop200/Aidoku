@@ -30,12 +30,16 @@ enum V2Painter {
         configure(context, height: height, page: page)
         let byID = Dictionary(blocks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let metrics = V2Layout.metrics()
-        var fonts: [CGFloat: CTFont] = [:]
-        let jobs: [Job] = placed.compactMap { item in
+        var fonts: [String: CTFont] = [:]
+        let jobs: [Job] = placed.compactMap { item -> Job? in
             guard item.fontPixels.isFinite, item.fontPixels > 0, let block = byID[item.blockID] else { return nil }
-            let font = fonts[item.fontPixels] ?? V2Layout.font(size: item.fontPixels)
-            fonts[item.fontPixels] = font
-            return Job(item: item, block: block, font: font, clip: item.frame.insetBy(dx: -2, dy: -2).intersection(page))
+            let bold = V2Layout.isBold(block), key = "\(item.fontPixels)-\(bold)"
+            let font = fonts[key] ?? V2Layout.font(size: item.fontPixels, bold: bold)
+            fonts[key] = font
+            // Sampled before any text is drawn, so every job reads the restored background.
+            let paint = legible(block: block, fontPixels: item.fontPixels, background: sampledBackground(context, under: item.frame))
+            return Job(item: item, block: block, font: font, clip: item.bounds.insetBy(dx: -2, dy: -2).intersection(page),
+                       paint: paint)
         }
         let groups = independentGroups(jobs.map(\.clip))
         // Further views of the same bitmap, each in the same state as `context`.
@@ -61,6 +65,75 @@ enum V2Painter {
         let block: V2Block
         let font: CTFont
         let clip: CGRect
+        let paint: Paint
+    }
+
+    struct Paint {
+        var fill: CGColor
+        var stroke: CGColor?
+        var strokeWidth: CGFloat
+    }
+
+    // MARK: - Legibility
+
+    /// Minimum contrast (WCAG ratio) of the painted text against the restored background.
+    static let minimumContrast: CGFloat = 3
+    /// Below this contrast an outline does not separate the text from the background.
+    static let invisibleOutline: CGFloat = 1.5
+    /// Width of an added legibility halo (fits the item clip, 2 px outside the frame).
+    static func haloWidth(_ fontPixels: CGFloat) -> CGFloat { min(2, max(1, fontPixels * 0.06)) }
+
+    static func luminance(_ rgb: V2RGB) -> CGFloat {
+        func linear(_ value: UInt8) -> CGFloat {
+            let c = CGFloat(value) / 255
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(rgb.r) + 0.7152 * linear(rgb.g) + 0.0722 * linear(rgb.b)
+    }
+
+    static func contrast(_ a: V2RGB, _ b: V2RGB) -> CGFloat {
+        let la = luminance(a), lb = luminance(b)
+        return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+    }
+
+    /// The source style, made legible on `background`: text whose fill and outline both
+    /// vanish into the background gets a black or white outline (the one that best
+    /// separates the fill, weighted 0.85, and the background, 0.15); an existing outline
+    /// keeps its colour unless it is itself invisible there.
+    static func legible(block: V2Block, fontPixels: CGFloat, background: V2RGB?) -> Paint {
+        let (fill, stroke) = paints(for: block)
+        let width = V2Layout.strokeWidth(for: block, fontPixels: fontPixels)
+        guard let background, let style = block.style else { return Paint(fill: fill, stroke: stroke, strokeWidth: width) }
+        let text = style.textColor
+        guard contrast(text, background) < minimumContrast else { return Paint(fill: fill, stroke: stroke, strokeWidth: width) }
+        if let outline = style.strokeColor, width > 0, contrast(outline, background) >= invisibleOutline,
+           contrast(outline, text) >= minimumContrast {
+            return Paint(fill: fill, stroke: stroke, strokeWidth: width)
+        }
+        let black = V2RGB(r: 0, g: 0, b: 0), white = V2RGB(r: 255, g: 255, b: 255)
+        func score(_ edge: V2RGB) -> CGFloat { 0.85 * contrast(text, edge) + 0.15 * contrast(background, edge) }
+        let edge = score(black) >= score(white) ? black : white
+        return Paint(fill: fill, stroke: color(edge), strokeWidth: max(width, haloWidth(fontPixels)))
+    }
+
+    /// Median colour of a 5 x 5 sample grid under `frame` in the (opaque, top-row-first) bitmap.
+    static func sampledBackground(_ context: CGContext, under frame: CGRect) -> V2RGB? {
+        guard let data = context.data, context.bitsPerPixel == 32, frame.width >= 1, frame.height >= 1,
+              frame.minX.isFinite, frame.minY.isFinite else { return nil }
+        let bytes = data.assumingMemoryBound(to: UInt8.self), stride = context.bytesPerRow
+        var r: [UInt8] = [], g: [UInt8] = [], b: [UInt8] = []
+        for i in 0..<5 {
+            for j in 0..<5 {
+                let x = Int(frame.minX + frame.width * (CGFloat(i) + 0.5) / 5)
+                let y = Int(frame.minY + frame.height * (CGFloat(j) + 0.5) / 5)
+                guard x >= 0, y >= 0, x < context.width, y < context.height else { continue }
+                let offset = y * stride + x * 4
+                r.append(bytes[offset]); g.append(bytes[offset + 1]); b.append(bytes[offset + 2])
+            }
+        }
+        guard !r.isEmpty else { return nil }
+        func median(_ values: [UInt8]) -> UInt8 { values.sorted()[values.count / 2] }
+        return V2RGB(r: median(r), g: median(g), b: median(b))
     }
 
     /// Each context is used by exactly one concurrent iteration.
@@ -158,13 +231,13 @@ enum V2Painter {
     /// with each measured line (shaped with `color`) for drawing. Horizontal: one origin
     /// per line with its measured width. Vertical: one per character.
     /// Colour does not change shaping or typographic width.
-    private static func runs(for item: V2PlacedText, stroke: CGFloat, metrics: V2Layout.FontMetrics, font: CTFont,
-                             color: CGColor) -> [(text: String, origin: CGPoint, line: CTLine)] {
+    private static func runs(for item: V2PlacedText, stroke: CGFloat, pitch: CGFloat, metrics: V2Layout.FontMetrics,
+                             font: CTFont, color: CGColor) -> [(text: String, origin: CGPoint, line: CTLine)] {
         let size = item.fontPixels
         let ascent = metrics.ascent * size, glyph = (metrics.ascent + metrics.descent) * size
         var result: [(String, CGPoint, CTLine)] = []
         if !item.vertical {
-            let lineHeight = size * V2Layout.lineHeightEm
+            let lineHeight = size * pitch
             for (index, text) in item.lines.enumerated() {
                 let shaped = line(text, font: font, color: color)
                 let width = CGFloat(CTLineGetTypographicBounds(shaped, nil, nil, nil))
@@ -174,11 +247,11 @@ enum V2Painter {
             }
             return result
         }
-        let columnWidth = size * V2Layout.lineHeightEm, cell = size * V2Layout.verticalAdvanceEm
+        let columnWidth = size * pitch, cell = size * V2Layout.verticalAdvanceEm
         for (column, text) in item.lines.enumerated() {
-            let centre = item.frame.maxX - stroke - (CGFloat(column) + 0.5) * columnWidth
+            let centre = item.frame.maxX - stroke - size / 2 - CGFloat(column) * columnWidth
             var y = item.frame.minY + stroke
-            for character in text {
+            for character in verticalForms(text) {
                 if character == " " { y += cell / 2; continue }
                 let string = String(character)
                 let shaped = line(string, font: font, color: color)
@@ -190,6 +263,19 @@ enum V2Painter {
         return result
     }
 
+    /// Vertical presentation forms for punctuation set in a column (ellipses, brackets,
+    /// dashes, commas and stops); "..." becomes one vertical ellipsis.
+    static func verticalForms(_ text: String) -> String {
+        String(text.replacingOccurrences(of: "...", with: "…").map { verticalForm[$0] ?? $0 })
+    }
+
+    private static let verticalForm: [Character: Character] = [
+        "…": "︙", "‥": "︰", "「": "﹁", "」": "﹂", "『": "﹃", "』": "﹄", "“": "﹁", "”": "﹂", "‘": "﹃", "’": "﹄",
+        "(": "︵", ")": "︶", "（": "︵", "）": "︶", "[": "﹇", "]": "﹈", "【": "︻", "】": "︼", "〈": "︿", "〉": "﹀",
+        "《": "︽", "》": "︾", "—": "︱", "―": "︱", "─": "︱", "ー": "︱", ",": "︐", "、": "︑", "。": "︒", ".": "︒",
+        ":": "︓", ";": "︔", "~": "≀", "～": "≀"
+    ]
+
     private static func line(_ text: String, font: CTFont, color: CGColor) -> CTLine {
         let attributes: [NSAttributedString.Key: Any] = [
             NSAttributedString.Key(kCTFontAttributeName as String): font,
@@ -199,23 +285,38 @@ enum V2Painter {
     }
 
     private static func draw(_ job: Job, metrics: V2Layout.FontMetrics, context: CGContext, page: CGRect) {
-        let item = job.item, block = job.block, font = job.font
-        let (fill, strokeColor) = paints(for: block)
-        let stroke = V2Layout.strokeWidth(for: block, fontPixels: item.fontPixels)
-        let runs = runs(for: item, stroke: stroke, metrics: metrics, font: font, color: fill)
+        let item = job.item, font = job.font
+        let fill = job.paint.fill, strokeColor = job.paint.stroke
+        // Layout insets the frame by the style's outline; an added halo sits in the clip margin.
+        let stroke = V2Layout.strokeWidth(for: job.block, fontPixels: item.fontPixels)
+        let outline = job.paint.strokeWidth
+        let runs = runs(for: item, stroke: stroke, pitch: V2Layout.lineHeightEm, metrics: metrics, font: font, color: fill)
         context.saveGState()
         // Never paint outside the page (layout already clamps frames to it).
         context.clip(to: job.clip)
-        if stroke > 0, let strokeColor {
+        if let angle = item.angle, angle != 0 {
+            // Glyph painters preserve the text matrix, so a rotated CTM tilts whole lines.
+            context.translateBy(x: item.frame.midX, y: item.frame.midY)
+            context.rotate(by: angle)
+            context.translateBy(x: -item.frame.midX, y: -item.frame.midY)
+        }
+        // After the rotation (CTM calls apply in reverse): lines narrow in their own frame.
+        if let condense = item.condense, condense > 0, condense != 1 {
+            // Condensed lines: narrowed about the frame centre (layout measured them so).
+            context.translateBy(x: item.frame.midX, y: 0)
+            context.scaleBy(x: condense, y: 1)
+            context.translateBy(x: -item.frame.midX, y: 0)
+        }
+        if outline > 0, let strokeColor {
             for run in runs {
                 let shaped = line(run.text, font: font, color: strokeColor)
-                if let prepared = NativeCTFontStrokePainter.prepare(line: shaped, additionalFillStrokeWidth: stroke * 2) {
+                if let prepared = NativeCTFontStrokePainter.prepare(line: shaped, additionalFillStrokeWidth: outline * 2) {
                     NativeCTFontStrokePainter.draw(prepared: prepared, context: context, anchor: run.origin)
                 } else {
                     fallback(run.text, font: font, attributes: [
                         NSAttributedString.Key(kCTForegroundColorAttributeName as String): strokeColor,
                         NSAttributedString.Key(kCTStrokeColorAttributeName as String): strokeColor,
-                        NSAttributedString.Key(kCTStrokeWidthAttributeName as String): stroke * 200 / item.fontPixels
+                        NSAttributedString.Key(kCTStrokeWidthAttributeName as String): outline * 200 / item.fontPixels
                     ], origin: run.origin, context: context)
                 }
             }

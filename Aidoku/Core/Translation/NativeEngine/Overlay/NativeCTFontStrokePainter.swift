@@ -77,9 +77,9 @@ enum NativeCTFontStrokePainter {
         context.textMatrix = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: 0)
         context.textPosition = .zero
         context.setTextDrawingMode(.stroke)
-        // CSS text outlines use miter limit 4; Quartz's default 10 extends
-        // sharp inner counters. Keep this scoped to the saved glyph state.
-        context.setMiterLimit(4)
+        // Round joins: thick outlines grow no spikes at sharp glyph corners (the
+        // legacy source-outline paint). Scoped to the saved glyph state.
+        context.setLineJoin(.round)
         for record in prepared.records {
             context.saveGState()
             context.setStrokeColor(record.color)

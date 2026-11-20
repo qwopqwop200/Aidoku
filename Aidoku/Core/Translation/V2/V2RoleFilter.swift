@@ -17,12 +17,28 @@ enum V2RoleFilter {
     static let textScore: Float = 0.25
     static let textCoverage: CGFloat = 0.3
 
+    /// Fragment rule (fit on train with replayed V2 blocks against GT merged text regions,
+    /// checked on dev and the train folds): outside any detected balloon, a block of at most
+    /// `fragmentCharacters` non-space characters read with mean confidence below
+    /// `fragmentConfidence` is noise or art (rejects 336 non-text blocks on train for 4 lost
+    /// one-character fragments of 2333 text blocks; dev 176 of 777 for 3 of 749). It stays
+    /// as source pixels: no provider request, no erase, no paint.
+    static let fragmentConfidence: Float = 0.6
+    static let fragmentCharacters = 4
+
     static func classify(_ blocks: [V2Block], layout: [V2LayoutRegion]) -> [V2Block] {
         blocks.map { block in
             var result = block
-            result.role = role(of: block.bounds, layout: layout)
+            result.role = isFragment(block) ? .background : role(of: block.bounds, layout: layout)
             return result
         }
+    }
+
+    static func isFragment(_ block: V2Block) -> Bool {
+        guard block.balloon == nil, !block.lines.isEmpty,
+              block.sourceText.filter({ !$0.isWhitespace }).count <= fragmentCharacters else { return false }
+        let confidence = block.lines.reduce(Float(0)) { $0 + $1.confidence } / Float(block.lines.count)
+        return confidence < fragmentConfidence
     }
 
     static func role(of bounds: CGRect, layout: [V2LayoutRegion]) -> V2Role {

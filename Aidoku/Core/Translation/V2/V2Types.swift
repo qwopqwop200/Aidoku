@@ -71,9 +71,33 @@ struct V2Block: Sendable, Codable, Equatable {
     var sourceText: String
     /// Enclosing balloon interior, when one was detected.
     var balloon: CGRect?
+    /// Clean half-width per raster row around the source centre (S4b), so S9 can widen
+    /// the middle lines of a rounded balloon beyond its inscribed rectangle.
+    var rows: V2RowSpans?
+    /// The confident RF panel frame holding the block (S4b), which no box may cross.
+    var panel: CGRect?
     var role: V2Role = .dialogue
     var translation: String?
     var style: V2Style?
+}
+
+/// Symmetric clean spans about `centre` (page x) for rows `top + i * step` (page px).
+struct V2RowSpans: Sendable, Codable, Equatable {
+    var top: CGFloat
+    var step: CGFloat
+    var centre: CGFloat
+    var halfWidths: [CGFloat]
+
+    var bottom: CGFloat { top + CGFloat(halfWidths.count) * step }
+
+    /// The narrowest half-width over the rows that [y0, y1) touches; 0 outside the spans.
+    func halfWidth(_ y0: CGFloat, _ y1: CGFloat) -> CGFloat {
+        guard step > 0, y0 >= top - 0.01, y1 <= bottom + 0.01, y1 > y0 else { return 0 }
+        let first = max(0, Int(((y0 - top) / step).rounded(.down)))
+        let last = min(halfWidths.count - 1, Int(((y1 - top) / step).rounded(.up)) - 1)
+        guard first <= last else { return 0 }
+        return halfWidths[first...last].min() ?? 0
+    }
 }
 
 /// Output of the layout stage for one block.
@@ -83,6 +107,14 @@ struct V2PlacedText: Sendable, Codable, Equatable {
     var fontPixels: CGFloat
     var vertical: Bool
     var lines: [String]
+    /// Source tilt in radians (clockwise, about the frame centre); nil when upright.
+    /// `frame` is the unrotated text rectangle.
+    var angle: CGFloat?
+    /// Horizontal scale of every line about the frame centre (0.9 condense); nil when 1.
+    var condense: CGFloat?
+
+    /// Painted area: the frame rotated by `angle`.
+    var bounds: CGRect { V2Rotation.bounds(frame, angle: angle ?? 0) }
 }
 
 /// Per-stage wall-clock milliseconds for one page.

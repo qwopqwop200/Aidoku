@@ -31,13 +31,14 @@ stores, registries or environment-variable policy switches.
 | S1 layout | `V2LayoutDetection.swift` | `detect(_ page: V2Page, models:) async throws -> [V2LayoutRegion]` (RF-DETR), runs concurrently with S2 | 100 |
 | S2 detect | `V2Detection.swift` | `detect(_ page:, models:) async throws -> [V2Line]` then `V2LineAssembly.assemble(_ lines:, layout:) -> [V2Line]` merging detector fragments of one column/row (recall-first) | 200 |
 | S3 recognize | `V2Recognition.swift` | `recognize(_ page:, lines:, models:) async throws -> [V2Line]` batched by width bucket | 250 |
-| S4 group | `V2Grouping.swift` | `group(_ lines:, layout:, pageSize:) -> [V2Block]` + reading order; `V2RoleFilter.classify(_ blocks:, layout:) -> [V2Block]` | 10 |
-| S5 translate | `V2Translation.swift` | one request per page through `TranslationHTTPCodec` / `RemoteTranslationClient`; replay mode reads saved translations (no LLM) for evaluation | LLM |
+| S4 group | `V2Grouping.swift` | `group(_ lines:, layout:, pageSize:) -> [V2Block]` + reading order; `V2RoleFilter.classify(_ blocks:, layout:) -> [V2Block]` (also keeps low-confidence fragments of <= 4 characters outside any balloon as source: no request, erase or paint) | 10 |
+| S4b interior | `V2Interior.swift` | `apply(_ blocks:, raster:, pageSize:, layout:) -> [V2Block]` sets `balloon` to the lettering box: the clean-paper rectangle grown from the block on the S4 gray raster (up to 8 x 4 line thicknesses outside balloons; stops at ink, outlines, art, the enclosing RF panel frame and other RF balloons; width-first or all sides, larger kept; plus per-row clean half-widths about the source centre, `V2Block.rows`), or the ellipse-inscribed rectangle of a detected balloon that holds no other text, whichever is larger | 2 |
+| S5 translate | `V2Translation.swift` | one request per page through `TranslationHTTPCodec` / `RemoteTranslationClient` with the page-lettering contract (page role descriptions, one call, no fallback) when the page image is attached; replay mode reads saved translations (no LLM) for evaluation | LLM |
 | S6 mask | `V2RemovalMask.swift` | `build(_ page:, blocks:, layout:) -> [UInt8]` page-size 0/255 text-ink mask, **recall first** (erase every trace) with an artwork false-positive guard | 80 |
 | S7 inpaint | `V2Inpaint.swift` | `restore(_ page:, mask:, models:) async throws -> CGImage` (AOT, pixels outside the mask unchanged) | 200 |
 | S8 style | `V2Style.swift` | `estimate(_ page:, blocks:) -> [V2Block]` font px, bold, text/stroke colour | 30 |
-| S9 layout | `V2Layout.swift` | `place(_ blocks:, pageSize:) -> [V2PlacedText]` single bounded pass: largest CoreText size that fits the balloon/block; never refuses a page (floor 10 px, then allowed balloon overflow) | 50 |
-| S10 paint | `V2Painter.swift` | `paint(background:, blocks:, placed:) -> CGImage` CoreText horizontal/vertical with stroke | 100 |
+| S9 layout | `V2Layout.swift`, `V2Cohort.swift`, `V2Rotation.swift` | `place(_ blocks:, pageSize:) -> [V2PlacedText]` single bounded pass: largest CoreText size that fits the lettering box; never refuses a page (floor 10 px, then allowed balloon overflow). Size cohorts (same orientation/bold/outline/colour class, sources snapped within 1.08x, chained within 1.22x) share a cap and then shrink toward one common size (>= 0.8x own fit) when that lowers the page inconsistency count. Whole words are preferred down to 0.85x of the split size, then narrowed to 0.9 width before a word is split (never inside a Latin word or number); closing marks never start and opening marks never end a line; punctuation never stands alone; Korean phrase coupling (determiners, negation, dependent nouns), no lone trailing syllable and no line-initial suffix mark unless they cost > 10% of the size. The chosen wrap is compacted to the narrowest width no taller than the source and centred on the source; with row spans, lines may take the full width of their rows in a rounded balloon when that allows a >= 3% larger size. A vertical source whose horizontal fit stacks one or two graphemes per line is set in vertical columns; tilted sources (line-quad consensus) are painted at their tilt when the rotated text fits. Provider line markup (`<br>`, `\|` in Hangul, separators, zero-width spaces) is painted as spaces and a long-vowel mark after Hangul as `~`; frames keep a small page-edge margin and fallback growth stays inside the RF panel | 50 |
+| S10 paint | `V2Painter.swift` | `paint(background:, blocks:, placed:) -> CGImage` CoreText horizontal/vertical (vertical punctuation forms) in the bundled Aidoku Serif KR Regular (Bold only for S8-bold lettering; 98.5% of GT sources are regular), rotated about the frame centre when tilted; outline width scales with the size, round joins, outlines before fills; text whose fill and outline would vanish into the sampled restored background gets a black/white legibility halo | 100 |
 | Orchestrator | `V2Pipeline.swift` | runs one page, records `V2Timings`, returns `V2PageResult`; host overlaps pages (S1+S2 concurrent, S3 batched, LLM overlapped, encode off the critical path) | — |
 
 Gate: Mac non-LLM wall time per page median <= 1.0 s, p90 <= 2.0 s.
@@ -57,6 +58,17 @@ if it wins most folds.
 - Role (S4): dialogue recall 1.0; F1 >= 0.98.
 - Style (S8): font size MAE <= 2.6 px; weight accuracy >= 0.98.
 - Render (S9/S10): zero page failures; no text outside the page; no overlap between painted blocks.
+  Typesetting is also checked against the GT balloon/narration masks (share of each text frame outside its
+  balloon), the GT exact source-size classes (painted size spread inside a class), distance from the source and
+  a gradient-based art-coverage proxy, plus line breaks inside words, lines opening with closing punctuation and
+  punctuation-only lines. Replay, train 506 pages (never used for selection), before -> after: blocks with a split
+  word 1330 -> 736, closing-mark line starts 1190 -> 49, punctuation-only lines 1101 -> 16, frames > 5% outside
+  their GT balloon 744 -> 63, overlaps 6 -> 0, frame-to-source distance p90 5.3 -> 0.50 em, art coverage
+  0.123 -> 0.038; source-size classes within 1.10x / 1.25x 0.446 / 0.588 -> 0.351 / 0.584; painted size vs GT
+  source size 1.18x -> 1.00x, sizes < 0.6x source 50 -> 53. Evaluated and left out: shadows and multi-ring
+  outlines (0.3% / 0.2% of GT sources), SFX notes (unreliable SFX role), page style harmonization (raised fill
+  and outline colour error against GT source_appearance at every threshold), AOT boundary-bias calibration
+  (changed 8 of 179 dev pages by one level: flat rings are rare).
 
 ## iOS app integration
 
@@ -66,7 +78,7 @@ session (recognizer 2, or 3 at >= 7 GB; detector 1-2; AOT 1) and are released on
 memory warnings; S5 uses the live `RemoteTranslationClient` through
 `ReaderTranslationService.translateV2` (shared provider limiter, mandatory page
 settings). The rendered page is cached under `v2-<version>-` keys (image as
-`.layout`, blocks as `.translation`) and presented by `ReaderTranslationPage.processV2`
+`.layout`, blocks as `.translation`) plus the render version (`renderVersion`): a rendering-only change re-renders from the stored blocks (S1-S4 re-run, translations replayed by id and source text) without a provider call, and the blocks are stored even when only S7/S9 failed. Provider `error` roles and replies that repeat lettered source text keep the source pixels. Pages are presented by `ReaderTranslationPage.processV2`
 through the cached-page canvas. A cached page (memory LRU, then disk) is
 attached in the loader's source commit (`prepareCachedImage`), so it never
 flashes the source. Finished bitmaps, including temporary (non-persisted)

@@ -189,7 +189,7 @@ enum V2Main {
             .appendingPathComponent("output/image-translation/run-\(UUID().uuidString)")
         let pagesDirectory = output.appendingPathComponent("pages")
         try FileManager.default.createDirectory(at: pagesDirectory, withIntermediateDirectories: true)
-        V2Layout.registerFont(at: root.appendingPathComponent("Aidoku/Resources/Translation/\(V2Layout.fontName).woff2"))
+        V2Layout.registerFonts(in: root.appendingPathComponent("Aidoku/Resources/Translation"))
         let replay = try settings.replay.map { try V2HostReplay(root: $0) }
         let direction = V2ReadingDirection(rawValue: settings.readingDirection) ?? .rightToLeft
 

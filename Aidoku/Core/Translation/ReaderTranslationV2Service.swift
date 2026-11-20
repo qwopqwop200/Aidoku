@@ -12,8 +12,12 @@ import UniformTypeIdentifiers
 @available(iOS 18.0, *)
 actor ReaderTranslationV2Service {
     static let shared = ReaderTranslationV2Service()
-    /// Bump whenever V2 output for the same page/settings can change.
+    /// Bump whenever the translated blocks for the same page/settings can change (S1-S5:
+    /// OCR, grouping, request or response handling). Keys both cache rows.
     static let version = "v2-pipeline-1"
+    /// Bump whenever only the rendering can change (S6-S10 and the S4b lettering boxes): the
+    /// image row is re-rendered from the stored blocks without a new provider call.
+    static let renderVersion = "v2-render-2"
 
     enum Failure: Error { case imageUnavailable }
 
@@ -178,7 +182,7 @@ actor ReaderTranslationV2Service {
         return "v2-" + version + "-" + identity
     }
 
-    private static func imageKey(_ key: String) -> String { key + "-image" }
+    private static func imageKey(_ key: String) -> String { key + "-image-" + renderVersion }
     private static func blocksKey(_ key: String) -> String { key + "-blocks" }
 
     // MARK: Pages
@@ -327,7 +331,11 @@ actor ReaderTranslationV2Service {
         try Task.checkCancellation()
         if let error = failure.error { throw error }
         guard let output = result.output else { throw Failure.imageUnavailable }
-        if let key, let cache, result.failure == nil {
+        // Paid provider output is kept even when only rendering failed (S7 inpaint, S9
+        // placement, back admission), so a retry re-renders without a new provider call.
+        let rendered = result.failure == nil
+        let translated = rendered || Self.renderOnlyFailure(result.failure)
+        if let key, let cache, translated {
             // JPEG encoding and the disk write run after the page is returned for display.
             let blocks = result.blocks
             let storesBlocks = replayBlocks == nil
@@ -335,12 +343,20 @@ actor ReaderTranslationV2Service {
                 if storesBlocks, let translationGeneration, let data = try? JSONEncoder().encode(blocks) {
                     try? await cache.store(data, for: Self.blocksKey(key), kind: .translation, generation: translationGeneration)
                 }
-                if let layoutGeneration, let data = Self.encode(output) {
+                if rendered, let layoutGeneration, let data = Self.encode(output) {
                     try? await cache.store(data, for: Self.imageKey(key), kind: .layout, generation: layoutGeneration)
                 }
             }
         }
         return PageOutput(image: output, timings: result.timings, fromCache: false)
+    }
+
+    /// Whether every recorded page failure is in a rendering stage (the blocks are complete).
+    static func renderOnlyFailure(_ failure: String?) -> Bool {
+        guard let failure else { return true }
+        return failure.components(separatedBy: "; ").allSatisfy { part in
+            ["s7:", "s9:", "back:"].contains { part.hasPrefix($0) }
+        }
     }
 
     /// Source-language policy (the legacy `ReaderTranslationLanguageFilter`

@@ -31,6 +31,10 @@ enum V2Translation {
             request.imageJPEG = imageJPEG
             request.filtersSFX = true
             request.filtersBackground = true
+            // The page-lettering contract (legacy page requests and the settings connection
+            // test): page role descriptions in the prompt and one call per request, without
+            // source-alignment retries, protocol fallback or image downgrade. It needs the image.
+            if imageJPEG != nil { request.translatesPageLettering = true }
             return request
         }
     }
@@ -63,9 +67,14 @@ enum V2Translation {
         blocks.map { block in
             var output = block
             guard let segment = lookup(block) else { return output }
+            // A reply that only repeats lettered source text (an untranslated line, a sign kept
+            // as is) keeps the source pixels instead of erasing and repainting the same text.
+            guard !V2TranslationLengthCap.copiesSource(segment.text, block.sourceText) else { return output }
             output.translation = V2TranslationLengthCap.capped(segment.text, sourceText: block.sourceText)
             if segment.isSFX == true || segment.textRole == .sfx { output.role = .sfx }
-            if segment.textRole == .background { output.role = .background }
+            // A provider "error" (not text: misread art, noise) keeps its source pixels, as
+            // background text does (the legacy restore-source rule).
+            if segment.textRole == .background || segment.textRole == .error { output.role = .background }
             return output
         }
     }
@@ -97,6 +106,13 @@ enum V2TranslationLengthCap {
         return min(maximumCharacters, max(minimumCharacters, sourceCount * charactersPerSourceCharacter))
     }
 
+    /// Whether `translation` equals `source` (ignoring whitespace) and the source has letters;
+    /// punctuation-only sources ("……", "!?") still paint.
+    static func copiesSource(_ translation: String, _ source: String) -> Bool {
+        let a = V2TranslationReplay.normalized(translation), b = V2TranslationReplay.normalized(source)
+        return !a.isEmpty && a == b && b.contains { $0.isLetter }
+    }
+
     /// `translation` unchanged when within the limit, else its first `limit`
     /// grapheme clusters (never splitting a Character).
     static func capped(_ translation: String, sourceText: String) -> String {
@@ -113,7 +129,7 @@ enum V2TranslationLengthCap {
 ///
 /// Layout: `<root>/page-index.json` maps page id -> {dir}. Each page dir has
 /// `final.json` (regions with `source`, normalized `rect`, `translation`) and
-/// `040-translation-result.json` (provider roles by region id).
+/// `NNN-translation-result.json` (provider roles by region id).
 struct V2TranslationReplay: Sendable {
     struct Entry: Sendable, Codable, Equatable {
         var id: String
@@ -145,7 +161,10 @@ struct V2TranslationReplay: Sendable {
               let regions = final["regions"] as? [[String: Any]] else { return nil }
         let width = (final["width"] as? Double) ?? 1, height = (final["height"] as? Double) ?? 1
         var roles: [String: String] = [:]
-        if let resultData = try? Data(contentsOf: directory.appendingPathComponent("040-translation-result.json")),
+        // The stage number in the result file name varies between runs (037-, 040-, ...).
+        let resultName = ((try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? [])
+            .filter { $0.hasSuffix("-translation-result.json") }.sorted().last ?? "040-translation-result.json"
+        if let resultData = try? Data(contentsOf: directory.appendingPathComponent(resultName)),
            let result = (try? JSONSerialization.jsonObject(with: resultData)) as? [String: Any],
            let value = result["value"] as? [String: Any], let items = value["translations"] as? [[String: Any]] {
             for item in items {
@@ -249,6 +268,9 @@ struct V2TranslationReplay: Sendable {
         let texts = entries.compactMap(\.translation).filter { !$0.isEmpty }
         if !texts.isEmpty { block.translation = texts.joined(separator: " ") }
         if entries.allSatisfy({ $0.role == "sfx" }) { block.role = .sfx }
-        if entries.allSatisfy({ $0.role == "background" }) { block.role = .background }
+        if entries.allSatisfy({ $0.role == "background" || $0.role == "error" }) { block.role = .background }
+        if let translation = block.translation, V2TranslationLengthCap.copiesSource(translation, block.sourceText) {
+            block.translation = nil
+        }
     }
 }
