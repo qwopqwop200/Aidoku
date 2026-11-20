@@ -6,7 +6,7 @@
 "DELETE" = "Smazat";
 "REMOVE" = "Odstranit";
 "RENAME" = "Přejmenovat";
-"CLEAR" = "Vymazat";
+"CLEAR" = "Smazat";
 "LOADING_ELLIPSIS" = "Načítání…";
 // General
 "CONTINUE" = "Pokračovat";
@@ -16,15 +16,13 @@
 
 // Downloads
 "DOWNLOAD" = "Stáhnout";
-"NEXT_UNREAD" = "Další nepřečtená";
-"NEXT_%i_UNREAD" = "Další nepřečtené (%i)";
 "DOWNLOADED" = "Staženo";
-"DOWNLOAD_QUEUE" = "Fronta stahování";
+"DOWNLOAD_QUEUE" = "Seznam stahování";
 "CANCEL_DOWNLOAD" = "Zrušit stahování";
-"REMOVE_DOWNLOAD" = "Odstranit staženou položku";
+"REMOVE_DOWNLOAD" = "Odstranit položku";
 "REMOVE_ALL_DOWNLOADS" = "Odstranit všechny stažené položky";
 "REMOVE_DOWNLOADS" = "Odstranit stažené položky";
-"REMOVE_DOWNLOADS_CONFIRM" = "Odstranit všechny vybrané stažené položky?";
+"REMOVE_DOWNLOADS_CONFIRM" = "Chcete odstranit všechny stažené položky?";
 
 // Library
 "LIBRARY" = "Knihovna";
@@ -74,39 +72,39 @@
 "UNTITLED" = "Bez názvu";
 "STATUS_CANCELLED" = "Zrušeno";
 "STATUS_COMPLETED" = "Dokončeno";
-"SUGGESTIVE" = "Se sexuálními náznaky";
+"SUGGESTIVE" = "Sugestivní";
 "NSFW" = "18+";
-"MORE" = "Více";
-"SOURCE_ORDER" = "Pořadí ve zdroji";
+"MORE" = "více";
+"SOURCE_ORDER" = "Pořadí zdrojů";
 "MISSING_SOURCE" = "Zdroj chybí";
-"MISSING_SOURCE_TEXT" = "Původní zdroj této mangy zřejmě chybí. Nainstalujte jej znovu nebo tento titul odstraňte z knihovny.";
+"MISSING_SOURCE_TEXT" = "Původní zdroj této mangy chybí. Znovu ji stáhněte nebo ji odstraňte z nikovny.";
 "SELECT_ALL" = "Vybrat vše";
 "DESELECT_ALL" = "Zrušit výběr všech";
 
 // Reader
 "CHAPTER" = "Kapitola";
-"VOLUME_X" = "Svazek %g";
+"VOLUME_X" = "Díl %g";
 "CHAPTER_X" = "Kapitola %g";
-"VOL_X" = "Sv.%g";
-"VOL_SPACE_X" = "Sv. %g";
+"VOL_X" = "Díl %g";
+"VOL_SPACE_X" = "Díl %g";
 "CH_SPACE_X" = "Kap. %g";
-"NO_CHAPTERS_AVAILABLE" = "Žádné dostupné kapitoly";
+"NO_CHAPTERS_AVAILABLE" = "Žádné kaptoly nejsou dostupné";
 "START_READING" = "Začít číst";
 "CONTINUE_READING" = "Pokračovat ve čtení";
 "READ" = "Přečteno";
 "UNREAD" = "Nepřečteno";
 "MARK" = "Označit";
 "MARK_ALL" = "Označit vše";
-"MARK_PREVIOUS" = "Označit předchozí kapitoly";
+"MARK_PREVIOUS" = "Označit předchozí";
 "MARK_READ" = "Označit jako přečtené";
 "MARK_UNREAD" = "Označit jako nepřečtené";
 "PREVIOUS_COLON" = "Předchozí:";
 "NEXT_COLON" = "Následující:";
-"CURRENT_COLON" = "Aktuální:";
+"CURRENT_COLON" = "Současné:";
 "NO_NEXT_CHAPTER" = "Nejsou žádné další kapitoly";
 "NO_PREVIOUS_CHAPTER" = "Nejsou žádné předchozí kapitoly";
 "READER_SETTINGS" = "Nastavení čtečky";
-"READING_MODE" = "Režim čtení";
+"READING_MODE" = "Režim čtečky";
 "DEFAULT" = "Výchozí";
 "LTR" = "Zleva doprava";
 "RTL" = "Zprava doleva";
@@ -118,10 +116,10 @@
 
 // History
 "HISTORY" = "Historie";
-"%@_AGO" = "%@ nazpět";
+"%@_AGO" = "Před %@";
 "PAGE_X" = "Stránka %i";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Tímto smažete historii této kapitoly. Určitě chcete pokračovat?";
-"REMOVE_ALL_MANGA_HISTORY" = "Odstranit celou historii této mangy";
+"REMOVE_ALL_MANGA_HISTORY" = "Odstranit veškerou historii mang";
 "HISTORY_LOCKED" = "Historie je zamknutá.";
 "VIEW_HISTORY" = "Zobrazit historii";
 "SELECT_CHAPTERS" = "Vybrat kapitoly";
@@ -130,7 +128,7 @@
 "CH_X" = "Kap.%g";
 "FINISHED_COLON" = "Dokončeno:";
 "ONLY_UPDATE_ON_WIFI" = "Aktualizovat pouze přes Wi-Fi";
-"RESTORE_BACKUP" = "Obnovit tuto zálohu?";
+"RESTORE_BACKUP" = "Obnovení do této zálohy?";
 "CROP_BORDERS" = "Oříznout okraje";
 "BACKUPS" = "Zálohy";
 "BACKUP_NAME" = "Název zálohy";
@@ -139,7 +137,7 @@
 "CORRUPTED_BACKUP" = "Poškozená záloha";
 "CORRUPTED_BACKUP_TEXT" = "Zdá se, že tato záloha obsahuje chybně nakonfigurovaná data. Přejmenování není možné.";
 "BACKUP_INFO" = "Dlouhým stisknutím zálohy ji můžete exportovat nebo přejetím doleva odstranit.";
-"CLEAR_NETWORK_CACHE" = "Vymazat mezipaměť sítě";
+"CLEAR_NETWORK_CACHE" = "Vymažte mezipaměť sítě";
 "CLEAR_NETWORK_CACHE_TEXT" = "Tato akce je nevratná. Síťové požadavky a obrázky uložené v mezipaměti budou vymazány.";
 "CLEAR_READ_HISTORY" = "Vymazat historii čtení";
 "CATEGORY_LOCKED" = "Kategorie je uzamčena.";
@@ -147,24 +145,24 @@
 "CLEAR_READ_HISTORY_TEXT" = "Tato akce je nevratná. Veškerá historie čtení bude odstraněna.";
 "RESET_SETTINGS" = "Resetovat nastavení";
 "DOUBLE_PAGE" = "Dvojstrana";
-"PAGED" = "Stránkový režim";
+"PAGED" = "Stránkované";
 "MULTI_LANGUAGE" = "Vícejazyčné";
 "TRACKERS" = "Sledovače";
 "LOGOUT" = "Odhlásit se";
 "LOGOUT_FROM_%@" = "Odhlásit se z %@?";
 "STATUS" = "Stav";
 "VOLUMES" = "Svazky";
-"STARTED" = "Datum zahájení";
+"STARTED" = "Začato";
 "START_TRACKING" = "Spustit sledování";
 "SCORE" = "Skóre";
 "TRACK_PAUSED" = "Pozastaveno";
 "TRACK_READING" = "Čtení";
-"FINISHED" = "Datum dokončení";
-"TRACK_DROPPED" = "Odloženo natrvalo";
+"FINISHED" = "Dokončeno";
+"TRACK_DROPPED" = "Zahozené";
 "STOP_TRACKING" = "Zastavit sledování";
-"ONESHOT" = "Samostatný příběh";
+"ONESHOT" = "Jednorázové";
 "STATUS_NOT_PUBLISHED" = "Nezveřejněno";
-"CLEAR_TRACKED_MANGA_TEXT" = "Tato akce je nevratná. Všechna propojení mangy se sledovači budou odstraněna.";
+"CLEAR_TRACKED_MANGA_TEXT" = "Tato akce je nevratná. Sledování všech sledovačů přidaných do mangy bude odstraněno.";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "Opravdu chcete odstranit všechna stažená data?";
 "CACHE_SIZE_%@" = "Velikost mezipaměti: %@";
 "SORT_TOTAL_CHAPTERS" = "Celkem kapitol";
@@ -189,18 +187,18 @@
 // Settings
 "SETTINGS" = "Nastavení";
 "AUTH_FOR_HISTORY" = "Pro zobrazení historie čtení se ověřte.";
-"AUTH_TO_ENABLE" = "Pro zapnutí se ověřte.";
-"AUTH_TO_DISABLE" = "Pro vypnutí se ověřte.";
+"AUTH_TO_ENABLE" = "Ověřte se pro povolení.";
+"AUTH_TO_DISABLE" = "Ověřte se pro vypnutí.";
 "APPEARANCE_LIGHT" = "Světlý";
 "DAILY" = "Denně";
 "EVERY_2_DAYS" = "Každé 2 dny";
 "WEEKLY" = "Týdně";
 "WITH_COMPLETED_STATUS" = "Se statusem dokončeno";
-"WITH_NO_CHAPTERS_READ" = "Bez kapitol označených jako přečtené";
+"THAT_HAVENT_BEEN_READ" = "Které nebyly přečteny";
 "SOURCE_LISTS" = "Seznamy zdrojů";
 "SOURCE_LIST_URL" = "Adresa URL seznamu zdrojů";
 "BACKUP_IMPORT_SUCCESS" = "Záloha byla importována";
-"RESET_SETTINGS_TEXT" = "Tato akce je nevratná. Všechna nastavení aplikace a zdrojů budou resetována.";
+"RESET_SETTINGS_TEXT" = "Tato akce je nevratná. Všechna nastavení aplikace a zdroje budou resetována.";
 "PAGE_X_OF_X" = "Stránka %i z %i";
 "LIBRARY_LOCKED" = "Knihovna je uzamčena.";
 "SET_AS_NORMAL_PAGE" = "Nastavit jako normální stránku";
@@ -208,19 +206,19 @@
 "SINGLE_PAGE" = "Jedna stránka";
 "MANGA" = "Manga";
 "MANHUA" = "Manhua";
-"LIGHT_NOVEL" = "Light novel";
+"LIGHT_NOVEL" = "Lehký román";
 "TRACK" = "Sledovat";
 "STATUS_COLON_%@" = "Stav: %@";
 "TYPE_COLON_%@" = "Typ: %@";
 "VIEW_ON_WEBSITE" = "Zobrazit na webu";
-"CLEAR_TRACKED_MANGA" = "Odstranit všechna propojení se sledovači";
+"CLEAR_TRACKED_MANGA" = "Vymazat sledovanou mangu";
 "SYNC_LOCAL_HISTORY" = "Synchronizace místní historie";
 "MIGRATE" = "Migrovat";
-"MIGRATE_%i_ITEMS?" = "Migrovat položky (počet: %i)?";
+"MIGRATE_%i_ITEMS?" = "Migrovat %i položek?";
 "MIGRATE_ONE_ITEM?" = "Migrovat 1 položku?";
 "UPLOAD_DATE" = "Datum nahrání";
 "INCOGNITO_MODE" = "Režim inkognito";
-"INCOGNITO_MODE_TEXT" = "Při zapnutí pozastaví ukládání historie čtení";
+"INCOGNITO_MODE_TEXT" = "Je-li povoleno, pozastaví historii čtení";
 "APPEARANCE" = "Vzhled";
 "APPEARANCE_DARK" = "Tmavý";
 "USE_SYSTEM_APPEARANCE" = "Použít vzhled systému";
@@ -233,7 +231,7 @@
 "SUPPPORT_DEVELOPMENT" = "Podpora vývoje";
 "GENERAL" = "Obecné";
 "ICLOUD_SYNC" = "Synchronizace s iCloudem";
-"PORTRAIT" = "Na výšku";
+"PORTRAIT" = "Portrét";
 "LANDSCAPE" = "Na šířku";
 "READER" = "Čtečka";
 "OPEN_READER_VIEW" = "Otevřít zobrazení čtečky";
@@ -244,15 +242,15 @@
 "EXCLUDED_CATEGORIES" = "Vyloučené kategorie";
 "REFRESH_METADATA" = "Aktualizovat metadata";
 "SOURCE_LIST_ADDED_TEXT" = "Na kartě Procházet nyní můžete procházet externí zdroje.";
-"SOURCE_LIST_ADD_TEXT" = "Zadejte adresu URL seznamu zdrojů";
+"SOURCE_LIST_ADD_TEXT" = "Zadejte adresu URL zdrojového seznamu";
 "SOURCE_LIST_ADD_FAIL" = "Nepodařilo se přidat seznam zdrojů";
 "LOCK_HISTORY_TAB" = "Uzamknout kartu Historie";
-"DOWNSAMPLE_IMAGES" = "Snižovat rozlišení obrázků";
+"DOWNSAMPLE_IMAGES" = "Obrázky se sníženým vzorkováním";
 "MISSING_SOURCES" = "Chybějící zdroje";
 "RESTORE_BACKUP_TEXT" = "Všechna aktuální data budou odstraněna a nahrazena daty z této zálohy.";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "Chcete-li obnovit tuto zálohu, najděte ji na stránce záloh v nastavení.";
 "IMPORT_FAIL" = "Import se nezdařil";
-"BACKUP_IMPORT_FAIL_TEXT" = "Nepodařilo se importovat zálohu. Zkontrolujte, zda je záloha ve správném formátu.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Nepodařilo se uložit zálohu. Zkontrolujte, zda je záloha ve správném formátu.";
 "LOGS" = "Protokoly";
 "LOGGING" = "Protokolování";
 "LOG_SERVER" = "Server protokolu";
@@ -260,7 +258,7 @@
 "DISPLAY_LOGS" = "Zobrazit protokoly";
 "ADVANCED" = "Pokročilé";
 "CATEGORY_EMPTY" = "Kategorie je prázdná";
-"AUTH_TO_OPEN" = "Pro otevření se ověřte.";
+"AUTH_TO_OPEN" = "Ověřte se pro otevření.";
 "LOCKED_CATEGORIES" = "Uzamčené kategorie";
 "AUTH_FOR_LIBRARY" = "Ověřte se pro zobrazení knihovny.";
 "LOCK_LIBRARY" = "Zamknout knihovnu";
@@ -269,43 +267,43 @@
 "PAGE_LAYOUT" = "Rozložení stránky";
 "TRACK_REREADING" = "Opětovné čtení";
 "TRACK_PLANNING" = "Plánováno";
-"SUPPORT_VIA_KOFI" = "Podpora přes Ko-fi";
+"SUPPORT_VIA_KOFI" = "Podpora přes Ko-Fi";
 "SORT_UNREAD_CHAPTERS" = "Nepřečtené kapitoly";
 "RELOAD" = "Znovu načíst";
 "%i_OF_%i" = "%i z %i";
-"%i_PAGES_LEFT" = "Zbývající stránky: %i";
-"ONE_PAGE_LEFT" = "Zbývá 1 stránka";
+"%i_PAGES_LEFT" = "zbývá %i stránek";
+"ONE_PAGE_LEFT" = "zbývá 1 stránka";
 "FAILED_CHAPTER_LOAD" = "Nepodařilo se načíst kapitolu";
 "FAILED_CHAPTER_LOAD_INFO" = "Možná jste offline nebo má zdroj problémy.";
 "REMOVE_FROM_CATEGORY" = "Odebrat z kategorie";
 "PINNED" = "Připnuto";
-"%i_CHAPTERS" = "Počet kapitol: %i";
+"%i_CHAPTERS" = "%i kapitol";
 "1_CHAPTER" = "1 kapitola";
 "UPCOMING" = "Nadcházející";
 "RENAME_CATEGORY_INFO" = "Zadejte nový název pro tuto kategorii.";
 "RENAME_CATEGORY_FAIL" = "Přejmenování kategorie se nezdařilo";
 "SKIP_DUPLICATE_CHAPTERS" = "Přeskočit duplicitní kapitoly";
 "OPTIONS" = "Možnosti";
-"DESTINATION" = "Cíl";
+"DESTINATION" = "Destinace";
 "SELECTED" = "Vybrané";
 "ALL_CHAPTERS_READ" = "Všechny kapitoly přečtené";
 "DEFAULT_READING_MODE" = "Výchozí režim čtení";
 "BOTH" = "Obojí";
-"PILLARBOX_ORIENTATION_INFO" = "Vyberte orientace zařízení, ve kterých se mají používat boční okraje.";
-"PILLARBOX_ORIENTATION" = "Orientace pro boční okraje";
-"PILLARBOX_AMOUNT" = "Šířka bočních okrajů";
+"PILLARBOX_ORIENTATION_INFO" = "Pillarbox Orientace určuje, pro které orientace má být pillarboxing povolen.";
+"PILLARBOX_ORIENTATION" = "Orientace pillarboxu";
+"PILLARBOX_AMOUNT" = "Hodnota pillarboxu";
 "IS_TRACKING" = "Sledováno";
-"BACKUP_ERROR" = "Chyba zálohy";
+"BACKUP_ERROR" = "Chyba obnovení zálohy";
 "BACKUP_ERROR_TEXT" = "Při obnově došlo k chybě: %@. Záloha může být neplatná.";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "Zadaná adresa URL seznamu zdrojů je neplatná nebo již byla přidána.";
 "EXPORT" = "Exportovat";
 "RESTORE" = "Obnovit";
 "SORT_LAST_UPDATED" = "Naposledy aktualizováno";
-"WEBTOON" = "Webtoon";
+"WEBTOON" = "Webový komiks";
 "NOT_FOUND" = "Nenalezeno";
-"MOST_CHAPTERS_SLOWER" = "Nejvíce kapitol (pomalejší)";
+"MOST_CHAPTERS_SLOWER" = "Většina kapitol (pomalejší)";
 "FIRST_ALTERNATIVE" = "První alternativa";
-"PILLARBOX" = "Boční okraje";
+"PILLARBOX" = "Pillarbox";
 "RESET_TEXT" = "Tato akce je nevratná. Všechna data, nastavení a mezipaměť budou vymazány a resetovány.";
 "GITHUB_REPO" = "Úložiště GitHub";
 "PIN_UNREAD" = "Nepřečteno";
@@ -321,739 +319,3 @@
 "DONE" = "Hotovo";
 "INVALID" = "Neplatné";
 "PAUSE" = "Pauza";
-
-"TRANSLATION_TITLE" = "OCR a překlad";
-
-"TRANSLATION_KEY_REPLACE" = "Nahradit uložený klíč API (volitelné)";
-
-"TRANSLATION_KEY" = "Klíč API";
-
-"TRANSLATION_KEY_SAVED" = "Klíč API uložený v Klíčence";
-
-"TRANSLATION_KEY_DELETE" = "Smazat klíč API";
-
-"TRANSLATION_MODEL" = "ID modelu";
-
-"TRANSLATION_GET_KEY" = "Otevřít stránku klíčů API OpenAI";
-
-"TRANSLATION_LANGUAGE" = "Jazyky";
-
-"TRANSLATION_TARGET" = "Přeložit do";
-
-"TRANSLATION_AUTO" = "Detekovat automaticky";
-
-"TRANSLATION_CLEAR_CACHE" = "Vymazat mezipaměť překladu";
-
-"TRANSLATION_CACHE_CLEARED" = "Mezipaměť překladu byla vymazána.";
-
-"TRANSLATION_NOTICES" = "Licence pro OCR a překlady";
-
-"TRANSLATION_ADVANCED" = "Možnosti překladu";
-
-"TRANSLATION_REASONING" = "Úroveň uvažování";
-
-"TRANSLATION_MODEL_DEFAULT" = "Výchozí nastavení modelu";
-
-"TRANSLATION_CONCURRENCY" = "Souběžné požadavky";
-
-"TRANSLATION_PROVIDER" = "Poskytovatel překladu";
-
-"TRANSLATION_BASE_URL" = "Adresa URL serveru";
-
-"TRANSLATION_API_FORMAT" = "Formát API";
-
-"TRANSLATION_CUSTOM_HELP" = "Zadejte základní adresu URL HTTPS nebo úplný koncový bod API a model podporovaný vaším serverem. Každá adresa URL serveru má svůj vlastní uložený klíč; změna adresy URL vymaže jakýkoli klíč, který zadáváte. Responses a Chat Completions používají strukturovaný výstup JSON.";
-
-"TRANSLATION_AUTOMATIC" = "Automatický překlad";
-
-"TRANSLATION_AUTOMATIC_HELP" = "Automaticky překládá a zobrazuje stránky ve čtečce. Tlačítko překladu ve čtečce toto nastavení zapíná a vypíná.";
-
-"TRANSLATION_TEST" = "Otestovat připojení API";
-
-"TRANSLATION_TEST_RUNNING" = "Testování připojení…";
-
-"TRANSLATION_TEST_SUCCESS" = "Připojení úspěšné";
-
-"TRANSLATION_TEST_FAILURE" = "Připojení se nezdařilo";
-
-"TRANSLATION_TEST_HELP" = "Přeloží krátkou větu s použitím hodnot z tohoto formuláře. Chcete-li použít uložený klíč tohoto serveru, ponechte pole klíče prázdné. Změny se ukládají automaticky.";
-
-"SEARCH_SUGGESTIONS" = "Návrhy vyhledávání";
-
-"TRANSLATION_CACHE" = "Offline mezipaměť";
-
-"TRANSLATION_CACHE_LIMIT" = "Maximální velikost mezipaměti";
-
-"TRANSLATION_CACHE_USED" = "Použité úložiště";
-
-"TRANSLATION_CACHE_HELP" = "Automaticky ukládá výsledky OCR, překlady stránek, názvů mangy a kapitol, jmen autorů, štítků, popisů mangy, nabídek a názvů sekcí zdrojů a rozložení textu. Obrázky stránek zůstávají pouze v operační paměti pro aktuální a okolní stránky. Po dosažení limitu se odstraní výsledky, které nebyly nejdéle použity. Výchozí: 1 GB. Maximum: 100 GB. Změny se použijí automaticky; při snížení limitu se nejdéle nepoužité výsledky odstraňují, dokud se mezipaměť nevejde do limitu.";
-
-"TRANSLATION_SOURCE_FILTER" = "Filtr zdrojových jazyků překladu";
-
-"TRANSLATION_FILTER_ALL" = "Všechny zjištěné jazyky";
-
-"TRANSLATION_FILTER_HELP" = "Vyberte původní jazyky k překladu. Text v nevybraných jazycích nebo text, jehož jazyk nelze spolehlivě určit, zůstane beze změny. Výběrem možnosti Všechny zjištěné jazyky filtr odstraníte.";
-
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Překládá se pouze text označený jako vybraný původní jazyk. Jazyky bez detekce na zařízení zůstanou nefiltrované.";
-
-"HTTPS_BYPASS" = "Obcházení blokování HTTPS";
-
-"HTTPS_BYPASS_HELP" = "Používá fragmentaci TLS a šifrované DNS (Cloudflare) pro požadavky zdrojů, obrázky, stahování a webová zobrazení zdrojů. Platí pro nová připojení. Blokování IP a omezení uložená webem nejsou obcházena.";
-
-"HTTPS_BYPASS_TEST" = "Otestovat připojení";
-
-"HTTPS_BYPASS_TEST_HELP" = "Otestuje tuto HTTPS adresu s obcházením blokování, i když je přepínač vypnutý. Odpověď potvrzuje připojení, nikoli přítomnost blokování poskytovatelem internetu.";
-
-"HTTPS_BYPASS_INVALID_URL" = "Zadejte HTTPS URL bez uživatelského jména a hesla.";
-
-"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d přijato · Byla použita fragmentace TLS";
-
-"HTTPS_BYPASS_TEST_UNCONFIRMED" = "Přijato HTTP %d · Fragmentace TLS nebyla potvrzena";
-
-"HTTPS_BYPASS_TEST_FAILED" = "Nepodařilo se připojit s obcházením blokování HTTPS.";
-
-"TRANSLATION_MANGA_TITLES" = "Překládat názvy mangy";
-
-"TRANSLATION_CHAPTER_TITLES" = "Překládat názvy kapitol";
-
-"TRANSLATION_TITLES_HELP" = "Používá vaše překladové API a cílový jazyk nezávisle na automatickém překladu stránek. Vypnutím příslušné volby zobrazíte původní text dané položky. Originály zůstávají viditelné při načítání nebo v případě selhání překladu.";
-
-"TRANSLATION_MANGA_TITLE_FILTER" = "Jazyky názvů mangy";
-
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "Jazyky názvů kapitol";
-
-"TRANSLATION_PAGE_SOURCE" = "Zdrojový jazyk stránky";
-
-"TRANSLATION_MANGA_DESCRIPTIONS" = "Překládat popisy mangy";
-
-"TRANSLATION_DESCRIPTION_FILTER" = "Jazyky popisů mangy";
-
-"TRANSLATION_METADATA_FILTER_HELP" = "Automaticky určí zdrojový jazyk a přeloží pouze vybrané jazyky. Volba Všechny zjištěné jazyky ruší omezení. Jazykový filtr každé položky je nezávislý na nastavení jazyka stránek a ostatních položek.";
-
-"TRANSLATION_CUSTOM_PROVIDER" = "Vlastní server (kompatibilní s OpenAI)";
-
-"TRANSLATION_REASONING_NONE" = "Žádná";
-
-"TRANSLATION_REASONING_MINIMAL" = "Minimální";
-
-"TRANSLATION_REASONING_LOW" = "Nízká";
-
-"TRANSLATION_REASONING_MEDIUM" = "Střední";
-
-"TRANSLATION_REASONING_HIGH" = "Vysoká";
-
-"TRANSLATION_REASONING_XHIGH" = "Velmi vysoká";
-
-"TRANSLATION_REASONING_MAX" = "Maximální";
-
-"TRANSLATION_MANGA_TAGS" = "Překládat štítky mangy";
-"TRANSLATION_TAG_FILTER" = "Zdrojové jazyky štítků";
-
-// Completed app localization
-"EDIT" = "Upravit";
-"RESUME" = "Pokračovat";
-"WARNING" = "Varování";
-"ENABLE_PERMISSION" = "Povolit oprávnění";
-"PHOTOS_ACCESS_DENIED_TEXT" = "Přístup byl dříve odepřen. Povolte aplikaci Aidoku přístup k fotkám, aby mohla ukládat obrázky do knihovny fotografií. Přístup můžete povolit v nastavení soukromí.";
-"CONTENT" = "Obsah";
-"%@_EXPERIMENTAL" = "%@ (experimentální)";
-"DOWNLOADING" = "Stahování";
-"NO_WIFI_ALERT_TITLE" = "Bez Wi-Fi";
-"NO_WIFI_ALERT_MESSAGE" = "Ke stažení tohoto obsahu musíte být připojeni k Wi-Fi. Připojte se k síti Wi-Fi a zkuste to znovu.";
-"DOWNLOAD_ANYWAY_MESSAGE" = "Momentálně nejste připojeni k síti Wi-Fi. Přesto stáhnout?";
-"PROCESSING_QUEUE" = "Zpracování fronty…";
-"DOWNLOADING_PAUSED" = "Stahování pozastaveno";
-"PAUSED" = "Pozastaveno";
-"CANCEL_ALL_DOWNLOADS" = "Zrušit všechna stahování";
-"DOWNLOADS" = "Stahování";
-"NO_DOWNLOADS" = "Žádné stažené položky";
-"NO_DOWNLOADS_TEXT" = "Zde se zobrazí stažený obsah.";
-"DOWNLOADED_CHAPTERS" = "Stažené kapitoly";
-"DOWNLOAD_INCOMPLETE" = "Neúplné stažení";
-"DOWNLOAD_STORAGE_USED" = "Místo zabrané staženými soubory";
-"%i_SERIES" = "Počet sérií: %i";
-"IN_LIBRARY" = "V knihovně";
-"VIEW_SERIES" = "Zobrazit sérii";
-"VIEW_FILES" = "Zobrazit soubory";
-"COMPRESS_DOWNLOADS" = "Komprimovat stažené soubory";
-"PARALLEL_DOWNLOADS" = "Paralelní stahování";
-"BACKGROUND_DOWNLOADING" = "Stahování na pozadí";
-"METADATA_DETECTED" = "Byla zjištěna starší metadata";
-"METADATA_DETECTED_TEXT" = "Starší metadata JSON budou migrována do souborů ComicInfo.xml.";
-"CATEGORY_SEARCH" = "Hledat v kategorii";
-"LIBRARY_ADD_CONTENT" = "Přidejte obsah z karty Procházet.";
-"LIBRARY_ADJUST_FILTERS" = "Upravte své filtry, abyste viděli více obsahu.";
-"REMOVE_FILTER" = "Odstranit filtr";
-"AND_MORE" = "a další";
-"NOT_%@" = "Ne %@";
-"FILTER_SEPARATOR" = ", ";
-"FILTER_HAS_UNREAD" = "Nepřečteno";
-"FILTER_STARTED" = "Zahájeno";
-"ASCENDING" = "Vzestupně";
-"DESCENDING" = "Sestupně";
-"OLDEST_FIRST" = "Nejstarší první";
-"NEWEST_FIRST" = "Nejnovější první";
-"HIGHEST_FIRST" = "Nejvyšší první";
-"LOWEST_FIRST" = "Nejnižší první";
-"LAYOUT_GRID" = "Mřížka";
-"LAYOUT_LIST" = "Seznam";
-"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Odebírání položky z knihovny";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Odebírání položek z knihovny: %i";
-"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Odebírání položky z kategorie %@";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Odebírání položek (počet: %i) z kategorie %@";
-"REFRESHING_LIBRARY" = "Obnovování knihovny…";
-"PROCESSING_ENTRIES" = "Zpracování záznamů…";
-"REFRESH_NO_WIFI" = "Není připojeno k Wi-Fi";
-"REFRESH_NO_WIFI_TEXT" = "Nastavení aktualizace pouze přes Wi-Fi je povoleno. Připojte se k Wi-Fi a obnovte svou knihovnu.";
-"REFRESH_ANYWAY" = "Přesto obnovit";
-"REMOVE_FROM_LIBRARY_CONFIRM" = "Odebrat z knihovny?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Odstraněním této série z knihovny odstraníte také její propojení se sledovači. Opravdu chcete pokračovat?";
-"LIBRARY_REFRESH_INTERRUPTED" = "Obnovení knihovny bylo přerušeno";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Poslední aktualizace knihovny byla přerušena před dokončením. Chcete pokračovat?";
-"CATEGORY" = "Kategorie";
-"UNCATEGORIZED" = "Nezařazené";
-"FILTER_GROUPS" = "Skupiny filtrů";
-"CREATE_FILTER_GROUP" = "Vytvořit skupinu filtrů";
-"EDIT_FILTER_GROUP" = "Upravit skupinu filtrů";
-"CLEAR_FILTERS" = "Vymazat filtry";
-"SHOW_UNCATEGORIZED_CATEGORY" = "Zobrazit kategorii „Nezařazené“";
-"BROWSE_NO_SOURCES_TEXT_NEW" = "Přidejte zdroj pomocí tlačítka plus.";
-"DISABLE" = "Zakázat";
-"ENABLE" = "Povolit";
-"EDIT_SOURCES" = "Upravit zdroje";
-"CONTENT_RATING" = "Hodnocení obsahu";
-"SAFE" = "Bez obsahu pro dospělé";
-"CONTAINS_NSFW" = "Obsahuje NSFW";
-"PRIMARILY_NSFW" = "Především NSFW";
-"REMOVE_LOCAL_SOURCE" = "Odebrat místní zdroj?";
-"REMOVE_LOCAL_SOURCE_TEXT" = "Tím se odstraní všechny importované místní soubory.";
-"MISSING_SOURCE_LIST" = "Není v seznamech zdrojů";
-"MISSING_SOURCE_LIST_INFO" = "Tento externí zdroj není dostupný v žádném nakonfigurovaném seznamu zdrojů. To znamená, že nebude dostávat aktualizace a v budoucnu se může rozbít.";
-"BASE_URL" = "Základní URL";
-"SEE_ALL" = "Zobrazit vše";
-"HOME" = "Domů";
-"FILTERS" = "Filtry";
-"APPLY" = "Použít";
-"RANGE_FROM" = "Od";
-"RANGE_TO" = "Do";
-"SOURCE_SETTINGS" = "Nastavení zdroje";
-"RESET_SETTINGS_CONFIRM_%@" = "Opravdu chcete resetovat všechna nastavení pro %@?";
-"CANCEL_CONFIRM" = "Opravdu chcete zrušit?";
-"CANCEL_CONFIRM_TEXT" = "Vaše změny budou zahozeny.";
-"DISCARD_CHANGES" = "Zahodit změny";
-"INVALID_URL" = "Neplatná adresa URL";
-"INVALID_URL_TEXT" = "Adresa URL tohoto zdroje je neplatná.";
-"MORE_BARBUTTON" = "Více";
-"RETRY" = "Zkusit znovu";
-"RESTART" = "Restartovat";
-"UNIMPLEMENTED" = "Neimplementováno";
-"NETWORK_ERROR" = "Chyba sítě";
-"DECODING_ERROR" = "Chyba dekódování";
-"HTML_ERROR" = "Chyba HTML";
-"JSON_ERROR" = "Chyba JSON";
-"UNKNOWN_ERROR" = "Neznámá chyba";
-"SOURCE_CRASHED" = "Zdroj havaroval";
-"ADD_SOURCE" = "Přidat zdroj";
-"IMPORT_SOURCE" = "Importovat zdroj";
-"BUILT_IN_SOURCES" = "Vestavěné zdroje";
-"EXTERNAL_SOURCES" = "Externí zdroje";
-"NO_RESULTS" = "Žádné výsledky";
-"NO_EXTERNAL_SOURCES" = "Žádné externí zdroje";
-"NO_EXTERNAL_SOURCES_INFO" = "Nakonfigurujte seznamy zdrojů na kartě nastavení pro instalaci externích zdrojů.";
-"NO_AVAILABLE_SOURCES" = "Žádné dostupné zdroje";
-"NO_AVAILABLE_SOURCES_INFO" = "Upravte své filtry, abyste viděli více externích zdrojů.";
-"ALL_SOURCES_INSTALLED" = "Všechny zdroje nainstalovány";
-"ALL_SOURCES_INSTALLED_INFO" = "Nezbývají žádné externí zdroje k instalaci.";
-"SAVE" = "Uložit";
-"SAVED_SEARCHES" = "Uložená vyhledávání";
-"NAME_SAVED_SEARCH" = "Pojmenovat uložené vyhledávání";
-"NAME_SAVED_SEARCH_INFO" = "Uložením tohoto vyhledávání se uloží aktuálně nakonfigurované filtry a hledaný text.";
-"SAVED_SEARCH_NAME" = "Název";
-"SAVE_SEARCH_FAIL" = "Uložení se nezdařilo";
-"SAVE_SEARCH_FAIL_INFO" = "Vyhledávání s tímto názvem již existuje. Vyberte jiný název.";
-"INCOGNITO_FILTERS_NOTICE" = "Změněné filtry se v režimu inkognito neukládají.";
-"LOCAL_FILES" = "Místní soubory";
-"LOCAL_FILES_TAGLINE" = "Čtení z místních souborů";
-"LOCAL_FILES_INFO" = "Zdroj místních souborů umožňuje importovat tituly a spravovat vlastní knihovnu ke čtení přímo v Aidoku.";
-"LOCAL_FILES_SETUP" = "Nastavení místních souborů";
-"IMPORT" = "Import";
-"IMPORT_SETTINGS" = "Import";
-"IMPORT_FILE" = "Importovat soubor";
-"LOCAL_FILE_IMPORT" = "Import místního souboru";
-"LOCAL_FILE_IMPORT_TEXT" = "Importujte soubor CBZ nebo ZIP obsahující obrázky ke čtení.";
-"CHAPTER_TITLE" = "Název kapitoly";
-"SERIES_TITLE" = "Název série";
-"DESCRIPTION" = "Popis";
-"SERIES" = "Série";
-"NEW_SERIES" = "Nová série";
-"NEW_SERIES_TEXT" = "Vytvořte pro tento soubor novou sérii";
-"SELECT_SERIES" = "Vybrat sérii";
-"VOLUME_CHAPTER_INVALID_ERROR" = "Kapitola s touto konfigurací již existuje.";
-"VOLUME_CHAPTER_EMPTY_ERROR" = "Je vyžadováno číslo svazku a/nebo kapitoly.";
-"SERIES_TITLE_UNIQUE_ERROR" = "Série s tímto názvem již existuje.";
-"SERIES_TITLE_EMPTY_ERROR" = "Pro novou sérii musí být uveden název.";
-"CREATE_NEW_SERIES_INFO" = "Na další stránce se vytvoří nová série, nebo můžete vybrat existující sérii, do které chcete tento soubor přidat.";
-"ADD_TO_OTHER_SERIES_INFO" = "Soubor bude přidán do vybrané série.";
-"%i_PAGES" = "Počet stránek: %i";
-"1_PAGE" = "1 stránka";
-"CBZ_NAME" = "Komiksový archiv ZIP";
-"ZIP_NAME" = "Zip archiv";
-"EPUB_NAME" = "EPUB";
-"KOMGA" = "Komga";
-"KOMGA_TAGLINE" = "Mediální server na vlastním hostingu";
-"KOMGA_INFO" = "Komga je mediální server pro komiksy a mangu na vlastním hostingu. K používání tohoto zdroje potřebujete nastavený a spuštěný server Komga.";
-"KOMGA_SETUP" = "Nastavení Komga";
-"DEMO_KOMGA_SERVER" = "Demo server Komga";
-"DEMO_KOMGA_SERVER_INFO" = "Na demo server Komga se můžete přihlásit pomocí emailu `demo@komga.org` a hesla `komga-demo`.";
-"SOURCE_NAME" = "Název zdroje";
-"SOURCE_NAME_INFO" = "Název zdroje, který se zobrazí na kartě Procházet.";
-"SOURCE_NAME_UNIQUE_ERROR" = "Vyberte prosím jedinečný název zdroje.";
-"SERVER_URL" = "Adresa URL serveru";
-"SERVER_URL_INFO" = "Základní adresa URL serveru, ke kterému se chcete připojit.";
-"SERVER_URL_UNIQUE_ERROR" = "Zdroj nakonfigurovaný s tímto serverem již existuje.";
-"MIRRORS" = "Zrcadlové servery";
-"MIRRORS_INFO" = "Další adresy URL, které se zkusí použít jako základní adresa URL, pokud se k hlavní nepodaří připojit.";
-"SERVER_ERROR" = "Chyba serveru";
-"SERVER_ERROR_CONNECTION" = "Nelze se připojit k danému serveru. Ujistěte se, že je spuštěna instance serveru a adresa URL je zadána správně.";
-"SERVER_ERROR_AUTHENTICATION" = "Nelze se přihlásit. Ujistěte se, že jsou vaše přihlašovací údaje zadány správně.";
-"OTHER_SETTINGS" = "Další nastavení";
-"DISPLAY_DEFAULT" = "Výchozí";
-"DISPLAY_CHAPTER" = "Kapitola";
-"DISPLAY_VOLUME" = "Svazek";
-"USE_CHAPTERS" = "Používat kapitoly";
-"USE_CHAPTERS_TEXT" = "Považovat knihy za kapitoly místo svazků";
-"%@_BOOKS" = "Počet knih: %@";
-"1_BOOK" = "1 kniha";
-"ON_DECK" = "Další ke čtení";
-"KEEP_READING" = "Pokračovat ve čtení";
-"RECENTLY_ADDED_BOOKS" = "Nedávno přidané knihy";
-"RECENTLY_ADDED_SERIES" = "Nedávno přidané série";
-"RECENTLY_UPDATED_SERIES" = "Nedávno aktualizované série";
-"RECENTLY_READ_BOOKS" = "Nedávno přečtené knihy";
-"ANY" = "Jakékoliv";
-"AUTHOR" = "Autor";
-"ARTIST" = "Umělec";
-"SORT" = "Řazení";
-"SORT_NAME" = "Název";
-"SORT_DATE_UPDATED" = "Datum aktualizace";
-"SORT_DATE_READ" = "Datum přečtení";
-"SORT_RELEASE_DATE" = "Datum vydání";
-"SORT_FOLDER_NAME" = "Název složky";
-"SORT_BOOKS_COUNT" = "Počet knih";
-"SORT_RANDOM" = "Náhodné";
-"GENRE" = "Žánr";
-"TAG" = "Tag";
-"PUBLISHER" = "Vydavatel";
-"AGE_RATING" = "Věkové hodnocení";
-"RELEASE_DATE" = "Datum vydání";
-"SHARING_LABEL" = "Štítek sdílení";
-"NOT_LOGGED_IN" = "Nejste přihlášeni";
-"NO_SERVER_CONFIGURED" = "Není nakonfigurován žádný server";
-"INVALID_SERVER_URL" = "Neplatná adresa URL serveru";
-"KAVITA" = "Kavita";
-"KAVITA_TAGLINE" = "Digitální knihovna na vlastním hostingu";
-"KAVITA_INFO" = "Kavita je mediální server pro komiksy a mangu na vlastním hostingu. K používání tohoto zdroje potřebujete nastavený a spuštěný server Kavita.";
-"KAVITA_SETUP" = "Nastavení Kavita";
-"DEMO_KAVITA_SERVER" = "Demo server Kavita";
-"DEMO_KAVITA_SERVER_INFO" = "K demo serveru Kavita se můžete přihlásit pomocí uživatelského jména `demouser` a hesla `Demouser64`.";
-"MORE_IN_%@" = "Více v %@";
-"SORT_CHAPTER_ADDED" = "Datum přidání kapitoly";
-"SORT_TIME_TO_READ" = "Odhadovaný čas čtení";
-"SORT_AVERAGE_RATING" = "Průměrné hodnocení";
-"STATUS_ENDED" = "Ukončeno";
-"FORMAT" = "Formát";
-"FORMAT_IMAGE" = "Obrázek";
-"FORMAT_EPUB" = "EPUB";
-"FORMAT_PDF" = "PDF";
-"FORMAT_ARCHIVE" = "Archiv";
-"LOGIN_VIA_OIDC" = "Přihlásit se přes OIDC";
-"API_KEY" = "Klíč API";
-"OIDC" = "OIDC";
-"BASIC_LOGIN" = "Přihlášení heslem";
-"API_KEY_LOGIN_INFO" = "Ruční zadání klíče API pro přihlášení přepíše ostatní způsoby přihlášení. Chcete-li použít jiné způsoby přihlášení, můžete jej nechat prázdné.";
-"SUWAYOMI" = "Suwayomi";
-"SUWAYOMI_TAGLINE" = "Server pro čtení mangy";
-"SUWAYOMI_INFO" = "Suwayomi je samostatně hostovaný server pro čtení manga, který provozuje rozšíření vytvořená pro Mihon (Tachiyomi). Abyste mohli tento zdroj používat, budete potřebovat nastavený a spuštěný server Suwayomi.";
-"SUWAYOMI_SETUP" = "Nastavení Suwayomi";
-"STATUS_LICENSED" = "Licencovaný";
-"STATUS_PUBLISHING_FINISHED" = "Publikování dokončeno";
-"AUTHOR_NAME" = "Jméno autora";
-"ARTIST_NAME" = "Jméno umělce";
-"INVALID_KEY" = "Neplatný klíč";
-"LINK_COPIED" = "Odkaz zkopírován";
-"LINK_COPIED_TEXT" = "Odkaz byl zkopírován do schránky.";
-"SCANLATOR" = "Skanlační skupina";
-"NO_SCANLATOR" = "Bez skanlační skupiny";
-"LOCKED" = "Zamčeno";
-"TOGGLE_LOCK" = "Přepnout zámek";
-"REFRESH_DETAILS" = "Aktualizovat podrobnosti";
-"VOLUME" = "Svazek";
-"SKIPPING_CHAPTERS" = "Přeskakované kapitoly: %i. Buď ve zdroji chybí, nebo byly odfiltrovány.";
-"OPEN_WEBSITE" = "Otevřít web";
-"SET_COVER_IMAGE" = "Nastavit titulní obrázek";
-"CHOOSE_CUSTOM_COVER" = "Vybrat vlastní obálku";
-"RESET_COVER" = "Obnovit obálku";
-"NO_HISTORY" = "Žádná historie";
-"NO_HISTORY_TEXT" = "Zde se zobrazí historie čtení.";
-"MANGA_UPDATES" = "Aktualizace";
-"NO_UPDATES" = "Žádné aktualizace";
-"%lld_PLUS_MORE" = "+%lld další";
-"RECENTLY_SEARCHED" = "Nedávno hledané";
-"NO_RECENT_SEARCHES" = "Žádná poslední vyhledávání";
-"NO_RECENT_SEARCHES_TEXT" = "Zde se zobrazí vaše nedávná vyhledávání.";
-"SOURCES" = "Zdroje obsahu";
-"LOGIN" = "Přihlásit se";
-"LOGIN_SECTION" = "Přihlášení";
-"LOGOUT_CONFIRM" = "Opravdu se chcete odhlásit?";
-"USERNAME" = "Uživatelské jméno";
-"EMAIL" = "Email";
-"PASSWORD" = "Heslo";
-"LOGIN_FAILED" = "Přihlášení se nezdařilo";
-"LOGIN_FAILED_TEXT" = "Nepodařilo se přihlásit ke zdroji. Ujistěte se, že jsou vaše přihlašovací údaje zadány správně.";
-"LOGIN_BASIC_TEXT" = "Veškeré zadané přihlašovací údaje budou předány přímo zdroji. Nepřihlašujte se k žádnému zdroji, kterému nedůvěřujete.";
-"LOGIN_WEBVIEW_WARNING" = "Přihlásit se pomocí webového zobrazení?";
-"LOGIN_WEBVIEW_WARNING_TEXT" = "Všechny soubory cookie nastavené v prezentovaném webovém zobrazení budou předány zdroji. Nepřihlašujte se k žádnému zdroji, kterému nedůvěřujete.";
-"REFRESH_LOGIN" = "Obnovit přihlášení";
-"LOGIN_METHOD" = "Způsob přihlášení";
-"BASIC" = "Uživatelské jméno a heslo";
-"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Synchronizace s iCloudem je experimentální funkce. Její zapnutí nebo vypnutí může způsobit ztrátu dat.";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "Synchronizace s iCloudem je dostupná pouze při instalaci přes TestFlight.";
-"LAYOUT" = "Rozložení";
-"STANDARD" = "Standardní";
-"COMPACT" = "Kompaktní";
-"CUSTOM" = "Vlastní";
-"PORTRAIT_COLUMNS" = "Sloupce na výšku";
-"LANDSCAPE_COLUMNS" = "Sloupce na šířku";
-"RESUME_LAST_OPENED_CHAPTER" = "Obnovit naposledy otevřenou kapitolu";
-"CONTINUE_READING_ON_RESELECT" = "Dalším klepnutím na kartu Historie pokračovat ve čtení";
-"DOWNLOADED_CHAPTER_BADGES" = "Odznaky stažených kapitol";
-"PIN_TITLES" = "Připnout tituly";
-"PIN_DISABLED" = "Vypnuto";
-"PIN_UPDATED_CHAPTERS" = "Aktualizované kapitoly";
-"ONLY_DOWNLOAD_ON_WIFI" = "Stahovat pouze přes Wi-Fi";
-"BACKGROUND_REFRESH" = "Obnovování na pozadí";
-"BACKGROUND_REFRESH_TEXT" = "Při ručním spouštění aktualizace knihovny povolte dokončení aktualizace, i když je aplikace na pozadí.";
-"NEW_CHAPTER_NOTIFICATIONS" = "Oznámení nové kapitoly";
-"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Odesílat upozornění, když se knihovna obnoví na pozadí.";
-"1_NEW_CHAPTER_AVAILABLE" = "K dispozici nová kapitola";
-"X_NEW_CHAPTERS_AVAILABLE" = "Nové dostupné kapitoly: %d";
-"NEW_CHAPTERS_AVAILABLE" = "Dostupné nové kapitoly";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "Série s novými kapitolami: %d";
-"DELETE_DOWNLOAD_AFTER_READING" = "Smazat stažený obsah po přečtení";
-"EVERY_6_HOURS" = "Každých 6 hodin";
-"NO_RESULTS_FOR_%@" = "Žádné výsledky pro „%@“";
-"NO_RESULTS_TEXT" = "Zkontrolujte pravopis nebo zkuste nové vyhledávání.";
-"LEARN_MORE" = "Další informace…";
-"INSIGHTS" = "Statistiky čtení";
-"STREAKS" = "Série čtení";
-"STATS" = "Statistiky";
-"CURRENT_STREAK" = "Aktuální série čtení";
-"NO_CURRENT_STREAK" = "Žádná aktuální série čtení";
-"NO_CURRENT_STREAK_TEXT" = "Čtěte každý den a vytvořte sérii po sobě jdoucích dnů čtení.";
-"LONGEST_STREAK" = "Nejdelší série čtení";
-"DAYS" = "Dny";
-"CHAPTER_PLURAL" = "Kapitoly";
-"CHAPTER_SINGULAR" = "Kapitola";
-"PAGE_PLURAL" = "Stránky";
-"PAGE_SINGULAR" = "Stránka";
-"SERIES_PLURAL" = "Série";
-"SERIES_SINGULAR" = "Série";
-"HOUR_PLURAL" = "Hodiny";
-"HOUR_SINGULAR" = "Hodina";
-"ALL_TIME" = "Celkem";
-"THIS_MONTH" = "Tento měsíc";
-"THIS_YEAR" = "Tento rok";
-"UNAVAILABLE_SOURCE_LISTS" = "Nedostupné seznamy zdrojů";
-"UNAVAILABLE_SOURCE_LISTS_TEXT" = "Při načítání výše uvedených seznamů zdrojů došlo k chybě.";
-"COPY_URL" = "Kopírovat URL";
-"LEGACY_SOURCE_LIST" = "Zastaralý seznam zdrojů";
-"LEGACY_SOURCE_LIST_WARNING" = "Upozornění: zastaralý seznam zdrojů";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "Máte nastavený zastaralý seznam zdrojů. Tento formát v budoucí verzi Aidoku přestane fungovat. Zatím je funkční, ale doporučujeme najít náhradu a nastavit ji v Nastavení > Seznamy zdrojů.";
-"DISABLE_QUICK_ACTIONS" = "Zakázat rychlé akce";
-"DISABLE_DOUBLE_TAP_ZOOM" = "Zakázat přiblížení dvojitým klepnutím";
-"LIVE_TEXT" = "Živý text";
-"HIDE_BARS_ON_SWIPE" = "Skrýt panely při přejetí";
-"READER_BG_COLOR" = "Barva pozadí";
-"READER_BG_COLOR_SYSTEM" = "Systém";
-"READER_BG_COLOR_AUTO" = "Automaticky";
-"READER_BG_COLOR_WHITE" = "Bílá";
-"READER_BG_COLOR_BLACK" = "Černá";
-"TAP_ZONES" = "Zóny klepnutí";
-"ZONE_LEFT_RIGHT" = "Vlevo a vpravo";
-"ZONE_L_SHAPED" = "Ve tvaru L";
-"ZONE_KINDLE" = "Kindle";
-"ZONE_EDGE" = "Okraj";
-"DISABLED" = "Zakázáno";
-"INVERT_TAP_ZONES" = "Invertovat zóny klepnutí";
-"ANIMATE_PAGE_TRANSITIONS" = "Animace přechodů stránek";
-"TEXT_READER" = "Textová čtečka";
-"TEXT_READER_STYLE" = "Styl čtečky";
-"TEXT_READER_PAGED" = "Stránkování";
-"TEXT_READER_SCROLL" = "Posouvání";
-"TEXT_FONT_FAMILY" = "Písmo";
-"TEXT_FONT_SIZE" = "Velikost písma";
-"TEXT_LINE_SPACING" = "Řádkování";
-"TEXT_HORIZONTAL_PADDING" = "Vodorovné okraje";
-"TEXT_THEME" = "Motiv";
-"TEXT_THEME_SEPIA" = "Sépie";
-"TEXT_THEME_PAPER" = "Papír";
-"TEXT_THEME_GRAY" = "Šedá";
-"DICTIONARY_LOOKUP" = "Vyhledávání ve slovníku";
-"DICTIONARY_SETTINGS_TEXT" = "Povolte vyhledávání ve slovníku, abyste umožnili zpracování OCR na obrázcích stránek pro vyhledávání slov v libovolném importovaném slovníku Yomitan.";
-"DICTIONARIES" = "Slovníky";
-"ABOUT_DICTIONARIES" = "O slovnících";
-"ABOUT_DICTIONARIES_TEXT" = "Slovníky Yomitan lze importovat ze souborů zip. Slovníky můžete povolit nebo zakázat a jejich pořadí lze změnit přetažením.";
-"LOOKUP_GESTURE" = "Vyhledávací gesto";
-"SINGLE_TAP" = "Jedno klepnutí";
-"LONG_PRESS" = "Dlouhé stisknutí";
-"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Klepnutím na začátek slova aktivujete vyskakovací okno. Pokud je tato možnost povolena, zakáže se přiblížení dvojitým klepnutím.";
-"LOOKUP_GESTURE_LONG_PRESS_INFO" = "Podržením prstu na začátku slova je zvýrazníte a uvolněním otevřete vyskakovací okno. V tomto režimu jsou rychlé akce stránky zakázány.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Uzamčeno vyhledávacím gestem: jedno klepnutí.";
-"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Uzamčeno vyhledávacím gestem: dlouhé stisknutí.";
-"DICTIONARY_TEXT_OVERLAY_MODE" = "Překrytí textu OCR";
-"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Zobrazuje textová pole v oblastech obrázku, když je aktivováno vyhledávání. To může být užitečné pro určení, který text byl správně rozpoznán OCR.";
-"DICTIONARY_OVERLAY_PADDING" = "Odsazení překryvu";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "Velikost překryvného textu";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Omezit jazyky OCR";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Pokud je tato možnost povolena, pro OCR budou zpracovány pouze kapitoly označené jako vybraný jazyk (jazyky). Doporučuje se vybrat pouze jazyky, pro které máte importované slovníky.";
-"DICTIONARY_OCR_LANGUAGES" = "Jazyky OCR";
-"DICTIONARY_POPUP" = "Vyskakovací okno slovníku";
-"DISPLAY_MODE" = "Režim zobrazení";
-"DEFAULT_DISPLAY_MODE" = "Výchozí";
-"FULL_WIDTH" = "Plná šířka";
-"DICTIONARY_POPUP_WIDTH" = "Šířka vyskakovacího okna";
-"DICTIONARY_POPUP_HEIGHT" = "Výška vyskakovacího okna";
-"TERM_DICTIONARIES" = "Slovníky termínů";
-"FREQUENCY_DICTIONARIES" = "Slovníky četnosti slov";
-"PITCH_DICTIONARIES" = "Slovníky tónového přízvuku";
-"KANJI_DICTIONARIES" = "Slovníky Kanji";
-"IMPORTING_DICTIONARY" = "Import slovníku…";
-"IMPORT_ERROR" = "Chyba importu";
-"REVISION" = "Revize";
-"URL" = "URL";
-"ATTRIBUTION" = "Atribuce";
-"SOURCE_LANGUAGE" = "Zdrojový jazyk";
-"TARGET_LANGUAGE" = "Cílový jazyk";
-"TERM_COUNT" = "Počet slovníkových výrazů";
-"TERM_META_COUNT" = "Počet položek metadat termínu";
-"KANJI_COUNT" = "Počet kandži";
-"KANJI_META_COUNT" = "Počet položek metadat kanji";
-"TAG_COUNT" = "Počet značek";
-"MEDIA_COUNT" = "Počet médií";
-"IS_UPDATABLE" = "Aktualizovatelné";
-"SIZE" = "Velikost";
-"REMOVE_DICTIONARY" = "Odebrat slovník";
-"REMOVE_WORD" = "Odstranit slovo";
-"VOCABULARY" = "Slovní zásoba";
-"1_WORD" = "1 slovo";
-"%i_WORDS" = "Počet slov: %i";
-"NO_VOCABULARY" = "Žádná slovní zásoba";
-"NO_VOCABULARY_TEXT" = "Zde se zobrazí uložená slovní zásoba.";
-"DEFINITION" = "Definice";
-"VOCAB_CONTEXT" = "Kontext";
-"VOCAB_SOURCE" = "Zdroj";
-"CLEAR_VOCABULARY_LIST" = "Smazat všechnu uloženou slovní zásobu";
-"CLEAR_VOCABULARY_LIST_TEXT" = "Tato akce je nevratná. Veškerá uložená slovní zásoba bude odstraněna.";
-"DICTIONARY_UPDATES" = "Aktualizace";
-"UPDATE_NOW" = "Aktualizovat nyní";
-"LAST_UPDATED_%@" = "Poslední aktualizace: %@";
-"MONTHLY" = "Měsíčně";
-"GET_RECOMMENDED_DICTIONARIES" = "Získat doporučené slovníky";
-"RECOMMENDED_DICTIONARIES" = "Doporučené slovníky";
-"RECOMMENDED_DICTIONARIES_NOTE" = "Všechny níže uvedené slovníky jsou japonsko-anglické. Pro ostatní jazyky se podívejte na seznam slovníků Wikislovníku.";
-"RESTORE_MISSING_SOURCES" = "Obnovit chybějící zdroje?";
-"RESTORE_MISSING_SOURCES_TEXT" = "Chcete vyhledat a nainstalovat chybějící zdroje?";
-"INSTALL_SOURCES" = "Instalovat zdroje";
-"INSTALLING_SOURCES" = "Instalace zdrojů…";
-"SOURCE_IMPORT_FAIL_TEXT" = "Import zdroje se nezdařil. Ujistěte se, že váš soubor aix je platný.";
-"FILE_IMPORT_FAIL_TEXT" = "Import souboru se nezdařil. Ujistěte se, že jde o čitelný soubor obrázku nebo platný archiv CBZ či ZIP obsahující obrázky.";
-"BACKUP_%@" = "Záloha %@";
-"CREATE_BACKUP" = "Vytvořit zálohu";
-"IMPORT_BACKUP" = "Importovat zálohu";
-"LIBRARY_ENTRIES" = "Záznamy v knihovně";
-"SENSITIVE_SETTINGS" = "Citlivá nastavení";
-"NAME" = "Název";
-"DATE" = "Datum";
-"BACKUP_INFO_TITLE" = "Informace o záloze";
-"AUTOMATIC_BACKUPS" = "Automatické zálohování";
-"BACKUP_INTERVAL" = "Interval zálohování";
-"AUTO" = "Auto";
-"LAST_BACKED_UP_%@" = "Poslední automatická záloha: %@";
-"READING_SESSIONS" = "Relace čtení";
-"CLEAR_EXCLUDING_LIBRARY" = "Vymazat historii čtení s výjimkou knihovny";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "Tato akce je nevratná. Historie čtení všech titulů, které nejsou v knihovně, bude odstraněna.";
-"CLEAR_SOURCE_CACHE" = "Vymazat mezipaměť zdroje";
-"CLEAR_SOURCE_CACHE_TEXT" = "Vymaže soubory cookie a data webů pro adresy tohoto zdroje spolu s obsahem zdroje uloženým v mezipaměti. Může být nutné se znovu přihlásit a načítání může dočasně trvat déle.";
-"PAGE_OFFSET" = "Posun párování stránek";
-"SPLIT_WIDE_IMAGES" = "Rozdělit široké obrázky";
-"REVERSE_SPLIT_ORDER" = "Obrátit pořadí rozdělených stránek";
-"TRACKING" = "Sledování";
-"TRACK_COMPLETED" = "Dokončeno";
-"SET_TRACK_CHAPTER_OFFSET" = "Nastavit posun čísel kapitol";
-"TRACK_CHAPTER_OFFSET_TEXT" = "Upravte automatické aktualizace kapitol ve sledovači pro tento titul, pokud se čísla kapitol zdroje liší od čísel kapitol ve sledovači.";
-"TITLE_DISPLAY_MODE" = "Režim zobrazení titulu";
-"OEL" = "OEL";
-"COMIC" = "Komiks";
-"BOOK" = "Kniha";
-"SEARCH_OPTIONS" = "Možnosti vyhledávání";
-"SHOW_NSFW_RESULTS" = "Zobrazit výsledky NSFW";
-"UPDATE_AFTER_READING" = "Aktualizace po přečtení";
-"UPDATE_AFTER_READING_INFO" = "Po přečtení kapitoly se sledovač automaticky aktualizuje podle právě přečtené kapitoly a/nebo svazku.";
-"AUTO_SYNC_HISTORY" = "Automaticky synchronizovat historii";
-"AUTO_SYNC_HISTORY_INFO" = "Když sledovač oznámí přečtení pozdější kapitoly a/nebo svazku, místní historie čtení se odpovídajícím způsobem aktualizuje.";
-"SYNC_WITH_TRACKER" = "Synchronizovat se sledovačem";
-"SYNC_WITH_TRACKER_INFO_%i" = "Počet již přečtených kapitol podle sledovače: %i. Chcete tyto kapitoly označit jako přečtené?";
-"SYNC_WITH_TRACKER_INFO_1" = "Podle sledovače je 1 kapitola již přečtená. Chcete ji označit jako přečtenou?";
-"UNAVAILABLE_TRACKER_ITEM" = "Nedostupná položka sledovače";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "Tato propojená položka sledovače je spojena se sledovačem, který již není dostupný. Tuto položku byste měli buď odstranit, nebo se znovu přihlásit k přidruženému sledovači.";
-"ENHANCED_TRACKERS" = "Vylepšené sledovače";
-"ENHANCED_TRACKERS_INFO" = "Vylepšené sledovače se mohou automaticky propojit s tituly přidanými do knihovny z podporovaných zdrojů a synchronizovat historii čtení v obou směrech.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "Vypnutí sledování pro zdroj odstraní propojení se sledovačem pouze pro tento zdroj. Zapnutí automaticky propojí se sledovačem tituly z tohoto zdroje ve vaší knihovně.";
-"TRACKER_LOGOUT_INFO" = "Odhlášení odstraní z Aidoku propojení všech sérií s tímto sledovačem.";
-"SET_AS_SINGLE_PAGE" = "Nastavit jako jednu stránku";
-"UNSET_AS_SINGLE_PAGE" = "Odebrat nastavení jedné stránky";
-"RELOAD_FAILED" = "Opětovné načtení se nezdařilo";
-"RELOAD_FAILED_TEXT" = "Opětovné načtení obrázku se nezdařilo. Zkuste to prosím znovu.";
-"CONTINUOUS_WITH_GAPS" = "Průběžně s mezerami";
-"ADD" = "Přidat";
-"MARK_DUPLICATE_CHAPTERS" = "Označit duplicitní kapitoly jako přečtené";
-"MIGRATE_CONFIRM_TEXT" = "Historie čtení pro původní položky bude při migraci na jiný zdroj odstraněna.";
-"MIGRATE_WITH_HISTORY" = "Migrovat a zachovat historii";
-"SELECT_PINNED_SOURCES" = "Vybrat připnuté zdroje";
-"SEARCH_MANUALLY" = "Hledat ručně";
-"DONT_MIGRATE" = "Nemigrovat";
-"SELECTED_%i_OF_%i" = "Vybráno (%i/%i)";
-"MIGRATE_%i_OF_%i" = "Migrace (%i/%i)";
-"SHOW_ENTRY" = "Zobrazit záznam";
-"SOURCE_BREAKING_CHANGE" = "Změna zdroje narušující kompatibilitu";
-"SOURCE_BREAKING_CHANGE_TEXT" = "Tento zdroj prošel zásadní změnou a vyžaduje migraci, aby byla zachována vaše knihovna a historie.";
-"ALL_CHAPTERS_LOCKED" = "Všechny kapitoly uzamčeny";
-"AUTO_SCROLL" = "Automatické rolování";
-"AUTO_SCROLL_SPEED" = "Rychlost automatického rolování";
-"AUTO_SCROLL_POSITION" = "Umístění tlačítka automatického rolování";
-"POSITION_LEFT" = "Vlevo";
-"POSITION_RIGHT" = "Vpravo";
-"%@_TRACKER_LOGIN_NEEDED" = "Je nutné se přihlásit k %@";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Platnost vašeho tokenu %@ vypršela, takže přidružený sledovač přestane fungovat, dokud se znovu nepřihlásíte v nastavení.";
-"READER_ORIENTATION" = "Orientace";
-"FOLLOW_DEVICE" = "Podle orientace zařízení";
-"FOCUS_ITEM_LEFT" = "Zaměřit položku vlevo";
-"FOCUS_ITEM_RIGHT" = "Zaměřit položku vpravo";
-"FOCUS_ITEM_ABOVE" = "Zaměřit položku výše";
-"FOCUS_ITEM_BELOW" = "Zaměřit položku níže";
-"FOCUS_ITEM_NEXT" = "Zaměřit další položku";
-"FOCUS_ITEM_PREV" = "Zaměřit předchozí položku";
-"OPEN_FOCUS_ITEM" = "Otevřít zaměřenou položku";
-"RESET_FOCUS" = "Obnovit výběr";
-"TURN_PAGE_LEFT" = "Otočit stránku doleva";
-"TURN_PAGE_RIGHT" = "Otočit stránku doprava";
-"CHAPTER_FORWARD" = "Kapitola vpřed";
-"CHAPTER_BACKWARD" = "Kapitola zpět";
-"OPEN_CHAPTER_LIST" = "Otevřít seznam kapitol";
-"TOGGLE_BARS" = "Zobrazit nebo skrýt panely nástrojů";
-"CLOSE_READER" = "Zavřít čtečku";
-"TOGGLE_PAGE_OFFSET" = "Přepnout posun párování stránek";
-"MIGRATE_CHAPTER_HISTORY" = "Migrovat historii kapitol";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "Migruje historii čtení zbylou ze starších verzí, která není propojena s kapitolami v místní databázi. To se obvykle děje automaticky po aktualizaci. Pokud migrace nebyla dokončena, můžete ji zde spustit znovu.";
-
-"TRANSLATION_SOURCE_LABELS" = "Překládat nabídky a názvy sekcí zdroje";
-
-// Local image import
-"IMPORT_PHOTO" = "Importovat fotografie";
-"LOCAL_IMAGE_IMPORT_TEXT" = "Importujte fotografie, obrázkové soubory nebo archiv CBZ či ZIP ke čtení.";
-
-// Translated page export
-"SAVE_TRANSLATED_IMAGE" = "Uložit obrázek s překladem";
-"TRANSLATED_IMAGE_SAVE_FAILED" = "Přeložený obrázek se nepodařilo vytvořit. Zkuste to znovu po dokončení překladu.";
-
-"TRANSLATION_AUTHORS" = "Překládat jména autorů";
-
-"TRANSLATION_AUTHOR_FILTER" = "Zdrojové jazyky jmen autorů";
-"TRANSLATION_SOURCE_LABEL_FILTER" = "Zdrojové jazyky nabídek a sekcí zdroje";
-
-// Shared image retention
-"SAVE_SHARED_IMAGES" = "Uchovávat sdílené obrázky v místních souborech";
-"SAVE_SHARED_IMAGES_HELP" = "Když je vypnuto, sdílené obrázky se dočasně otevřou a při zavření se vymažou. Historie čtení a mezipaměti OCR/překladů se neukládají.";
-
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "Překládat velké seznamy filtrů (přes 100 možností)";
-
-"SETTING_INVALID_STEPPER_RANGE" = "Neplatný číselný rozsah nastavení.";
-
-"SETTING_MISSING_CONTENT_HANDLER" = "Nelze zobrazit nastavení: %@";
-
-"DOWNLOAD_TRANSLATED" = "Stáhnout s překladem";
-
-"TRANSLATION_STATE_ON" = "Zapnuto";
-"TRANSLATION_STATE_OFF" = "Vypnuto";
-
-"TRANSLATION_ERROR_CONFIGURATION" = "Nastavení překladu je neplatné. Zkontrolujte adresu URL serveru, model a další nastavení.";
-"TRANSLATION_ERROR_REQUEST" = "Text, obrázek nebo jazyková nastavení nelze použít k překladu.";
-"TRANSLATION_ERROR_RESPONSE" = "Překladový server vrátil neplatnou odpověď. Zkuste to znovu nebo zkontrolujte nastavení modelu.";
-"TRANSLATION_ERROR_KEY_REQUIRED" = "Je vyžadován klíč překladového API.";
-"TRANSLATION_ERROR_KEY_ACCESS" = "Klíč překladového API se nepodařilo přečíst z Klíčenky.";
-"TRANSLATION_ERROR_ENDPOINT" = "Koncový bod překladového API není povolen zásadami zabezpečení.";
-"TRANSLATION_ERROR_REDIRECT" = "Přesměrování koncového bodu překladového API bylo odmítnuto.";
-"TRANSLATION_ERROR_RESPONSE_SIZE" = "Odpověď překladového serveru překročila povolenou velikost.";
-"TRANSLATION_ERROR_HTTP" = "Překladový server vrátil HTTP %d.";
-"TRANSLATION_ERROR_HTTP_REQUEST" = "Překladový server vrátil HTTP %d (ID požadavku: %@).";
-"TRANSLATION_ERROR_NETWORK_CODE" = "Požadavek na překlad selhal (chyba %d).";
-"TRANSLATION_ERROR_CONNECTION" = "K překladovému API se nepodařilo připojit. Zkontrolujte připojení k síti, koncový bod API a stav serveru a zkuste to znovu.";
-"TRANSLATION_ERROR_REFUSED" = "Poskytovatel překladu odmítl požadavek.";
-"TRANSLATION_ERROR_KEY_ACCOUNT" = "Identifikátor používaný k uložení klíče API je neplatný.";
-"TRANSLATION_ERROR_KEY_INVALID" = "Klíč API je prázdný, příliš dlouhý nebo obsahuje nepodporované znaky.";
-"TRANSLATION_ERROR_KEY_MISSING" = "Pro tohoto poskytovatele není uložen žádný klíč API.";
-"TRANSLATION_ERROR_KEY_ENCODING" = "Uložený klíč API se nepodařilo dekódovat.";
-"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Operace s Klíčenkou selhala se stavovým kódem %d.";
-"OCR_ERROR_MODEL_MISSING" = "Chybí požadovaný model PP-OCRv6.";
-"OCR_ERROR_MODEL_LOAD" = "Model PP-OCRv6 se nepodařilo načíst.";
-"OCR_ERROR_IMAGE" = "Obrázek se nepodařilo připravit k rozpoznávání textu.";
-"OCR_ERROR_OUTPUT" = "Model PP-OCRv6 vrátil neplatný nebo nepodporovaný výstup.";
-"OCR_ERROR_PREDICTION" = "Rozpoznávání textu pomocí PP-OCRv6 selhalo. Zkuste jiný obrázek nebo model OCR.";
-"TRANSLATION_ERROR_CACHE_STORAGE" = "Úložiště mezipaměti překladu je neplatné nebo nedostupné.";
-"TRANSLATION_ERROR_CACHE_SAVE" = "Mezipaměť překladu se nepodařilo uložit.";
-
-"ICLOUD_SYNC_RESTART_REQUIRED" = "Změny synchronizace iCloud se projeví po úplném zavření a opětovném otevření Aidoku. Do té doby zůstává aktivní současné nastavení.";
-
-// Translation settings section
-
-"TRANSLATION_TARGETS" = "Co překládat";
-
-// Download page counts and single-series totals.
-"PAGES_%i_OF_%i" = "Stránky: %i / %i";
-"1_SERIES" = "1 série";
-"SKIPPING_ONE_CHAPTER" = "Přeskakuje se 1 kapitola. Buď ve zdroji chybí, nebo byla odfiltrována.";
-"BACKUP_CREATE_ERROR_TEXT" = "Zálohu se nepodařilo vytvořit. Zkuste to prosím znovu.";
-"YES" = "Ano";
-"NO" = "Ne";
-"CHAPTERS_%i_OF_%i" = "Kapitoly: %i / %i";
-"TRACKING_REGISTRATION_FAILED" = "Titul se nepodařilo přidat ke sledování. Zkuste to prosím znovu.";
-"SORT_READ_PROGRESS" = "Průběh čtení";
-"SORT_RELEASE_YEAR" = "Rok vydání";
-"SOURCE_INVALID_PAGE_COUNT" = "Neplatný počet stránek";
-"SOURCE_INVALID_GENRE_ID" = "Neplatné ID žánru";
-"SOURCE_INVALID_LISTING" = "Neplatný seznam";
-"SOURCE_INVALID_LISTING_TYPE" = "Neplatný typ seznamu";
-"SOURCE_INVALID_ITEM_TYPE" = "Neplatný typ položky";
-"DICTIONARY_ERROR" = "Chyba slovníku";
-"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Nastavení slovníků se nepodařilo uložit: %@";
-"DICTIONARY_IMPORT_ERRORS_%@" = "Vybrané slovníky se nepodařilo importovat:\n%@";
-"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Některé slovníky se nepodařilo importovat:\n%@";
-"DICTIONARY_IMPORT_FAILED" = "Import slovníku selhal.";
-"RECOMMENDED_JMDICT_DESCRIPTION" = "Obsáhlý japonsko-anglický slovník spravovaný skupinou Electronic Dictionary Research and Development Group (EDRDG).";
-"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Slovník japonských vlastních jmen spravovaný skupinou Electronic Dictionary Research and Development Group (EDRDG).";
-"RECOMMENDED_JITEN_DESCRIPTION" = "Frekvenční slovník založený na mediálním korpusu z https://jiten.moe.";
-
-// Reader background translation and preparation limits
-"TRANSLATION_BACKGROUND" = "Překládat při zobrazení originálů";
-"TRANSLATION_BACKGROUND_HELP" = "Překlad pokračuje při čtení i s vypnutým tlačítkem překladu. Původní stránky zůstávají viditelné. Když aplikace není aktivní, překlad se pozastaví.";
-"TRANSLATION_PRETRANSLATION_LIMIT" = "Počet stránek k překladu předem";
-"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Maximální počet stránek k překladu předem, bez započítání viditelných stránek. Stránky se vybírají podle priority čtení, přičemž přednost mají následující stránky.";
-"TRANSLATION_UNLIMITED" = "Neomezeně";
-"TRANSLATION_PAGE_SETTINGS" = "Překlad stránek";
-"TRANSLATION_VISIBLE_PAGES_ONLY" = "Pouze viditelné stránky";
-
-// Unsupported installed source package version
-
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 čte zdrojový text v japonštině, čínštině (zjednodušené i tradiční), angličtině a dalších jazycích psaných latinkou, nikoli však korejštinu, cyrilici ani vietnamštinu. Automatické určení zdrojového jazyka i výběr zdrojového jazyka jsou omezeny na tyto jazyky. Překlad do libovolného cílového jazyka je nadále možný. Výběrem modelu Manga se nastaví prahové hodnoty detektoru na 0,85 a 0,25; výchozí velikost pro detekci je 1120 px.";
-
-"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Všechny podporované jazyky OCR";

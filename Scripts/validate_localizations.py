@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Check every bundled UI locale. Run from any directory; no dependencies required."""
+"""Check the English and Korean UI tables. Run from any directory; no dependencies required.
+
+Other locales are kept as upstream ships them; missing keys there fall back to English."""
 from collections import Counter
 from pathlib import Path
 import re
@@ -8,6 +10,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCALIZATION = ROOT / 'Aidoku/App/Resources/Localization'
+CHECKED_LOCALES = ['en', 'ko']
 # Tokenize comments separately so URLs and comment-like text inside values survive.
 TOKEN = re.compile(r'\s+|//[^\n]*|/\*[\s\S]*?\*/|"((?:\\.|[^"\\])*)"\s*=\s*"((?:\\.|[^"\\])*)"\s*;')
 FORMAT = re.compile(r'%(?:(\d+)\$)?[-+#0 ]*(?:\d+|\*)?(?:\.(?:\d+|\*))?(hh|ll|[hljztL])?([@diuoxXfFeEgGaAcCsSp%])')
@@ -101,17 +104,17 @@ def main():
     entries = 0
     references = set()
     targets = [
-        (LOCALIZATION, ROOT / 'Aidoku', ['Localizable.strings', 'InfoPlist.strings']),
-        (ROOT / 'AidokuShare', ROOT / 'AidokuShare', ['Localizable.strings']),
+        (LOCALIZATION, ROOT / 'Aidoku', ['Localizable.strings', 'InfoPlist.strings'], expected),
+        (ROOT / 'AidokuShare', ROOT / 'AidokuShare', ['Localizable.strings'], set(CHECKED_LOCALES)),
     ]
-    for directory, source_directory, tables in targets:
+    for directory, source_directory, tables, bundled in targets:
         actual = {locale.stem for locale in directory.glob('*.lproj')}
-        if expected != actual:
+        if bundled != actual:
             errors.append(f'{directory.relative_to(ROOT)}: locale mismatch: '
-                          f'missing {sorted(expected - actual)}, extra {sorted(actual - expected)}')
+                          f'missing {sorted(bundled - actual)}, extra {sorted(actual - bundled)}')
         english = {}
         for table in tables:
-            source, count, issues = validate_table(directory, table, sorted(expected))
+            source, count, issues = validate_table(directory, table, CHECKED_LOCALES)
             english[table] = source
             entries += count
             errors.extend(issues)
@@ -132,7 +135,7 @@ def main():
         print('\n'.join(errors), file=sys.stderr)
         print(f'FAIL: {len(errors)} localization errors', file=sys.stderr)
         return 1
-    print(f'PASS: {len(expected)} locales, app + share extension, {entries} entries; '
+    print(f'PASS: {"/".join(CHECKED_LOCALES)}, app + share extension, {entries} entries; '
           f'{len(references)} literal Swift localization keys resolved. '
           'No missing, extra, duplicate, blank, malformed, copied English prose or incompatible format entries.')
     return 0

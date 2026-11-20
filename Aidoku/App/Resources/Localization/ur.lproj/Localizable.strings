@@ -6,31 +6,29 @@
 "UNAVAILABLE" = "دستیاب نہیں";
 "REMOVE" = "ہٹا دیں";
 "RENAME" = "دوبارہ نام دیں";
-"CLEAR" = "صاف کریں";
-"LOADING_ELLIPSIS" = "لوڈ ہو رہا ہے…";
+"CLEAR" = "ختم کردیں";
+"LOADING_ELLIPSIS" = "لوڈنگ۔۔۔";
 "DELETE" = "مٹا دیں";
-"SHARE" = "شیئر کریں";
+"SHARE" = "شیر کریں";
 
 // Downloads
-"DOWNLOAD" = "ڈاؤن لوڈ";
-"NEXT_UNREAD" = "اگلا نہ پڑھا ہوا";
-"NEXT_%i_UNREAD" = "اگلے %i نہ پڑھے ہوئے";
-"DOWNLOADED" = "ڈاؤن لوڈ شدہ";
-"DOWNLOAD_QUEUE" = "ڈاؤن لوڈز کی قطار";
-"CANCEL_DOWNLOAD" = "ڈاؤن لوڈ منسوخ کریں";
-"REMOVE_DOWNLOAD" = "ڈاؤن لوڈ مٹا دیں";
-"REMOVE_ALL_DOWNLOADS" = "سارے ڈاؤن لوڈ مٹا دیں";
-"REMOVE_DOWNLOADS" = "ڈاؤن لوڈز ہٹا دیں";
-"REMOVE_DOWNLOADS_CONFIRM" = "تمام منتخب کردہ ڈاؤن لوڈز ہٹا دیں؟";
+"DOWNLOAD" = "ڈاؤنلوڈ";
+"DOWNLOADED" = "ڈاؤنلوڈڈ";
+"DOWNLOAD_QUEUE" = "ڈاؤنلوڈز کی قطار";
+"CANCEL_DOWNLOAD" = "ڈاؤنلوڈ کرنا ختم کردیں";
+"REMOVE_DOWNLOAD" = "ڈاؤنلوڈ مٹا دیں";
+"REMOVE_ALL_DOWNLOADS" = "سارے ڈاؤنلوڈ مٹا دیں";
+"REMOVE_DOWNLOADS" = "ڈاؤنلوڈز ہٹا دیں";
+"REMOVE_DOWNLOADS_CONFIRM" = "تمام منتخب کردہ ڈاؤنلوڈز ہٹا دیں؟";
 
 // Library
 "LIBRARY" = "لائبریری";
 "LIBRARY_EMPTY" = "لائبریری خالی ہے";
 // General
-"CONTINUE" = "جاری رکھیں";
-"RESET" = "ری سیٹ کریں";
+"CONTINUE" = "جاری رکہیں";
+"RESET" = "دوبارہ ترتیب دیں";
 "LIBRARY_SEARCH" = "لائبریری میں تلاش کریں";
-"REMOVE_FROM_LIBRARY" = "لائبریری سے ہٹا دیں";
+"REMOVE_FROM_LIBRARY" = "لائبریری سےہٹا دیں";
 "ADD_TO_LIBRARY" = "لائبریری میں شامل کریں";
 "MANGA_INFO" = "مانگا معلومات";
 "SORT_LAST_READ" = "آخری پڑھا";
@@ -44,1039 +42,85 @@
 "EDIT_CATEGORIES" = "زمرہ جات تدوین کریں";
 "CATEGORY_ADD" = "زمرہ کا اضافہ کریں";
 "DEFAULT_CATEGORY" = "پہلے سے طے شدہ زمرہ";
-"ALWAYS_ASK" = "ہمیشہ پوچھیں";
+"ALWAYS_ASK" = "ہمیشہ پوچھو";
 
 // Browse
 "BROWSE" = "براؤز";
 "SORT_TITLE" = "عنوان";
-"SORT_BY" = "ترتیب بلحاظ";
-"FILTER_BY" = "فلٹر بلحاظ";
+"SORT_BY" = "ترتیب دیں";
+"FILTER_BY" = "فلٹر بذریعہ";
 "SORT_LAST_OPENED" = "آخری بار کھولا گیا";
-"CATEGORY_ADD_TEXT" = "بنانے کے لیے نئے زمرے کا نام درج کریں۔";
+"CATEGORY_ADD_TEXT" = "تخلیق کرنے کے لئے نئے زمرے کا عنوان درج کریں.";
 "BROWSE_NO_SOURCES" = "کوئی ذرائع نہیں";
-"UPDATES" = "اپ ڈیٹس";
-"INSTALLED" = "انسٹال شدہ";
+"UPDATES" = "نیا بنانا";
+"INSTALLED" = "قائم کردہ";
 "EXTERNAL" = "خارجی";
 "LANGUAGE" = "زبان";
 "LANGUAGES" = "زبانیں";
 "INFO" = "معلومات";
-"VERSION" = "ورژن";
-"BUILD" = "بلڈ";
-"BUTTON_FILTER" = "فلٹر";
-"ADDING_SOURCES_GUIDE_BUTTON" = "ذرائع شامل کرنے کی رہنمائی";
-"BUTTON_UPDATE" = "اپ ڈیٹ";
-"BUTTON_GET" = "حاصل کریں";
-"BUTTON_ERROR" = "خرابی";
-"UNINSTALL" = "ان انسٹال کریں";
+"VERSION" = "انداز";
+"BUILD" = "ساخت";
+"BUTTON_FILTER" = "مقطر کرنا";
+"ADDING_SOURCES_GUIDE_BUTTON" = "sذرائع گائیڈ شامل کرنا";
+"BUTTON_UPDATE" = "نیا بنانا";
+"BUTTON_GET" = "لانا";
+"BUTTON_ERROR" = "سہو";
+"UNINSTALL" = "نصب کرنہٹانا";
 
 // Source
 "SOURCE_INFO" = "ماخذ کی معلومات";
-"LIST_HEADER" = "فہرست";
+"LIST_HEADER" = "دَرجِ فہرِست";
 "LIST_ALL" = "سب";
 
 // Manga
-"UNTITLED" = "بلا عنوان";
-"STATUS_ONGOING" = "جاری";
+"UNTITLED" = "غیر خطاب یافتہ";
+"STATUS_ONGOING" = "واقعہ";
 "STATUS_CANCELLED" = "منسوخ";
-"STATUS_COMPLETED" = "مکمل";
-"STATUS_HIATUS" = "وقفے پر";
-"SUGGESTIVE" = "جنسی اشاروں پر مشتمل";
-"SOURCE_ORDER" = "ماخذ میں ابواب کی ترتیب";
-"MISSING_SOURCE" = "ماخذ غائب";
-"MISSING_SOURCE_TEXT" = "اس مانگا کا اصل ماخذ نہیں مل سکا۔ براہ کرم ماخذ کو دوبارہ انسٹال کریں یا اس عنوان کو اپنی لائبریری سے ہٹا دیں۔";
+"STATUS_COMPLETED" = "تمام";
+"STATUS_HIATUS" = "نقص";
+"SUGGESTIVE" = "اشتعال انگیز";
+"SOURCE_ORDER" = "سورس آرڈر";
+"MISSING_SOURCE" = "لاپتہ ذریعہ";
+"MISSING_SOURCE_TEXT" = "ایسا لگتا ہے کہ اس منگا کے لیے اصل ماخذ غائب ہے۔ براہ کرم اسے دوبارہ ڈاؤن لوڈ کریں یا اس عنوان کو اپنی لائبریری سے ہٹا دیں۔";
 "SELECT_ALL" = "تمام منتخب کریں";
-"DESELECT_ALL" = "سبھی کو غیر منتخب کریں";
+"DESELECT_ALL" = "سبھی کو غیر منتخب کریں۔";
 
 // Reader
 "CHAPTER" = "باب";
 "CHAPTERS" = "ابواب";
-"MARK_PREVIOUS" = "تمام پچھلے ابواب نشان زد کریں";
-"MARK_READ" = "پڑھا ہوا نشان زد کریں";
-"MARK_UNREAD" = "نہ پڑھا ہوا نشان زد کریں";
+"MARK_PREVIOUS" = "پچھلے نشان زد کریں۔";
+"MARK_READ" = "پڑھا ہوا نشان زد کریں۔";
+"MARK_UNREAD" = "اس کے اوپرنشان لگایں کہ پڑھا نیں ہوا";
 "PREVIOUS_COLON" = "پچھلا:";
-"NEXT_COLON" = "اگلا:";
+"NEXT_COLON" = "اگلے:";
 "FINISHED_COLON" = "ختم:";
-"NO_NEXT_CHAPTER" = "کوئی اگلا باب نہیں ہے";
-"NO_PREVIOUS_CHAPTER" = "کوئی پچھلا باب نہیں ہے";
-"READER_SETTINGS" = "ریڈر کی ترتیبات";
+"NO_NEXT_CHAPTER" = "کوئی اگلا باب نہیں ہے۔";
+"NO_PREVIOUS_CHAPTER" = "کوئی پچھلا باب نہیں ہے۔";
+"READER_SETTINGS" = "پڑھنے کی ترتیبات";
 "READING_MODE" = "پڑھنے کا موڈ";
-"DEFAULT" = "طے شدہ";
+"DEFAULT" = "کوتاهی";
 "LTR" = "بائیں سے دائیں";
 "RTL" = "دائیں سے بائیں";
 "VERTICAL" = "عمودی";
-"VERTICAL_SCROLL" = "عمودی اسکرول";
-"INFINITE_VERTICAL_SCROLL" = "لامحدود عمودی اسکرولنگ";
+"VERTICAL_SCROLL" = "عمودی طومار";
+"INFINITE_VERTICAL_SCROLL" = "عمودی سکرولنگ لامحدود";
 "CURRENT_COLON" = "موجودہ:";
 "EXPERIMENTAL" = "تجرباتی";
 "SAVE_TO_PHOTOS" = "تصاویر میں محفوظ کریں";
 "SELECT_CHAPTERS" = "ابواب منتخب کریں";
-"NO_CHAPTERS" = "کوئی باب نہیں";
-"MORE" = "مزید";
-"START_READING" = "پڑھنا شروع کریں";
-"CONTINUE_READING" = "پڑھنا جاری رکھیں";
-"READ" = "پڑھا ہوا";
-"NO_CHAPTERS_AVAILABLE" = "کوئی باب دستیاب نہیں ہے";
-"UNREAD" = "نہ پڑھا ہوا";
-"MARK" = "نشان زد کریں";
+"NO_CHAPTERS" = "کوئی باب نہیں۔";
+"MORE" = "زیادہ";
+"START_READING" = "پڑھنا شروع کرو";
+"CONTINUE_READING" = "پڑھنا جاری رکھو";
+"READ" = "پڑھیں";
+"NO_CHAPTERS_AVAILABLE" = "کوئی باب دستیاب نہیں ہے۔";
+"UNREAD" = "نہ پڑھیں";
+"MARK" = "نشان";
 "MARK_ALL" = "سب کو نشان زد کریں";
-"%@_AGO" = "%@ پہلے";
-"REMOVE_CHAPTER_HISTORY_TEXT" = "اس باب کے مطالعے کی سرگزشت ہٹا دی جائے گی۔ کیا آپ جاری رکھنا چاہتے ہیں؟";
-"PAGE_X" = "صفحہ %i";
+"%@_AGO" = "پہلے";
+"REMOVE_CHAPTER_HISTORY_TEXT" = "یہ اس باب کی تاریخ کو ہٹا دے گا۔ کیا آپ واقعی جاری رکھنا چاہتے ہیں؟";
+"PAGE_X" = "صفحہ";
 
 // History
-"HISTORY" = "سرگزشت";
-"REMOVE_ALL_MANGA_HISTORY" = "اس مانگا کے مطالعے کی تمام سرگزشت ہٹائیں";
-
-"TRANSLATION_TITLE" = "OCR اور ترجمہ";
-
-"TRANSLATION_KEY_REPLACE" = "محفوظ کردہ API کلید کو تبدیل کریں (اختیاری)";
-
-"TRANSLATION_KEY" = "API کلید";
-
-"TRANSLATION_KEY_SAVED" = "API کلید Keychain میں محفوظ ہے";
-
-"TRANSLATION_KEY_DELETE" = "API کلید کو حذف کریں";
-
-"TRANSLATION_MODEL" = "ماڈل ID";
-
-"TRANSLATION_GET_KEY" = "OpenAI API کیز کھولیں";
-
-"TRANSLATION_LANGUAGE" = "زبانیں";
-
-"TRANSLATION_TARGET" = "ترجمے کی زبان";
-
-"TRANSLATION_AUTO" = "خودکار شناخت";
-
-"TRANSLATION_CLEAR_CACHE" = "ترجمہ کیشے کو صاف کریں";
-
-"TRANSLATION_CACHE_CLEARED" = "ترجمے کی کیش صاف ہو گئی۔";
-
-"TRANSLATION_NOTICES" = "OCR اور ترجمہ کے لائسنس";
-
-"TRANSLATION_ADVANCED" = "ترجمہ کے اختیارات";
-
-"TRANSLATION_REASONING" = "استدلال کی سطح";
-
-"TRANSLATION_MODEL_DEFAULT" = "ماڈل ڈیفالٹ";
-
-"TRANSLATION_CONCURRENCY" = "بیک وقت درخواستیں";
-
-"TRANSLATION_PROVIDER" = "ترجمہ فراہم کنندہ";
-
-"TRANSLATION_BASE_URL" = "سرور URL";
-
-"TRANSLATION_API_FORMAT" = "API فارمیٹ";
-
-"TRANSLATION_CUSTOM_HELP" = "ایک HTTPS بنیادی URL یا مکمل API اینڈ پوائنٹ اور آپ کے سرور کا معاون ماڈل درج کریں۔ ہر سرور URL کی اپنی محفوظ کردہ کلید ہوتی ہے؛ URL تبدیل کرنے سے آپ کی درج کی جا رہی کلید صاف ہو جاتی ہے۔ Responses اور Chat Completions ساختہ JSON آؤٹ پٹ استعمال کرتے ہیں۔";
-
-"TRANSLATION_AUTOMATIC" = "خودکار ترجمہ";
-
-"TRANSLATION_AUTOMATIC_HELP" = "ریڈر میں صفحات کا خودکار ترجمہ کرتا ہے اور انہیں دکھاتا ہے۔ ریڈر میں ترجمے کا بٹن اس ترتیب کو فعال یا غیر فعال کرتا ہے۔";
-
-"TRANSLATION_TEST" = "API کنکشن کی جانچ کریں";
-
-"TRANSLATION_TEST_RUNNING" = "کنکشن کی جانچ ہو رہی ہے…";
-
-"TRANSLATION_TEST_SUCCESS" = "کنکشن کامیاب";
-
-"TRANSLATION_TEST_FAILURE" = "کنکشن ناکام ہو گیا";
-
-"TRANSLATION_TEST_HELP" = "اس فارم میں اقدار کا استعمال کرتے ہوئے ایک مختصر جملے کا ترجمہ کرتا ہے۔ اس سرور کی محفوظ کردہ کلید کو استعمال کرنے کے لیے کلید کو خالی چھوڑ دیں۔ تبدیلیاں خود بخود محفوظ ہوجاتی ہیں۔";
-
-"SEARCH_SUGGESTIONS" = "تلاش کی تجاویز";
-
-"TRANSLATION_CACHE" = "آف لائن کیشے";
-
-"TRANSLATION_CACHE_LIMIT" = "زیادہ سے زیادہ اسٹوریج";
-
-"TRANSLATION_CACHE_USED" = "استعمال شدہ اسٹوریج";
-
-"TRANSLATION_CACHE_HELP" = "OCR نتائج، صفحات کے ترجمے، مانگا اور ابواب کے عنوانات کے ترجمے، مصنفین کے ناموں، ٹیگز، مانگا کی تفصیلات، ماخذ کے مینو اور حصوں کے عنوانات کے ترجمے اور متن کی ترتیب خود بخود محفوظ ہوتی ہے۔ صرف موجودہ اور قریبی صفحات کی تصاویر میموری میں رکھی جاتی ہیں۔ منتخب حد تک پہنچنے پر وہ نتائج پہلے ہٹائے جاتے ہیں جن کے آخری استعمال کو سب سے زیادہ وقت گزر چکا ہو۔ طے شدہ حد: 1 جی بی۔ زیادہ سے زیادہ: 100 جی بی۔ تبدیلیاں خود بخود لاگو ہوتی ہیں؛ حد کم کرنے پر اسی ترتیب سے نتائج ہٹائے جاتے ہیں جب تک کیش حد کے اندر نہ آ جائے۔";
-
-"TRANSLATION_SOURCE_FILTER" = "ترجمے کے لیے اصل زبانوں کا فلٹر";
-
-"TRANSLATION_FILTER_ALL" = "تمام دریافت شدہ زبانیں";
-
-"TRANSLATION_FILTER_HELP" = "ترجمے کے لیے اصل زبانیں منتخب کریں۔ غیر منتخب زبانوں کا متن اور وہ متن جس کی زبان کی شناخت غیر یقینی ہو، تبدیل نہیں ہوگا۔ فلٹر ہٹانے کے لیے تمام دریافت شدہ زبانیں منتخب کریں۔";
-
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "صرف اس متن کا ترجمہ ہوتا ہے جس کی شناخت منتخب کردہ اصل زبان کے طور پر ہو۔ جن زبانوں کی شناخت ڈیوائس پر معاونت یافتہ نہیں، ان پر یہ فلٹر لاگو نہیں ہوتا۔";
-
-"HTTPS_BYPASS" = "HTTPS بلاکنگ بائی پاس";
-
-"HTTPS_BYPASS_HELP" = "ماخذ کی درخواستوں، تصاویر، ڈاؤن لوڈز اور ماخذ کے ویب ویوز کے لیے TLS فریگمنٹیشن اور انکرپٹڈ DNS (Cloudflare) استعمال کریں۔ نئے کنکشنز پر لاگو ہوتا ہے۔ ویب سائٹ کی طرف سے عائد IP بلاکس اور پابندیاں بائی پاس نہیں ہوتیں۔";
-
-"HTTPS_BYPASS_TEST" = "کنکشن ٹیسٹ کریں";
-
-"HTTPS_BYPASS_TEST_HELP" = "سوئچ بند ہونے پر بھی اس HTTPS ایڈریس کو بائی پاس کے ذریعے ٹیسٹ کرتا ہے۔ جواب ملنے سے صرف کنیکٹیویٹی کی تصدیق ہوتی ہے، یہ نہیں کہ ISP بلاک موجود تھا۔";
-
-"HTTPS_BYPASS_INVALID_URL" = "صارف نام یا پاس ورڈ کے بغیر HTTPS URL درج کریں۔";
-
-"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d موصول ہوا · TLS فریگمنٹیشن لاگو";
-
-"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d موصول ہوا · TLS فریگمنٹیشن کی تصدیق نہیں ہوئی";
-
-"HTTPS_BYPASS_TEST_FAILED" = "HTTPS بائی پاس کے ذریعے مربوط نہیں ہو سکا۔";
-
-"TRANSLATION_MANGA_TITLES" = "مانگا کے عنوانات کا ترجمہ";
-
-"TRANSLATION_CHAPTER_TITLES" = "باب کے عنوانات کا ترجمہ";
-
-"TRANSLATION_TITLES_HELP" = "صفحہ کے خودکار ترجمہ سے آزادانہ طور پر آپ کا ترجمہ API اور ہدف کی زبان استعمال کرتا ہے۔ کسی اختیار کا اصل متن دکھانے کے لیے اس اختیار کو بند کریں۔ لوڈنگ کے دوران یا ترجمہ ناکام ہونے پر اصل نظر آتے رہتے ہیں۔";
-
-"TRANSLATION_MANGA_TITLE_FILTER" = "مانگا کے عنوانات کی زبانیں";
-
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "باب کے عنوان کی زبانیں";
-
-"TRANSLATION_PAGE_SOURCE" = "صفحے کی اصل زبان";
-
-"TRANSLATION_MANGA_DESCRIPTIONS" = "مانگا کی تفصیل کا ترجمہ";
-
-"TRANSLATION_DESCRIPTION_FILTER" = "مانگا کی تفصیل کی زبانیں";
-
-"TRANSLATION_METADATA_FILTER_HELP" = "اصل زبان کا خود بخود پتہ لگائیں اور صرف منتخب کردہ زبانوں کا ترجمہ کریں۔ «تمام دریافت شدہ زبانیں» پابندی ہٹا دیتا ہے۔ ہر آئٹم کا زبان فلٹر صفحے اور دوسرے آئٹمز کی زبان کی ترتیبات سے آزاد ہے۔";
-
-"TRANSLATION_CUSTOM_PROVIDER" = "حسب ضرورت (OpenAI سے مطابقت رکھنے والا)";
-
-"TRANSLATION_REASONING_NONE" = "کوئی نہیں";
-
-"TRANSLATION_REASONING_MINIMAL" = "کم سے کم";
-
-"TRANSLATION_REASONING_LOW" = "کم";
-
-"TRANSLATION_REASONING_MEDIUM" = "درمیانہ";
-
-"TRANSLATION_REASONING_HIGH" = "اعلیٰ";
-
-"TRANSLATION_REASONING_XHIGH" = "بہت اعلیٰ";
-
-"TRANSLATION_REASONING_MAX" = "زیادہ سے زیادہ";
-
-"TRANSLATION_MANGA_TAGS" = "مانگا ٹیگز کا ترجمہ";
-"TRANSLATION_TAG_FILTER" = "ٹیگز کی اصل زبانیں";
-
-"TRANSLATION_SOURCE_LABELS" = "ماخذ کے مینو اور حصوں کے عنوانات کا ترجمہ";
-
-// Completed app localization
-"DONE" = "ہو گیا";
-"EDIT" = "ترمیم کریں";
-"INVALID" = "غلط";
-"PAUSE" = "روکیں";
-"RESUME" = "جاری رکھیں";
-"COPY" = "کاپی کریں";
-"WARNING" = "وارننگ";
-"ENABLE_PERMISSION" = "اجازت کو فعال کریں";
-"PHOTOS_ACCESS_DENIED_TEXT" = "پہلے رسائی سے انکار کر دیا گیا تھا۔ اپنے کیمرہ رول میں تصاویر محفوظ کرنے کے لیے براہ کرم Aidoku کو اپنی تصاویر تک رسائی کی اجازت دیں۔ آپ رازداری کی ترتیبات میں رسائی کو فعال کر سکتے ہیں۔";
-"CONTENT" = "مواد";
-"%@_EXPERIMENTAL" = "%@ (تجرباتی)";
-"DOWNLOADING" = "ڈاؤن لوڈ ہو رہا ہے";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "کیا آپ واقعی تمام ڈاؤن لوڈز کو ہٹانا چاہتے ہیں؟";
-"NO_WIFI_ALERT_TITLE" = "کوئی Wi-Fi نہیں ہے";
-"NO_WIFI_ALERT_MESSAGE" = "اس مواد کو ڈاؤن لوڈ کرنے کے لیے آپ کا Wi-Fi سے منسلک ہونا ضروری ہے۔ براہ کرم Wi-Fi سے جڑیں اور دوبارہ کوشش کریں۔";
-"DOWNLOAD_ANYWAY_MESSAGE" = "آپ فی الحال Wi-Fi پر نہیں ہیں۔ ویسے بھی ڈاؤن لوڈ کریں؟";
-"PROCESSING_QUEUE" = "قطار پر کارروائی ہو رہی ہے…";
-"DOWNLOADING_PAUSED" = "ڈاؤن لوڈ کرنا موقوف ہے";
-"PAUSED" = "روک دیا گیا";
-"CANCEL_ALL_DOWNLOADS" = "تمام ڈاؤن لوڈز کو منسوخ کریں";
-"DOWNLOADS" = "ڈاؤن لوڈز";
-"NO_DOWNLOADS" = "کوئی ڈاؤن لوڈز نہیں";
-"NO_DOWNLOADS_TEXT" = "ڈاؤن لوڈ کردہ مواد یہاں ظاہر ہوگا۔";
-"DOWNLOADED_CHAPTERS" = "ڈاؤن لوڈ کردہ ابواب";
-"DOWNLOAD_INCOMPLETE" = "نامکمل ڈاؤن لوڈ";
-"DOWNLOAD_STORAGE_USED" = "ڈاؤن لوڈز کا کل حجم";
-"%i_SERIES" = "%i سیریز";
-"IN_LIBRARY" = "لائبریری میں";
-"VIEW_SERIES" = "سیریز دیکھیں";
-"VIEW_FILES" = "فائلیں دیکھیں";
-"COMPRESS_DOWNLOADS" = "ڈاؤن لوڈز کو کمپریس کریں";
-"PARALLEL_DOWNLOADS" = "متوازی ڈاؤن لوڈز";
-"BACKGROUND_DOWNLOADING" = "پس منظر ڈاؤن لوڈ کرنا";
-"METADATA_DETECTED" = "پرانا میٹا ڈیٹا ملا";
-"METADATA_DETECTED_TEXT" = "لیگیسی JSON میٹا ڈیٹا کو ComicInfo.xml فائلوں میں منتقل کر دیا جائے گا۔";
-"CATEGORY_SEARCH" = "زمرہ میں تلاش کریں";
-"LIBRARY_ADD_CONTENT" = "براؤز ٹیب سے مواد شامل کریں۔";
-"LIBRARY_ADJUST_FILTERS" = "مزید مواد دیکھنے کے لیے اپنے فلٹرز کو ایڈجسٹ کریں۔";
-"REMOVE_FILTER" = "فلٹر کو ہٹا دیں";
-"AND_MORE" = "اور مزید";
-"NOT_%@" = "%@ نہیں";
-"FILTER_SEPARATOR" = ", ";
-"IS_TRACKING" = "ٹریک شدہ";
-"FILTER_HAS_UNREAD" = "نہ پڑھے ہوئے";
-"FILTER_STARTED" = "شروع شدہ";
-"ASCENDING" = "صعودی";
-"DESCENDING" = "نزولی";
-"OLDEST_FIRST" = "سب سے پرانا پہلا";
-"NEWEST_FIRST" = "تازہ ترین پہلے";
-"HIGHEST_FIRST" = "سب سے زیادہ پہلے";
-"LOWEST_FIRST" = "سب سے کم پہلے";
-"COVER" = "سرورق";
-"LAYOUT_GRID" = "گرڈ";
-"LAYOUT_LIST" = "فہرست";
-"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "لائبریری سے آئٹم کو ہٹانا";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "لائبریری سے %i آئٹمز کو ہٹانا";
-"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "زمرہ %@ سے آئٹم کو ہٹانا";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "زمرہ %2$@ سے %1$i آئٹمز کو ہٹانا";
-"REFRESHING_LIBRARY" = "لائبریری ریفریش ہو رہی ہے…";
-"PROCESSING_ENTRIES" = "اندراجات پر کارروائی ہو رہی ہے…";
-"REFRESH_NO_WIFI" = "Wi-Fi سے منسلک نہیں ہے";
-"REFRESH_NO_WIFI_TEXT" = "صرف Wi-Fi پر اپ ڈیٹ کرنے کی ترتیب فعال ہے۔ اپنی لائبریری کو ریفریش کرنے کے لیے Wi-Fi سے جڑیں۔";
-"REFRESH_ANYWAY" = "بہرحال ریفریش کریں";
-"REMOVE_FROM_LIBRARY_CONFIRM" = "لائبریری سے ہٹائیں؟";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "اس سیریز کو لائبریری سے ہٹانے پر اس کے تمام ٹریکر روابط بھی ہٹ جائیں گے۔ کیا آپ جاری رکھنا چاہتے ہیں؟";
-"LIBRARY_REFRESH_INTERRUPTED" = "لائبریری ریفریش میں خلل پڑا";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "آخری لائبریری ریفریش مکمل ہونے سے پہلے ہی اس میں خلل پڑ گیا تھا۔ کیا آپ دوبارہ شروع کرنا چاہیں گے؟";
-"CATEGORY" = "زمرہ";
-"UNCATEGORIZED" = "بغیر زمرہ";
-"CATEGORY_NAME" = "زمرہ کا نام";
-"ADD_TO_CATEGORY" = "زمرہ میں شامل کریں";
-"ADD_TO_CATEGORIES" = "زمرہ جات میں شامل کریں";
-"RENAME_CATEGORY_INFO" = "اس زمرے کے لیے ایک نیا نام درج کریں۔";
-"RENAME_CATEGORY_FAIL" = "زمرہ کا نام تبدیل کرنے میں ناکام";
-"RENAME_CATEGORY" = "زمرہ کا نام تبدیل کریں";
-"RENAME_CATEGORY_FAIL_INFO" = "زمرہ کے نام منفرد ہونے چاہئیں۔";
-"FILTER_GROUPS" = "فلٹر گروپس";
-"CREATE_FILTER_GROUP" = "فلٹر گروپ بنائیں";
-"EDIT_FILTER_GROUP" = "فلٹر گروپ میں ترمیم کریں";
-"CLEAR_FILTERS" = "فلٹرز صاف کریں";
-"SHOW_UNCATEGORIZED_CATEGORY" = "«بغیر زمرہ» زمرہ دکھائیں";
-"BROWSE_NO_SOURCES_TEXT_NEW" = "پلس بٹن کے ساتھ ایک ماخذ شامل کریں۔";
-"PIN" = "پن کریں";
-"UNPIN" = "پن ہٹائیں";
-"DISABLE" = "غیر فعال کریں";
-"ENABLE" = "فعال کریں";
-"REORDER" = "دوبارہ ترتیب دیں";
-"EDIT_SOURCES" = "ذرائع میں ترمیم کریں";
-"CONTENT_RATING" = "مواد کی درجہ بندی";
-"SAFE" = "محفوظ";
-"CONTAINS_NSFW" = "NSFW پر مشتمل ہے";
-"PRIMARILY_NSFW" = "بنیادی طور پر NSFW";
-"REMOVE_LOCAL_SOURCE" = "مقامی ماخذ کو ہٹائیں؟";
-"REMOVE_LOCAL_SOURCE_TEXT" = "یہ تمام درآمد شدہ مقامی فائلوں کو ہٹا دے گا۔";
-"MISSING_SOURCE_LIST" = "ماخذ کی فہرستوں میں موجود نہیں";
-"MISSING_SOURCE_LIST_INFO" = "یہ بیرونی ماخذ ترتیب دی گئی کسی بھی ماخذ کی فہرست میں دستیاب نہیں ہے۔ اس لیے اسے اپ ڈیٹس نہیں ملیں گی اور یہ مستقبل میں کام کرنا بند کر سکتا ہے۔";
-"BASE_URL" = "بنیادی URL";
-"SEE_ALL" = "سب دیکھیں";
-"HOME" = "ہوم";
-"FILTERS" = "فلٹرز";
-"APPLY" = "لگائیں";
-"RANGE_FROM" = "سے";
-"RANGE_TO" = "تک";
-"SOURCE_SETTINGS" = "ماخذ کی ترتیبات";
-"RESET_SETTINGS_CONFIRM_%@" = "کیا آپ واقعی %@ کی تمام ترتیبات ری سیٹ کرنا چاہتے ہیں؟";
-"CANCEL_CONFIRM" = "کیا آپ واقعی منسوخ کرنا چاہتے ہیں؟";
-"CANCEL_CONFIRM_TEXT" = "آپ کی تبدیلیاں رد کر دی جائیں گی۔";
-"DISCARD_CHANGES" = "تبدیلیاں رد کریں";
-"INVALID_URL" = "غلط URL";
-"INVALID_URL_TEXT" = "اس ماخذ کا URL غلط ہے۔";
-"MORE_BARBUTTON" = "مزید";
-"RETRY" = "دوبارہ کوشش کریں";
-"RESTART" = "دوبارہ شروع کریں";
-"UNIMPLEMENTED" = "ابھی نافذ نہیں کیا گیا";
-"NETWORK_ERROR" = "نیٹ ورک کی خرابی";
-"DECODING_ERROR" = "ضابطہ کشائی کی خرابی";
-"HTML_ERROR" = "HTML خرابی";
-"JSON_ERROR" = "JSON خرابی";
-"UNKNOWN_ERROR" = "نامعلوم خرابی";
-"SOURCE_CRASHED" = "ماخذ کریش ہو گیا";
-"ADD_SOURCE" = "ماخذ شامل کریں";
-"IMPORT_SOURCE" = "ماخذ درآمد کریں";
-"BUILT_IN_SOURCES" = "بلٹ ان ذرائع";
-"EXTERNAL_SOURCES" = "بیرونی ذرائع";
-"NO_RESULTS" = "کوئی نتیجہ نہیں نکلا";
-"NO_EXTERNAL_SOURCES" = "کوئی بیرونی ذرائع نہیں";
-"NO_EXTERNAL_SOURCES_INFO" = "بیرونی ذرائع کو انسٹال کرنے کے لیے ترتیبات کے ٹیب میں ماخذ کی فہرستیں ترتیب دیں۔";
-"NO_AVAILABLE_SOURCES" = "دستیاب ذرائع نہیں";
-"NO_AVAILABLE_SOURCES_INFO" = "مزید بیرونی ذرائع دیکھنے کے لیے اپنے فلٹرز کو ایڈجسٹ کریں۔";
-"ALL_SOURCES_INSTALLED" = "تمام ذرائع انسٹال ہیں";
-"ALL_SOURCES_INSTALLED_INFO" = "انسٹال کرنے کے لیے کوئی بیرونی ذرائع باقی نہیں ہیں۔";
-"SAVE" = "محفوظ کریں";
-"SAVED_SEARCHES" = "محفوظ شدہ تلاشیں";
-"NAME_SAVED_SEARCH" = "اس محفوظ شدہ تلاش کو نام دیں";
-"NAME_SAVED_SEARCH_INFO" = "اس تلاش کو محفوظ کرنے سے فی الحال کنفیگر کیے گئے فلٹرز اور تلاش کا متن محفوظ ہو جائے گا۔";
-"SAVED_SEARCH_NAME" = "نام";
-"SAVE_SEARCH_FAIL" = "محفوظ کرنا ناکام ہو گیا";
-"SAVE_SEARCH_FAIL_INFO" = "اس نام کی ایک محفوظ شدہ تلاش پہلے سے موجود ہے۔ براہ کرم ایک منفرد نام منتخب کریں۔";
-"INCOGNITO_FILTERS_NOTICE" = "انکوگنیٹو موڈ میں ترمیم شدہ فلٹرز محفوظ نہیں رہتے۔";
-"LOCAL_FILES" = "مقامی فائلیں";
-"LOCAL_FILES_TAGLINE" = "مقامی فائلوں سے پڑھیں";
-"LOCAL_FILES_INFO" = "مقامی فائلوں کا ماخذ آپ کو اپنی مطالعے کی لائبریری براہ راست Aidoku میں درآمد کرنے اور منظم کرنے دیتا ہے۔";
-"LOCAL_FILES_SETUP" = "مقامی فائلوں کا سیٹ اپ";
-"IMPORT" = "درآمد کریں";
-"IMPORT_SETTINGS" = "درآمد";
-"IMPORT_FILE" = "فائل درآمد کریں";
-"LOCAL_FILE_IMPORT" = "مقامی فائل درآمد";
-"LOCAL_FILE_IMPORT_TEXT" = "پڑھنے کے لیے تصاویر پر مشتمل CBZ یا ZIP فائل درآمد کریں۔";
-"CHAPTER_TITLE" = "باب کا عنوان";
-"SERIES_TITLE" = "سیریز کا عنوان";
-"DESCRIPTION" = "تفصیل";
-"SERIES" = "سیریز";
-"NEW_SERIES" = "نئی سیریز";
-"NEW_SERIES_TEXT" = "اس فائل کے لیے ایک نئی سیریز بنائیں";
-"SELECT_SERIES" = "سیریز منتخب کریں";
-"VOLUME_CHAPTER_INVALID_ERROR" = "اس ترتیب کے ساتھ ایک باب پہلے سے موجود ہے۔";
-"VOLUME_CHAPTER_EMPTY_ERROR" = "جلد اور/یا باب کا نمبر درکار ہے۔";
-"SERIES_TITLE_UNIQUE_ERROR" = "اس عنوان کے ساتھ ایک سیریز پہلے سے موجود ہے۔";
-"SERIES_TITLE_EMPTY_ERROR" = "ایک نئی سیریز کے لیے عنوان فراہم کرنا ضروری ہے۔";
-"CREATE_NEW_SERIES_INFO" = "اگلے صفحے پر ایک نئی سیریز بنائی جائے گی، یا آپ اس فائل کو شامل کرنے کے لیے موجودہ سیریز کو منتخب کر سکتے ہیں۔";
-"ADD_TO_OTHER_SERIES_INFO" = "فائل کو منتخب سیریز میں شامل کر دیا جائے گا۔";
-"%i_PAGES" = "%i صفحات";
-"1_PAGE" = "1 صفحہ";
-"CBZ_NAME" = "کامک بک زپ آرکائیو";
-"ZIP_NAME" = "زپ آرکائیو";
-"EPUB_NAME" = "EPUB";
-"KOMGA" = "Komga";
-"KOMGA_TAGLINE" = "خود میزبان میڈیا سرور";
-"KOMGA_INFO" = "Komga کامکس اور مانگا کے لیے خود ہوسٹ کیا جانے والا میڈیا سرور ہے۔ یہ ماخذ استعمال کرنے کے لیے آپ کا Komga سرور ترتیب دیا ہوا اور چل رہا ہونا چاہیے۔";
-"KOMGA_SETUP" = "Komga سیٹ اپ";
-"DEMO_KOMGA_SERVER" = "ڈیمو Komga سرور";
-"DEMO_KOMGA_SERVER_INFO" = "آپ ای میل `demo@komga.org` اور پاس ورڈ `komga-demo` استعمال کر کے ڈیمو Komga سرور میں لاگ ان کر سکتے ہیں۔";
-"SOURCE_NAME" = "ماخذ کا نام";
-"SOURCE_NAME_INFO" = "براؤز ٹیب میں اس ماخذ کے لیے دکھایا جانے والا نام۔";
-"SOURCE_NAME_UNIQUE_ERROR" = "براہ کرم ایک منفرد ماخذ کا نام منتخب کریں۔";
-"SERVER_URL" = "سرور URL";
-"SERVER_URL_INFO" = "کسی سرور کا بنیادی URL جس سے منسلک ہونا ہے۔";
-"SERVER_URL_UNIQUE_ERROR" = "اس سرور کے ساتھ کنفیگر کردہ ایک ماخذ پہلے سے موجود ہے۔";
-"MIRRORS" = "مرر سرورز";
-"MIRRORS_INFO" = "اگر مرکزی URL سے رابطہ نہ ہو سکے تو بنیادی URL کے طور پر آزمانے کے لیے اضافی URLs۔";
-"SERVER_ERROR" = "سرور کی خرابی";
-"SERVER_ERROR_CONNECTION" = "دیے گئے سرور سے رابطہ نہیں ہو سکا۔ یقینی بنائیں کہ سرور چل رہا ہے اور URL درست درج کیا گیا ہے۔";
-"SERVER_ERROR_AUTHENTICATION" = "لاگ ان کرنے سے قاصر۔ یقینی بنائیں کہ آپ کی اسناد صحیح طریقے سے درج کی گئی ہیں۔";
-"OTHER_SETTINGS" = "دیگر ترتیبات";
-"DISPLAY_DEFAULT" = "طے شدہ";
-"DISPLAY_CHAPTER" = "باب";
-"DISPLAY_VOLUME" = "جلد";
-"USE_CHAPTERS" = "ابواب استعمال کریں";
-"USE_CHAPTERS_TEXT" = "کتابوں کو جلدوں کے بجائے ابواب سمجھیں";
-"%@_BOOKS" = "%@ کتابیں";
-"1_BOOK" = "1 کتاب";
-"ON_DECK" = "آگے پڑھنے کے لیے";
-"KEEP_READING" = "پڑھتے رہیں";
-"RECENTLY_ADDED_BOOKS" = "حال ہی میں شامل کردہ کتابیں";
-"RECENTLY_ADDED_SERIES" = "حال ہی میں شامل کردہ سیریز";
-"RECENTLY_UPDATED_SERIES" = "حال ہی میں اپ ڈیٹ کردہ سیریز";
-"RECENTLY_READ_BOOKS" = "حال ہی میں پڑھی گئی کتابیں";
-"ANY" = "کوئی بھی";
-"AUTHOR" = "مصنف";
-"ARTIST" = "فنکار";
-"SORT" = "ترتیب";
-"SORT_NAME" = "نام";
-"SORT_DATE_UPDATED" = "اپ ڈیٹ کی تاریخ";
-"SORT_DATE_READ" = "پڑھنے کی تاریخ";
-"SORT_RELEASE_DATE" = "ریلیز کی تاریخ";
-"SORT_FOLDER_NAME" = "فولڈر کا نام";
-"SORT_BOOKS_COUNT" = "کتابوں کی تعداد";
-"SORT_RANDOM" = "بے ترتیب";
-"GENRE" = "نوع";
-"TAG" = "ٹیگ";
-"PUBLISHER" = "پبلشر";
-"AGE_RATING" = "عمر کی درجہ بندی";
-"RELEASE_DATE" = "ریلیز کی تاریخ";
-"SHARING_LABEL" = "شیئرنگ لیبل";
-"NOT_LOGGED_IN" = "لاگ ان نہیں ہے";
-"NO_SERVER_CONFIGURED" = "کوئی سرور کنفیگر نہیں ہے";
-"INVALID_SERVER_URL" = "غلط سرور URL";
-"KAVITA" = "Kavita";
-"KAVITA_TAGLINE" = "خود میزبان ڈیجیٹل لائبریری";
-"KAVITA_INFO" = "Kavita کامکس اور مانگا کے لیے خود میزبان میڈیا سرور ہے۔ اس ماخذ کو استعمال کرنے کے لیے آپ کو ایک Kavita سرور سیٹ اپ اور چلانے کی ضرورت ہوگی۔";
-"KAVITA_SETUP" = "Kavita سیٹ اپ";
-"DEMO_KAVITA_SERVER" = "ڈیمو Kavita سرور";
-"DEMO_KAVITA_SERVER_INFO" = "آپ صارف نام `demouser` اور پاس ورڈ `Demouser64` استعمال کر کے ڈیمو Kavita سرور میں لاگ ان کر سکتے ہیں۔";
-"MORE_IN_%@" = "%@ میں مزید";
-"SORT_CHAPTER_ADDED" = "باب شامل کرنے کی تاریخ";
-"SORT_TIME_TO_READ" = "پڑھنے کا تخمینہ وقت";
-"SORT_AVERAGE_RATING" = "اوسط درجہ بندی";
-"STATUS_ENDED" = "ختم ہوا";
-"FORMAT" = "فارمیٹ";
-"FORMAT_IMAGE" = "تصویر";
-"FORMAT_EPUB" = "EPUB";
-"FORMAT_PDF" = "PDF";
-"FORMAT_ARCHIVE" = "آرکائیو";
-"LOGIN_VIA_OIDC" = "OIDC کے ذریعے لاگ ان کریں";
-"API_KEY" = "API کلید";
-"OIDC" = "OIDC";
-"BASIC_LOGIN" = "بنیادی لاگ ان";
-"API_KEY_LOGIN_INFO" = "لاگ ان کے لیے دستی طور پر ایک API کلید فراہم کرنا لاگ ان کے دیگر طریقوں کو اوور رائیڈ کر دے گا۔ آپ لاگ ان کے دوسرے طریقے استعمال کرنے کے لیے اسے خالی چھوڑ سکتے ہیں۔";
-"SUWAYOMI" = "Suwayomi";
-"SUWAYOMI_TAGLINE" = "مانگا ریڈر سرور";
-"SUWAYOMI_INFO" = "Suwayomi ایک خود میزبان مانگا ریڈر سرور ہے جو Mihon (Tachiyomi) کے لیے بنائی گئی ایکسٹینشنز چلاتا ہے۔ اس ماخذ کو استعمال کرنے کے لیے آپ کو ایک Suwayomi سرور سیٹ اپ اور چلانے کی ضرورت ہوگی۔";
-"SUWAYOMI_SETUP" = "Suwayomi سیٹ اپ";
-"STATUS_LICENSED" = "لائسنس یافتہ";
-"STATUS_PUBLISHING_FINISHED" = "اشاعت مکمل";
-"AUTHOR_NAME" = "مصنف کا نام";
-"ARTIST_NAME" = "فنکار کا نام";
-"INVALID_KEY" = "غلط کلید";
-"NSFW" = "NSFW";
-"LINK_COPIED" = "لنک کاپی ہو گیا";
-"LINK_COPIED_TEXT" = "لنک کو کلپ بورڈ پر کاپی کر دیا گیا ہے۔";
-"SCANLATOR" = "ترجمہ کرنے والا گروپ";
-"NO_SCANLATOR" = "کوئی ترجمہ کرنے والا گروپ نہیں";
-"LOCKED" = "مقفل";
-"TOGGLE_LOCK" = "قفل لگائیں یا کھولیں";
-"REFRESH_DETAILS" = "تفصیلات ریفریش کریں";
-"VOLUME" = "جلد";
-"VOLUME_X" = "جلد %g";
-"CHAPTER_X" = "باب %g";
-"VOL_X" = "جلد %g";
-"CH_X" = "باب %g";
-"VOL_SPACE_X" = "جلد %g";
-"CH_SPACE_X" = "باب %g";
-"SKIPPING_CHAPTERS" = "%i ابواب چھوڑے جا رہے ہیں، یا تو یہ ماخذ میں موجود نہیں یا انہیں فلٹر کر دیا گیا ہے";
-"OPEN_WEBSITE" = "ویب سائٹ کھولیں";
-"SET_COVER_IMAGE" = "بطور سرورق سیٹ کریں";
-"CHOOSE_CUSTOM_COVER" = "حسب ضرورت سرورق منتخب کریں";
-"RESET_COVER" = "سرورق ری سیٹ کریں";
-"HISTORY_LOCKED" = "مطالعے کی سرگزشت مقفل ہے۔";
-"VIEW_HISTORY" = "مطالعے کی سرگزشت دیکھیں";
-"AUTH_FOR_HISTORY" = "مطالعے کی سرگزشت دیکھنے کے لیے اپنی شناخت کی تصدیق کریں۔";
-"NO_HISTORY" = "مطالعے کی کوئی سرگزشت نہیں";
-"NO_HISTORY_TEXT" = "مطالعے کی سرگزشت یہاں ظاہر ہوگی۔";
-"MANGA_UPDATES" = "اپ ڈیٹس";
-"NO_UPDATES" = "کوئی اپ ڈیٹس نہیں";
-"%lld_PLUS_MORE" = "+%lld مزید";
-"SEARCH" = "تلاش";
-"VIEW_MORE" = "مزید دیکھیں";
-"RECENTLY_SEARCHED" = "حال ہی میں تلاش کیا گیا";
-"NO_RECENT_SEARCHES" = "کوئی حالیہ تلاش نہیں";
-"NO_RECENT_SEARCHES_TEXT" = "آپ کی حالیہ تلاشیں یہاں ظاہر ہوں گی۔";
-"SOURCES" = "مواد کے ذرائع";
-"LOGIN" = "لاگ ان کریں";
-"LOGIN_SECTION" = "لاگ ان";
-"LOGOUT" = "لاگ آؤٹ کریں";
-"LOGOUT_FROM_%@" = "%@ سے لاگ آؤٹ کریں؟";
-"LOGOUT_CONFIRM" = "کیا آپ واقعی لاگ آؤٹ کرنا چاہتے ہیں؟";
-"USERNAME" = "صارف نام";
-"EMAIL" = "ای میل";
-"PASSWORD" = "پاس ورڈ";
-"LOGIN_FAILED" = "لاگ ان ناکام";
-"LOGIN_FAILED_TEXT" = "ماخذ میں لاگ ان کرنے میں ناکام۔ یقینی بنائیں کہ آپ کی اسناد صحیح طریقے سے درج کی گئی ہیں۔";
-"LOGIN_BASIC_TEXT" = "درج کردہ کوئی بھی اسناد براہ راست ماخذ کو دی جائیں گی۔ کسی بھی ماخذ میں لاگ ان نہ کریں جس پر آپ کو اعتماد نہیں ہے۔";
-"LOGIN_WEBVIEW_WARNING" = "ویب ویو کے ذریعے لاگ ان کریں؟";
-"LOGIN_WEBVIEW_WARNING_TEXT" = "پیش کردہ ویب ویو میں سیٹ کی گئی تمام کوکیز ماخذ کو دی جائیں گی۔ کسی بھی ماخذ میں لاگ ان نہ کریں جس پر آپ کو اعتماد نہیں ہے۔";
-"REFRESH_LOGIN" = "لاگ ان کو ریفریش کریں";
-"LOGIN_METHOD" = "لاگ ان کا طریقہ";
-"BASIC" = "صارف نام اور پاس ورڈ";
-"SETTINGS" = "ترتیبات";
-"AUTH_TO_ENABLE" = "فعال کرنے کے لیے تصدیق کریں۔";
-"AUTH_TO_DISABLE" = "غیر فعال کرنے کے لیے تصدیق کریں۔";
-"ABOUT" = "بارے میں";
-"GITHUB_REPO" = "GitHub ذخیرہ";
-"DISCORD_SERVER" = "Discord سرور";
-"SUPPPORT_DEVELOPMENT" = "ترقی میں تعاون کریں";
-"GENERAL" = "عمومی";
-"ICLOUD_SYNC" = "iCloud مطابقت پذیری";
-"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud Sync ایک تجرباتی خصوصیت ہے۔ اسے فعال یا غیر فعال کرنے سے ڈیٹا ضائع ہو سکتا ہے۔";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud Sync صرف TestFlight کے ذریعے انسٹال ہونے پر دستیاب ہے۔";
-"INCOGNITO_MODE" = "انکوگنیٹو موڈ";
-"INCOGNITO_MODE_TEXT" = "فعال ہونے پر مطالعے کی سرگزشت محفوظ کرنا روک دیتا ہے";
-"APPEARANCE" = "ظاہری شکل";
-"APPEARANCE_LIGHT" = "ہلکا";
-"APPEARANCE_DARK" = "گہرا";
-"USE_SYSTEM_APPEARANCE" = "سسٹم کی ظاہری شکل کا استعمال کریں";
-"LAYOUT" = "لے آؤٹ";
-"STANDARD" = "معیاری";
-"COMPACT" = "کمپیکٹ";
-"CUSTOM" = "حسب ضرورت";
-"PORTRAIT_COLUMNS" = "عمودی حالت میں کالموں کی تعداد";
-"LANDSCAPE_COLUMNS" = "افقی حالت میں کالموں کی تعداد";
-"PORTRAIT" = "عمودی";
-"LANDSCAPE" = "افقی";
-"READER" = "ریڈر";
-"OPEN_READER_VIEW" = "ریڈر ویو کھولیں";
-"RESUME_LAST_OPENED_CHAPTER" = "آخری کھولے گئے باب کا مطالعہ جاری رکھیں";
-"CONTINUE_READING_ON_RESELECT" = "مطالعہ جاری رکھنے کے لیے سرگزشت کے ٹیب پر دوبارہ ٹیپ کریں";
-"UNREAD_CHAPTER_BADGES" = "بغیر پڑھے ہوئے باب کے بیجز";
-"DOWNLOADED_CHAPTER_BADGES" = "ڈاؤن لوڈ کردہ باب کے بیجز";
-"PIN_TITLES" = "مانگا کے عنوانات پن کریں";
-"PIN_DISABLED" = "غیر فعال";
-"PIN_UNREAD" = "نہ پڑھے ہوئے";
-"PIN_UPDATED_CHAPTERS" = "اپ ڈیٹ شدہ ابواب";
-"LIBRARY_UPDATING" = "لائبریری اپ ڈیٹس";
-"UPDATE_INTERVAL" = "اپ ڈیٹ وقفہ";
-"SKIP_TITLES" = "عنوانات کو چھوڑیں";
-"ONLY_UPDATE_ON_WIFI" = "صرف Wi-Fi پر اپ ڈیٹ کریں";
-"ONLY_DOWNLOAD_ON_WIFI" = "صرف Wi-Fi پر ڈاؤن لوڈ کریں";
-"EXCLUDED_CATEGORIES" = "خارج کردہ زمرے";
-"REFRESH_METADATA" = "میٹا ڈیٹا ریفریش کریں";
-"BACKGROUND_REFRESH" = "بیک گراؤنڈ ریفریش";
-"BACKGROUND_REFRESH_TEXT" = "لائبریری ریفریش کو دستی طور پر شروع کرتے وقت، ریفریش کو مکمل ہونے دیں چاہے ایپ پس منظر میں ہو۔";
-"NEW_CHAPTER_NOTIFICATIONS" = "نئے باب کی اطلاعات";
-"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "پس منظر میں لائبریری ریفریش ہونے پر اطلاعات بھیجیں۔";
-"1_NEW_CHAPTER_AVAILABLE" = "نیا باب دستیاب ہے";
-"X_NEW_CHAPTERS_AVAILABLE" = "%d نئے ابواب دستیاب ہیں";
-"NEW_CHAPTERS_AVAILABLE" = "نئے ابواب دستیاب ہیں";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "%d سیریز میں نئے ابواب ہیں";
-"DELETE_DOWNLOAD_AFTER_READING" = "پڑھنے کے بعد ڈاؤن لوڈ کو حذف کریں";
-"NEVER" = "کبھی نہیں";
-"EVERY_6_HOURS" = "ہر 6 گھنٹے بعد";
-"EVERY_12_HOURS" = "ہر 12 گھنٹے بعد";
-"DAILY" = "روزانہ";
-"EVERY_2_DAYS" = "ہر 2 دن بعد";
-"WEEKLY" = "ہفتہ وار";
-"WITH_UNREAD_CHAPTERS" = "بغیر پڑھے ہوئے ابواب کے ساتھ";
-"WITH_COMPLETED_STATUS" = "مکمل حالت کے ساتھ";
-"WITH_NO_CHAPTERS_READ" = "جن کا کوئی باب پڑھا ہوا نشان زد نہیں ہے";
-"NO_RESULTS_FOR_%@" = "\"%@\" کے لیے کوئی نتیجہ نہیں";
-"NO_RESULTS_TEXT" = "ہجے چیک کریں یا نئی تلاش کی کوشش کریں۔";
-"LEARN_MORE" = "مزید جانیں…";
-"INSIGHTS" = "مطالعے کے اعداد و شمار";
-"STREAKS" = "مسلسل مطالعے کے دن";
-"STATS" = "اعدادوشمار";
-"CURRENT_STREAK" = "موجودہ پڑھنے کا سلسلہ";
-"NO_CURRENT_STREAK" = "کوئی موجودہ پڑھنے کا سلسلہ نہیں ہے";
-"NO_CURRENT_STREAK_TEXT" = "مسلسل مطالعے کے دنوں کا سلسلہ بنانے کے لیے ہر روز پڑھیں۔";
-"LONGEST_STREAK" = "سب سے طویل پڑھنے کا سلسلہ";
-"DAYS" = "دن";
-"CHAPTER_PLURAL" = "ابواب";
-"CHAPTER_SINGULAR" = "باب";
-"PAGE_PLURAL" = "صفحات";
-"PAGE_SINGULAR" = "صفحہ";
-"SERIES_PLURAL" = "سیریز";
-"SERIES_SINGULAR" = "سیریز";
-"HOUR_PLURAL" = "گھنٹے";
-"HOUR_SINGULAR" = "گھنٹہ";
-"ALL_TIME" = "تمام عرصہ";
-"THIS_MONTH" = "اس مہینے";
-"THIS_YEAR" = "اس سال";
-"SOURCE_LISTS" = "ماخذ کی فہرستیں";
-"SOURCE_LIST_ADDED" = "ماخذ کی فہرست شامل کی گئی";
-"SOURCE_LIST_ADDED_TEXT" = "اب آپ براؤز ٹیب میں بیرونی ذرائع کو براؤز کر سکتے ہیں۔";
-"SOURCE_LIST_URL" = "ماخذ کی فہرست URL";
-"SOURCE_LIST_ADD" = "ماخذ کی فہرست شامل کریں";
-"SOURCE_LIST_ADD_TEXT" = "ماخذ کی فہرست کا URL درج کریں";
-"SOURCE_LIST_ADD_FAIL" = "ماخذ کی فہرست شامل کرنے میں ناکام";
-"SOURCE_LIST_ADD_FAIL_TEXT" = "فراہم کردہ ماخذ کی فہرست کا URL غلط ہے یا پہلے ہی شامل کیا جا چکا ہے۔";
-"UNAVAILABLE_SOURCE_LISTS" = "غیر دستیاب ماخذ کی فہرستیں";
-"UNAVAILABLE_SOURCE_LISTS_TEXT" = "مذکورہ ماخذ کی فہرستوں کو بازیافت کرتے وقت ایک خرابی پیش آگئی۔";
-"COPY_URL" = "URL کاپی کریں";
-"LEGACY_SOURCE_LIST" = "پرانی ماخذ کی فہرست";
-"LEGACY_SOURCE_LIST_WARNING" = "انتباہ: پرانی ماخذ کی فہرست";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "آپ کے پاس فی الحال پرانی ماخذ کی فہرست ترتیب دی گئی ہے۔ یہ فارمیٹ پرانا ہے اور Aidoku کے مستقبل کے ورژن میں کام کرنا بند کر دے گا۔ اگرچہ یہ ابھی تک کام کرے گا، یہ تجویز کیا جاتا ہے کہ آپ متبادل تلاش کریں اور اسے ترتیبات > ماخذ کی فہرستوں میں ترتیب دیں۔";
-"LOCK_HISTORY_TAB" = "مطالعے کی سرگزشت کا ٹیب مقفل کریں";
-"DOWNSAMPLE_IMAGES" = "تصاویر کی ریزولیوشن کم کریں";
-"CROP_BORDERS" = "تصاویر کے کنارے تراشیں";
-"DISABLE_QUICK_ACTIONS" = "فوری کارروائیوں کو غیر فعال کریں";
-"DISABLE_DOUBLE_TAP_ZOOM" = "ڈبل ٹیپ زوم کو غیر فعال کریں";
-"LIVE_TEXT" = "لائیو ٹیکسٹ";
-"HIDE_BARS_ON_SWIPE" = "سوائپ پر بارز چھپائیں";
-"READER_BG_COLOR" = "پس منظر کا رنگ";
-"READER_BG_COLOR_SYSTEM" = "سسٹم";
-"READER_BG_COLOR_AUTO" = "خودکار";
-"READER_BG_COLOR_WHITE" = "سفید";
-"READER_BG_COLOR_BLACK" = "سیاہ";
-"TAP_ZONES" = "ٹیپ کرنے کے حصے";
-"ZONE_LEFT_RIGHT" = "بائیں اور دائیں";
-"ZONE_L_SHAPED" = "L شکل";
-"ZONE_KINDLE" = "Kindle";
-"ZONE_EDGE" = "کنارہ";
-"DISABLED" = "غیر فعال";
-"INVERT_TAP_ZONES" = "ٹیپ زونز کو الٹ دیں";
-"ANIMATE_PAGE_TRANSITIONS" = "صفحہ ٹرانزیشن کو متحرک کریں";
-"TEXT_READER" = "ٹیکسٹ ریڈر";
-"TEXT_READER_STYLE" = "ریڈر کا انداز";
-"TEXT_READER_PAGED" = "صفحہ وار";
-"TEXT_READER_SCROLL" = "سکرول";
-"TEXT_FONT_FAMILY" = "فونٹ";
-"TEXT_FONT_SIZE" = "فونٹ کا سائز";
-"TEXT_LINE_SPACING" = "لائن اسپیسنگ";
-"TEXT_HORIZONTAL_PADDING" = "افقی حاشیہ";
-"TEXT_THEME" = "تھیم";
-"TEXT_THEME_SEPIA" = "سیپیا";
-"TEXT_THEME_PAPER" = "کاغذ";
-"TEXT_THEME_GRAY" = "گرے";
-"DICTIONARY_LOOKUP" = "لغت کی تلاش";
-"DICTIONARY_SETTINGS_TEXT" = "کسی بھی درآمد شدہ Yomitan لغات میں الفاظ تلاش کرنے کے لیے صفحہ کی تصاویر پر OCR پروسیسنگ کی اجازت دینے کے لیے لغت میں تلاش کو فعال کریں۔";
-"DICTIONARIES" = "لغتیں";
-"ABOUT_DICTIONARIES" = "لغت کے بارے میں";
-"ABOUT_DICTIONARIES_TEXT" = "Yomitan لغات زپ فائلوں سے درآمد کی جا سکتی ہیں۔ آپ لغات کو فعال یا غیر فعال کر سکتے ہیں، اور انہیں گھسیٹ کر دوبارہ ترتیب دیا جا سکتا ہے۔";
-"LOOKUP_GESTURE" = "لغت میں تلاش کا اشارہ";
-"SINGLE_TAP" = "سنگل ٹیپ";
-"LONG_PRESS" = "لانگ پریس";
-"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "کسی لفظ کے آغاز پر ٹیپ کرنے سے پاپ اپ کھل جائے گا۔ اس کے فعال ہونے پر زوم کے لیے ڈبل ٹیپ غیر فعال ہو جاتا ہے۔";
-"LOOKUP_GESTURE_LONG_PRESS_INFO" = "کسی لفظ کے آغاز پر دبائے رکھنے سے وہ نمایاں ہو جائے گا، اور انگلی ہٹانے پر پاپ اپ کھل جائے گا۔ اس کے فعال ہونے پر صفحے کی فوری کارروائیاں غیر فعال ہو جاتی ہیں۔";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "تلاش کے اشارے «سنگل ٹیپ» کی وجہ سے مقفل ہے۔";
-"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "تلاش کے اشارے «لانگ پریس» کی وجہ سے مقفل ہے۔";
-"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR ٹیکسٹ اوورلے";
-"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "تلاش کے فعال ہونے پر تصویری خطوں پر ٹیکسٹ بکس دکھاتا ہے۔ یہ جاننے میں مددگار ثابت ہو سکتا ہے کہ OCR نے کون سا متن صحیح طریقے سے پہچانا ہے۔";
-"DICTIONARY_OVERLAY_PADDING" = "اوورلے پیڈنگ";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "اوورلے ٹیکسٹ سائز";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "OCR زبانوں کو محدود کریں";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "فعال ہونے پر، OCR کے لیے صرف منتخب کردہ زبان (زبانوں) کے بطور نشان زد ابواب پر کارروائی کی جائے گی۔ صرف وہی زبانیں منتخب کرنے کی سفارش کی جاتی ہے جن کے لیے آپ نے لغات درآمد کی ہیں۔";
-"DICTIONARY_OCR_LANGUAGES" = "OCR زبانیں";
-"DICTIONARY_POPUP" = "لغت پاپ اپ";
-"DISPLAY_MODE" = "ڈسپلے موڈ";
-"DEFAULT_DISPLAY_MODE" = "طے شدہ";
-"FULL_WIDTH" = "پوری چوڑائی";
-"DICTIONARY_POPUP_WIDTH" = "پاپ اپ چوڑائی";
-"DICTIONARY_POPUP_HEIGHT" = "پاپ اپ اونچائی";
-"TERM_DICTIONARIES" = "اصطلاحی لغات";
-"FREQUENCY_DICTIONARIES" = "الفاظ کی تعدد لغات";
-"PITCH_DICTIONARIES" = "پچ تلفظ لغات";
-"KANJI_DICTIONARIES" = "کانجی لغات";
-"IMPORTING_DICTIONARY" = "لغت درآمد ہو رہی ہے…";
-"IMPORT_ERROR" = "درآمد کی خرابی";
-"REVISION" = "ریویژن";
-"URL" = "URL";
-"ATTRIBUTION" = "انتساب";
-"SOURCE_LANGUAGE" = "اصل زبان";
-"TARGET_LANGUAGE" = "ہدف کی زبان";
-"TERM_COUNT" = "لغت کی اصطلاحات کی تعداد";
-"TERM_META_COUNT" = "اصطلاحات کے میٹا ڈیٹا اندراجات کی تعداد";
-"KANJI_COUNT" = "کانجی کی تعداد";
-"KANJI_META_COUNT" = "کانجی میٹا ڈیٹا اندراجات کی تعداد";
-"TAG_COUNT" = "ٹیگز کی تعداد";
-"MEDIA_COUNT" = "میڈیا کی تعداد";
-"IS_UPDATABLE" = "قابلِ اپ ڈیٹ";
-"SIZE" = "سائز";
-"REMOVE_DICTIONARY" = "لغت ہٹائیں";
-"REMOVE_WORD" = "لفظ کو ہٹا دیں";
-"VOCABULARY" = "ذخیرہ الفاظ";
-"1_WORD" = "1 لفظ";
-"%i_WORDS" = "%i الفاظ";
-"NO_VOCABULARY" = "کوئی ذخیرہ الفاظ نہیں";
-"NO_VOCABULARY_TEXT" = "محفوظ کردہ الفاظ یہاں ظاہر ہوں گے۔";
-"DEFINITION" = "تعریف";
-"VOCAB_CONTEXT" = "سیاق و سباق";
-"VOCAB_SOURCE" = "ماخذ";
-"CLEAR_VOCABULARY_LIST" = "تمام محفوظ کردہ الفاظ کو حذف کریں";
-"CLEAR_VOCABULARY_LIST_TEXT" = "یہ عمل ناقابل واپسی ہے۔ تمام محفوظ کردہ الفاظ کو ہٹا دیا جائے گا۔";
-"DICTIONARY_UPDATES" = "اپ ڈیٹس";
-"UPDATE_NOW" = "ابھی اپ ڈیٹ کریں";
-"LAST_UPDATED_%@" = "آخری اپ ڈیٹ: %@";
-"MONTHLY" = "ماہانہ";
-"GET_RECOMMENDED_DICTIONARIES" = "تجویز کردہ لغات حاصل کریں";
-"RECOMMENDED_DICTIONARIES" = "تجویز کردہ لغات";
-"RECOMMENDED_DICTIONARIES_NOTE" = "نیچے دی گئی تمام لغات جاپانی–انگریزی لغات ہیں۔ دیگر زبانوں کے لیے Wiktionary لغات کی فہرست دیکھیں۔";
-"BACKUPS" = "بیک اپس";
-"BACKUP_NAME" = "بیک اپ کا نام";
-"RENAME_BACKUP" = "بیک اپ کا نام تبدیل کریں";
-"RENAME_BACKUP_TEXT" = "اپنے بیک اپ کے لیے ایک نیا نام درج کریں";
-"CORRUPTED_BACKUP" = "خراب شدہ بیک اپ";
-"CORRUPTED_BACKUP_TEXT" = "ایسا لگتا ہے کہ اس بیک اپ میں ڈیٹا کو غلط کنفیگر کیا گیا ہے۔ نام تبدیل کرنا ممکن نہیں ہے۔";
-"BACKUP_INFO" = "بیک اپ کو ایکسپورٹ کرنے کے لیے اسے دیر تک دبائیں، یا حذف کرنے کے لیے دائیں جانب سوائپ کریں۔";
-"MISSING_SOURCES" = "غائب ذرائع";
-"MISSING_SOURCES_TEXT" = "بحال شدہ بیک اپ میں درج ذیل ذرائع سے ڈیٹا ہو سکتا ہے، جو فی الحال انسٹال نہیں ہیں:";
-"RESTORE_MISSING_SOURCES" = "غائب ذرائع بحال کریں؟";
-"RESTORE_MISSING_SOURCES_TEXT" = "کیا آپ غائب ذرائع تلاش کر کے انسٹال کرنا چاہیں گے؟";
-"INSTALL_SOURCES" = "ذرائع کو انسٹال کریں";
-"INSTALLING_SOURCES" = "ذرائع کو انسٹال کیا جا رہا ہے…";
-"RESTORE_BACKUP" = "یہ بیک اپ بحال کریں؟";
-"RESTORE_BACKUP_TEXT" = "تمام موجودہ ڈیٹا کو ہٹا دیا جائے گا اور اس کی جگہ اس بیک اپ سے ڈیٹا لے لیا جائے گا۔";
-"BACKUP_IMPORT_SUCCESS" = "بیک اپ درآمد ہو گیا";
-"BACKUP_IMPORT_SUCCESS_TEXT" = "اس بیک اپ کو بحال کرنے کے لیے، اسے ترتیبات میں بیک اپس کے صفحے پر تلاش کریں۔";
-"IMPORT_FAIL" = "درآمد ناکام";
-"BACKUP_IMPORT_FAIL_TEXT" = "بیک اپ درآمد کرنے میں ناکام۔ براہ کرم یقینی بنائیں کہ آپ کا بیک اپ مناسب فارمیٹ میں ہے۔";
-"SOURCE_IMPORT_FAIL_TEXT" = "ماخذ درآمد کرنے میں ناکام۔ براہ کرم یقینی بنائیں کہ آپ کی aix فائل درست ہے۔";
-"FILE_IMPORT_FAIL_TEXT" = "فائل درآمد نہیں ہو سکی۔ یقینی بنائیں کہ یہ پڑھنے کے قابل تصویری فائل یا تصاویر پر مشتمل درست CBZ یا ZIP آرکائیو ہے۔";
-"BACKUP_%@" = "بیک اپ %@";
-"EXPORT" = "برآمد کریں";
-"RESTORE" = "بحال کریں";
-"CREATE_BACKUP" = "بیک اپ بنائیں";
-"IMPORT_BACKUP" = "بیک اپ درآمد کریں";
-"LIBRARY_ENTRIES" = "مانگا لائبریری اندراجات";
-"SENSITIVE_SETTINGS" = "حساس ترتیبات";
-"NAME" = "نام";
-"DATE" = "تاریخ";
-"BACKUP_INFO_TITLE" = "بیک اپ کی معلومات";
-"AUTOMATIC_BACKUPS" = "خودکار بیک اپس";
-"BACKUP_INTERVAL" = "بیک اپ وقفہ";
-"AUTO" = "آٹو";
-"LAST_BACKED_UP_%@" = "آخری بار خود بخود بیک اپ لیا گیا: %@";
-"READING_SESSIONS" = "پڑھنے کے سیشنز";
-"LOGS" = "لاگز";
-"LOGGING" = "لاگنگ";
-"LOG_SERVER" = "لاگ سرور";
-"EXPORT_LOGS" = "لاگز برآمد کریں";
-"DISPLAY_LOGS" = "لاگز دکھائیں";
-"ADVANCED" = "ایڈوانسڈ";
-"RESET_TEXT" = "یہ عمل ناقابل واپسی ہے۔ تمام ڈیٹا، ترتیبات اور کیشے صاف اور ری سیٹ کر دیے جائیں گے۔";
-"CLEAR_NETWORK_CACHE" = "نیٹ ورک کیشے کو صاف کریں";
-"CLEAR_NETWORK_CACHE_TEXT" = "یہ عمل ناقابل واپسی ہے۔ کیش شدہ نیٹ ورک کی درخواستیں اور تصاویر صاف ہو جائیں گی۔";
-"CLEAR_READ_HISTORY" = "مطالعے کی سرگزشت صاف کریں";
-"CLEAR_READ_HISTORY_TEXT" = "یہ عمل واپس نہیں کیا جا سکتا۔ مطالعے کی تمام سرگزشت ہٹا دی جائے گی۔";
-"CLEAR_EXCLUDING_LIBRARY" = "لائبریری کے علاوہ مطالعے کی سرگزشت صاف کریں";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "یہ عمل واپس نہیں کیا جا سکتا۔ لائبریری میں موجود مواد کے علاوہ مطالعے کی تمام سرگزشت ہٹا دی جائے گی۔";
-"RESET_SETTINGS" = "ترتیبات ری سیٹ کریں";
-"RESET_SETTINGS_TEXT" = "یہ عمل ناقابل واپسی ہے۔ ایپ اور ماخذ کی تمام ترتیبات ری سیٹ ہو جائیں گی۔";
-"CLEAR_SOURCE_CACHE" = "ماخذ کیشے کو صاف کریں";
-"CLEAR_SOURCE_CACHE_TEXT" = "اس ماخذ کے URLs کی کوکیز اور ویب سائٹ ڈیٹا کے ساتھ ماخذ کا کیش شدہ مواد صاف کرتا ہے۔ آپ کو دوبارہ لاگ ان کرنا پڑ سکتا ہے اور لوڈ ہونے میں عارضی طور پر زیادہ وقت لگ سکتا ہے۔";
-"PAGE_X_OF_X" = "%2$i میں سے صفحہ %1$i";
-"LIBRARY_LOCKED" = "لائبریری مقفل ہے۔";
-"CATEGORY_LOCKED" = "زمرہ مقفل ہے۔";
-"VIEW_LIBRARY" = "لائبریری دیکھیں";
-"CATEGORY_EMPTY" = "زمرہ خالی";
-"AUTH_TO_OPEN" = "کھولنے کے لیے تصدیق کریں۔";
-"LOCKED_CATEGORIES" = "مقفل زمرہ جات";
-"AUTH_FOR_LIBRARY" = "لائبریری دیکھنے کے لیے تصدیق کریں۔";
-"LOCK_LIBRARY" = "لائبریری کو مقفل کریں";
-"SET_AS_WIDE_PAGE" = "وسیع صفحہ کے طور پر سیٹ کریں";
-"AUTOMATIC" = "خودکار";
-"SET_AS_NORMAL_PAGE" = "عام صفحہ کے طور پر سیٹ کریں";
-"PAGES_TO_PRELOAD" = "پری لوڈ کرنے کے لیے صفحات";
-"SINGLE_PAGE" = "ایک صفحہ";
-"PAGED" = "صفحہ بندی";
-"PAGE_LAYOUT" = "صفحہ لے آؤٹ";
-"DOUBLE_PAGE" = "ڈبل پیج";
-"PAGE_OFFSET" = "صفحہ آفسیٹ";
-"SPLIT_WIDE_IMAGES" = "چوڑی تصاویر تقسیم کریں";
-"REVERSE_SPLIT_ORDER" = "تقسیم شدہ صفحات کی ترتیب کو ریورس کریں";
-"MULTI_LANGUAGE" = "کثیر زبان";
-"TRACKING" = "ٹریکنگ";
-"TRACKERS" = "ٹریکرز";
-"STATUS" = "حیثیت";
-"VOLUMES" = "جلدیں";
-"START_TRACKING" = "ٹریکنگ شروع کریں";
-"SCORE" = "سکور";
-"TRACK_READING" = "زیر مطالعہ";
-"TRACK_PLANNING" = "پڑھنے کا ارادہ";
-"TRACK_COMPLETED" = "مکمل";
-"TRACK_PAUSED" = "روک دیا گیا";
-"TRACK_DROPPED" = "پڑھنا چھوڑ دیا";
-"TRACK_REREADING" = "دوبارہ پڑھنا";
-"STARTED" = "آغاز کی تاریخ";
-"FINISHED" = "اختتام کی تاریخ";
-"STOP_TRACKING" = "ٹریکنگ بند کریں";
-"SET_TRACK_CHAPTER_OFFSET" = "باب آفسیٹ سیٹ کریں";
-"TRACK_CHAPTER_OFFSET_TEXT" = "جب ماخذ باب نمبر ٹریکر باب نمبروں سے مختلف ہوں تو اس عنوان کے لیے خودکار ٹریکر باب اپ ڈیٹس کو ایڈجسٹ کریں۔";
-"TITLE_DISPLAY_MODE" = "ٹائٹل ڈسپلے موڈ";
-"STATUS_NOT_PUBLISHED" = "شائع نہیں ہوا";
-"MANGA" = "مانگا";
-"MANHWA" = "منہوا";
-"MANHUA" = "منہوآ";
-"LIGHT_NOVEL" = "لائٹ ناول";
-"ONESHOT" = "ایک حصے کی کہانی";
-"OEL" = "OEL";
-"COMIC" = "کامک";
-"BOOK" = "کتاب";
-"TRACK" = "ٹریک کریں";
-"STATUS_COLON_%@" = "حیثیت: %@";
-"TYPE_COLON_%@" = "قسم: %@";
-"VIEW_ON_WEBSITE" = "ویب سائٹ پر دیکھیں";
-"CLEAR_TRACKED_MANGA" = "تمام ٹریکر لنکس ہٹائیں";
-"CLEAR_TRACKED_MANGA_TEXT" = "یہ عمل واپس نہیں کیا جا سکتا۔ مانگا میں شامل کیے گئے تمام ٹریکر لنکس ہٹا دیے جائیں گے۔";
-"SEARCH_OPTIONS" = "تلاش کے اختیارات";
-"SHOW_NSFW_RESULTS" = "NSFW نتائج دکھائیں";
-"UPDATE_AFTER_READING" = "پڑھنے کے بعد اپ ڈیٹ کریں";
-"UPDATE_AFTER_READING_INFO" = "ایک باب پڑھنے کے بعد، ٹریکر کو موجودہ پڑھے گئے باب اور/یا جلد کے مطابق اپ ڈیٹ کریں۔";
-"AUTO_SYNC_HISTORY" = "سرگزشت خود بخود ہم آہنگ کریں";
-"AUTO_SYNC_HISTORY_INFO" = "جب ٹریکر پر آگے کے پڑھے ہوئے باب اور/یا جلد کا پتہ چلے تو مقامی مطالعے کی سرگزشت بھی اسی کے مطابق اپ ڈیٹ کریں۔";
-"SYNC_WITH_TRACKER" = "ٹریکر کے ساتھ مطابقت پذیری کریں";
-"SYNC_WITH_TRACKER_INFO_%i" = "ٹریکر کے مطابق %i ابواب پہلے ہی پڑھے جا چکے ہیں۔ کیا آپ ان ابواب کو پڑھا ہوا نشان زد کرنا چاہتے ہیں؟";
-"SYNC_WITH_TRACKER_INFO_1" = "ٹریکر کے مطابق 1 باب پہلے ہی پڑھا جا چکا ہے۔ کیا آپ اس باب کو پڑھا ہوا نشان زد کرنا چاہتے ہیں؟";
-"UNAVAILABLE_TRACKER_ITEM" = "غیر دستیاب ٹریکر آئٹم";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "یہ لنک کردہ ٹریکر آئٹم ایک ایسے ٹریکر سے وابستہ ہے جو اب دستیاب نہیں ہے۔ آپ کو یا تو اس آئٹم کو ہٹا دینا چاہیے یا دوبارہ متعلقہ ٹریکر میں لاگ ان کرنا چاہیے۔";
-"ENHANCED_TRACKERS" = "بہتر ٹریکرز";
-"ENHANCED_TRACKERS_INFO" = "بہتر ٹریکرز معاون ذرائع سے آپ کی لائبریری میں شامل کردہ آئٹمز سے خود بخود منسلک ہو سکتے ہیں اور دو طرفہ مطالعے کی سرگزشت ٹریک کرتے ہیں۔";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "کسی ماخذ کے لیے ٹریکنگ بند کرنے سے اس ماخذ کے ٹریکر روابط ہٹ جاتے ہیں۔ فعال کرنے پر لائبریری میں موجود اسی ماخذ کی سیریز خودکار طور پر منسلک ہو جاتی ہیں۔";
-"TRACKER_LOGOUT_INFO" = "لاگ آؤٹ کرنے سے تمام سیریز کے لیے اس ٹریکر سے منسلک ٹریکنگ کی معلومات ہٹ جائیں گی۔";
-"CACHE_SIZE_%@" = "کیشے کا سائز: %@";
-"SUPPORT_VIA_KOFI" = "Ko-fi کے ذریعے سپورٹ";
-"SORT_UNREAD_CHAPTERS" = "بغیر پڑھے ہوئے ابواب";
-"SET_AS_SINGLE_PAGE" = "ایک صفحے کے طور پر سیٹ کریں";
-"UNSET_AS_SINGLE_PAGE" = "ایک صفحے کی ترتیب ختم کریں";
-"RELOAD" = "دوبارہ لوڈ کریں";
-"RELOAD_FAILED" = "دوبارہ لوڈ کرنے میں ناکام";
-"RELOAD_FAILED_TEXT" = "تصویر کو دوبارہ لوڈ کرنے میں ناکام۔ براہ کرم دوبارہ کوشش کریں۔";
-"%i_OF_%i" = "%2$i میں سے %1$i";
-"%i_PAGES_LEFT" = "%i صفحات باقی ہیں";
-"ONE_PAGE_LEFT" = "1 صفحہ باقی ہے";
-"FAILED_CHAPTER_LOAD" = "باب لوڈ کرنے میں ناکام";
-"SORT_LAST_UPDATED" = "آخری اپ ڈیٹ";
-"SORT_TOTAL_CHAPTERS" = "کل ابواب";
-"FAILED_CHAPTER_LOAD_INFO" = "ہو سکتا ہے کہ آپ آف لائن ہوں یا ماخذ کو مسائل درپیش ہوں۔";
-"WEBTOON" = "ویب ٹون";
-"CONTINUOUS_WITH_GAPS" = "گیپس کے ساتھ مسلسل";
-"REMOVE_FROM_CATEGORY" = "زمرہ سے ہٹا دیں";
-"PINNED" = "پن لگا ہوا";
-"%i_CHAPTERS" = "%i ابواب";
-"1_CHAPTER" = "1 باب";
-"UPCOMING" = "آنے والا";
-"SELECT" = "منتخب کریں";
-"ADD" = "شامل کریں";
-"SKIP_DUPLICATE_CHAPTERS" = "ڈپلیکیٹ ابواب کو چھوڑ دیں";
-"MARK_DUPLICATE_CHAPTERS" = "ڈپلیکیٹ ابواب کو بطور پڑھا ہوا نشان زد کریں";
-"MIGRATE_SOURCES" = "ذرائع منتقل کریں";
-"SYNC_LOCAL_HISTORY" = "مقامی سرگزشت ہم آہنگ کریں";
-"MIGRATE" = "منتقل کریں";
-"OPTIONS" = "اختیارات";
-"DESTINATION" = "منزل";
-"SELECTED" = "منتخب";
-"AVAILABLE" = "دستیاب";
-"NOT_FOUND" = "نہیں ملا";
-"MOST_CHAPTERS_SLOWER" = "سب سے زیادہ ابواب (سست)";
-"FIRST_ALTERNATIVE" = "پہلا متبادل";
-"MIGRATE_%i_ITEMS?" = "%i آئٹمز کو منتقل کریں؟";
-"MIGRATE_ONE_ITEM?" = "1 آئٹم کو منتقل کریں؟";
-"MIGRATE_CONFIRM_TEXT" = "کسی دوسرے ماخذ پر منتقل کرتے وقت اصل اندراجات کی مطالعے کی سرگزشت ہٹا دی جائے گی۔";
-"MIGRATE_WITH_HISTORY" = "سرگزشت محفوظ رکھتے ہوئے منتقل کریں";
-"SELECT_PINNED_SOURCES" = "پن شدہ ذرائع کو منتخب کریں";
-"SEARCH_MANUALLY" = "دستی طور پر تلاش کریں";
-"DONT_MIGRATE" = "منتقل نہ کریں";
-"SELECTED_%i_OF_%i" = "منتخب (%i/%i)";
-"MIGRATE_%i_OF_%i" = "منتقل کریں (%i/%i)";
-"SHOW_ENTRY" = "اندراج دیکھیں";
-"SOURCE_BREAKING_CHANGE" = "ماخذ میں غیر موافق تبدیلی";
-"SOURCE_BREAKING_CHANGE_TEXT" = "اس ماخذ میں پچھلے ورژن سے غیر موافق تبدیلی ہوئی ہے۔ اپنی لائبریری اور مطالعے کی سرگزشت برقرار رکھنے کے لیے منتقلی ضروری ہے۔";
-"UPLOAD_DATE" = "اپ لوڈ کی تاریخ";
-"ALL_CHAPTERS_READ" = "تمام ابواب پڑھے جا چکے ہیں";
-"ALL_CHAPTERS_LOCKED" = "تمام ابواب مقفل";
-"DEFAULT_READING_MODE" = "طے شدہ پڑھنے کا موڈ";
-"PILLARBOX" = "اطراف کے حاشیے";
-"PILLARBOX_AMOUNT" = "اطراف کے حاشیوں کی چوڑائی";
-"PILLARBOX_ORIENTATION" = "حاشیوں کے لیے اسکرین کی سمت";
-"PILLARBOX_ORIENTATION_INFO" = "منتخب کریں کہ اسکرین کی کن سمتوں میں اطراف کے حاشیے دکھائے جائیں۔";
-"AUTO_SCROLL" = "آٹو سکرول";
-"AUTO_SCROLL_SPEED" = "آٹو سکرول کی رفتار";
-"AUTO_SCROLL_POSITION" = "آٹو سکرول بٹن کی جگہ";
-"POSITION_LEFT" = "بائیں";
-"POSITION_RIGHT" = "دائیں";
-"BOTH" = "دونوں";
-"%@_TRACKER_LOGIN_NEEDED" = "%@ لاگ ان کی ضرورت ہے";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "آپ کے %@ ٹوکن کی میعاد ختم ہو گئی ہے، اس لیے متعلقہ ٹریکر اس وقت تک کام کرنا بند کر دے گا جب تک آپ ترتیبات میں دوبارہ لاگ ان نہیں ہو جاتے۔";
-"BACKUP_ERROR" = "بیک اپ میں خرابی";
-"BACKUP_ERROR_TEXT" = "بحال کرتے وقت ایک خرابی پیش آئی: %@۔ بیک اپ غلط ہو سکتا ہے۔";
-"READER_ORIENTATION" = "اسکرین کی سمت";
-"FOLLOW_DEVICE" = "ڈیوائس کی سمت کے مطابق";
-"FOCUS_ITEM_LEFT" = "بائیں جانب والے آئٹم پر فوکس کریں";
-"FOCUS_ITEM_RIGHT" = "دائیں جانب والے آئٹم پر فوکس کریں";
-"FOCUS_ITEM_ABOVE" = "اوپر والے آئٹم پر فوکس کریں";
-"FOCUS_ITEM_BELOW" = "نیچے والے آئٹم پر فوکس کریں";
-"FOCUS_ITEM_NEXT" = "اگلے آئٹم پر فوکس کریں";
-"FOCUS_ITEM_PREV" = "پچھلے آئٹم پر فوکس کریں";
-"OPEN_FOCUS_ITEM" = "فوکسڈ آئٹم کھولیں";
-"RESET_FOCUS" = "فوکس ری سیٹ کریں";
-"TURN_PAGE_LEFT" = "صفحہ بائیں طرف پلٹیں";
-"TURN_PAGE_RIGHT" = "صفحہ دائیں طرف پلٹیں";
-"CHAPTER_FORWARD" = "اگلے باب پر جائیں";
-"CHAPTER_BACKWARD" = "پچھلے باب پر جائیں";
-"OPEN_CHAPTER_LIST" = "باب کی فہرست کھولیں";
-"TOGGLE_BARS" = "ٹول بار دکھائیں یا چھپائیں";
-"CLOSE_READER" = "ریڈر بند کریں";
-"TOGGLE_PAGE_OFFSET" = "صفحہ آفسیٹ کو ٹوگل کریں";
-"MIGRATE_CHAPTER_HISTORY" = "ابواب کے مطالعے کی سرگزشت منتقل کریں";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "پرانے ورژن سے باقی رہ جانے والی مطالعے کی سرگزشت منتقل کریں جو مقامی ڈیٹا بیس میں ابواب سے منسلک نہیں ہے۔ یہ عام طور پر اپ ڈیٹ کے بعد خود بخود ہوتا ہے۔ اگر یہ مکمل نہ ہو تو آپ اسے یہاں دوبارہ چلا سکتے ہیں۔";
-
-// Local image import
-"IMPORT_PHOTO" = "تصاویر درآمد کریں";
-"LOCAL_IMAGE_IMPORT_TEXT" = "پڑھنے کے لیے تصاویر، تصویری فائلیں یا CBZ یا ZIP آرکائیو درآمد کریں۔";
-
-// Translated page export
-"SAVE_TRANSLATED_IMAGE" = "ترجمے سمیت تصویر محفوظ کریں";
-"TRANSLATED_IMAGE_SAVE_FAILED" = "ترجمہ شدہ تصویر نہیں بن سکی۔ ترجمہ مکمل ہونے کے بعد دوبارہ کوشش کریں۔";
-
-"TRANSLATION_AUTHORS" = "مصنفین کے ناموں کا ترجمہ";
-
-"TRANSLATION_AUTHOR_FILTER" = "مصنفین کے ناموں کی اصل زبانیں";
-"TRANSLATION_SOURCE_LABEL_FILTER" = "ماخذ کے مینو اور حصوں کی اصل زبانیں";
-
-// Shared image retention
-"SAVE_SHARED_IMAGES" = "مشترکہ تصاویر کو مقامی فائلوں میں رکھیں";
-"SAVE_SHARED_IMAGES_HELP" = "بند ہونے پر، شیئر کی گئی تصاویر عارضی طور پر کھلتی ہیں اور بند کرنے پر حذف ہو جاتی ہیں۔ مطالعے کی سرگزشت اور OCR/ترجمے کی کیش محفوظ نہیں کی جاتی۔";
-
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "بڑی فلٹر فہرستوں کا ترجمہ (100 سے زیادہ اختیارات)";
-
-"SETTING_INVALID_STEPPER_RANGE" = "عددی ترتیب کی حد غلط ہے۔";
-
-"SETTING_MISSING_CONTENT_HANDLER" = "ترتیب ظاہر کرنے سے قاصر: %@";
-
-"DOWNLOAD_TRANSLATED" = "ترجمے کے ساتھ ڈاؤن لوڈ کریں";
-
-"TRANSLATION_STATE_ON" = "فعال";
-"TRANSLATION_STATE_OFF" = "غیر فعال";
-
-"TRANSLATION_ERROR_CONFIGURATION" = "ترجمے کی ترتیبات درست نہیں ہیں۔ سرور URL، ماڈل اور دیگر ترتیبات کی جانچ کریں۔";
-
-"TRANSLATION_ERROR_REQUEST" = "متن، تصویر یا زبان کی ترتیبات ترجمے کے لیے استعمال نہیں ہو سکیں۔";
-
-"TRANSLATION_ERROR_RESPONSE" = "ترجمے کے سرور نے غلط جواب بھیجا۔ دوبارہ کوشش کریں یا ماڈل کی ترتیبات کی جانچ کریں۔";
-
-"TRANSLATION_ERROR_KEY_REQUIRED" = "ترجمے کی API کلید درکار ہے۔";
-
-"TRANSLATION_ERROR_KEY_ACCESS" = "ترجمے کی API کلید Keychain سے پڑھی نہیں جا سکی۔";
-
-"TRANSLATION_ERROR_ENDPOINT" = "سیکیورٹی پالیسی اس ترجمے کے اینڈ پوائنٹ کی اجازت نہیں دیتی۔";
-
-"TRANSLATION_ERROR_REDIRECT" = "ترجمے کے اینڈ پوائنٹ کی ری ڈائریکٹ مسترد کر دی گئی۔";
-
-"TRANSLATION_ERROR_RESPONSE_SIZE" = "ترجمے کا جواب حجم کی حد سے بڑھ گیا۔";
-
-"TRANSLATION_ERROR_HTTP" = "ترجمے کے سرور نے HTTP %d واپس کیا۔";
-
-"TRANSLATION_ERROR_HTTP_REQUEST" = "ترجمے کے سرور نے HTTP %d واپس کیا (درخواست ID: %@)۔";
-
-"TRANSLATION_ERROR_NETWORK_CODE" = "ترجمے کی درخواست ناکام ہو گئی (خرابی %d)۔";
-
-"TRANSLATION_ERROR_CONNECTION" = "ترجمے کی API تک رسائی نہیں ہو سکی۔ اپنے نیٹ ورک کنکشن، API اینڈ پوائنٹ اور سرور کی حالت کی جانچ کرکے دوبارہ کوشش کریں۔";
-
-"TRANSLATION_ERROR_REFUSED" = "ترجمہ فراہم کنندہ نے درخواست مسترد کر دی۔";
-
-"TRANSLATION_ERROR_KEY_ACCOUNT" = "API کلید محفوظ کرنے کے لیے استعمال ہونے والا شناخت کنندہ درست نہیں ہے۔";
-
-"TRANSLATION_ERROR_KEY_INVALID" = "API کلید خالی ہے، بہت بڑی ہے یا اس میں غیر معاون حروف ہیں۔";
-
-"TRANSLATION_ERROR_KEY_MISSING" = "اس فراہم کنندہ کے لیے کوئی API کلید محفوظ نہیں ہے۔";
-
-"TRANSLATION_ERROR_KEY_ENCODING" = "محفوظ کردہ API کلید ڈی کوڈ نہیں ہو سکی۔";
-
-"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychain کا عمل اسٹیٹس کوڈ %d کے ساتھ ناکام ہو گیا۔";
-
-"OCR_ERROR_MODEL_MISSING" = "ایک ضروری PP-OCRv6 ماڈل موجود نہیں ہے۔";
-
-"OCR_ERROR_MODEL_LOAD" = "PP-OCRv6 ماڈل لوڈ نہیں ہو سکا۔";
-
-
-"OCR_ERROR_IMAGE" = "متن کی شناخت کے لیے تصویر تیار نہیں ہو سکی۔";
-
-"OCR_ERROR_OUTPUT" = "PP-OCRv6 ماڈل نے غلط یا غیر معاون آؤٹ پٹ دیا۔";
-
-"OCR_ERROR_PREDICTION" = "PP-OCRv6 سے متن کی شناخت ناکام ہو گئی۔ کسی اور تصویر یا OCR ماڈل کے ساتھ دوبارہ کوشش کریں۔";
-
-
-"TRANSLATION_ERROR_CACHE_STORAGE" = "ترجمے کی کیش کا اسٹوریج درست نہیں ہے یا دستیاب نہیں ہے۔";
-
-"TRANSLATION_ERROR_CACHE_SAVE" = "ترجمے کی کیش محفوظ نہیں ہو سکی۔";
-
-"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud کی مطابقت پذیری میں تبدیلیاں Aidoku کو مکمل طور پر بند کرکے دوبارہ کھولنے پر نافذ ہوں گی۔ تب تک موجودہ ترتیب فعال رہے گی۔";
-
-// Translation settings section
-
-"TRANSLATION_TARGETS" = "کیا ترجمہ کرنا ہے";
-
-// Download page counts and single-series totals.
-"PAGES_%i_OF_%i" = "صفحات: %i / %i";
-"1_SERIES" = "1 سیریز";
-"SKIPPING_ONE_CHAPTER" = "1 باب کو چھوڑا جا رہا ہے کیونکہ وہ ماخذ میں موجود نہیں ہے یا اسے فلٹر کر دیا گیا ہے";
-"BACKUP_CREATE_ERROR_TEXT" = "بیک اپ نہیں بنایا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔";
-"YES" = "ہاں";
-"NO" = "نہیں";
-"CHAPTERS_%i_OF_%i" = "ابواب: %i / %i";
-"TRACKING_REGISTRATION_FAILED" = "عنوان کو ٹریکنگ میں شامل نہیں کیا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔";
-"SORT_READ_PROGRESS" = "پڑھنے کی پیش رفت";
-"SORT_RELEASE_YEAR" = "اشاعت کا سال";
-"SOURCE_INVALID_PAGE_COUNT" = "صفحات کی تعداد غلط ہے";
-"SOURCE_INVALID_GENRE_ID" = "صنف کی شناخت غلط ہے";
-"SOURCE_INVALID_LISTING" = "فہرست غلط ہے";
-"SOURCE_INVALID_LISTING_TYPE" = "فہرست کی قسم غلط ہے";
-"SOURCE_INVALID_ITEM_TYPE" = "آئٹم کی قسم غلط ہے";
-"DICTIONARY_ERROR" = "لغت کی خرابی";
-"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "لغات کی ترتیبات محفوظ نہیں کی جا سکیں: %@";
-"DICTIONARY_IMPORT_ERRORS_%@" = "منتخب لغات درآمد نہیں کی جا سکیں:\n%@";
-"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "کچھ لغات درآمد نہیں کی جا سکیں:\n%@";
-"DICTIONARY_IMPORT_FAILED" = "لغت کی درآمد ناکام ہو گئی۔";
-"RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) کے زیر انتظام ایک جامع جاپانی–انگریزی لغت۔";
-"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) کے زیر انتظام جاپانی اسمائے خاص کی لغت۔";
-"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe کے میڈیا متون کے ذخیرے پر مبنی الفاظ کی تعدد والی لغت۔";
-
-// Reader background translation and preparation limits
-"TRANSLATION_BACKGROUND" = "اصل صفحات دکھاتے ہوئے ترجمہ کریں";
-"TRANSLATION_BACKGROUND_HELP" = "پڑھتے وقت ترجمے کا بٹن بند ہونے پر بھی ترجمہ جاری رہتا ہے۔ اصل صفحات نظر آتے رہتے ہیں۔ ایپ فعال نہ ہونے پر ترجمہ عارضی طور پر رک جاتا ہے۔";
-"TRANSLATION_PRETRANSLATION_LIMIT" = "پیشگی ترجمے کے لیے صفحات کی تعداد";
-"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "اسکرین پر نظر آنے والے صفحات کے علاوہ پیشگی ترجمے کے لیے صفحات کی زیادہ سے زیادہ تعداد۔ صفحات پڑھنے کی ترجیح کے مطابق منتخب ہوتے ہیں، جس میں آگے آنے والے صفحات کو ترجیح دی جاتی ہے۔";
-"TRANSLATION_UNLIMITED" = "لامحدود";
-
-"TRANSLATION_PAGE_SETTINGS" = "صفحات کا ترجمہ";
-
-"TRANSLATION_VISIBLE_PAGES_ONLY" = "صرف اسکرین پر نظر آنے والے صفحات";
-
-// Unsupported installed source package version
-
-"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "OCR میں معاونت یافتہ تمام زبانیں";
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 جاپانی، چینی (آسان اور روایتی رسم الخط)، انگریزی اور لاطینی رسم الخط والی دیگر زبانوں میں اصل متن کی شناخت کر سکتا ہے، لیکن کوریائی، سیریلک یا ویتنامی کی نہیں۔ اصل متن کی زبان خودکار طور پر معلوم کرنے اور منتخب کرنے کے اختیارات بھی انہی زبانوں تک محدود ہیں۔ کسی بھی ہدف زبان میں ترجمہ اب بھی ممکن ہے۔ Manga منتخب کرنے پر متن کی جگہ معلوم کرنے کی حدیں 0.85 اور 0.25 مقرر ہوتی ہیں؛ اس عمل کے لیے طے شدہ تصویر کا سائز 1120 پکسل ہے۔";
+"HISTORY" = "تاریخ";
+"REMOVE_ALL_MANGA_HISTORY" = "منگا کی تمام تاریخ کو ہٹا دیں۔";

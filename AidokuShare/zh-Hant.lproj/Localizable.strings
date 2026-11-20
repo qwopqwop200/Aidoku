@@ -1,6 +1,0 @@
-"IMPORT" = "正在匯入…";
-"DONE" = "完成";
-"FORMAT_IMAGE" = "圖片";
-"SHARED_IMAGES_SAVED" = "已儲存。開啟 Aidoku 即可閱讀。";
-
-"SHARED_IMAGE_IMPORT_FAILED" = "無法讀取分享的圖片。請嘗試其他圖片。";

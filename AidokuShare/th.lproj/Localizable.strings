@@ -1,6 +1,0 @@
-"IMPORT" = "กำลังนำเข้า…";
-"DONE" = "เสร็จสิ้น";
-"FORMAT_IMAGE" = "รูปภาพ";
-"SHARED_IMAGES_SAVED" = "บันทึกแล้ว เปิด Aidoku เพื่ออ่าน";
-
-"SHARED_IMAGE_IMPORT_FAILED" = "ไม่สามารถอ่านภาพที่แชร์ได้ โปรดลองภาพอื่น";

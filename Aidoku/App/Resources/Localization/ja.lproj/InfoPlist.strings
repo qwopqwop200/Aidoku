@@ -7,6 +7,3 @@
 */
 
 "CFBundleDisplayName" = "愛読";
-
-// Completed app localization
-"NSLocalNetworkUsageDescription" = "漫画サーバーやカスタム翻訳サーバーがローカルネットワーク上にある場合、Aidokuはそれらのサーバーに接続します。";

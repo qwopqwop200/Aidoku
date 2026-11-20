@@ -113,7 +113,7 @@ Other test suites, each run from the repository root:
 
 ## Localization rules
 
-Any new UI string must use `NSLocalizedString`, with an English entry in `en.lproj` and a translation in **every** locale listed in the project's `knownRegions`. This applies to both `Localizable.strings` and `InfoPlist.strings`. `AidokuShare` has its own `Localizable.strings`. Do not localize stored setting values, provider names, API protocol names, or font family identifiers; localize only their display labels. When a translation reorders format arguments, use positional arguments (`%1$@`). The validator fails on missing or extra keys, English left untranslated, and incompatible format arguments.
+Any new UI string must use `NSLocalizedString`, with an English entry in `en.lproj` and a Korean translation in `ko.lproj`. This applies to both `Localizable.strings` and `InfoPlist.strings`. `AidokuShare` has its own `Localizable.strings` (English and Korean only). Leave the other locales as upstream ships them; their missing keys fall back to English. Do not localize stored setting values, provider names, API protocol names, or font family identifiers; localize only their display labels. When a translation reorders format arguments, use positional arguments (`%1$@`). The validator fails on missing or extra keys, English left untranslated, and incompatible format arguments.
 
 ## Image translation pipeline CLI
 

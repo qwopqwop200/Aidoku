@@ -7,8 +7,8 @@
 */
 
 "LIBRARY" = "ライブラリ";
-"LIBRARY_SEARCH" = "ライブラリ内を検索";
-"LIBRARY_EMPTY" = "ライブラリは空です";
+"LIBRARY_SEARCH" = "ライブラリ検索";
+"LIBRARY_EMPTY" = "ライブラリの中には本がありません";
 "BROWSE" = "ブラウズ";
 "INSTALLED" = "インストール済のソース";
 "VERSION" = "バージョン";
@@ -30,8 +30,6 @@
 
 // Downloads
 "DOWNLOAD" = "ダウンロード";
-"NEXT_UNREAD" = "次の未読";
-"NEXT_%i_UNREAD" = "次の未読 %i 件";
 "DOWNLOADED" = "ダウンロード済み";
 "FILTER_BY" = "絞り込み";
 "SORT_TITLE" = "タイトル";
@@ -55,7 +53,7 @@
 "LOGOUT" = "ログアウト";
 "MANGA" = "漫画";
 "LIGHT_NOVEL" = "ライトノベル";
-"ONESHOT" = "読み切り";
+"ONESHOT" = "読切シリーズ";
 "DOWNLOAD_QUEUE" = "ダウンロードキュー";
 "CANCEL_DOWNLOAD" = "ダウンロードをキャンセル";
 "REMOVE_DOWNLOAD" = "ダウンロードを削除";
@@ -63,9 +61,9 @@
 "MANGA_INFO" = "漫画の情報";
 "ALL_CHAPTERS_READ" = "すべての章を読み終えました";
 "UPLOAD_DATE" = "アップロード日";
-"SELECT" = "選択";
+"SELECT" = "一括操作";
 "ADD_TO_CATEGORY" = "本棚に追加";
-"REMOVE_DOWNLOADS" = "ダウンロードを削除";
+"REMOVE_DOWNLOADS" = "ダウンロードを削除する";
 "REMOVE_DOWNLOADS_CONFIRM" = "選択したダウンロードをすべて削除しますか？";
 "ADD_TO_LIBRARY" = "ライブラリに追加";
 "REMOVE_FROM_LIBRARY" = "ライブラリから削除";
@@ -81,7 +79,7 @@
 "CATEGORIES" = "本棚";
 "EDIT_CATEGORIES" = "本棚を編集";
 "CATEGORY_ADD" = "本棚を新規作成";
-"CATEGORY_ADD_TEXT" = "新しい本棚の名前を入力してください。";
+"CATEGORY_ADD_TEXT" = "新たな本棚の名称を入力。";
 "DEFAULT_CATEGORY" = "デフォルトの本棚";
 "ALWAYS_ASK" = "常に尋ねる";
 "BROWSE_NO_SOURCES" = "ソースなし";
@@ -105,8 +103,8 @@
 "NSFW" = "NSFW";
 "MORE" = "さらに表示";
 "SOURCE_ORDER" = "ソース順";
-"MISSING_SOURCE_TEXT" = "この漫画の元のソースが見つかりません。ソースを再インストールするか、ライブラリからこの作品を削除してください。";
-"SELECT_CHAPTERS" = "章を選択";
+"MISSING_SOURCE_TEXT" = "この漫画の元のソースが見つかりません。再ダウンロードするか、ライブラリからこのタイトルを削除してください。";
+"SELECT_CHAPTERS" = "一括操作";
 "SELECT_ALL" = "全選択";
 "DESELECT_ALL" = "全解除";
 "LINK_COPIED" = "リンクがコピーされました";
@@ -114,20 +112,20 @@
 
 // Reader
 "CHAPTER" = "章";
-"STATUS_HIATUS" = "休載";
-"SUGGESTIVE" = "性的な表現を含む";
+"STATUS_HIATUS" = "一時休止";
+"SUGGESTIVE" = "示唆的な内容";
 "CHAPTERS" = "章";
 "NO_CHAPTERS" = "章なし";
 "NO_CHAPTERS_AVAILABLE" = "利用可能な章はありません";
 "START_READING" = "読み始める";
 "CH_SPACE_X" = "第%g話";
-"CONTINUE_READING" = "続きを読む";
-"READ" = "既読";
+"CONTINUE_READING" = "読み続ける";
+"READ" = "既読にする";
 "UNREAD" = "未読";
-"MARK" = "既読・未読";
+"MARK" = "操作";
 "PREVIOUS_COLON" = "前の章：";
-"FINISHED_COLON" = "読み終えた章：";
-"MARK_ALL" = "すべての既読・未読を設定";
+"FINISHED_COLON" = "ただいま読んでいた章：";
+"MARK_ALL" = "全てを操作";
 "MARK_UNREAD" = "未読にする";
 "CURRENT_COLON" = "今読んでいる章：";
 "NO_NEXT_CHAPTER" = "次の章はありません";
@@ -140,18 +138,18 @@
 "DEFAULT" = "デフォルト";
 "LTR" = "左から右";
 "RTL" = "右から左";
-"VERTICAL" = "縦方向";
-"VERTICAL_SCROLL" = "縦スクロール";
+"VERTICAL" = "垂直";
+"VERTICAL_SCROLL" = "垂直スクロール";
 "EXPERIMENTAL" = "実験的な機能";
-"INFINITE_VERTICAL_SCROLL" = "無限縦スクロール";
+"INFINITE_VERTICAL_SCROLL" = "無限垂直スクロール";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "この操作により、この章の履歴が削除されます。本当に続行しますか？";
-"REMOVE_ALL_MANGA_HISTORY" = "この漫画の履歴をすべて削除";
-"VIEW_HISTORY" = "履歴を表示";
+"REMOVE_ALL_MANGA_HISTORY" = "漫画の履歴をすべて削除";
+"VIEW_HISTORY" = "履歴を表示する";
 "AUTH_FOR_HISTORY" = "読書履歴を見るには認証が必要です。";
-"HISTORY_LOCKED" = "履歴はロックされています。";
-"AUTH_TO_ENABLE" = "有効にするには認証が必要です。";
-"AUTH_TO_DISABLE" = "無効にするには認証が必要です。";
-"ABOUT" = "このアプリについて";
+"HISTORY_LOCKED" = "履歴はロックされている。";
+"AUTH_TO_ENABLE" = "有効するには認証が必要です。";
+"AUTH_TO_DISABLE" = "無効するには認証が必要です。";
+"ABOUT" = "About";
 "SUPPPORT_DEVELOPMENT" = "開発をサポートする";
 "GENERAL" = "一般";
 "ICLOUD_SYNC" = "iCloud同期";
@@ -161,7 +159,7 @@
 "APPEARANCE_LIGHT" = "ライト";
 "APPEARANCE_DARK" = "ダーク";
 "USE_SYSTEM_APPEARANCE" = "システムの外観を使用する";
-"UNREAD_CHAPTER_BADGES" = "未読の章のバッジ";
+"UNREAD_CHAPTER_BADGES" = "未読通知ドット";
 "READER" = "リーダー";
 "PIN_UNREAD" = "未読";
 "LIBRARY_UPDATING" = "ライブラリ更新";
@@ -181,43 +179,43 @@
 "MISSING_SOURCES_TEXT" = "復元されたバックアップには、現在インストールされていない以下のソースからのデータが含まれている可能性があります：";
 "RESTORE_BACKUP_TEXT" = "現在のデータはすべて削除され、このバックアップのデータに置き換えられます。";
 "BACKUP_IMPORT_SUCCESS" = "バックアップがインポートされました";
-"BACKUP_IMPORT_SUCCESS_TEXT" = "このバックアップに復元するには、設定の「バックアップ」ページから選択してください。";
-"BACKUP_IMPORT_FAIL_TEXT" = "バックアップをインポートできませんでした。バックアップが適切な形式であることを確認してください。";
+"BACKUP_IMPORT_SUCCESS_TEXT" = "このバックアップに復元するには、設定のバックアップページで見つけてください。";
+"BACKUP_IMPORT_FAIL_TEXT" = "バックアップを保存できませんでした。バックアップが適切な形式であることを確認してください。";
 "EXPORT" = "エクスポート";
 "RESTORE" = "復元";
 "RESET_SETTINGS" = "設定をリセット";
 "PAGE_X_OF_X" = "%i / %i ページ";
-"SORT_UNREAD_CHAPTERS" = "未読の章数";
+"SORT_UNREAD_CHAPTERS" = "未読の章";
 "RELOAD" = "再読み込み";
 "EVERY_12_HOURS" = "12時間ごと";
 "EVERY_2_DAYS" = "2日ごと";
 "SOURCE_LIST_URL" = "ソースリスト URL";
-"SOURCE_LIST_ADDED_TEXT" = "ブラウズタブで外部ソースを探せるようになりました。";
-"SOURCE_LIST_ADD" = "ソースリストを追加";
+"SOURCE_LIST_ADDED_TEXT" = "ブラウザタブで外部ソースを参照できるようになりました。";
+"SOURCE_LIST_ADD" = "ソースリスト追加";
 "SOURCE_LIST_ADD_TEXT" = "ソースリストのURLを入力";
 "SOURCE_LIST_ADD_FAIL" = "ソースリストの追加に失敗しました";
-"SOURCE_LIST_ADD_FAIL_TEXT" = "入力されたソースリストのURLが無効であるか、すでに追加されています。";
+"SOURCE_LIST_ADD_FAIL_TEXT" = "提供されたソースリストのURLが無効であるか、すでに追加されています。";
 "OPEN_READER_VIEW" = "リーダービューを開く";
 "MARK_READ" = "既読にする";
 "VOL_SPACE_X" = "%g巻";
 "EXCLUDED_CATEGORIES" = "除外された本棚";
-"AUTH_FOR_LIBRARY" = "ライブラリを表示するには認証が必要です。";
+"AUTH_FOR_LIBRARY" = "ライブラリを表示するために認証してください。";
 "LOCK_LIBRARY" = "ライブラリをロックする";
 "CORRUPTED_BACKUP_TEXT" = "このバックアップには、データが正しく構成されていないようです。名前を変更することはできません。";
 "IMPORT_FAIL" = "インポートに失敗しました";
-"RESTORE_BACKUP" = "このバックアップを復元しますか？";
+"RESTORE_BACKUP" = "このバックアップに復元しますか？";
 "LOGS" = "ログ";
 "ADVANCED" = "高度な設定";
 "RESET_TEXT" = "この操作は取り消せません。すべてのデータ、設定、キャッシュがクリアされ、リセットされます。";
 "%i_OF_%i" = "%i / %i";
 "ONE_PAGE_LEFT" = "残り1ページ";
 "VIEW_LIBRARY" = "ライブラリを表示";
-"CATEGORY_EMPTY" = "本棚は空です";
-"AUTH_TO_OPEN" = "開くには認証が必要です。";
+"CATEGORY_EMPTY" = "本棚には本がありません";
+"AUTH_TO_OPEN" = "開くために認証してください。";
 "LOCKED_CATEGORIES" = "ロックされた本棚";
 "LIBRARY_LOCKED" = "ライブラリはロックされています。";
 "CATEGORY_LOCKED" = "本棚はロックされています。";
-"IS_TRACKING" = "追跡中";
+"IS_TRACKING" = "追跡";
 "SET_AS_WIDE_PAGE" = "ワイドページにする";
 "AUTOMATIC" = "自動";
 "SET_AS_NORMAL_PAGE" = "通常ページにする";
@@ -227,17 +225,17 @@
 "TRACK_PLANNING" = "読書予定";
 "VIEW_ON_WEBSITE" = "ウェブサイトで見る";
 "REMOVE_ALL_DOWNLOADS_CONFIRM" = "すべてのダウンロードを削除してもよろしいですか？";
-"SUPPORT_VIA_KOFI" = "Ko-fiで支援";
+"SUPPORT_VIA_KOFI" = "Ko-Fiでコーヒーをおごる";
 "REMOVE_FROM_CATEGORY" = "本棚から削除";
 "MIGRATE_SOURCES" = "ソースの移行";
 "SELECTED" = "選択済み";
-"DESTINATION" = "移行先";
+"DESTINATION" = "目的地";
 "SYNC_LOCAL_HISTORY" = "ローカル履歴の同期";
 "MIGRATE_ONE_ITEM?" = "1個のアイテムを移行しますか？";
 "ADD_TO_CATEGORIES" = "本棚に追加";
 "SKIP_DUPLICATE_CHAPTERS" = "重複した章をスキップする";
 "RENAME_CATEGORY_FAIL" = "本棚名の変更に失敗しました";
-"RENAME_CATEGORY_INFO" = "この本棚の新しい名前を入力してください。";
+"RENAME_CATEGORY_INFO" = "本棚の新しい名称を入力。";
 "CATEGORY_NAME" = "本棚名";
 "RENAME_CATEGORY" = "本棚名を変更";
 "%i_CHAPTERS" = "%i章";
@@ -247,13 +245,13 @@
 "LANDSCAPE" = "横向き";
 "LOCK_HISTORY_TAB" = "履歴タブをロックする";
 "DOWNSAMPLE_IMAGES" = "画像をダウンサンプリング";
-"EXPORT_LOGS" = "ログをエクスポート";
+"EXPORT_LOGS" = "ログのエクスポート";
 "LOGGING" = "ログ";
 "LOG_SERVER" = "ログサーバー";
-"DISPLAY_LOGS" = "ログを表示";
+"DISPLAY_LOGS" = "ログの表示";
 "CLEAR_NETWORK_CACHE" = "ネットワークキャッシュをクリア";
 "CLEAR_NETWORK_CACHE_TEXT" = "この操作は取り消せません。キャッシュされたネットワークリクエストと画像がクリアされます。";
-"CLEAR_READ_HISTORY" = "読書履歴を削除";
+"CLEAR_READ_HISTORY" = "読み取り履歴のクリア";
 "CLEAR_READ_HISTORY_TEXT" = "この操作は取り消せません。すべての読書履歴が削除されます。";
 "RESET_SETTINGS_TEXT" = "この操作は取り消せません。すべてのアプリ設定とソース設定がリセットされます。";
 "FAILED_CHAPTER_LOAD_INFO" = "接続がオフラインになっているか、ソースに問題が発生している可能性があります。";
@@ -262,71 +260,71 @@
 "SORT_TOTAL_CHAPTERS" = "総章数";
 "SORT_LAST_UPDATED" = "最終更新";
 "AVAILABLE" = "利用可能";
-"FIRST_ALTERNATIVE" = "最初に見つかった移行先";
+"FIRST_ALTERNATIVE" = "最初の選択肢";
 "DEFAULT_READING_MODE" = "デフォルトの読書モード";
-"PILLARBOX" = "左右の余白";
-"PILLARBOX_AMOUNT" = "左右の余白の幅";
-"PILLARBOX_ORIENTATION_INFO" = "左右の余白を表示する画面の向きを選択します。";
-"BOTH" = "両方";
+"PILLARBOX" = "ピラーボックス";
+"PILLARBOX_AMOUNT" = "ピラーボックス量";
+"PILLARBOX_ORIENTATION_INFO" = "ピラーボックスの向き設定は、どの向きでピラーボックスを有効にするかを決定します。";
+"BOTH" = "両方とも";
 "DOUBLE_PAGE" = "ダブルページ";
 "PINNED" = "ピン留め";
 "NOT_FOUND" = "見つかりません";
-"PAGES_TO_PRELOAD" = "プリロードするページ数";
-"PAGED" = "ページ送り";
+"PAGES_TO_PRELOAD" = "プリロードするページ";
+"PAGED" = "ページ";
 "PAGE_LAYOUT" = "ページレイアウト";
 "MULTI_LANGUAGE" = "多言語";
-"MOST_CHAPTERS_SLOWER" = "章数が最も多いソース（低速）";
+"MOST_CHAPTERS_SLOWER" = "最多の章数（長時間）";
 "VOLUMES" = "巻数";
-"STARTED" = "開始日";
+"STARTED" = "開始済み";
 "STATUS" = "ステータス";
 "START_TRACKING" = "追跡開始";
 "SCORE" = "評価";
 "TRACK_REREADING" = "再読中";
 "TRACK_PAUSED" = "一時停止";
-"TRACK_DROPPED" = "中止";
+"TRACK_DROPPED" = "放棄済み";
 "TRACKERS" = "トラッカー";
 "LOGOUT_FROM_%@" = "%@からログアウトしますか？";
 "STATUS_NOT_PUBLISHED" = "未発表";
 "TRACK" = "追跡";
 "TYPE_COLON_%@" = "タイプ：%@";
 "STATUS_COLON_%@" = "ステータス：%@";
-"CLEAR_TRACKED_MANGA" = "トラッカーとの連携をすべて解除";
-"CLEAR_TRACKED_MANGA_TEXT" = "この操作は取り消せません。すべての漫画からトラッカーとの連携情報を削除します。";
+"CLEAR_TRACKED_MANGA" = "追跡された漫画をクリア";
+"CLEAR_TRACKED_MANGA_TEXT" = "この操作は取り消せません。漫画に追加されたすべてのトラッカーの追跡が削除されます。";
 "CACHE_SIZE_%@" = "キャッシュサイズ：%@";
 "1_CHAPTER" = "1章";
-"RENAME_CATEGORY_FAIL_INFO" = "同じ名前の本棚は作成できません。";
+"RENAME_CATEGORY_FAIL_INFO" = "本棚名は一意である必要があります。";
 "OPTIONS" = "オプション";
 "MIGRATE" = "移行";
-"MIGRATE_%i_ITEMS?" = "%i個のアイテムを移行しますか？";
-"WITH_COMPLETED_STATUS" = "完結済みの作品";
-"WITH_NO_CHAPTERS_READ" = "既読の章がない作品";
-"MISSING_SOURCES" = "不足しているソース";
+"MIGRATE_%i_ITEMS?" = "%i個のアイテムを移行しますか?";
+"WITH_COMPLETED_STATUS" = "完結済みの漫画";
+"THAT_HAVENT_BEEN_READ" = "未読の漫画";
+"MISSING_SOURCES" = "ソースがありません";
 "RESTORE_MISSING_SOURCES" = "不足しているソースを復元しますか？";
-"RESTORE_MISSING_SOURCES_TEXT" = "不足しているソースを検索してインストールしますか？";
+"RESTORE_MISSING_SOURCES_TEXT" = "復元したソースリストを検索し、見つかったソースをインストールしますか？";
 "INSTALL_SOURCES" = "ソースをインストール";
 "INSTALLING_SOURCES" = "ソースをインストール中…";
 "%@_AGO" = "%@前";
 "WEBTOON" = "Webtoon";
-"PILLARBOX_ORIENTATION" = "余白を適用する画面の向き";
+"PILLARBOX_ORIENTATION" = "ピラーボックスの向き";
 "MANHWA" = "漫画（韓国）";
 "MANHUA" = "漫画（中国）";
-"UPCOMING" = "公開予定";
-"MARK_PREVIOUS" = "前の章の既読・未読を設定";
+"UPCOMING" = "今後";
+"MARK_PREVIOUS" = "ここまでを操作";
 "WITH_UNREAD_CHAPTERS" = "未読の章あり";
-"FINISHED" = "終了日";
+"FINISHED" = "完了済み";
 "COPY" = "コピー";
 "COVER" = "表紙";
-"REORDER" = "並べ替え";
+"REORDER" = "整理し直す";
 "PIN" = "ピン留め";
 "UNPIN" = "ピン留めを解除";
-"CROP_BORDERS" = "余白を切り抜く";
-"BACKUP_ERROR" = "バックアップエラー";
+"CROP_BORDERS" = "クロップボーダー";
+"BACKUP_ERROR" = "バックアップ復元エラー";
 "BACKUP_ERROR_TEXT" = "復元中にエラーが発生しました: %@。バックアップが無効である可能性があります。";
 "PAUSE" = "一時停止";
-"RESUME" = "再開";
+"RESUME" = "再生";
 "WARNING" = "警告";
-"NO_WIFI_ALERT_TITLE" = "Wi-Fi未接続";
-"NO_WIFI_ALERT_MESSAGE" = "このコンテンツをダウンロードするにはWi-Fi接続が必要です。Wi-Fiに接続してから再度お試しください。";
+"NO_WIFI_ALERT_TITLE" = "Wi-Fiなし";
+"NO_WIFI_ALERT_MESSAGE" = "このコンテンツをダウンロードするにはWi-Fi接続が必要。Wi-Fiに接続してから再度お試しください。";
 "DOWNLOAD_ANYWAY_MESSAGE" = "現在Wi-Fiに接続されていません。それでもダウンロードしますか？";
 "ONLY_DOWNLOAD_ON_WIFI" = "Wi-Fiでのみダウンロードする";
 "READER_BG_COLOR" = "背景色";
@@ -337,58 +335,57 @@
 // Manga Updates
 "MANGA_UPDATES" = "更新";
 "NO_UPDATES" = "更新なし";
-"%lld_PLUS_MORE" = "他%lld件";
-"SKIPPING_CHAPTERS" = "ソースに存在しないか、フィルターで除外されているため、%i章をスキップします";
+"%lld_PLUS_MORE" = "+%lld個";
+"SKIPPING_CHAPTERS" = "ソースが欠落しているか、フィルターによって、%i章がスキップされます";
 "NO_SCANLATOR" = "スキャンレーターなし";
 "SCANLATOR" = "スキャンレーター";
 "DELETE_DOWNLOAD_AFTER_READING" = "読み終わったらダウンロードを削除する";
 "DONE" = "完了";
-"ENABLE_PERMISSION" = "アクセスを許可";
+"ENABLE_PERMISSION" = "許可する";
 "PASSWORD" = "パスワード";
-"LOGIN_FAILED" = "ログインに失敗しました";
-"LOGIN_FAILED_TEXT" = "ソースへのログインに失敗しました。入力した認証情報を確認してください。";
+"LOGIN_FAILED" = "ログイン失敗";
+"LOGIN_FAILED_TEXT" = "ログインに失敗しました。入力情報を再確認してくだい。";
 "LOGOUT_CONFIRM" = "ログアウトしますか？";
 "CONTENT" = "コンテンツ";
-"PHOTOS_ACCESS_DENIED_TEXT" = "写真へのアクセスが以前に拒否されました。愛読で画像をカメラロールに保存するには、写真へのアクセスを許可してください。プライバシー設定から変更できます。";
-"SEE_ALL" = "すべて表示";
+"PHOTOS_ACCESS_DENIED_TEXT" = "前回アクセスを許可されませんでした。愛読がカメラロールに写真を保存できるように写真のアクセスを許可してください。これはプライバシー設定から変更できます。";
+"SEE_ALL" = "すべて表示する";
 "FILTERS" = "フィルター";
 "SOURCE_SETTINGS" = "ソース設定";
 "RESET_SETTINGS_CONFIRM_%@" = "%@の設定をすべてリセットしますか？";
-"CANCEL_CONFIRM" = "キャンセルしますか？";
+"CANCEL_CONFIRM" = "キャセルしますか？";
 "CANCEL_CONFIRM_TEXT" = "変更は破棄されます。";
 "DISCARD_CHANGES" = "変更を破棄する";
-"INVALID_URL_TEXT" = "このソースのURLは無効です。";
-"RETRY" = "再試行";
+"INVALID_URL_TEXT" = "このソースURLは無効です。";
+"RETRY" = "リトライ";
 "UNIMPLEMENTED" = "未実装";
 "NETWORK_ERROR" = "ネットワークエラー";
-"DECODING_ERROR" = "デコードエラー";
+"DECODING_ERROR" = "解読エラー";
 "UNKNOWN_ERROR" = "不明なエラー";
-"ADD_SOURCE" = "ソースを追加";
-"IMPORT_SOURCE" = "ソースをインポート";
-"LOCAL_FILES_INFO" = "ローカルファイルのソースでは、Aidokuに自分のファイルを取り込んでライブラリを管理できます。";
+"ADD_SOURCE" = "ソースを追加する";
+"IMPORT_SOURCE" = "ソースをインポートする";
+"LOCAL_FILES_INFO" = "ローカルファイルのソースを使って愛読から直接ライブラリーをアップロードして管理することができます。";
 "LOCAL_FILES_SETUP" = "ローカルファイルの設定";
 "LOCAL_FILES" = "ローカルファイル";
 "LOCAL_FILES_TAGLINE" = "ローカルファイルから読む";
 "IMPORT" = "インポート";
-"IMPORT_SETTINGS" = "インポート";
 "LOCAL_FILE_IMPORT_TEXT" = "画像を含むCBZかZIPファイルをインポートして読み込みます。";
 "CHAPTER_TITLE" = "章タイトル";
 "SERIES_TITLE" = "作品名";
-"DESCRIPTION" = "説明";
+"DESCRIPTION" = "詳細";
 "SERIES" = "作品";
 "NEW_SERIES" = "新しい作品";
-"NEW_SERIES_TEXT" = "このファイル用に新しい作品を作成";
-"SELECT_SERIES" = "作品を選択";
+"NEW_SERIES_TEXT" = "このファイルのために新しい作品を作る";
+"SELECT_SERIES" = "作品を選択する";
 "SERIES_TITLE_UNIQUE_ERROR" = "この名前の作品はすでに存在します。";
-"VOLUME_CHAPTER_EMPTY_ERROR" = "巻番号または章番号が必要です。";
+"VOLUME_CHAPTER_EMPTY_ERROR" = "巻数または章数が必要です。";
 "SERIES_TITLE_EMPTY_ERROR" = "作品名が必要です。";
-"CREATE_NEW_SERIES_INFO" = "次のページで新しい作品を作成するか、このファイルを追加する既存の作品を選択できます。";
+"CREATE_NEW_SERIES_INFO" = "次のページに新しい作品が作成されます、あるいはこのファイルを追加する作品を選択してください。";
 "ADD_TO_OTHER_SERIES_INFO" = "このファイルは選択された作品に追加されます。";
 "%i_PAGES" = "%i ページ";
-"1_PAGE" = "1 ページ";
-"CBZ_NAME" = "コミック用Zipアーカイブ";
+"1_PAGE" = "１ ページ";
+"CBZ_NAME" = "コミックブックアーカイブ";
 "ZIP_NAME" = "Zip ファイル";
-"KEEP_READING" = "続きを読む";
+"KEEP_READING" = "読み続ける";
 "RECENTLY_ADDED_BOOKS" = "新しく追加された本";
 "RECENTLY_ADDED_SERIES" = "新しく追加された作品";
 "RECENTLY_UPDATED_SERIES" = "新しく更新された作品";
@@ -399,8 +396,8 @@
 "TAG" = "タグ";
 "PUBLISHER" = "出版社";
 "AGE_RATING" = "年齢制限";
-"RELEASE_DATE" = "発売日";
-"SORT" = "並べ替え";
+"RELEASE_DATE" = "リリース日";
+"SORT" = "並び替え";
 "SORT_NAME" = "タイトル順";
 "SORT_DATE_UPDATED" = "更新日順";
 "SORT_DATE_READ" = "閲覧日順";
@@ -408,29 +405,28 @@
 "SORT_BOOKS_COUNT" = "冊数順";
 "SORT_RANDOM" = "ランダム";
 "APPLY" = "適用";
-"VOLUME_CHAPTER_INVALID_ERROR" = "同じ巻・章の設定を持つ章がすでに存在します。";
-"OTHER_SETTINGS" = "その他の設定";
-"LOGIN_BASIC_TEXT" = "入力した認証情報はソースに直接渡されます。信頼できないソースにはログインしないでください。";
-"LOGIN_WEBVIEW_WARNING" = "Webビューでログインしますか？";
-"LOGIN_WEBVIEW_WARNING_TEXT" = "表示されるWebビューで設定されたすべてのCookieはソースに渡されます。信頼できないソースにはログインしないでください。";
+"VOLUME_CHAPTER_INVALID_ERROR" = "この章はすでに存在します。";
+"OTHER_SETTINGS" = "その他";
+"LOGIN_BASIC_TEXT" = "入録された情報はソースに共有されます。信用のできないソースにはログインをお控えください。";
+"LOGIN_WEBVIEW_WARNING" = "Web view を使ってログインしますか？";
+"LOGIN_WEBVIEW_WARNING_TEXT" = "Web view で開かれたウェブブラウザに設定されている Cookie はソースと共有されます。信用のできないソースにはログインをお控えください。";
 "LOGIN" = "ログイン";
-"LOGIN_SECTION" = "ログイン";
 "USERNAME" = "ユーザー名";
 "READER_ORIENTATION" = "リーダーの向き";
 "INVALID" = "無効";
 "%@_EXPERIMENTAL" = "%@（実験的）";
 "DOWNLOADING" = "ダウンロード中";
-"PROCESSING_QUEUE" = "キューを処理中…";
+"PROCESSING_QUEUE" = "処理キュー…";
 "DOWNLOADING_PAUSED" = "ダウンロード一時停止中";
 "PAUSED" = "一時停止中";
 "CANCEL_ALL_DOWNLOADS" = "すべてのダウンロードをキャンセル";
 "DOWNLOADS" = "ダウンロード";
 "NO_DOWNLOADS" = "ダウンロードなし";
-"NO_DOWNLOADS_TEXT" = "ダウンロードしたコンテンツがここに表示されます。";
+"NO_DOWNLOADS_TEXT" = "ダウンロードしたものはここで表示する。";
 "DOWNLOADED_CHAPTERS" = "ダウンロードした章";
-"DOWNLOAD_STORAGE_USED" = "ダウンロードの合計容量";
-"%i_SERIES" = "%i作品";
-"IN_LIBRARY" = "ライブラリに追加済み";
+"TOTAL_DOWNLOADS" = "ダウンロード総数";
+"%i_SERIES" = "%i作品シリーズ";
+"IN_LIBRARY" = "ライブラリにある";
 "VIEW_SERIES" = "シリーズに移動";
 "VIEW_FILES" = "ファイルに移動";
 "COMPRESS_DOWNLOADS" = "ダウンロードを圧縮";
@@ -438,11 +434,11 @@
 "BACKGROUND_DOWNLOADING" = "バックグラウンドダウンロード";
 "METADATA_DETECTED" = "古い形式のメタデータが検出されました";
 "METADATA_DETECTED_TEXT" = "古い形式のJSONメタデータは、ComicInfo.xmlファイルへ移行されます。";
-"LIBRARY_ADD_CONTENT" = "ブラウズタブからコンテンツを追加してください。";
-"LIBRARY_ADJUST_FILTERS" = "フィルターを調整すると、ほかのコンテンツも表示できます。";
+"LIBRARY_ADD_CONTENT" = "ブラウザからコンテンツを追加する。";
+"LIBRARY_ADJUST_FILTERS" = "絞り込みを調整して、もっとコンテンツを表示する。";
 "REMOVE_FILTER" = "絞り込みを解除";
 "AND_MORE" = "その他";
-"NOT_%@" = "%@以外";
+"NOT_%@" = "%@ではない";
 "FILTER_SEPARATOR" = "、";
 "FILTER_HAS_UNREAD" = "未読";
 "FILTER_STARTED" = "読み始めた";
@@ -455,7 +451,7 @@
 "LAYOUT_GRID" = "グリッド";
 "LAYOUT_LIST" = "リスト";
 "EDIT" = "編集";
-"CATEGORY_SEARCH" = "本棚内を検索";
+"CATEGORY_SEARCH" = "カテゴリーから探す";
 "REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "ライブラリからアイテムを削除中";
 "REMOVING_%i_ITEMS_FROM_LIBRARY" = "ライブラリから%i個のアイテムを削除中";
 "REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "本棚「%@」からアイテムを削除中";
@@ -463,10 +459,10 @@
 "REFRESHING_LIBRARY" = "ライブラリを更新中…";
 "PROCESSING_ENTRIES" = "項目を処理中…";
 "REFRESH_NO_WIFI" = "Wi-Fiに接続されていません";
-"REFRESH_NO_WIFI_TEXT" = "「Wi-Fiでのみ更新する」が有効になっているため、Wi-Fiに接続されるまでライブラリを更新できません。";
-"REFRESH_ANYWAY" = "それでも更新";
+"REFRESH_NO_WIFI_TEXT" = "「Wi-Fi接続時のみ更新」が有効になっているため、Wi-Fiに接続されるまでライブラリを更新できません。";
+"REFRESH_ANYWAYS" = "それでも更新";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "ライブラリから削除しますか？";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "この作品をライブラリから削除すると、この作品とトラッカーの連携も解除されます。本当に続行しますか？";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "この作品をライブラリから削除すると、リンクされているすべてのトラッカーも削除されます。本当に続行しますか？";
 "CATEGORY" = "本棚";
 "UNCATEGORIZED" = "未分類";
 "FILTER_GROUPS" = "フィルターグループ";
@@ -482,13 +478,14 @@
 "PRIMARILY_NSFW" = "主に成人向け";
 "REMOVE_LOCAL_SOURCE" = "ローカルソースを削除しますか？";
 "REMOVE_LOCAL_SOURCE_TEXT" = "これにより、インポートされたすべてのローカルファイルが削除されます。";
-"MISSING_SOURCE_LIST" = "ソースリストにありません";
+"MISSING_SOURCE_LIST" = "ソースリストが見つかりません";
 "MISSING_SOURCE_LIST_INFO" = "この外部ソースは設定されているどのソースリストにも存在しません。そのためアップデートを受信できず、将来的に動作しなくなる可能性があります。";
 "BASE_URL" = "ベースURL";
 "HOME" = "ホーム";
-"RANGE_FROM" = "最小値";
-"RANGE_TO" = "最大値";
+"RANGE_FROM" = "開始";
+"RANGE_TO" = "終了";
 "INVALID_URL" = "無効なURL";
+"NO_RESULT" = "結果なし";
 "BUILT_IN_SOURCES" = "内蔵ソース";
 "EXTERNAL_SOURCES" = "外部ソース";
 "NO_RESULTS" = "結果がありません";
@@ -545,7 +542,7 @@
 "KAVITA_SETUP" = "Kavitaの設定";
 "DEMO_KAVITA_SERVER" = "デモ用Kavitaサーバー";
 "DEMO_KAVITA_SERVER_INFO" = "デモ用Kavitaサーバーには、ユーザー名 `demouser`、パスワード `Demouser64` でログインできます。";
-"MORE_IN_%@" = "%@をもっと見る";
+"MORE_IN_%@" = "%@の続き";
 "SORT_CHAPTER_ADDED" = "章追加日順";
 "TRACKING" = "追跡";
 "SORT_TIME_TO_READ" = "読了時間順";
@@ -565,9 +562,9 @@
 "SUWAYOMI_TAGLINE" = "漫画リーダーサーバー";
 "SUWAYOMI_INFO" = "SuwayomiはMihon (Tachiyomi)向けに作成された拡張機能を実行できるセルフホスト型漫画リーダーサーバーです。このソースを使用するには、稼働中のSuwayomiサーバーが必要です。";
 "SUWAYOMI_SETUP" = "Suwayomiの設定";
-"STATUS_LICENSED" = "ライセンス取得済み";
+"STATUS_LICENSED" = "公式配信中";
 "STATUS_PUBLISHING_FINISHED" = "連載終了";
-"AUTHOR_NAME" = "著者名";
+"AUTHOR_NAME" = "作者名";
 "ARTIST_NAME" = "作画者名";
 "INVALID_KEY" = "無効なキー";
 "LOCKED" = "ロック中";
@@ -576,7 +573,7 @@
 "VOLUME" = "巻";
 "OPEN_WEBSITE" = "ウェブサイトを開く";
 "SET_COVER_IMAGE" = "表紙画像を設定";
-"CHOOSE_CUSTOM_COVER" = "カスタム表紙を選択";
+"UPLOAD_CUSTOM_COVER" = "カスタム表紙をアップロード";
 "RESET_COVER" = "表紙をリセット";
 "NO_HISTORY" = "履歴がありません";
 "NO_HISTORY_TEXT" = "読書履歴がここに表示されます。";
@@ -587,17 +584,17 @@
 "EMAIL" = "メールアドレス";
 "REFRESH_LOGIN" = "ログイン状態を更新";
 "LOGIN_METHOD" = "ログイン方法";
-"BASIC" = "ユーザー名とパスワード";
+"BASIC" = "基本";
 "ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud同期は実験的な機能です。有効化または無効化するとデータが失われる可能性があります。";
 "ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud同期はTestFlight経由でインストールした場合にのみ利用できます。";
 "LAYOUT" = "レイアウト";
 "STANDARD" = "標準";
 "COMPACT" = "コンパクト";
 "CUSTOM" = "カスタム";
-"PORTRAIT_COLUMNS" = "縦向きの列数";
-"LANDSCAPE_COLUMNS" = "横向きの列数";
+"PORTRAIT_ROWS" = "縦向きの行数";
+"LANDSCAPE_ROWS" = "横向きの行数";
 "RESUME_LAST_OPENED_CHAPTER" = "最後に開いた章から再開";
-"CONTINUE_READING_ON_RESELECT" = "選択中の履歴タブを再タップして読書を再開";
+"CONTINUE_READING_ON_RESELECT" = "履歴タブをダブルタップして再開";
 "DOWNLOADED_CHAPTER_BADGES" = "ダウンロード済み章のバッジ";
 "PIN_TITLES" = "タイトルの固定";
 "PIN_DISABLED" = "無効";
@@ -606,7 +603,7 @@
 "NEW_CHAPTER_NOTIFICATIONS" = "新着章の通知";
 "NEW_CHAPTER_NOTIFICATIONS_TEXT" = "ライブラリがバックグラウンドで更新されたときに通知を送信します。";
 "1_NEW_CHAPTER_AVAILABLE" = "新着の章があります";
-"X_NEW_CHAPTERS_AVAILABLE" = "新着の章が%d件あります";
+"X_NEW_CHAPTERS_AVAILABLE" = "%d話の新着があります";
 "NEW_CHAPTERS_AVAILABLE" = "新着の章があります";
 "X_SERIES_HAVE_NEW_CHAPTERS" = "%d作品に新着があります";
 "EVERY_6_HOURS" = "6時間ごと";
@@ -679,7 +676,7 @@
 "LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "検索ジェスチャー（シングルタップ）によって制限されています。";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "検索ジェスチャー（長押し）によって制限されています。";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "OCRテキストオーバーレイ";
-"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "単語を検索したときに、画像上の文字領域にテキストボックスを表示します。OCRでどのテキストが正しく認識されているかを確認するのに役立ちます。";
+"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "検索が有効なときに、画像領域上にテキストボックスを表示します。OCRでどのテキストが適切に認識されているかを確認するのに役立ちます。";
 "DICTIONARY_OVERLAY_PADDING" = "オーバーレイの余白";
 "DICTIONARY_OVERLAY_TEXT_SCALE" = "オーバーレイの文字サイズ";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES" = "OCR言語を制限";
@@ -728,8 +725,8 @@
 "GET_RECOMMENDED_DICTIONARIES" = "おすすめの辞書を取得";
 "RECOMMENDED_DICTIONARIES" = "おすすめの辞書";
 "SOURCE_IMPORT_FAIL_TEXT" = "ソースのインポートに失敗しました。aixファイルが有効であることを確認してください。";
-"FILE_IMPORT_FAIL_TEXT" = "ファイルのインポートに失敗しました。読み取り可能な画像ファイル、または画像を含む有効なCBZ・ZIPアーカイブであることを確認してください。";
-"BACKUP_%@" = "バックアップ %@";
+"FILE_IMPORT_FAIL_TEXT" = "ファイルのインポートに失敗しました。画像が含まれる有効なCBZまたはZIPアーカイブであることを確認してください。";
+"BACKUP_%@" = "%@ をバックアップ";
 "CREATE_BACKUP" = "バックアップを作成";
 "IMPORT_BACKUP" = "バックアップをインポート";
 "LIBRARY_ENTRIES" = "ライブラリ項目";
@@ -745,7 +742,7 @@
 "CLEAR_EXCLUDING_LIBRARY" = "ライブラリ以外の読書履歴を削除";
 "CLEAR_EXCLUDING_LIBRARY_TEXT" = "この操作は取り消せません。ライブラリ内の作品を除くすべての読書履歴が削除されます。";
 "CLEAR_SOURCE_CACHE" = "ソースのキャッシュをクリア";
-"CLEAR_SOURCE_CACHE_TEXT" = "このソースのURLに関連するCookieとWebサイトデータ、およびキャッシュされたソースのコンテンツを削除します。再ログインが必要になる場合があり、一時的に読み込み時間が長くなることがあります。";
+"CLEAR_SOURCE_CACHE_TEXT" = "ソースURLのキャッシュされたネットワークデータが消去されます。一時的に読み込み時間が長くなる場合があります。";
 "PAGE_OFFSET" = "ページオフセット";
 "SPLIT_WIDE_IMAGES" = "見開き画像を分割";
 "REVERSE_SPLIT_ORDER" = "分割順を反転";
@@ -757,7 +754,7 @@
 "COMIC" = "コミック";
 "BOOK" = "書籍";
 "SEARCH_OPTIONS" = "検索オプション";
-"SHOW_NSFW_RESULTS" = "成人向けの結果を表示";
+"SHOW_NSFW_RESULTS" = "成人向けコンテンツの検索結果を表示";
 "UPDATE_AFTER_READING" = "読書後に更新";
 "AUTO_SYNC_HISTORY" = "履歴を自動同期";
 "SYNC_WITH_TRACKER" = "トラッカーと同期";
@@ -767,15 +764,15 @@
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "このリンクされたトラッカー項目は、利用できなくなったトラッカーに関連付けられています。この項目を削除するか、関連するトラッカーに再度ログインしてください。";
 "ENHANCED_TRACKERS" = "拡張トラッカー";
 "TRACKER_LOGOUT_INFO" = "ログアウトすると、すべての作品からこのトラッカーのリンクされた追跡情報が削除されます。";
-"SET_AS_SINGLE_PAGE" = "シングルページに設定";
-"UNSET_AS_SINGLE_PAGE" = "シングルページ設定を解除";
+"SET_AS_SINGLE_PAGE" = "単一ページとして設定";
+"UNSET_AS_SINGLE_PAGE" = "単一ページの設定を解除";
 "RELOAD_FAILED" = "再読み込みに失敗しました";
 "RELOAD_FAILED_TEXT" = "画像の再読み込みに失敗しました。もう一度お試しください。";
 "CONTINUOUS_WITH_GAPS" = "隙間あり連続スクロール";
 "ADD" = "追加";
 "MARK_DUPLICATE_CHAPTERS" = "重複した章を既読にする";
 "MIGRATE_CONFIRM_TEXT" = "別のソースに移行すると、元の項目の読書履歴は削除されます。";
-"SELECT_PINNED_SOURCES" = "ピン留め済みのソースを選択";
+"SELECT_PINNED_SOURCES" = "ピン留めするソースを選択";
 "SEARCH_MANUALLY" = "手動検索";
 "DONT_MIGRATE" = "移行しない";
 "SELECTED_%i_OF_%i" = "選択済み (%i/%i)";
@@ -805,267 +802,22 @@
 "BACKGROUND_REFRESH_TEXT" = "手動でライブラリの更新を開始した場合、アプリがバックグラウンドになっても更新を完了できるようにします。";
 "LEGACY_SOURCE_LIST_WARNING_INFO" = "現在レガシー形式のソースリストが設定されています。この形式は非推奨であり、将来のバージョンのAidokuでは動作しなくなります。現在は引き続き利用できますが、代替のリストを見つけて「設定 > ソースリスト」で設定することをお勧めします。";
 "ABOUT_DICTIONARIES_TEXT" = "Yomitan辞書はZIPファイルからインポートできます。辞書の有効/無効の切り替えや、ドラッグによる並べ替えが可能です。";
-"LOOKUP_GESTURE_LONG_PRESS_INFO" = "単語の先頭を長押しすると強調表示され、指を離すとポップアップが開きます。有効にするとページのクイックアクションが無効になります。";
+"LOOKUP_GESTURE_LONG_PRESS_INFO" = "指を離すとポップアップが表示されます。有効にするとページのクイックアクションが無効になります。";
 "DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "有効にすると、選択した言語としてマークされている章のみがOCR処理されます。インポート済みの辞書がある言語のみを選択することをお勧めします。";
 "RECOMMENDED_DICTIONARIES_NOTE" = "以下の辞書はすべて日本語-英語の辞書です。他の言語については、Wiktionary辞書のリストを確認してください。";
 "UPDATE_AFTER_READING_INFO" = "章を読んだ後、現在読んだ章や巻に合わせてトラッカーを更新します。";
-"AUTO_SYNC_HISTORY_INFO" = "トラッカー側の既読の章や巻が端末上の記録より先に進んでいる場合、ローカルの読書履歴を同じ進捗に更新します。";
+"AUTO_SYNC_HISTORY_INFO" = "トラッカー側でより新しい章や巻が検出された場合、ローカルの履歴を合わせて更新します。";
 "ENHANCED_TRACKERS_INFO" = "拡張トラッカーは、対応ソースからライブラリに追加された作品に自動でリンクし、双方向で読書履歴を追跡できます。";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "ソースのトラッキングを無効にすると、そのソースに関連付けられたトラッカーとの連携をすべて解除します。有効にすると、ライブラリ内のそのソースの作品が自動的に連携されます。";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "ソースのトラッキングを無効にするとリンクされたすべてのトラッカーが削除され、有効にするとライブラリ内のすべての作品が自動的にリンクされます。";
 "%@_TRACKER_LOGIN_NEEDED_TEXT" = "%@ のトークンの有効期限が切れたため、設定から再ログインするまで関連するトラッカーは機能しません。";
 "MORE_BARBUTTON" = "その他";
-"SORT_RELEASE_DATE" = "発売日順";
+"SORT_RELEASE_DATE" = "新着順";
 "LIBRARY_REFRESH_INTERRUPTED" = "ライブラリの更新が中断されました";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "前回のライブラリ更新処理は完了前に中断されました。再開しますか？";
-"DISABLE" = "無効にする";
-"ENABLE" = "有効にする";
+"DISABLE" = "無効";
+"ENABLE" = "有効";
 "RESTART" = "再起動";
 "HTML_ERROR" = "HTMLエラー";
 "JSON_ERROR" = "JSONエラー";
 "SOURCE_CRASHED" = "ソースがクラッシュしました";
 "DOWNLOAD_INCOMPLETE" = "不完全なダウンロード";
-
-"TRANSLATION_TITLE" = "OCRと翻訳";
-
-"TRANSLATION_KEY_REPLACE" = "保存済みAPIキーを置き換える（任意）";
-
-"TRANSLATION_KEY" = "APIキー";
-
-"TRANSLATION_KEY_SAVED" = "APIキーはKeychainに保存済み";
-
-"TRANSLATION_KEY_DELETE" = "APIキーを削除";
-
-"TRANSLATION_MODEL" = "モデルID";
-
-"TRANSLATION_GET_KEY" = "OpenAIのAPIキー管理を開く";
-
-"TRANSLATION_LANGUAGE" = "言語";
-
-"TRANSLATION_TARGET" = "翻訳先";
-
-"TRANSLATION_AUTO" = "自動検出";
-
-"TRANSLATION_CLEAR_CACHE" = "翻訳キャッシュをクリア";
-
-"TRANSLATION_CACHE_CLEARED" = "翻訳キャッシュがクリアされました。";
-
-"TRANSLATION_NOTICES" = "OCRと翻訳のライセンス";
-
-"TRANSLATION_ADVANCED" = "翻訳オプション";
-
-"TRANSLATION_REASONING" = "推論の強度";
-
-"TRANSLATION_MODEL_DEFAULT" = "モデルのデフォルト";
-
-"TRANSLATION_CONCURRENCY" = "同時リクエスト数";
-
-"TRANSLATION_PROVIDER" = "翻訳プロバイダー";
-
-"TRANSLATION_BASE_URL" = "サーバーURL";
-
-"TRANSLATION_API_FORMAT" = "APIフォーマット";
-
-"TRANSLATION_CUSTOM_HELP" = "HTTPSのベースURLまたはAPIエンドポイントの完全なURLと、サーバーが対応するモデルを入力してください。APIキーはサーバーURLごとに保存されます。URLを変更すると入力中のキーが消去されます。ResponsesとChat Completionsは構造化JSON出力を使用します。";
-
-"TRANSLATION_AUTOMATIC" = "自動翻訳";
-
-"TRANSLATION_AUTOMATIC_HELP" = "リーダーのページを自動で翻訳して表示します。リーダー内の翻訳ボタンで、この設定のオンとオフを切り替えられます。";
-
-"TRANSLATION_TEST" = "API接続をテスト";
-
-"TRANSLATION_TEST_RUNNING" = "接続をテスト中…";
-
-"TRANSLATION_TEST_SUCCESS" = "接続に成功しました";
-
-"TRANSLATION_TEST_FAILURE" = "接続に失敗しました";
-
-"TRANSLATION_TEST_HELP" = "この画面の設定で短い文を翻訳します。APIキーを空欄にすると、このサーバーの保存済みキーを使用します。設定の変更は自動保存されます。";
-
-"SEARCH_SUGGESTIONS" = "検索候補";
-
-"TRANSLATION_CACHE" = "オフラインキャッシュ";
-
-"TRANSLATION_CACHE_LIMIT" = "保存容量の上限";
-
-"TRANSLATION_CACHE_USED" = "使用容量";
-
-"TRANSLATION_CACHE_HELP" = "OCR・ページ翻訳・漫画と章のタイトル・作者名・タグ・漫画の説明文・ソースのメニューとセクション名の翻訳・テキスト配置を自動保存します。ページ画像は現在と周辺ページのメモリにのみ保持されます。容量が上限に達すると、最後に使用してから最も時間が経った結果から削除します。初期値は1GB、最大は100GBです。変更は自動適用され、上限を下げると容量内に収まるまで、最も長く使用していない結果から削除します。";
-
-"TRANSLATION_SOURCE_FILTER" = "翻訳対象の原文言語";
-
-"TRANSLATION_FILTER_ALL" = "検出したすべての言語";
-
-"TRANSLATION_FILTER_HELP" = "翻訳する原文の言語を選択してください。選択していない言語や、言語を判定できないテキストは原文のまま表示します。フィルターを解除するには「検出したすべての言語」を選択してください。";
-
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "選択した原文言語と判定されたテキストだけを翻訳します。端末上での言語判定に対応していない言語には、フィルターを適用しません。";
-
-"HTTPS_BYPASS" = "HTTPSブロックの回避";
-
-"HTTPS_BYPASS_HELP" = "ソースへのリクエスト、画像、ダウンロード、ソースのWebビューにTLSフラグメンテーションと暗号化DNS（Cloudflare）を使用します。新しい接続に適用されます。IPアドレスのブロックや、Webサイト自体が設けるアクセス制限は回避できません。";
-
-"HTTPS_BYPASS_TEST" = "接続をテスト";
-
-"HTTPS_BYPASS_TEST_HELP" = "スイッチがオフでも、HTTPSブロック回避を経由してこのHTTPSアドレスをテストします。応答があれば接続できることを示しますが、ISPによるブロックがあったことを示すものではありません。";
-
-"HTTPS_BYPASS_INVALID_URL" = "ユーザー名やパスワードを含まないHTTPS URLを入力してください。";
-
-"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d受信・TLSフラグメンテーション適用済み";
-
-"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d受信・TLSフラグメンテーション未確認";
-
-"HTTPS_BYPASS_TEST_FAILED" = "HTTPSブロック回避を経由して接続できませんでした。";
-
-"TRANSLATION_MANGA_TITLES" = "漫画のタイトルを翻訳";
-
-"TRANSLATION_CHAPTER_TITLES" = "章のタイトルを翻訳";
-
-"TRANSLATION_TITLES_HELP" = "ページの自動翻訳とは独立して動作し、設定済みの翻訳APIと翻訳先言語を使用します。各項目をオフにすると、その項目の原文を表示します。翻訳の読み込み中や失敗時にも原文を表示します。";
-
-"TRANSLATION_MANGA_TITLE_FILTER" = "漫画タイトルの原文言語";
-
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "章タイトルの原文言語";
-
-"TRANSLATION_PAGE_SOURCE" = "ページの原文言語";
-
-"TRANSLATION_MANGA_DESCRIPTIONS" = "漫画の説明文を翻訳";
-
-"TRANSLATION_DESCRIPTION_FILTER" = "漫画の説明文の原文言語";
-
-"TRANSLATION_METADATA_FILTER_HELP" = "原文言語を自動検出し、選択した言語だけを翻訳します。「検出したすべての言語」を選ぶと言語の制限を解除します。各項目の言語フィルターは、ページや他の項目の言語設定とは独立して動作します。";
-
-"TRANSLATION_CUSTOM_PROVIDER" = "カスタム（OpenAI互換）";
-
-"TRANSLATION_REASONING_NONE" = "なし";
-
-"TRANSLATION_REASONING_MINIMAL" = "最小限";
-
-"TRANSLATION_REASONING_LOW" = "低";
-
-"TRANSLATION_REASONING_MEDIUM" = "中";
-
-"TRANSLATION_REASONING_HIGH" = "高";
-
-"TRANSLATION_REASONING_XHIGH" = "非常に高い";
-
-"TRANSLATION_REASONING_MAX" = "最大";
-
-"TRANSLATION_MANGA_TAGS" = "漫画のタグを翻訳";
-"TRANSLATION_TAG_FILTER" = "タグの原文言語";
-
-// Completed app localization
-"TEXT_THEME" = "テーマ";
-"TEXT_THEME_SEPIA" = "セピア";
-"TEXT_THEME_PAPER" = "紙";
-"TEXT_THEME_GRAY" = "グレー";
-"MIGRATE_WITH_HISTORY" = "履歴を保持して移行";
-"AUTO_SCROLL" = "自動スクロール";
-"AUTO_SCROLL_SPEED" = "自動スクロール速度";
-"AUTO_SCROLL_POSITION" = "自動スクロールボタンの位置";
-"POSITION_LEFT" = "左";
-"POSITION_RIGHT" = "右";
-"MIGRATE_CHAPTER_HISTORY" = "章の読書履歴を移行";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "旧バージョンから残っている読書履歴のうち、ローカルデータベース内の章に紐付いていないものを移行します。通常はアップデート後に自動で実行されます。完了していない場合は、ここから再実行できます。";
-
-"TRANSLATION_SOURCE_LABELS" = "ソースのメニュー・セクション名を翻訳";
-
-// Local image import
-"IMPORT_PHOTO" = "写真をインポート";
-"LOCAL_IMAGE_IMPORT_TEXT" = "写真や画像ファイル、またはCBZ・ZIPファイルをインポートして読むことができます。";
-
-// Translated page export
-"SAVE_TRANSLATED_IMAGE" = "翻訳付き画像を保存";
-"TRANSLATED_IMAGE_SAVE_FAILED" = "翻訳画像を作成できませんでした。翻訳完了後にもう一度お試しください。";
-
-"TRANSLATION_AUTHORS" = "作者名を翻訳";
-
-"TRANSLATION_AUTHOR_FILTER" = "作者名の原文言語";
-"TRANSLATION_SOURCE_LABEL_FILTER" = "ソースメニュー・セクションの原文言語";
-
-// Shared image retention
-"SAVE_SHARED_IMAGES" = "共有画像をローカルファイルに保存";
-"SAVE_SHARED_IMAGES_HELP" = "オフの場合、共有画像を一時的に開き、閉じると削除します。読書履歴とOCR・翻訳キャッシュも保存しません。";
-
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "大量のフィルター項目を翻訳（100件超）";
-
-"SETTING_INVALID_STEPPER_RANGE" = "数値の設定範囲が無効です。";
-
-"SETTING_MISSING_CONTENT_HANDLER" = "設定を表示できません: %@";
-
-"DOWNLOAD_TRANSLATED" = "翻訳付きでダウンロード";
-
-"TRANSLATION_STATE_ON" = "オン";
-
-"TRANSLATION_STATE_OFF" = "オフ";
-
-// Translation errors
-"TRANSLATION_ERROR_CONFIGURATION" = "翻訳設定が無効です。サーバーURL、モデル、その他の設定を確認してください。";
-"TRANSLATION_ERROR_REQUEST" = "現在のテキスト、画像、または言語設定では翻訳できません。";
-"TRANSLATION_ERROR_RESPONSE" = "翻訳サーバーが無効な応答を返しました。再試行するか、モデル設定を確認してください。";
-"TRANSLATION_ERROR_KEY_REQUIRED" = "翻訳APIキーが必要です。";
-"TRANSLATION_ERROR_KEY_ACCESS" = "Keychainから翻訳APIキーを読み取れませんでした。";
-"TRANSLATION_ERROR_ENDPOINT" = "この翻訳APIエンドポイントはセキュリティポリシーで許可されていません。";
-"TRANSLATION_ERROR_REDIRECT" = "翻訳APIエンドポイントのリダイレクトが拒否されました。";
-"TRANSLATION_ERROR_RESPONSE_SIZE" = "翻訳の応答がサイズ制限を超えました。";
-"TRANSLATION_ERROR_HTTP" = "翻訳サーバーがHTTPステータスコード%dを返しました。";
-"TRANSLATION_ERROR_HTTP_REQUEST" = "翻訳サーバーがHTTPステータスコード%dを返しました（リクエストID: %@）。";
-"TRANSLATION_ERROR_NETWORK_CODE" = "翻訳リクエストに失敗しました（エラー%d）。";
-"TRANSLATION_ERROR_CONNECTION" = "翻訳APIに接続できませんでした。ネットワーク接続、APIエンドポイント、サーバーの状態を確認してから再試行してください。";
-"TRANSLATION_ERROR_REFUSED" = "翻訳プロバイダーがリクエストを拒否しました。";
-"TRANSLATION_ERROR_KEY_ACCOUNT" = "APIキーの保存に使用する識別子が無効です。";
-"TRANSLATION_ERROR_KEY_INVALID" = "APIキーが空欄、長すぎる、または未対応の文字を含んでいます。";
-"TRANSLATION_ERROR_KEY_MISSING" = "このプロバイダーのAPIキーは保存されていません。";
-"TRANSLATION_ERROR_KEY_ENCODING" = "保存済みのAPIキーをデコードできませんでした。";
-"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychainの操作に失敗しました（ステータスコード%d）。";
-"OCR_ERROR_MODEL_MISSING" = "必要なPP-OCRv6モデルがありません。";
-"OCR_ERROR_MODEL_LOAD" = "PP-OCRv6モデルを読み込めませんでした。";
-"OCR_ERROR_IMAGE" = "文字認識用の画像を準備できませんでした。";
-"OCR_ERROR_OUTPUT" = "PP-OCRv6モデルが無効または未対応の出力を返しました。";
-"OCR_ERROR_PREDICTION" = "PP-OCRv6の文字認識に失敗しました。別の画像またはOCRモデルで再試行してください。";
-"TRANSLATION_ERROR_CACHE_STORAGE" = "翻訳キャッシュの保存領域が無効か、利用できません。";
-"TRANSLATION_ERROR_CACHE_SAVE" = "翻訳キャッシュを保存できませんでした。";
-
-"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud同期の変更は、Aidokuを完全に終了してから開き直すと適用されます。それまでは現在の同期設定が有効です。";
-
-// Translation settings section
-
-"TRANSLATION_TARGETS" = "翻訳する項目";
-
-// Download page counts and single-series totals.
-"PAGES_%i_OF_%i" = "%i / %i ページ";
-"1_SERIES" = "1作品";
-"SKIPPING_ONE_CHAPTER" = "ソースに存在しないか、フィルターで除外されているため、1章をスキップします";
-"BACKUP_CREATE_ERROR_TEXT" = "バックアップを作成できませんでした。もう一度お試しください。";
-"YES" = "はい";
-"NO" = "いいえ";
-"CHAPTERS_%i_OF_%i" = "章: %i / %i";
-"TRACKING_REGISTRATION_FAILED" = "作品をトラッカーに登録できませんでした。もう一度お試しください。";
-"SORT_READ_PROGRESS" = "読書の進捗";
-"SORT_RELEASE_YEAR" = "発売年";
-"SOURCE_INVALID_PAGE_COUNT" = "ページ数が無効です";
-"SOURCE_INVALID_GENRE_ID" = "ジャンルIDが無効です";
-"SOURCE_INVALID_LISTING" = "一覧が無効です";
-"SOURCE_INVALID_LISTING_TYPE" = "一覧の種類が無効です";
-"SOURCE_INVALID_ITEM_TYPE" = "項目の種類が無効です";
-"DICTIONARY_ERROR" = "辞書エラー";
-"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "辞書の設定を保存できませんでした: %@";
-"DICTIONARY_IMPORT_ERRORS_%@" = "選択した辞書をインポートできませんでした:\n%@";
-"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "一部の辞書をインポートできませんでした:\n%@";
-"DICTIONARY_IMPORT_FAILED" = "辞書のインポートに失敗しました。";
-"RECOMMENDED_JMDICT_DESCRIPTION" = "電子辞書研究開発グループ（EDRDG）が管理する総合的な日英辞書です。";
-"RECOMMENDED_JMNEDICT_DESCRIPTION" = "電子辞書研究開発グループ（EDRDG）が管理する日本語の固有名詞辞書です。";
-"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe のメディアコーパスに基づく頻度辞書です。";
-
-// Reader background translation and preparation limits
-"TRANSLATION_BACKGROUND" = "元のページを表示中も翻訳";
-"TRANSLATION_BACKGROUND_HELP" = "翻訳ボタンをオフにして読んでいる間も翻訳を続けます。画面には元のページを表示したままにします。アプリが非アクティブになると翻訳を一時停止します。";
-"TRANSLATION_PRETRANSLATION_LIMIT" = "先読み翻訳するページ数";
-"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "表示中のページを除き、先読み翻訳する最大ページ数です。これから読むページを優先し、読む際の優先順位に従ってページを選びます。";
-"TRANSLATION_UNLIMITED" = "無制限";
-"TRANSLATION_PAGE_SETTINGS" = "ページ翻訳";
-"TRANSLATION_VISIBLE_PAGES_ONLY" = "表示中のページのみ";
-
-// Unsupported installed source package version
-
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3は日本語、中国語（簡体字・繁体字）、英語などラテン文字の原文を認識できますが、韓国語、キリル文字、ベトナム語は認識できません。原文言語の自動判定と選択も、これらの言語に限定されます。翻訳先の言語は自由に選択できます。Mangaを選択すると、検出のしきい値に0.85と0.25が適用されます。標準の検出サイズは1120pxです。";
-
-"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "対応するすべてのOCR言語";

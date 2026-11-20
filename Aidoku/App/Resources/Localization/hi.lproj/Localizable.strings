@@ -1,106 +1,104 @@
 
 
-"CANCEL" = "रद्द करें";
+"CANCEL" = "निरस्त करें";
 "OK" = "ठीक है";
 "UNAVAILABLE" = "अनुपलब्ध";
 // General
 "CONTINUE" = "जारी रखें";
-"UNKNOWN" = "अज्ञात";
-"DELETE" = "मिटाएँ";
+"UNKNOWN" = "अनजान";
+"DELETE" = "मिटाना";
 "REMOVE" = "हटाएँ";
-"RENAME" = "नाम बदलें";
+"RENAME" = "नया नाम दे";
 "CLEAR" = "साफ़ करें";
-"LOADING_ELLIPSIS" = "लोड हो रहा है…";
+"LOADING_ELLIPSIS" = "लोडिंग…";
 "SHARE" = "शेयर करें";
 
 // Downloads
 "DOWNLOAD" = "डाउनलोड";
-"NEXT_UNREAD" = "अगला अपठित";
-"NEXT_%i_UNREAD" = "अगले %i अपठित";
-"DOWNLOADED" = "डाउनलोड किया गया";
+"DOWNLOADED" = "डाउन्लोडेड";
 "DOWNLOAD_QUEUE" = "डाउनलोड क़तार";
-"CANCEL_DOWNLOAD" = "डाउनलोड रद्द करें";
+"CANCEL_DOWNLOAD" = "कैन्सल डाउनलोड";
 "REMOVE_DOWNLOAD" = "डाउनलोड हटाएँ";
-"REMOVE_ALL_DOWNLOADS" = "सभी डाउनलोड हटाएँ";
-"REMOVE_DOWNLOADS" = "डाउनलोड हटाएँ";
+"REMOVE_ALL_DOWNLOADS" = "सब डाउनलोड हटाएँ";
+"REMOVE_DOWNLOADS" = "डाउन्लोड्ज़ हटाएँ";
 
 // Library
 "LIBRARY" = "लाइब्रेरी";
-"ADD_TO_LIBRARY" = "लाइब्रेरी में जोड़ें";
+"ADD_TO_LIBRARY" = "लाइब्रेरी में जोड़े";
 "REMOVE_FROM_LIBRARY" = "लाइब्रेरी से हटाएँ";
 "SORT_LAST_OPENED" = "पिछली बार खोला गया";
-"SORT_LAST_READ" = "पिछली बार पढ़ा गया";
-"SORT_LATEST_CHAPTER" = "नवीनतम अध्याय";
-"SORT_DATE_ADDED" = "जोड़ने की तारीख";
+"SORT_LAST_READ" = "पिछली बार पढ़े";
+"SORT_LATEST_CHAPTER" = "लेटेस्ट चैप्टर";
+"SORT_DATE_ADDED" = "डेट ऐडेड";
 
 // Categories
-"ALL" = "सभी";
-"NONE" = "कोई नहीं";
-"CATEGORIES" = "श्रेणियाँ";
-"EDIT_CATEGORIES" = "श्रेणियाँ संपादित करें";
-"CATEGORY_ADD" = "श्रेणी जोड़ें";
-"CATEGORY_ADD_TEXT" = "बनाई जाने वाली नई श्रेणी का नाम दर्ज करें।";
-"DEFAULT_CATEGORY" = "डिफ़ॉल्ट श्रेणी";
-"ALWAYS_ASK" = "हमेशा पूछें";
+"ALL" = "सब";
+"NONE" = "कुछ भी नहीं";
+"CATEGORIES" = "कैटेगॉरीज़";
+"EDIT_CATEGORIES" = "एडिट कैटेगॉरीज़";
+"CATEGORY_ADD" = "कैटेगॉरी जोड़े";
+"CATEGORY_ADD_TEXT" = "नए कैटेगॉरी को बनाने के लिए टाइटल एंटर करें।";
+"DEFAULT_CATEGORY" = "डिफ़ॉल्ट कैटेगॉरी";
+"ALWAYS_ASK" = "हमेशा पूछे";
 
 // Browse
 "BROWSE" = "ब्राउज़";
-"BROWSE_NO_SOURCES" = "कोई स्रोत नहीं";
-"ADDING_SOURCES_GUIDE_BUTTON" = "स्रोत जोड़ने की गाइड";
-"UPDATES" = "अपडेट";
-"INSTALLED" = "इंस्टॉल किए गए";
-"EXTERNAL" = "बाहरी";
-"BUTTON_UPDATE" = "अपडेट";
-"BUTTON_GET" = "पाएँ";
-"BUTTON_ERROR" = "त्रुटि";
+"BROWSE_NO_SOURCES" = "कोई सोर्स नहीं है";
+"ADDING_SOURCES_GUIDE_BUTTON" = "सॉर्सेज़ जोड़ने का गाइड";
+"UPDATES" = "अप्डेट्स";
+"INSTALLED" = "इन्स्टॉल्ड";
+"EXTERNAL" = "इक्स्टर्नल";
+"BUTTON_UPDATE" = "अप्डेट";
+"BUTTON_GET" = "लाएँ";
+"BUTTON_ERROR" = "एरर";
 
 // Source
-"SOURCE_INFO" = "स्रोत जानकारी";
+"SOURCE_INFO" = "सोर्स जानकारी";
 "LANGUAGE" = "भाषा";
 "LANGUAGES" = "भाषाएँ";
-"VERSION" = "संस्करण";
+"VERSION" = "वर्ज़न";
 "BUILD" = "बिल्ड";
-"LIST_HEADER" = "सूची";
-"LIST_ALL" = "सभी";
+"LIST_HEADER" = "लिस्ट";
+"LIST_ALL" = "सब";
 
 // Manga
-"UNTITLED" = "शीर्षकहीन";
-"STATUS_ONGOING" = "जारी";
-"STATUS_CANCELLED" = "रद्द";
-"STATUS_COMPLETED" = "पूर्ण";
-"STATUS_HIATUS" = "अंतराल पर";
-"SUGGESTIVE" = "यौन संकेतात्मक";
-"NSFW" = "NSFW";
-"MORE" = "और देखें";
-"MISSING_SOURCE" = "स्रोत उपलब्ध नहीं";
-"SELECT_ALL" = "सभी चुनें";
-"SELECT_CHAPTERS" = "अध्याय चुनें";
-"DESELECT_ALL" = "सभी का चयन हटाएँ";
+"UNTITLED" = "अंटाइटल्ड";
+"STATUS_ONGOING" = "ऑनगोइंग";
+"STATUS_CANCELLED" = "कैन्सेल्ड";
+"STATUS_COMPLETED" = "ख़त्म";
+"STATUS_HIATUS" = "रुका हुआ";
+"SUGGESTIVE" = "सजेस्टिव";
+"NSFW" = "नसफव";
+"MORE" = "ज़्यादा";
+"MISSING_SOURCE" = "ग़ायब सोर्स";
+"SELECT_ALL" = "सब चुने";
+"SELECT_CHAPTERS" = "अध्याय चुने";
+"DESELECT_ALL" = "सब डीसिलेक्ट करे";
 
 // Reader
 "CHAPTER" = "अध्याय";
-"CHAPTERS" = "अध्याय";
-"VOLUME_X" = "खंड %g";
-"CHAPTER_X" = "अध्याय %g";
-"VOL_X" = "खंड %g";
-"CH_X" = "अध्याय %g";
-"VOL_SPACE_X" = "खंड %g";
-"CH_SPACE_X" = "अध्याय %g";
+"CHAPTERS" = "अध्यायों";
+"VOLUME_X" = "आवाज़ %ग";
+"CHAPTER_X" = "अध्याय %ग";
+"VOL_X" = "आवा.%ग";
+"CH_X" = "च.%ग";
+"VOL_SPACE_X" = "आवा.%ग";
+"CH_SPACE_X" = "च.%ग";
 "START_READING" = "पढ़ना शुरू करें";
 "UNREAD" = "अपठित";
-"MARK" = "चिह्नित करें";
-"MARK_ALL" = "सभी चिह्नित करें";
-"MARK_PREVIOUS" = "पिछले अध्याय चिह्नित करें";
-"MARK_READ" = "पढ़ा हुआ चिह्नित करें";
-"PREVIOUS_COLON" = "पिछला:";
-"NEXT_COLON" = "अगला:";
+"MARK" = "निशान";
+"MARK_ALL" = "सब पर निशान लगाए";
+"MARK_PREVIOUS" = "पूर्ण को निशान लगाए";
+"MARK_READ" = "पठित हेतु निशान लगाए";
+"PREVIOUS_COLON" = "पूर्ण:";
+"NEXT_COLON" = "आगे:";
 "NO_CHAPTERS" = "कोई अध्याय नहीं";
-"FINISHED_COLON" = "समाप्त:";
+"FINISHED_COLON" = "ख़त्म:";
 "CURRENT_COLON" = "वर्तमान:";
-"NO_NEXT_CHAPTER" = "कोई अगला अध्याय नहीं है";
-"NO_PREVIOUS_CHAPTER" = "कोई पिछला अध्याय नहीं है";
+"NO_NEXT_CHAPTER" = "आगे कोई अध्याय नहीं है";
+"NO_PREVIOUS_CHAPTER" = "पीछे कोई अध्याय नहीं है";
 "READER_SETTINGS" = "रीडर सेटिंग्स";
-"READING_MODE" = "पढ़ने का मोड";
+"READING_MODE" = "रीडिंग मोड";
 "DEFAULT" = "डिफ़ॉल्ट";
 "LTR" = "बाएँ से दाएँ";
 "SAVE_TO_PHOTOS" = "फ़ोटोज़ में सेव करें";
@@ -109,977 +107,135 @@
 "HISTORY" = "इतिहास";
 "%@_AGO" = "%@ पहले";
 "PAGE_X" = "पृष्ठ %i";
-"REMOVE_CHAPTER_HISTORY_TEXT" = "इस अध्याय का पढ़ने का इतिहास हटा दिया जाएगा। क्या आप आगे बढ़ना चाहते हैं?";
-"AUTH_FOR_HISTORY" = "पढ़ने का इतिहास देखने के लिए अपनी पहचान सत्यापित करें।";
+"REMOVE_CHAPTER_HISTORY_TEXT" = "यह इस अध्याय का इतिहास मिटा देगा। क्या आप निश्चित है कि आप आगे बढ़ना चाहते है?";
+"AUTH_FOR_HISTORY" = "इतिहास पढ़ने के लिए ऑथेंटिकेट करे।";
 
 // Search
-"SEARCH" = "खोजें";
-"VIEW_MORE" = "और देखें";
-"AUTH_TO_ENABLE" = "सक्षम करने के लिए अपनी पहचान सत्यापित करें।";
-"AUTH_TO_DISABLE" = "अक्षम करने के लिए अपनी पहचान सत्यापित करें।";
+"SEARCH" = "खोजे";
+"VIEW_MORE" = "ज़्यादा देखें";
+"AUTH_TO_ENABLE" = "एनेबल करने के लिए ऑथेंटिकेट करे।";
+"AUTH_TO_DISABLE" = "डिसेबल करने के लिए ऑथेंटिकेट करे।";
 "ABOUT" = "बारे में";
-"GITHUB_REPO" = "GitHub रिपॉज़िटरी";
-"GENERAL" = "सामान्य";
+"GITHUB_REPO" = "GitHub रिपॉज़िटॉरी";
+"GENERAL" = "जेनरल";
 "ICLOUD_SYNC" = "iCloud सिंक";
 "INCOGNITO_MODE" = "इंकॉग्नीटो मोड";
-"INCOGNITO_MODE_TEXT" = "चालू होने पर पढ़ने का इतिहास दर्ज करना रोक देता है";
+"INCOGNITO_MODE_TEXT" = "एनेबल करने पर इतिहास पढ़ते वक्त उसे रोक दिया जाता है";
 "APPEARANCE" = "दिखावट";
 "RESET" = "रीसेट";
-"LIBRARY_SEARCH" = "लाइब्रेरी में ढूँढें";
-"MANGA_INFO" = "मंगा की जानकारी";
-"REMOVE_DOWNLOADS_CONFIRM" = "चुने गए सभी डाउनलोड हटाएँ?";
-"SORT_TITLE" = "शीर्षक";
+"LIBRARY_SEARCH" = "लाइब्रेरी में ढूँढे";
+"MANGA_INFO" = "माँगा जानकारी";
+"REMOVE_DOWNLOADS_CONFIRM" = "क्या आप निश्चित है की आप सभी सिलेक्टेड डाउन्लोड्ज़ को हटाना चाहते है?";
+"SORT_TITLE" = "टाइटल";
 "LIBRARY_EMPTY" = "लाइब्रेरी ख़ाली";
-"FILTER_BY" = "फ़िल्टर करने का आधार";
+"FILTER_BY" = "फ़िल्टर बाई";
 "INFO" = "जानकारी";
-"SORT_BY" = "क्रमबद्ध करने का आधार";
-"UNINSTALL" = "अनइंस्टॉल करें";
+"SORT_BY" = "सॉर्ट बाई";
+"UNINSTALL" = "उनिंस्टल्ल";
 "BUTTON_FILTER" = "फ़िल्टर";
-"SOURCE_ORDER" = "स्रोत क्रम";
-"MISSING_SOURCE_TEXT" = "इस मंगा का मूल स्रोत नहीं मिला। कृपया स्रोत को दोबारा इंस्टॉल करें या इस शीर्षक को अपनी लाइब्रेरी से हटाएँ।";
+"SOURCE_ORDER" = "सोर्स ऑर्डर";
+"MISSING_SOURCE_TEXT" = "इस माँगा का अरिजिनल सोर्स मिसिंग है।कृपया उसे फिरसे डाउनलोड करें या इस टाइटल को अपने लाइब्रेरी से हटा दें।";
 "RTL" = "दाएँ से बाएँ";
-"EXPERIMENTAL" = "प्रायोगिक";
+"EXPERIMENTAL" = "इक्स्पेरिमेंटल";
 "NO_CHAPTERS_AVAILABLE" = "कोई अध्याय उपलब्ध नहीं";
-"INFINITE_VERTICAL_SCROLL" = "अनंत लंबवत स्क्रॉलिंग";
-"READ" = "पढ़ा हुआ";
-"MARK_UNREAD" = "अपठित चिह्नित करें";
-"CONTINUE_READING" = "पढ़ना जारी रखें";
-"VERTICAL" = "लंबवत";
-"VERTICAL_SCROLL" = "लंबवत स्क्रॉल";
-"REMOVE_ALL_MANGA_HISTORY" = "इस मंगा का पूरा इतिहास हटाएँ";
-"HISTORY_LOCKED" = "इतिहास लॉक है।";
-"VIEW_HISTORY" = "इतिहास देखें";
+"INFINITE_VERTICAL_SCROLL" = "इन्फ़िनिट वर्टिकल स्क्रोलिंग";
+"READ" = "पढ़े";
+"MARK_UNREAD" = "अपठित हेतु निशान लगाए";
+"CONTINUE_READING" = "पढ़ाई जारी रखे";
+"VERTICAL" = "वर्टिकल";
+"VERTICAL_SCROLL" = "वर्टिकल स्क्रोल";
+"REMOVE_ALL_MANGA_HISTORY" = "सब माँगा इतिहास को मिटा दे";
+"HISTORY_LOCKED" = "इतिहास लॉक्ड है।";
+"VIEW_HISTORY" = "इतिहास देखे";
 
 // Settings
 "SETTINGS" = "सेटिंग्स";
 "DISCORD_SERVER" = "डिस्कॉर्ड सर्वर";
 "SUPPPORT_DEVELOPMENT" = "सपोर्ट डिवेलप्मेंट";
-"APPEARANCE_LIGHT" = "हल्का";
-"APPEARANCE_DARK" = "गहरा";
-"USE_SYSTEM_APPEARANCE" = "सिस्टम के अनुसार दिखावट";
+"APPEARANCE_LIGHT" = "रोशनी";
+"APPEARANCE_DARK" = "अंधेरा";
+"USE_SYSTEM_APPEARANCE" = "सिस्टम अपीयरेंस प्रयोग करे";
 "PORTRAIT" = "पोर्ट्रेट";
 "LANDSCAPE" = "लैंडस्केप";
 "READER" = "रीडर";
-"OPEN_READER_VIEW" = "रीडर दृश्य खोलें";
-"UNREAD_CHAPTER_BADGES" = "अपठित अध्याय बैज";
+"OPEN_READER_VIEW" = "रीडर व्यू खोले";
+"UNREAD_CHAPTER_BADGES" = "अपठित अध्याय बैजेज़";
 "PIN_UNREAD" = "अपठित";
-"LIBRARY_UPDATING" = "लाइब्रेरी अपडेट";
-"UPDATE_INTERVAL" = "अपडेट अंतराल";
-"SKIP_TITLES" = "शीर्षक छोड़ें";
-"ONLY_UPDATE_ON_WIFI" = "केवल वाई-फ़ाई पर अपडेट करें";
-"EXCLUDED_CATEGORIES" = "बहिष्कृत श्रेणियाँ";
-"REFRESH_METADATA" = "मेटाडेटा रीफ़्रेश करें";
+"LIBRARY_UPDATING" = "लाइब्रेरी अप्डेटिंग";
+"UPDATE_INTERVAL" = "अप्डेट इंटर्वल";
+"SKIP_TITLES" = "टाइटल स्किप करे";
+"ONLY_UPDATE_ON_WIFI" = "सिर्फ़ Wi-Fi पर अप्डेट करे";
+"EXCLUDED_CATEGORIES" = "बहिष्कृत कैटेगॉरीज़";
+"REFRESH_METADATA" = "मेटाडेटा रेफ़्रेश करे";
 "NEVER" = "कभी नहीं";
-"EVERY_12_HOURS" = "हर 12 घंटे में";
-"WEEKLY" = "साप्ताहिक";
-"WITH_UNREAD_CHAPTERS" = "अपठित अध्यायों वाले";
-"SOURCE_LISTS" = "स्रोत सूचियाँ";
-"SOURCE_LIST_ADDED" = "स्रोत सूची जोड़ी गई";
-"SOURCE_LIST_URL" = "स्रोत सूची URL";
-"SOURCE_LIST_ADD" = "स्रोत सूची जोड़ें";
-"SOURCE_LIST_ADD_TEXT" = "स्रोत सूची का URL दर्ज करें";
-"SOURCE_LIST_ADD_FAIL" = "स्रोत सूची जोड़ने में विफल";
+"EVERY_12_HOURS" = "हर १२ घंटे";
+"WEEKLY" = "सप्ताही";
+"WITH_UNREAD_CHAPTERS" = "अपठित अध्याय के साथ";
+"SOURCE_LISTS" = "सोर्स सूचि";
+"SOURCE_LIST_ADDED" = "सोर्स लिस्ट जोड़ दिया गया है";
+"SOURCE_LIST_URL" = "सोर्स लिस्ट यूआरएल";
+"SOURCE_LIST_ADD" = "सोर्स लिस्ट जोड़े";
+"SOURCE_LIST_ADD_TEXT" = "सोर्स लिस्ट यूआरएल डाले";
+"SOURCE_LIST_ADD_FAIL" = "सोर्स लिस्ट जोड़ने में विफल हुआ";
 "LOCK_HISTORY_TAB" = "इतिहास टैब लॉक करें";
-"DOWNSAMPLE_IMAGES" = "छवियों का रिज़ॉल्यूशन घटाएँ";
+"DOWNSAMPLE_IMAGES" = "इमिजेज़ डाउनसैम्पल करे";
 "BACKUP_NAME" = "बैकअप का नाम";
-"RENAME_BACKUP" = "बैकअप का नाम बदलें";
-"CORRUPTED_BACKUP" = "दूषित बैकअप";
-"CORRUPTED_BACKUP_TEXT" = "इस बैकअप का डेटा गलत तरीके से कॉन्फ़िगर किया गया लगता है। इसका नाम बदलना संभव नहीं है।";
-"MISSING_SOURCES" = "अनुपलब्ध स्रोत";
-"RESTORE_BACKUP" = "यह बैकअप पुनर्स्थापित करें?";
-"RESTORE_BACKUP_TEXT" = "मौजूदा सभी डेटा हटा दिया जाएगा और उसकी जगह इस बैकअप का डेटा रखा जाएगा।";
-"BACKUP_IMPORT_SUCCESS" = "बैकअप आयात किया गया";
-"IMPORT_FAIL" = "आयात विफल";
-"BACKUP_IMPORT_FAIL_TEXT" = "बैकअप आयात करने में विफल। कृपया सुनिश्चित करें कि आपका बैकअप सही प्रारूप में है।";
-"RESTORE" = "पुनर्स्थापित करें";
-"LOGS" = "लॉग";
+"RENAME_BACKUP" = "बैकअप रीनेम करे";
+"CORRUPTED_BACKUP" = "बैकअप करप्टेड है";
+"CORRUPTED_BACKUP_TEXT" = "यह बैकप में मिस्कन्फ़िग्यर्ड डेटा है। रीनेम करना नामुमकिन हो गया है।";
+"MISSING_SOURCES" = "ग़ायब सॉर्सेज़";
+"RESTORE_BACKUP" = "इस बैकप पर रेस्टॉर करे?";
+"RESTORE_BACKUP_TEXT" = "पूरा वर्तमान डेटा नीता दिया जाएगा और इसे बैकप डेटा से रिप्लेस कर दिया जाएगा।";
+"BACKUP_IMPORT_SUCCESS" = "बैकप इम्पोर्टेड";
+"IMPORT_FAIL" = "इंपोर्ट विफल";
+"BACKUP_IMPORT_FAIL_TEXT" = "बैकप सेव करने में विफल हुए। कृपया सुनिश्चित कीजिए की बैकप सही फ़ॉर्मैट में है।";
+"RESTORE" = "रेस्टॉर";
+"LOGS" = "लॉग्ज़";
 "LOGGING" = "लॉगिंग";
-"LOG_SERVER" = "लॉग सर्वर";
-"EXPORT_LOGS" = "लॉग निर्यात करें";
-"DISPLAY_LOGS" = "लॉग दिखाएँ";
-"ADVANCED" = "उन्नत";
-"CLEAR_NETWORK_CACHE" = "नेटवर्क कैश साफ़ करें";
-"CLEAR_NETWORK_CACHE_TEXT" = "यह कार्रवाई वापस नहीं की जा सकती। कैश किए गए नेटवर्क अनुरोध और छवियाँ साफ़ कर दी जाएँगी।";
-"CLEAR_READ_HISTORY" = "पढ़ने का इतिहास साफ़ करें";
-"CLEAR_READ_HISTORY_TEXT" = "यह कार्रवाई वापस नहीं की जा सकती। पढ़ने का पूरा इतिहास हटा दिया जाएगा।";
-"RESET_SETTINGS" = "सेटिंग्स रीसेट करें";
-"RESET_SETTINGS_TEXT" = "यह कार्रवाई वापस नहीं की जा सकती। ऐप और स्रोतों की सभी सेटिंग्स रीसेट कर दी जाएँगी।";
+"LOG_SERVER" = "लोग सर्वर";
+"EXPORT_LOGS" = "इक्स्पॉर्ट लॉग्ज़";
+"DISPLAY_LOGS" = "डिस्प्ले लॉग्ज़";
+"ADVANCED" = "एडवान्स्ड";
+"CLEAR_NETWORK_CACHE" = "नेट्वर्क कैश क्लीर करे";
+"CLEAR_NETWORK_CACHE_TEXT" = "यह कार्य इरेवर्सिबल है। कैश्ट नेट्वर्क रेक्वेस्ट्स और इमिजेज़ क्लीर करदिए जाएँगे।";
+"CLEAR_READ_HISTORY" = "पठित इतिहास खाली करे";
+"CLEAR_READ_HISTORY_TEXT" = "यह कार्य इरेवर्सिबल है।पूरा इतिहास मिटा दिया जाएगा।";
+"RESET_SETTINGS" = "रीसेट सेटिंग्स";
+"RESET_SETTINGS_TEXT" = "यह कार्य इरेवर्सिबल है। पूरे ऐप और सोर्स सेटिंग्स रीसेट कर दिए जाएँगे।";
 "PAGE_X_OF_X" = "पृष्ठ %i / %i";
-"LIBRARY_LOCKED" = "लाइब्रेरी लॉक है।";
-"CATEGORY_LOCKED" = "श्रेणी लॉक है।";
-"VIEW_LIBRARY" = "लाइब्रेरी देखें";
-"CATEGORY_EMPTY" = "श्रेणी ख़ाली";
-"AUTH_TO_OPEN" = "खोलने के लिए अपनी पहचान सत्यापित करें।";
-"LOCKED_CATEGORIES" = "लॉक की गई श्रेणियाँ";
-"AUTH_FOR_LIBRARY" = "लाइब्रेरी देखने के लिए अपनी पहचान सत्यापित करें।";
-"LOCK_LIBRARY" = "लाइब्रेरी लॉक करें";
-"SET_AS_WIDE_PAGE" = "चौड़े पृष्ठ के रूप में सेट करें";
-"AUTOMATIC" = "स्वचालित";
+"LIBRARY_LOCKED" = "लाइब्रेरी लॉक्ड है।";
+"CATEGORY_LOCKED" = "कैटेगॉरी लॉक्ड है।";
+"VIEW_LIBRARY" = "लाइब्रेरी देखे";
+"CATEGORY_EMPTY" = "कैटेगॉरी ख़ाली";
+"AUTH_TO_OPEN" = "खोलने के लिए आज्ञा दे।";
+"LOCKED_CATEGORIES" = "लॉक्ड कैटेगॉरीज़";
+"AUTH_FOR_LIBRARY" = "लाइब्रेरी देखने के लिए आज्ञा दे।";
+"LOCK_LIBRARY" = "लाइब्रेरी लॉक करे";
+"SET_AS_WIDE_PAGE" = "वाइड पेज के रूप में सेट करें";
+"AUTOMATIC" = "ऑटमैटिक";
 "SET_AS_NORMAL_PAGE" = "सामान्य पृष्ठ के रूप में सेट करें";
 "PAGES_TO_PRELOAD" = "प्रीलोड करने के लिए पृष्ठ";
 "SINGLE_PAGE" = "एकल पृष्ठ";
 "PAGED" = "पृष्ठांकित";
-"PAGE_LAYOUT" = "पृष्ठ लेआउट";
-"DOUBLE_PAGE" = "दोहरा पृष्ठ";
+"PAGE_LAYOUT" = "पेज लेआउट";
+"DOUBLE_PAGE" = "डबल पेज";
 "MULTI_LANGUAGE" = "बहु-भाषा";
-"TRACKERS" = "ट्रैकर";
-"LOGOUT" = "लॉग आउट करें";
-"LOGOUT_FROM_%@" = "%@ से लॉग आउट करें?";
-"BACKUP_INFO" = "बैकअप निर्यात करने के लिए उसे देर तक दबाएँ, या मिटाने के लिए बाईं ओर स्वाइप करें।";
-"MISSING_SOURCES_TEXT" = "पुनर्स्थापित बैकअप में इन स्रोतों का डेटा हो सकता है, जो अभी इंस्टॉल नहीं हैं:";
-"BACKUP_IMPORT_SUCCESS_TEXT" = "इस बैकअप को पुनर्स्थापित करने के लिए इसे सेटिंग्स के बैकअप पृष्ठ पर खोजें।";
-"EXPORT" = "निर्यात करें";
-"WITH_COMPLETED_STATUS" = "पूर्ण स्थिति वाले";
-"BACKUPS" = "बैकअप";
-"RESET_TEXT" = "यह कार्रवाई वापस नहीं की जा सकती। सारा डेटा, सेटिंग्स और कैश साफ़ करके रीसेट कर दिए जाएँगे।";
-"DAILY" = "प्रतिदिन";
-"EVERY_2_DAYS" = "हर 2 दिन में";
-"WITH_NO_CHAPTERS_READ" = "जिनका कोई अध्याय पढ़ा हुआ चिह्नित नहीं है";
-"SOURCE_LIST_ADDED_TEXT" = "अब आप ब्राउज़ टैब में बाहरी स्रोत देख सकते हैं।";
-"SOURCE_LIST_ADD_FAIL_TEXT" = "दिया गया स्रोत सूची URL अमान्य है या पहले ही जोड़ा जा चुका है।";
-"RENAME_BACKUP_TEXT" = "बैकअप के लिए नया नाम दर्ज करें";
+"TRACKERS" = "ट्रैकर्स";
+"LOGOUT" = "लोग आउट";
+"LOGOUT_FROM_%@" = "%a से लोग आउट करेंगे ?";
+"BACKUP_INFO" = "बैकप पर लम्बा प्रेस करे उसे इक्स्पॉर्ट करने के लिए, या लेफ़्ट स्वाइप करे मिटाने के लिए।";
+"MISSING_SOURCES_TEXT" = "रेस्टॉर्ड बैकप में दिए गए सॉर्सेज़ से डेटा हो सकता है, जो इस वक्त इन्स्टॉल्ड नहीं है:";
+"BACKUP_IMPORT_SUCCESS_TEXT" = "इस बैकअप को रिस्टोर करने के लिए, इसे सेटिंग्स में बैकअप पृष्ठ पर खोजें।";
+"EXPORT" = "इक्स्पॉर्ट";
+"WITH_COMPLETED_STATUS" = "समाप्त स्टैटुस के साथ";
+"BACKUPS" = "बैकअप्स";
+"RESET_TEXT" = "यह कार्य इरेवर्सिबल है। सब डेटा,सेटिंग्स और कैशेज़ क्लीर और रीसेट कर दिए जाएँगे।";
+"DAILY" = "हमेशा";
+"EVERY_2_DAYS" = "हर २ दिन";
+"THAT_HAVENT_BEEN_READ" = "जो पढ़ा ना गया हो";
+"SOURCE_LIST_ADDED_TEXT" = "आप इक्स्टर्नल सॉर्सेज़ ब्राउज़ तब में ब्राउज़ कर सकते है।";
+"SOURCE_LIST_ADD_FAIL_TEXT" = "दिया गया सोर्स लिस्ट यूआरएल इन्वैलिड है या पहले से जोड़ दिया गया है।";
+"RENAME_BACKUP_TEXT" = "बैकअप के लिए नया नाम डाले";
 "ONE_PAGE_LEFT" = "1 पृष्ठ बाकी";
 "%i_PAGES_LEFT" = "%i पृष्ठ बाकी";
-"SUPPORT_VIA_KOFI" = "Ko-Fi के माध्यम से सहयोग करें";
-
-"TRANSLATION_TITLE" = "OCR और अनुवाद";
-
-"TRANSLATION_KEY_REPLACE" = "सहेजी गई API कुंजी बदलें (वैकल्पिक)";
-
-"TRANSLATION_KEY" = "API कुंजी";
-
-"TRANSLATION_KEY_SAVED" = "API कुंजी Keychain में सहेजी गई";
-
-"TRANSLATION_KEY_DELETE" = "API कुंजी हटाएँ";
-
-"TRANSLATION_MODEL" = "मॉडल आईडी";
-
-"TRANSLATION_GET_KEY" = "OpenAI API कुंजियाँ खोलें";
-
-"TRANSLATION_LANGUAGE" = "भाषाएँ";
-
-"TRANSLATION_TARGET" = "अनुवाद की लक्ष्य भाषा";
-
-"TRANSLATION_AUTO" = "स्वचालित रूप से पता लगाएं";
-
-"TRANSLATION_CLEAR_CACHE" = "अनुवाद कैश साफ़ करें";
-
-"TRANSLATION_CACHE_CLEARED" = "अनुवाद कैश साफ़ किया गया.";
-
-"TRANSLATION_NOTICES" = "OCR और अनुवाद लाइसेंस";
-
-"TRANSLATION_ADVANCED" = "अनुवाद विकल्प";
-
-"TRANSLATION_REASONING" = "तर्क प्रयास";
-
-"TRANSLATION_MODEL_DEFAULT" = "मॉडल डिफ़ॉल्ट";
-
-"TRANSLATION_CONCURRENCY" = "समवर्ती अनुरोध";
-
-"TRANSLATION_PROVIDER" = "अनुवाद प्रदाता";
-
-"TRANSLATION_BASE_URL" = "सर्वर URL";
-
-"TRANSLATION_API_FORMAT" = "API प्रारूप";
-
-"TRANSLATION_CUSTOM_HELP" = "एक HTTPS बेस URL या पूर्ण API एंडपॉइंट और आपके सर्वर द्वारा समर्थित एक मॉडल दर्ज करें। प्रत्येक सर्वर URL की अपनी स्वयं की सहेजी गई कुंजी होती है; URL बदलने से आपके द्वारा दर्ज की जा रही कोई भी कुंजी साफ़ हो जाती है। Responses और Chat Completions संरचित JSON आउटपुट का उपयोग करते हैं।";
-
-"TRANSLATION_AUTOMATIC" = "स्वचालित अनुवाद";
-
-"TRANSLATION_AUTOMATIC_HELP" = "रीडर के पृष्ठों का अपने आप अनुवाद करके दिखाएँ। रीडर का अनुवाद बटन इस सेटिंग को चालू या बंद करता है।";
-
-"TRANSLATION_TEST" = "API कनेक्शन का परीक्षण करें";
-
-"TRANSLATION_TEST_RUNNING" = "कनेक्शन का परीक्षण किया जा रहा है…";
-
-"TRANSLATION_TEST_SUCCESS" = "कनेक्शन सफल";
-
-"TRANSLATION_TEST_FAILURE" = "कनेक्शन विफल";
-
-"TRANSLATION_TEST_HELP" = "इस फॉर्म में मानों का उपयोग करके एक छोटे वाक्य का अनुवाद करता है। इस सर्वर की सहेजी गई कुंजी का उपयोग करने के लिए कुंजी को खाली छोड़ दें। परिवर्तन स्वचालित रूप से सहेजे जाते हैं.";
-
-"SEARCH_SUGGESTIONS" = "खोज सुझाव";
-
-"TRANSLATION_CACHE" = "ऑफ़लाइन कैश";
-
-"TRANSLATION_CACHE_LIMIT" = "अधिकतम भंडारण";
-
-"TRANSLATION_CACHE_USED" = "उपयोग किया गया भंडारण";
-
-"TRANSLATION_CACHE_HELP" = "OCR, पृष्ठों के अनुवाद, मंगा और अध्यायों के शीर्षकों के अनुवाद, लेखकों के नाम, टैग, मंगा के विवरण, स्रोत मेनू और अनुभाग शीर्षकों के अनुवाद तथा टेक्स्ट लेआउट अपने आप सहेजे जाते हैं। केवल वर्तमान और आस-पास के पृष्ठों की छवियाँ मेमोरी में रखी जाती हैं। चुनी हुई सीमा तक पहुँचने पर सबसे लंबे समय से उपयोग नहीं किए गए परिणाम पहले हटाए जाते हैं। डिफ़ॉल्ट: 1 GB। अधिकतम: 100 GB। बदलाव अपने आप लागू होते हैं; सीमा घटाने पर कैश को उस सीमा में लाने तक सबसे लंबे समय से उपयोग नहीं किए गए परिणाम हटाए जाते हैं।";
-
-"TRANSLATION_SOURCE_FILTER" = "अनुवाद के लिए मूल भाषाओं का फ़िल्टर";
-
-"TRANSLATION_FILTER_ALL" = "सभी पहचानी गई भाषाएँ";
-
-"TRANSLATION_FILTER_HELP" = "अनुवाद करने के लिए मूल भाषाएँ चुनें। जिन भाषाओं को नहीं चुना गया है या जिनकी पहचान निश्चित नहीं है, उनका पाठ नहीं बदलेगा। फ़िल्टर हटाने के लिए सभी पहचानी गई भाषाएँ चुनें।";
-
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "केवल चुनी गई मूल भाषा के रूप में पहचाने गए पाठ का अनुवाद होता है। जिन भाषाओं की पहचान डिवाइस पर समर्थित नहीं है, उन पर यह फ़िल्टर लागू नहीं होता।";
-
-"HTTPS_BYPASS" = "HTTPS अवरोध बायपास";
-
-"HTTPS_BYPASS_HELP" = "स्रोत अनुरोधों, छवियों, डाउनलोड और स्रोत वेब दृश्यों के लिए TLS विखंडन और एन्क्रिप्टेड DNS (Cloudflare) का उपयोग करता है। यह नए कनेक्शनों पर लागू होता है। वेबसाइट द्वारा लगाए गए IP ब्लॉक और प्रतिबंध बायपास नहीं होते।";
-
-"HTTPS_BYPASS_TEST" = "कनेक्शन का परीक्षण करें";
-
-"HTTPS_BYPASS_TEST_HELP" = "स्विच बंद होने पर भी, बायपास के माध्यम से इस HTTPS पते का परीक्षण करता है। एक प्रतिक्रिया कनेक्टिविटी की पुष्टि करती है, न कि यह कि ISP ब्लॉक मौजूद था।";
-
-"HTTPS_BYPASS_INVALID_URL" = "उपयोगकर्ता नाम या पासवर्ड के बिना HTTPS URL दर्ज करें।";
-
-"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d प्राप्त हुआ · TLS विखंडन लागू किया गया";
-
-"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d प्राप्त हुआ · TLS विखंडन की पुष्टि नहीं हुई";
-
-"HTTPS_BYPASS_TEST_FAILED" = "HTTPS बायपास से कनेक्ट नहीं हो सका.";
-
-"TRANSLATION_MANGA_TITLES" = "मंगा शीर्षकों का अनुवाद करें";
-
-"TRANSLATION_CHAPTER_TITLES" = "अध्याय शीर्षकों का अनुवाद करें";
-
-"TRANSLATION_TITLES_HELP" = "स्वचालित पृष्ठ अनुवाद से स्वतंत्र रूप से आपके अनुवाद API और लक्ष्य भाषा का उपयोग करता है। किसी विकल्प का मूल पाठ दिखाने के लिए उस विकल्प को बंद करें। लोड करते समय या अनुवाद विफल होने पर मूल दृश्यमान रहते हैं।";
-
-"TRANSLATION_MANGA_TITLE_FILTER" = "मंगा शीर्षक भाषाएँ";
-
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "अध्याय शीर्षक भाषाएँ";
-
-"TRANSLATION_PAGE_SOURCE" = "पृष्ठ स्रोत भाषा";
-
-"TRANSLATION_MANGA_DESCRIPTIONS" = "मंगा विवरण का अनुवाद करें";
-
-"TRANSLATION_DESCRIPTION_FILTER" = "मंगा विवरण भाषाएँ";
-
-"TRANSLATION_METADATA_FILTER_HELP" = "स्रोत भाषा का स्वचालित रूप से पता लगाकर केवल चयनित भाषाओं का अनुवाद करता है। «सभी पहचानी गई भाषाएँ» प्रतिबंध हटा देती हैं। हर आइटम का भाषा फ़िल्टर पृष्ठ और दूसरे आइटम की भाषा सेटिंग से स्वतंत्र है।";
-
-"TRANSLATION_CUSTOM_PROVIDER" = "कस्टम (OpenAI-संगत)";
-
-"TRANSLATION_REASONING_NONE" = "कोई नहीं";
-
-"TRANSLATION_REASONING_MINIMAL" = "न्यूनतम";
-
-"TRANSLATION_REASONING_LOW" = "कम";
-
-"TRANSLATION_REASONING_MEDIUM" = "मध्यम";
-
-"TRANSLATION_REASONING_HIGH" = "उच्च";
-
-"TRANSLATION_REASONING_XHIGH" = "बहुत उच्च";
-
-"TRANSLATION_REASONING_MAX" = "अधिकतम";
-
-"TRANSLATION_MANGA_TAGS" = "मंगा टैग का अनुवाद करें";
-"TRANSLATION_TAG_FILTER" = "टैग की मूल भाषाएँ";
-
-// Completed app localization
-"DONE" = "हो गया";
-"EDIT" = "संपादित करें";
-"INVALID" = "अमान्य";
-"PAUSE" = "रोकें";
-"RESUME" = "जारी रखें";
-"COPY" = "कॉपी करें";
-"WARNING" = "चेतावनी";
-"ENABLE_PERMISSION" = "अनुमति सक्षम करें";
-"PHOTOS_ACCESS_DENIED_TEXT" = "पहले ऐक्सेस की अनुमति अस्वीकार की गई थी। कैमरा रोल में छवियाँ सहेजने के लिए कृपया Aidoku को अपनी तस्वीरों का ऐक्सेस दें। आप गोपनीयता सेटिंग्स में यह अनुमति दे सकते हैं।";
-"CONTENT" = "सामग्री";
-"%@_EXPERIMENTAL" = "%@ (प्रायोगिक)";
-"DOWNLOADING" = "डाउनलोड हो रहा है";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "क्या आप वाकई सभी डाउनलोड हटाना चाहेंगे?";
-"NO_WIFI_ALERT_TITLE" = "कोई वाई-फ़ाई नहीं";
-"NO_WIFI_ALERT_MESSAGE" = "इस सामग्री को डाउनलोड करने के लिए आपको वाई-फाई से कनेक्ट होना होगा। कृपया वाई-फाई से कनेक्ट करें और पुनः प्रयास करें।";
-"DOWNLOAD_ANYWAY_MESSAGE" = "आप वर्तमान में वाई-फ़ाई पर नहीं हैं. फिर भी डाउनलोड करें?";
-"PROCESSING_QUEUE" = "क़तार संसाधित की जा रही है…";
-"DOWNLOADING_PAUSED" = "डाउनलोडिंग रुकी हुई है";
-"PAUSED" = "रुका हुआ";
-"CANCEL_ALL_DOWNLOADS" = "सभी डाउनलोड रद्द करें";
-"DOWNLOADS" = "डाउनलोड";
-"NO_DOWNLOADS" = "कोई डाउनलोड नहीं";
-"NO_DOWNLOADS_TEXT" = "डाउनलोड की गई सामग्री यहां दिखाई देगी.";
-"DOWNLOADED_CHAPTERS" = "डाउनलोड किए गए अध्याय";
-"DOWNLOAD_INCOMPLETE" = "अधूरा डाउनलोड";
-"DOWNLOAD_STORAGE_USED" = "डाउनलोड का कुल आकार";
-"%i_SERIES" = "%i श्रृंखलाएँ";
-"IN_LIBRARY" = "लाइब्रेरी में";
-"VIEW_SERIES" = "श्रृंखला देखें";
-"VIEW_FILES" = "फ़ाइलें देखें";
-"COMPRESS_DOWNLOADS" = "डाउनलोड को संपीड़ित करें";
-"PARALLEL_DOWNLOADS" = "समानांतर डाउनलोड";
-"BACKGROUND_DOWNLOADING" = "पृष्ठभूमि डाउनलोडिंग";
-"METADATA_DETECTED" = "लीगेसी मेटाडेटा का पता लगाया गया";
-"METADATA_DETECTED_TEXT" = "लीगेसी JSON मेटाडेटा को ComicInfo.xml फ़ाइलों में स्थानांतरित कर दिया जाएगा।";
-"CATEGORY_SEARCH" = "श्रेणी में खोजें";
-"LIBRARY_ADD_CONTENT" = "ब्राउज़ टैब से सामग्री जोड़ें.";
-"LIBRARY_ADJUST_FILTERS" = "अधिक सामग्री देखने के लिए अपने फ़िल्टर समायोजित करें।";
-"REMOVE_FILTER" = "फ़िल्टर हटाएँ";
-"AND_MORE" = "और अन्य";
-"NOT_%@" = "%@ नहीं";
-"FILTER_SEPARATOR" = ", ";
-"IS_TRACKING" = "ट्रैक किए गए";
-"FILTER_HAS_UNREAD" = "अपठित";
-"FILTER_STARTED" = "शुरू हुआ";
-"ASCENDING" = "आरोही";
-"DESCENDING" = "अवरोही";
-"OLDEST_FIRST" = "सबसे पुराना प्रथम";
-"NEWEST_FIRST" = "नवीनतम प्रथम";
-"HIGHEST_FIRST" = "सर्वोच्च प्रथम";
-"LOWEST_FIRST" = "निम्नतम प्रथम";
-"COVER" = "आवरण";
-"LAYOUT_GRID" = "ग्रिड";
-"LAYOUT_LIST" = "सूची";
-"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "लाइब्रेरी से आइटम हटाया जा रहा है";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "लाइब्रेरी से %i आइटम हटाए जा रहे हैं";
-"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "श्रेणी %@ से आइटम हटाया जा रहा है";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "श्रेणी %2$@ से %1$i आइटम हटाए जा रहे हैं";
-"REFRESHING_LIBRARY" = "लाइब्रेरी रीफ़्रेश की जा रही है…";
-"PROCESSING_ENTRIES" = "प्रविष्टियाँ संसाधित की जा रही हैं…";
-"REFRESH_NO_WIFI" = "वाई-फ़ाई से कनेक्ट नहीं है";
-"REFRESH_NO_WIFI_TEXT" = "केवल वाई-फाई पर अपडेट करने की सेटिंग सक्षम है। अपनी लाइब्रेरी को रीफ़्रेश करने के लिए वाई-फाई से कनेक्ट करें।";
-"REFRESH_ANYWAY" = "फिर भी रीफ़्रेश करें";
-"REMOVE_FROM_LIBRARY_CONFIRM" = "लाइब्रेरी से हटाएँ?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "इस श्रृंखला को लाइब्रेरी से हटाने पर इसके सभी ट्रैकर लिंक भी हट जाएँगे। क्या आप आगे बढ़ना चाहते हैं?";
-"LIBRARY_REFRESH_INTERRUPTED" = "लाइब्रेरी रीफ़्रेश बाधित";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "अंतिम लाइब्रेरी रीफ़्रेश पूरा होने से पहले ही बाधित हो गया था। क्या आप फिर से शुरू करना चाहेंगे?";
-"CATEGORY" = "श्रेणी";
-"UNCATEGORIZED" = "अवर्गीकृत";
-"CATEGORY_NAME" = "श्रेणी का नाम";
-"ADD_TO_CATEGORY" = "श्रेणी में जोड़ें";
-"ADD_TO_CATEGORIES" = "श्रेणियों में जोड़ें";
-"RENAME_CATEGORY_INFO" = "इस श्रेणी के लिए एक नया नाम दर्ज करें.";
-"RENAME_CATEGORY_FAIL" = "श्रेणी का नाम बदलने में विफल";
-"RENAME_CATEGORY" = "श्रेणी का नाम बदलें";
-"RENAME_CATEGORY_FAIL_INFO" = "श्रेणी के नाम अद्वितीय होने चाहिए.";
-"FILTER_GROUPS" = "फ़िल्टर समूह";
-"CREATE_FILTER_GROUP" = "फ़िल्टर समूह बनाएं";
-"EDIT_FILTER_GROUP" = "फ़िल्टर समूह संपादित करें";
-"CLEAR_FILTERS" = "फ़िल्टर साफ़ करें";
-"SHOW_UNCATEGORIZED_CATEGORY" = "अवर्गीकृत श्रेणी दिखाएँ";
-"BROWSE_NO_SOURCES_TEXT_NEW" = "प्लस बटन के साथ एक स्रोत जोड़ें.";
-"PIN" = "पिन करें";
-"UNPIN" = "अनपिन करें";
-"DISABLE" = "अक्षम करें";
-"ENABLE" = "सक्षम करें";
-"REORDER" = "पुन: व्यवस्थित करें";
-"EDIT_SOURCES" = "स्रोत संपादित करें";
-"CONTENT_RATING" = "सामग्री रेटिंग";
-"SAFE" = "सुरक्षित";
-"CONTAINS_NSFW" = "एनएसएफडब्ल्यू शामिल है";
-"PRIMARILY_NSFW" = "मुख्य रूप से एनएसएफडब्ल्यू";
-"REMOVE_LOCAL_SOURCE" = "स्थानीय स्रोत हटाएँ?";
-"REMOVE_LOCAL_SOURCE_TEXT" = "यह सभी आयातित स्थानीय फ़ाइलें हटा देगा.";
-"MISSING_SOURCE_LIST" = "स्रोत सूचियों में नहीं";
-"MISSING_SOURCE_LIST_INFO" = "यह बाहरी स्रोत किसी भी कॉन्फ़िगर की गई स्रोत सूची में उपलब्ध नहीं है। इसलिए इसे अपडेट नहीं मिलेंगे और भविष्य में यह काम करना बंद कर सकता है।";
-"BASE_URL" = "आधार URL";
-"SEE_ALL" = "सभी देखें";
-"HOME" = "मुखपृष्ठ";
-"FILTERS" = "फिल्टर";
-"APPLY" = "लागू करें";
-"RANGE_FROM" = "से";
-"RANGE_TO" = "तक";
-"SOURCE_SETTINGS" = "स्रोत सेटिंग्स";
-"RESET_SETTINGS_CONFIRM_%@" = "क्या आप वाकई %@ के लिए सभी सेटिंग्स रीसेट करना चाहते हैं?";
-"CANCEL_CONFIRM" = "क्या आप वाकई रद्द करना चाहते हैं?";
-"CANCEL_CONFIRM_TEXT" = "आपके परिवर्तन खारिज कर दिये जायेंगे.";
-"DISCARD_CHANGES" = "परिवर्तन त्यागें";
-"INVALID_URL" = "अमान्य URL";
-"INVALID_URL_TEXT" = "इस स्रोत का URL अमान्य है.";
-"MORE_BARBUTTON" = "और";
-"RETRY" = "पुनः प्रयास करें";
-"RESTART" = "पुनः प्रारंभ करें";
-"UNIMPLEMENTED" = "लागू नहीं किया गया";
-"NETWORK_ERROR" = "नेटवर्क त्रुटि";
-"DECODING_ERROR" = "डिकोडिंग त्रुटि";
-"HTML_ERROR" = "एचटीएमएल त्रुटि";
-"JSON_ERROR" = "JSON त्रुटि";
-"UNKNOWN_ERROR" = "अज्ञात त्रुटि";
-"SOURCE_CRASHED" = "स्रोत क्रैश हो गया";
-"ADD_SOURCE" = "स्रोत जोड़ें";
-"IMPORT_SOURCE" = "स्रोत आयात करें";
-"BUILT_IN_SOURCES" = "अंतर्निहित स्रोत";
-"EXTERNAL_SOURCES" = "बाहरी स्रोत";
-"NO_RESULTS" = "कोई परिणाम नहीं";
-"NO_EXTERNAL_SOURCES" = "कोई बाहरी स्रोत नहीं";
-"NO_EXTERNAL_SOURCES_INFO" = "बाहरी स्रोतों को स्थापित करने के लिए सेटिंग टैब में स्रोत सूचियों को कॉन्फ़िगर करें।";
-"NO_AVAILABLE_SOURCES" = "कोई उपलब्ध स्रोत नहीं";
-"NO_AVAILABLE_SOURCES_INFO" = "अधिक बाहरी स्रोत देखने के लिए अपने फ़िल्टर समायोजित करें।";
-"ALL_SOURCES_INSTALLED" = "सभी स्रोत स्थापित";
-"ALL_SOURCES_INSTALLED_INFO" = "इंस्टॉल करने के लिए कोई बाहरी स्रोत शेष नहीं है.";
-"SAVE" = "सहेजें";
-"SAVED_SEARCHES" = "सहेजी गई खोजें";
-"NAME_SAVED_SEARCH" = "इस सहेजी गई खोज को नाम दें";
-"NAME_SAVED_SEARCH_INFO" = "इस खोज को सहेजने से वर्तमान में कॉन्फ़िगर किए गए फ़िल्टर और खोज टेक्स्ट संग्रहीत हो जाएंगे।";
-"SAVED_SEARCH_NAME" = "नाम";
-"SAVE_SEARCH_FAIL" = "सहेजना विफल रहा";
-"SAVE_SEARCH_FAIL_INFO" = "इस नाम से एक मौजूदा सहेजी गई खोज पहले से मौजूद है। कृपया एक अद्वितीय नाम चुनें.";
-"INCOGNITO_FILTERS_NOTICE" = "संशोधित फ़िल्टर गुप्त मोड में बने नहीं रहते हैं।";
-"LOCAL_FILES" = "स्थानीय फ़ाइलें";
-"LOCAL_FILES_TAGLINE" = "स्थानीय फ़ाइलों से पढ़ें";
-"LOCAL_FILES_INFO" = "स्थानीय फ़ाइल स्रोत से आप अपनी पढ़ने की लाइब्रेरी सीधे Aidoku में आयात और प्रबंधित कर सकते हैं।";
-"LOCAL_FILES_SETUP" = "स्थानीय फ़ाइलें सेटअप";
-"IMPORT" = "आयात";
-"IMPORT_SETTINGS" = "आयात";
-"IMPORT_FILE" = "फ़ाइल आयात करें";
-"LOCAL_FILE_IMPORT" = "स्थानीय फ़ाइल आयात";
-"LOCAL_FILE_IMPORT_TEXT" = "पढ़ने के लिए छवियों वाली सीबीजेड या ज़िप फ़ाइल आयात करें।";
-"CHAPTER_TITLE" = "अध्याय शीर्षक";
-"SERIES_TITLE" = "श्रृंखला का शीर्षक";
-"DESCRIPTION" = "विवरण";
-"SERIES" = "श्रृंखला";
-"NEW_SERIES" = "नई श्रृंखला";
-"NEW_SERIES_TEXT" = "इस फ़ाइल के लिए एक नई श्रृंखला बनाएँ";
-"SELECT_SERIES" = "श्रृंखला का चयन करें";
-"VOLUME_CHAPTER_INVALID_ERROR" = "इस कॉन्फ़िगरेशन वाला एक अध्याय पहले से मौजूद है.";
-"VOLUME_CHAPTER_EMPTY_ERROR" = "एक खंड और/या अध्याय संख्या आवश्यक है.";
-"SERIES_TITLE_UNIQUE_ERROR" = "इस शीर्षक वाली एक श्रृंखला पहले से मौजूद है।";
-"SERIES_TITLE_EMPTY_ERROR" = "नई श्रृंखला के लिए एक शीर्षक अवश्य प्रदान किया जाना चाहिए।";
-"CREATE_NEW_SERIES_INFO" = "अगले पृष्ठ पर एक नई श्रृंखला बनाई जाएगी, या आप इस फ़ाइल को जोड़ने के लिए किसी मौजूदा श्रृंखला का चयन कर सकते हैं।";
-"ADD_TO_OTHER_SERIES_INFO" = "फ़ाइल को चयनित श्रृंखला में जोड़ दिया जाएगा.";
-"%i_PAGES" = "%i पृष्ठ";
-"1_PAGE" = "1 पृष्ठ";
-"CBZ_NAME" = "कॉमिक बुक ज़िप आर्काइव";
-"ZIP_NAME" = "ज़िप आर्काइव";
-"EPUB_NAME" = "EPUB";
-"KOMGA" = "Komga";
-"KOMGA_TAGLINE" = "स्वयं-होस्ट किया गया मीडिया सर्वर";
-"KOMGA_INFO" = "Komga कॉमिक्स और मंगा के लिए स्वयं होस्ट किया जाने वाला मीडिया सर्वर है। इस स्रोत का उपयोग करने के लिए आपका Komga सर्वर सेट अप होकर चल रहा होना चाहिए।";
-"KOMGA_SETUP" = "Komga सेटअप";
-"DEMO_KOMGA_SERVER" = "डेमो Komga सर्वर";
-"DEMO_KOMGA_SERVER_INFO" = "आप ईमेल `demo@komga.org` और पासवर्ड `komga-demo` का उपयोग करके डेमो Komga सर्वर में लॉग इन कर सकते हैं।";
-"SOURCE_NAME" = "स्रोत का नाम";
-"SOURCE_NAME_INFO" = "स्रोत का नाम ब्राउज़ टैब में दिखाई देगा.";
-"SOURCE_NAME_UNIQUE_ERROR" = "कृपया एक अद्वितीय स्रोत नाम चुनें.";
-"SERVER_URL" = "सर्वर URL";
-"SERVER_URL_INFO" = "कनेक्ट करने के लिए सर्वर का आधार URL.";
-"SERVER_URL_UNIQUE_ERROR" = "उस सर्वर के साथ कॉन्फ़िगर किया गया स्रोत पहले से मौजूद है।";
-"MIRRORS" = "मिरर सर्वर";
-"MIRRORS_INFO" = "यदि मुख्य URL कनेक्ट होने में विफल रहता है तो आधार URL के रूप में उपयोग करने का प्रयास करने के लिए अतिरिक्त URL।";
-"SERVER_ERROR" = "सर्वर त्रुटि";
-"SERVER_ERROR_CONNECTION" = "दिए गए सर्वर से कनेक्ट करने में असमर्थ. सुनिश्चित करें कि सर्वर इंस्टेंस चल रहा है और URL सही ढंग से दर्ज किया गया है।";
-"SERVER_ERROR_AUTHENTICATION" = "लॉग इन करने में असमर्थ। सुनिश्चित करें कि आपके क्रेडेंशियल सही ढंग से दर्ज किए गए हैं।";
-"OTHER_SETTINGS" = "अन्य सेटिंग्स";
-"DISPLAY_DEFAULT" = "डिफ़ॉल्ट";
-"DISPLAY_CHAPTER" = "अध्याय";
-"DISPLAY_VOLUME" = "खंड";
-"USE_CHAPTERS" = "अध्यायों का प्रयोग करें";
-"USE_CHAPTERS_TEXT" = "पुस्तकों को खंडों के बजाय अध्याय के रूप में मानें";
-"%@_BOOKS" = "%@ पुस्तकें";
-"1_BOOK" = "1 पुस्तक";
-"ON_DECK" = "आगे पढ़ें";
-"KEEP_READING" = "पढ़ते रहें";
-"RECENTLY_ADDED_BOOKS" = "हाल ही में जोड़ी गई पुस्तकें";
-"RECENTLY_ADDED_SERIES" = "हाल ही में जोड़ी गई श्रृंखला";
-"RECENTLY_UPDATED_SERIES" = "हाल ही में अद्यतन श्रृंखला";
-"RECENTLY_READ_BOOKS" = "हाल ही में पढ़ी गई पुस्तकें";
-"ANY" = "कोई भी";
-"AUTHOR" = "लेखक";
-"ARTIST" = "कलाकार";
-"SORT" = "क्रम";
-"SORT_NAME" = "नाम";
-"SORT_DATE_UPDATED" = "अपडेट की तारीख";
-"SORT_DATE_READ" = "पढ़ने की तारीख";
-"SORT_RELEASE_DATE" = "रिलीज की तारीख";
-"SORT_FOLDER_NAME" = "फ़ोल्डर का नाम";
-"SORT_BOOKS_COUNT" = "पुस्तकों की संख्या";
-"SORT_RANDOM" = "यादृच्छिक";
-"GENRE" = "शैली";
-"TAG" = "टैग";
-"PUBLISHER" = "प्रकाशक";
-"AGE_RATING" = "आयु रेटिंग";
-"RELEASE_DATE" = "रिलीज की तारीख";
-"SHARING_LABEL" = "साझाकरण लेबल";
-"NOT_LOGGED_IN" = "लॉग इन नहीं है";
-"NO_SERVER_CONFIGURED" = "कोई सर्वर कॉन्फ़िगर नहीं किया गया";
-"INVALID_SERVER_URL" = "अमान्य सर्वर URL";
-"KAVITA" = "Kavita";
-"KAVITA_TAGLINE" = "स्व-होस्टेड डिजिटल लाइब्रेरी";
-"KAVITA_INFO" = "Kavita कॉमिक्स और मंगा के लिए एक स्व-होस्टेड मीडिया सर्वर है। इस स्रोत का उपयोग करने के लिए आपको एक Kavita सर्वर स्थापित करने और चलाने की आवश्यकता होगी।";
-"KAVITA_SETUP" = "Kavita सेटअप";
-"DEMO_KAVITA_SERVER" = "डेमो Kavita सर्वर";
-"DEMO_KAVITA_SERVER_INFO" = "आप उपयोगकर्ता नाम `demouser` और पासवर्ड `Demouser64` से Kavita के डेमो सर्वर में लॉग इन कर सकते हैं।";
-"MORE_IN_%@" = "%@ में और अधिक";
-"SORT_CHAPTER_ADDED" = "अध्याय जोड़ने की तिथि";
-"SORT_TIME_TO_READ" = "अनुमानित पढ़ने का समय";
-"SORT_AVERAGE_RATING" = "औसत रेटिंग";
-"STATUS_ENDED" = "समाप्त";
-"FORMAT" = "प्रारूप";
-"FORMAT_IMAGE" = "छवि";
-"FORMAT_EPUB" = "EPUB";
-"FORMAT_PDF" = "PDF";
-"FORMAT_ARCHIVE" = "आर्काइव";
-"LOGIN_VIA_OIDC" = "ओआईडीसी के माध्यम से लॉग इन करें";
-"API_KEY" = "API कुंजी";
-"OIDC" = "OIDC";
-"BASIC_LOGIN" = "मूल लॉगिन";
-"API_KEY_LOGIN_INFO" = "लॉगिन के लिए मैन्युअल रूप से API कुंजी प्रदान करना अन्य लॉगिन तरीकों को ओवरराइड कर देगा। आप अन्य लॉगिन विधियों का उपयोग करने के लिए इसे खाली छोड़ सकते हैं।";
-"SUWAYOMI" = "Suwayomi";
-"SUWAYOMI_TAGLINE" = "मंगा रीडर सर्वर";
-"SUWAYOMI_INFO" = "Suwayomi एक स्व-होस्टेड मंगा रीडर सर्वर है जो Mihon (Tachiyomi) के लिए बने एक्सटेंशन चलाता है। इस स्रोत का उपयोग करने के लिए आपको एक Suwayomi सर्वर सेट अप करके चलाना होगा।";
-"SUWAYOMI_SETUP" = "Suwayomi सेटअप";
-"STATUS_LICENSED" = "लाइसेंस प्राप्त";
-"STATUS_PUBLISHING_FINISHED" = "प्रकाशन समाप्त";
-"AUTHOR_NAME" = "लेखक का नाम";
-"ARTIST_NAME" = "कलाकार का नाम";
-"INVALID_KEY" = "अमान्य कुंजी";
-"LINK_COPIED" = "लिंक कॉपी किया गया";
-"LINK_COPIED_TEXT" = "लिंक को क्लिपबोर्ड पर कॉपी कर दिया गया है.";
-"SCANLATOR" = "स्कैनलेटर";
-"NO_SCANLATOR" = "कोई स्कैनलेटर नहीं";
-"LOCKED" = "लॉक किया गया";
-"TOGGLE_LOCK" = "लॉक टॉगल करें";
-"REFRESH_DETAILS" = "विवरण रीफ़्रेश करें";
-"VOLUME" = "खंड";
-"SKIPPING_CHAPTERS" = "%i अध्याय छोड़े जा रहे हैं क्योंकि वे स्रोत में उपलब्ध नहीं हैं या फ़िल्टर करके हटा दिए गए हैं";
-"OPEN_WEBSITE" = "वेबसाइट खोलें";
-"SET_COVER_IMAGE" = "कवर छवि सेट करें";
-"CHOOSE_CUSTOM_COVER" = "कस्टम कवर चुनें";
-"RESET_COVER" = "कवर रीसेट करें";
-"NO_HISTORY" = "कोई इतिहास नहीं";
-"NO_HISTORY_TEXT" = "आपके पढ़ने का इतिहास यहाँ दिखाई देगा।";
-"MANGA_UPDATES" = "अपडेट";
-"NO_UPDATES" = "कोई अपडेट नहीं";
-"%lld_PLUS_MORE" = "+%lld और";
-"RECENTLY_SEARCHED" = "हाल ही में खोजा गया";
-"NO_RECENT_SEARCHES" = "कोई हालिया खोज नहीं";
-"NO_RECENT_SEARCHES_TEXT" = "आपकी हाल की खोजें यहां दिखाई देंगी.";
-"SOURCES" = "सामग्री स्रोत";
-"LOGIN" = "लॉग इन करें";
-"LOGIN_SECTION" = "लॉगिन";
-"LOGOUT_CONFIRM" = "क्या आप लॉग आउट करना चाहते हैं?";
-"USERNAME" = "उपयोगकर्ता नाम";
-"EMAIL" = "ईमेल";
-"PASSWORD" = "पासवर्ड";
-"LOGIN_FAILED" = "लॉग इन विफल";
-"LOGIN_FAILED_TEXT" = "स्रोत में लॉग इन करने में विफल. सुनिश्चित करें कि आपके क्रेडेंशियल सही ढंग से दर्ज किए गए हैं।";
-"LOGIN_BASIC_TEXT" = "दर्ज किया गया कोई भी क्रेडेंशियल सीधे स्रोत को दिया जाएगा। किसी भी ऐसे स्रोत पर लॉग इन न करें जिस पर आपको भरोसा न हो।";
-"LOGIN_WEBVIEW_WARNING" = "वेब दृश्य के माध्यम से लॉग इन करें?";
-"LOGIN_WEBVIEW_WARNING_TEXT" = "प्रस्तुत वेब दृश्य में सेट की गई सभी कुकीज़ स्रोत को दी जाएंगी। किसी भी ऐसे स्रोत पर लॉग इन न करें जिस पर आपको भरोसा न हो।";
-"REFRESH_LOGIN" = "लॉगिन रीफ़्रेश करें";
-"LOGIN_METHOD" = "लॉगिन विधि";
-"BASIC" = "उपयोगकर्ता नाम और पासवर्ड";
-"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud सिंक एक प्रायोगिक सुविधा है. इसे सक्षम या अक्षम करने से डेटा हानि हो सकती है।";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud सिंक केवल TestFlight के माध्यम से इंस्टॉल होने पर ही उपलब्ध होता है।";
-"LAYOUT" = "लेआउट";
-"STANDARD" = "मानक";
-"COMPACT" = "सघन";
-"CUSTOM" = "कस्टम";
-"PORTRAIT_COLUMNS" = "पोर्ट्रेट में कॉलम";
-"LANDSCAPE_COLUMNS" = "लैंडस्केप में कॉलम";
-"RESUME_LAST_OPENED_CHAPTER" = "अंतिम बार खोले गए अध्याय को पढ़ना जारी रखें";
-"CONTINUE_READING_ON_RESELECT" = "पढ़ना जारी रखने के लिए इतिहास टैब पर फिर टैप करें";
-"DOWNLOADED_CHAPTER_BADGES" = "डाउनलोड किए गए अध्यायों के बैज";
-"PIN_TITLES" = "मंगा शीर्षक पिन करें";
-"PIN_DISABLED" = "अक्षम";
-"PIN_UPDATED_CHAPTERS" = "अपडेट किए गए अध्याय";
-"ONLY_DOWNLOAD_ON_WIFI" = "केवल वाई-फ़ाई पर डाउनलोड करें";
-"BACKGROUND_REFRESH" = "पृष्ठभूमि में रीफ़्रेश";
-"BACKGROUND_REFRESH_TEXT" = "लाइब्रेरी रीफ़्रेश को मैन्युअल रूप से शुरू करते समय, ऐप बैकग्राउंड होने पर भी रीफ़्रेश को पूरा होने दें।";
-"NEW_CHAPTER_NOTIFICATIONS" = "नए अध्याय अधिसूचनाएँ";
-"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "लाइब्रेरी के पृष्ठभूमि में रीफ़्रेश होने पर सूचनाएं भेजें।";
-"1_NEW_CHAPTER_AVAILABLE" = "नया अध्याय उपलब्ध है";
-"X_NEW_CHAPTERS_AVAILABLE" = "%d नए अध्याय उपलब्ध हैं";
-"NEW_CHAPTERS_AVAILABLE" = "नए अध्याय उपलब्ध हैं";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "%d श्रृंखलाओं में नए अध्याय हैं";
-"DELETE_DOWNLOAD_AFTER_READING" = "पढ़ने के बाद डाउनलोड हटा दें";
-"EVERY_6_HOURS" = "हर 6 घंटे में";
-"NO_RESULTS_FOR_%@" = "\"%@\" के लिए कोई परिणाम नहीं";
-"NO_RESULTS_TEXT" = "वर्तनी जाँचें या नई खोज का प्रयास करें।";
-"LEARN_MORE" = "और जानें…";
-"INSIGHTS" = "पढ़ने के आँकड़े";
-"STREAKS" = "लगातार पढ़ने के दिन";
-"STATS" = "आँकड़े";
-"CURRENT_STREAK" = "मौजूदा पढ़ने का सिलसिला";
-"NO_CURRENT_STREAK" = "कोई मौजूदा पढ़ने का सिलसिला नहीं";
-"NO_CURRENT_STREAK_TEXT" = "लगातार पढ़ने का सिलसिला बनाने के लिए हर दिन पढ़ें।";
-"LONGEST_STREAK" = "सबसे लंबा पढ़ने का सिलसिला";
-"DAYS" = "दिन";
-"CHAPTER_PLURAL" = "अध्याय";
-"CHAPTER_SINGULAR" = "अध्याय";
-"PAGE_PLURAL" = "पृष्ठ";
-"PAGE_SINGULAR" = "पृष्ठ";
-"SERIES_PLURAL" = "श्रृंखलाएँ";
-"SERIES_SINGULAR" = "श्रृंखला";
-"HOUR_PLURAL" = "घंटे";
-"HOUR_SINGULAR" = "घंटा";
-"ALL_TIME" = "सर्वकालिक";
-"THIS_MONTH" = "इस महीने";
-"THIS_YEAR" = "इस वर्ष";
-"UNAVAILABLE_SOURCE_LISTS" = "अनुपलब्ध स्रोत सूचियाँ";
-"UNAVAILABLE_SOURCE_LISTS_TEXT" = "उपरोक्त स्रोत सूचियाँ लाते समय एक त्रुटि उत्पन्न हुई।";
-"COPY_URL" = "URL कॉपी करें";
-"LEGACY_SOURCE_LIST" = "पुराने प्रारूप की स्रोत सूची";
-"LEGACY_SOURCE_LIST_WARNING" = "चेतावनी: पुराने प्रारूप की स्रोत सूची";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "आपकी कॉन्फ़िगर की गई स्रोत सूची पुराने प्रारूप में है। यह प्रारूप पुराना पड़ चुका है और Aidoku के किसी आगामी संस्करण में काम करना बंद कर देगा। अभी यह काम करेगा, लेकिन इसका विकल्प खोजकर सेटिंग्स > स्रोत सूचियाँ में कॉन्फ़िगर करने की सलाह दी जाती है।";
-"CROP_BORDERS" = "किनारे काटें";
-"DISABLE_QUICK_ACTIONS" = "त्वरित कार्रवाइयां अक्षम करें";
-"DISABLE_DOUBLE_TAP_ZOOM" = "डबल टैप ज़ूम अक्षम करें";
-"LIVE_TEXT" = "लाइव टेक्स्ट";
-"HIDE_BARS_ON_SWIPE" = "स्वाइप पर बार्स छिपाएँ";
-"READER_BG_COLOR" = "पृष्ठभूमि का रंग";
-"READER_BG_COLOR_SYSTEM" = "सिस्टम";
-"READER_BG_COLOR_AUTO" = "स्वचालित";
-"READER_BG_COLOR_WHITE" = "सफ़ेद";
-"READER_BG_COLOR_BLACK" = "काला";
-"TAP_ZONES" = "टैप क्षेत्र";
-"ZONE_LEFT_RIGHT" = "बाएँ और दाएँ";
-"ZONE_L_SHAPED" = "एल आकार का";
-"ZONE_KINDLE" = "किंडल";
-"ZONE_EDGE" = "किनारा";
-"DISABLED" = "अक्षम";
-"INVERT_TAP_ZONES" = "टैप जोन उलटा करें";
-"ANIMATE_PAGE_TRANSITIONS" = "पृष्ठ बदलते समय ऐनिमेशन दिखाएँ";
-"TEXT_READER" = "टेक्स्ट रीडर";
-"TEXT_READER_STYLE" = "पठन शैली";
-"TEXT_READER_PAGED" = "पृष्ठवार";
-"TEXT_READER_SCROLL" = "स्क्रॉल";
-"TEXT_FONT_FAMILY" = "फ़ॉन्ट";
-"TEXT_FONT_SIZE" = "फ़ॉन्ट आकार";
-"TEXT_LINE_SPACING" = "पंक्ति रिक्ति";
-"TEXT_HORIZONTAL_PADDING" = "क्षैतिज हाशिया";
-"TEXT_THEME" = "थीम";
-"TEXT_THEME_SEPIA" = "सीपिया";
-"TEXT_THEME_PAPER" = "कागज";
-"TEXT_THEME_GRAY" = "धूसर";
-"DICTIONARY_LOOKUP" = "शब्दकोश लुकअप";
-"DICTIONARY_SETTINGS_TEXT" = "आयात किए गए किसी भी Yomitan शब्दकोश में शब्द खोजने हेतु पृष्ठ छवियों पर OCR प्रसंस्करण की अनुमति देने के लिए शब्दकोश लुकअप सक्षम करें।";
-"DICTIONARIES" = "शब्दकोश";
-"ABOUT_DICTIONARIES" = "शब्दकोशों के बारे में";
-"ABOUT_DICTIONARIES_TEXT" = "Yomitan शब्दकोशों को ज़िप फ़ाइलों से आयात किया जा सकता है। आप शब्दकोशों को सक्षम या अक्षम कर सकते हैं, और उन्हें खींचकर पुन: व्यवस्थित किया जा सकता है।";
-"LOOKUP_GESTURE" = "लुकअप जेस्चर";
-"SINGLE_TAP" = "सिंगल टैप";
-"LONG_PRESS" = "देर तक दबाएँ";
-"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "किसी शब्द की शुरुआत पर टैप करने से पॉपअप सक्रिय हो जाएगा। सक्षम होने पर यह ज़ूम करने के लिए डबल टैप को अक्षम कर देता है।";
-"LOOKUP_GESTURE_LONG_PRESS_INFO" = "किसी शब्द की शुरुआत को दबाकर रखने से वह हाइलाइट हो जाएगा, और छोड़ने पर पॉपअप सक्रिय हो जाएगा। सक्षम होने पर यह पृष्ठ त्वरित कार्रवाइयों को अक्षम कर देता है।";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "लुकअप जेस्चर: सिंगल टैप के कारण लॉक है।";
-"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "लुकअप जेस्चर: देर तक दबाएँ के कारण लॉक है।";
-"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR टेक्स्ट ओवरले";
-"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "लुकअप सक्रिय होने पर छवि क्षेत्रों पर टेक्स्ट बॉक्स दिखाता है। यह यह निर्धारित करने में सहायक हो सकता है कि OCR द्वारा किस पाठ को ठीक से पहचाना गया है।";
-"DICTIONARY_OVERLAY_PADDING" = "ओवरले पैडिंग";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "ओवरले टेक्स्ट का आकार";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "OCR भाषाओं को प्रतिबंधित करें";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "सक्षम होने पर, केवल चयनित भाषा(भाषाओं) के रूप में चिह्नित अध्यायों को OCR के लिए संसाधित किया जाएगा। यह अनुशंसा की जाती है कि केवल उन्हीं भाषाओं का चयन करें जिनके लिए आपके पास आयातित शब्दकोश हैं।";
-"DICTIONARY_OCR_LANGUAGES" = "OCR भाषाएँ";
-"DICTIONARY_POPUP" = "शब्दकोश पॉपअप";
-"DISPLAY_MODE" = "प्रदर्शन मोड";
-"DEFAULT_DISPLAY_MODE" = "डिफ़ॉल्ट";
-"FULL_WIDTH" = "पूर्ण चौड़ाई";
-"DICTIONARY_POPUP_WIDTH" = "पॉपअप चौड़ाई";
-"DICTIONARY_POPUP_HEIGHT" = "पॉपअप ऊंचाई";
-"TERM_DICTIONARIES" = "पद शब्दकोश";
-"FREQUENCY_DICTIONARIES" = "शब्द आवृत्ति शब्दकोश";
-"PITCH_DICTIONARIES" = "पिच उच्चारण शब्दकोश";
-"KANJI_DICTIONARIES" = "कांजी शब्दकोश";
-"IMPORTING_DICTIONARY" = "शब्दकोश आयात किया जा रहा है…";
-"IMPORT_ERROR" = "आयात त्रुटि";
-"REVISION" = "संशोधन";
-"URL" = "URL";
-"ATTRIBUTION" = "श्रेय";
-"SOURCE_LANGUAGE" = "स्रोत भाषा";
-"TARGET_LANGUAGE" = "लक्ष्य भाषा";
-"TERM_COUNT" = "शब्दकोश शब्दों की संख्या";
-"TERM_META_COUNT" = "पद मेटाडेटा प्रविष्टियों की संख्या";
-"KANJI_COUNT" = "कांजी गिनती";
-"KANJI_META_COUNT" = "कांजी मेटाडेटा प्रविष्टियों की संख्या";
-"TAG_COUNT" = "टैग गिनती";
-"MEDIA_COUNT" = "मीडिया गिनती";
-"IS_UPDATABLE" = "अद्यतन योग्य";
-"SIZE" = "आकार";
-"REMOVE_DICTIONARY" = "शब्दकोश हटाएँ";
-"REMOVE_WORD" = "शब्द हटाएँ";
-"VOCABULARY" = "शब्दावली";
-"1_WORD" = "1 शब्द";
-"%i_WORDS" = "%i शब्द";
-"NO_VOCABULARY" = "कोई शब्दावली नहीं";
-"NO_VOCABULARY_TEXT" = "सहेजी गई शब्दावली यहां दिखाई देगी.";
-"DEFINITION" = "परिभाषा";
-"VOCAB_CONTEXT" = "प्रसंग";
-"VOCAB_SOURCE" = "स्रोत";
-"CLEAR_VOCABULARY_LIST" = "सभी सहेजी गई शब्दावली हटाएँ";
-"CLEAR_VOCABULARY_LIST_TEXT" = "यह क्रिया अपरिवर्तनीय है. सभी सहेजी गई शब्दावली हटा दी जाएगी.";
-"DICTIONARY_UPDATES" = "अपडेट";
-"UPDATE_NOW" = "अभी अपडेट करें";
-"LAST_UPDATED_%@" = "अंतिम अद्यतन: %@";
-"MONTHLY" = "मासिक";
-"GET_RECOMMENDED_DICTIONARIES" = "अनुशंसित शब्दकोश प्राप्त करें";
-"RECOMMENDED_DICTIONARIES" = "अनुशंसित शब्दकोश";
-"RECOMMENDED_DICTIONARIES_NOTE" = "नीचे दिए गए सभी शब्दकोश जापानी-अंग्रेजी भाषा के हैं। अन्य भाषाओं के लिए, आप विक्षनरी शब्दकोशों की सूची देख सकते हैं।";
-"RESTORE_MISSING_SOURCES" = "अनुपलब्ध स्रोत पुनर्स्थापित करें?";
-"RESTORE_MISSING_SOURCES_TEXT" = "क्या आप अनुपलब्ध स्रोतों को खोजकर इंस्टॉल करना चाहेंगे?";
-"INSTALL_SOURCES" = "स्रोत स्थापित करें";
-"INSTALLING_SOURCES" = "स्रोत स्थापित किए जा रहे हैं…";
-"SOURCE_IMPORT_FAIL_TEXT" = "स्रोत आयात करने में विफल। कृपया सुनिश्चित करें कि आपकी aix फ़ाइल मान्य है।";
-"FILE_IMPORT_FAIL_TEXT" = "फ़ाइल आयात नहीं हो सकी। सुनिश्चित करें कि यह पढ़ी जा सकने वाली छवि फ़ाइल या छवियों वाली एक मान्य CBZ या ZIP फ़ाइल है।";
-"BACKUP_%@" = "बैकअप %@";
-"CREATE_BACKUP" = "बैकअप बनाएं";
-"IMPORT_BACKUP" = "बैकअप आयात करें";
-"LIBRARY_ENTRIES" = "मंगा लाइब्रेरी प्रविष्टियाँ";
-"SENSITIVE_SETTINGS" = "संवेदनशील सेटिंग्स";
-"NAME" = "नाम";
-"DATE" = "दिनांक";
-"BACKUP_INFO_TITLE" = "बैकअप जानकारी";
-"AUTOMATIC_BACKUPS" = "स्वचालित बैकअप";
-"BACKUP_INTERVAL" = "बैकअप अंतराल";
-"AUTO" = "ऑटो";
-"LAST_BACKED_UP_%@" = "अंतिम स्वचालित बैकअप: %@";
-"READING_SESSIONS" = "पठन सत्र";
-"CLEAR_EXCLUDING_LIBRARY" = "लाइब्रेरी के बाहर का पठन इतिहास साफ़ करें";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "यह कार्रवाई वापस नहीं की जा सकती। लाइब्रेरी में शामिल न होने वाली मंगा का सारा पढ़ने का इतिहास हटा दिया जाएगा।";
-"CLEAR_SOURCE_CACHE" = "स्रोत कैश साफ़ करें";
-"CLEAR_SOURCE_CACHE_TEXT" = "इस स्रोत के URL की कुकीज़ और वेबसाइट डेटा के साथ कैश की गई स्रोत सामग्री हटाता है। आपको फिर से लॉग इन करना पड़ सकता है और कुछ समय तक लोड होने में अधिक समय लग सकता है।";
-"PAGE_OFFSET" = "पृष्ठ ऑफसेट";
-"SPLIT_WIDE_IMAGES" = "चौड़ी छवियाँ विभाजित करें";
-"REVERSE_SPLIT_ORDER" = "विभाजित पृष्ठों के क्रम को उलट दें";
-"TRACKING" = "ट्रैकिंग";
-"STATUS" = "स्थिति";
-"VOLUMES" = "खंड";
-"START_TRACKING" = "ट्रैकिंग प्रारंभ करें";
-"SCORE" = "स्कोर";
-"TRACK_READING" = "पढ़ना";
-"TRACK_PLANNING" = "पढ़ने की योजना";
-"TRACK_COMPLETED" = "पूरा हुआ";
-"TRACK_PAUSED" = "रुका हुआ";
-"TRACK_DROPPED" = "पढ़ना छोड़ दिया";
-"TRACK_REREADING" = "पुनः पढ़ना";
-"STARTED" = "शुरुआत की तारीख";
-"FINISHED" = "समाप्ति की तारीख";
-"STOP_TRACKING" = "ट्रैकिंग बंद करें";
-"SET_TRACK_CHAPTER_OFFSET" = "अध्याय ऑफसेट सेट करें";
-"TRACK_CHAPTER_OFFSET_TEXT" = "जब स्रोत अध्याय संख्या ट्रैकर अध्याय संख्या से भिन्न हो तो इस शीर्षक के लिए स्वचालित ट्रैकर अध्याय अपडेट समायोजित करें।";
-"TITLE_DISPLAY_MODE" = "शीर्षक प्रदर्शन मोड";
-"STATUS_NOT_PUBLISHED" = "प्रकाशित नहीं";
-"MANGA" = "मंगा";
-"MANHWA" = "मनहवा";
-"MANHUA" = "मनहुआ";
-"LIGHT_NOVEL" = "लाइट नॉवेल";
-"ONESHOT" = "एकल कहानी";
-"OEL" = "OEL";
-"COMIC" = "कॉमिक";
-"BOOK" = "किताब";
-"TRACK" = "ट्रैक";
-"STATUS_COLON_%@" = "स्थिति: %@";
-"TYPE_COLON_%@" = "प्रकार: %@";
-"VIEW_ON_WEBSITE" = "वेबसाइट पर देखें";
-"CLEAR_TRACKED_MANGA" = "सभी ट्रैकर लिंक हटाएँ";
-"CLEAR_TRACKED_MANGA_TEXT" = "यह कार्रवाई वापस नहीं की जा सकती। सभी मंगा में जोड़े गए सभी ट्रैकर लिंक हटा दिए जाएँगे।";
-"SEARCH_OPTIONS" = "खोज विकल्प";
-"SHOW_NSFW_RESULTS" = "एनएसएफडब्ल्यू परिणाम दिखाएँ";
-"UPDATE_AFTER_READING" = "पढ़ने के बाद अपडेट करें";
-"UPDATE_AFTER_READING_INFO" = "एक अध्याय पढ़ने के बाद, वर्तमान में पढ़े गए अध्याय और/या वॉल्यूम से मिलान करने के लिए ट्रैकर को अपडेट करें।";
-"AUTO_SYNC_HISTORY" = "इतिहास को स्वचालित रूप से सिंक करें";
-"AUTO_SYNC_HISTORY_INFO" = "जब ट्रैकर पर आगे के अध्याय और/या खंड पढ़े हुए मिलते हैं, तो स्थानीय पठन इतिहास भी उसी के अनुसार अपडेट करें।";
-"SYNC_WITH_TRACKER" = "ट्रैकर के साथ सिंक करें";
-"SYNC_WITH_TRACKER_INFO_%i" = "ट्रैकर के अनुसार %i अध्याय पहले ही पढ़े जा चुके हैं। क्या आप इन्हें पढ़ा हुआ चिह्नित करना चाहेंगे?";
-"SYNC_WITH_TRACKER_INFO_1" = "ट्रैकर के अनुसार 1 अध्याय पहले ही पढ़ा जा चुका है। क्या आप इसे पढ़ा हुआ चिह्नित करना चाहेंगे?";
-"UNAVAILABLE_TRACKER_ITEM" = "अनुपलब्ध ट्रैकर आइटम";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "यह लिंक किया गया ट्रैकर आइटम एक ऐसे ट्रैकर से संबद्ध है जो अब उपलब्ध नहीं है। आपको या तो इस आइटम को हटा देना चाहिए या संबंधित ट्रैकर में फिर से लॉग इन करना चाहिए।";
-"ENHANCED_TRACKERS" = "उन्नत ट्रैकर";
-"ENHANCED_TRACKERS_INFO" = "उन्नत ट्रैकर स्वचालित रूप से समर्थित स्रोतों से आपकी लाइब्रेरी में जोड़े गए आइटम से लिंक कर सकते हैं, दो-तरफा पढ़ने के इतिहास को ट्रैक कर सकते हैं।";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "किसी स्रोत के लिए ट्रैकिंग बंद करने पर उस स्रोत के ट्रैकर लिंक हट जाते हैं। चालू करने पर उस स्रोत की लाइब्रेरी में मौजूद श्रृंखलाएँ अपने आप लिंक हो जाती हैं।";
-"TRACKER_LOGOUT_INFO" = "लॉग आउट करने से इस ट्रैकर से सभी श्रृंखलाओं के लिए लिंक की गई ट्रैकिंग जानकारी हट जाएगी।";
-"CACHE_SIZE_%@" = "कैश आकार: %@";
-"SORT_UNREAD_CHAPTERS" = "अपठित अध्याय";
-"SET_AS_SINGLE_PAGE" = "एकल पृष्ठ के रूप में सेट करें";
-"UNSET_AS_SINGLE_PAGE" = "एकल पृष्ठ सेटिंग हटाएँ";
-"RELOAD" = "पुनः लोड करें";
-"RELOAD_FAILED" = "पुनः लोड विफल";
-"RELOAD_FAILED_TEXT" = "छवि पुनः लोड करने में विफल. कृपया पुन: प्रयास करें।";
-"%i_OF_%i" = "%i / %i";
-"FAILED_CHAPTER_LOAD" = "अध्याय लोड करने में विफल";
-"SORT_LAST_UPDATED" = "अंतिम अद्यतन";
-"SORT_TOTAL_CHAPTERS" = "कुल अध्याय";
-"FAILED_CHAPTER_LOAD_INFO" = "आप ऑफ़लाइन हो सकते हैं या स्रोत में समस्याएँ हो सकती हैं।";
-"WEBTOON" = "वेबटून";
-"CONTINUOUS_WITH_GAPS" = "अंतराल के साथ सतत";
-"REMOVE_FROM_CATEGORY" = "श्रेणी से हटाएँ";
-"PINNED" = "पिन किया गया";
-"%i_CHAPTERS" = "%i अध्याय";
-"1_CHAPTER" = "1 अध्याय";
-"UPCOMING" = "आगामी";
-"SELECT" = "चयन करें";
-"ADD" = "जोड़ें";
-"SKIP_DUPLICATE_CHAPTERS" = "डुप्लिकेट अध्याय छोड़ें";
-"MARK_DUPLICATE_CHAPTERS" = "डुप्लिकेट अध्यायों को पढ़ा हुआ चिह्नित करें";
-"MIGRATE_SOURCES" = "स्रोत माइग्रेट करें";
-"SYNC_LOCAL_HISTORY" = "स्थानीय इतिहास सिंक करें";
-"MIGRATE" = "माइग्रेट करें";
-"OPTIONS" = "विकल्प";
-"DESTINATION" = "गंतव्य";
-"SELECTED" = "चयनित";
-"AVAILABLE" = "उपलब्ध";
-"NOT_FOUND" = "नहीं मिला";
-"MOST_CHAPTERS_SLOWER" = "सबसे अधिक अध्याय (धीमा)";
-"FIRST_ALTERNATIVE" = "पहला विकल्प";
-"MIGRATE_%i_ITEMS?" = "%i आइटम माइग्रेट करें?";
-"MIGRATE_ONE_ITEM?" = "1 आइटम माइग्रेट करें?";
-"MIGRATE_CONFIRM_TEXT" = "किसी भिन्न स्रोत पर माइग्रेट करने पर मूल प्रविष्टियों का पठन इतिहास हटा दिया जाएगा।";
-"MIGRATE_WITH_HISTORY" = "माइग्रेट करें और इतिहास रखें";
-"SELECT_PINNED_SOURCES" = "पिन किए गए स्रोत चुनें";
-"SEARCH_MANUALLY" = "मैन्युअल रूप से खोजें";
-"DONT_MIGRATE" = "माइग्रेट न करें";
-"SELECTED_%i_OF_%i" = "चयनित (%i/%i)";
-"MIGRATE_%i_OF_%i" = "माइग्रेट करें (%i/%i)";
-"SHOW_ENTRY" = "प्रविष्टि देखें";
-"SOURCE_BREAKING_CHANGE" = "स्रोत में असंगत बदलाव";
-"SOURCE_BREAKING_CHANGE_TEXT" = "इस स्रोत में पुराने संस्करण से असंगत बदलाव हुआ है। अपनी लाइब्रेरी और इतिहास बनाए रखने के लिए माइग्रेशन आवश्यक है।";
-"UPLOAD_DATE" = "अपलोड दिनांक";
-"ALL_CHAPTERS_READ" = "सभी अध्याय पढ़े जा चुके हैं";
-"ALL_CHAPTERS_LOCKED" = "सभी अध्याय लॉक कर दिए गए";
-"DEFAULT_READING_MODE" = "डिफ़ॉल्ट पढ़ने का मोड";
-"PILLARBOX" = "पिलरबॉक्स";
-"PILLARBOX_AMOUNT" = "पार्श्व हाशियों की चौड़ाई";
-"PILLARBOX_ORIENTATION" = "पिलरबॉक्स ओरिएंटेशन";
-"PILLARBOX_ORIENTATION_INFO" = "चुनें कि किन डिवाइस ओरिएंटेशन में पिलरबॉक्सिंग का उपयोग हो।";
-"AUTO_SCROLL" = "ऑटो स्क्रॉल";
-"AUTO_SCROLL_SPEED" = "ऑटो स्क्रॉल गति";
-"AUTO_SCROLL_POSITION" = "ऑटो स्क्रॉल बटन की स्थिति";
-"POSITION_LEFT" = "बाएँ";
-"POSITION_RIGHT" = "दाएँ";
-"BOTH" = "दोनों";
-"%@_TRACKER_LOGIN_NEEDED" = "%@ लॉगिन आवश्यक";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "आपका %@ टोकन समाप्त हो गया है, इसलिए जब तक आप सेटिंग्स में दोबारा लॉगिन नहीं करेंगे तब तक संबंधित ट्रैकर काम करना बंद कर देगा।";
-"BACKUP_ERROR" = "बैकअप त्रुटि";
-"BACKUP_ERROR_TEXT" = "पुनर्स्थापित करते समय त्रुटि हुई: %@। बैकअप अमान्य हो सकता है।";
-"READER_ORIENTATION" = "अभिमुखीकरण";
-"FOLLOW_DEVICE" = "डिवाइस की दिशा के अनुसार";
-"FOCUS_ITEM_LEFT" = "बाईं ओर के आइटम पर फ़ोकस करें";
-"FOCUS_ITEM_RIGHT" = "दाईं ओर के आइटम पर फ़ोकस करें";
-"FOCUS_ITEM_ABOVE" = "ऊपर के आइटम पर फ़ोकस करें";
-"FOCUS_ITEM_BELOW" = "नीचे के आइटम पर फ़ोकस करें";
-"FOCUS_ITEM_NEXT" = "अगले आइटम पर फ़ोकस करें";
-"FOCUS_ITEM_PREV" = "पिछले आइटम पर फ़ोकस करें";
-"OPEN_FOCUS_ITEM" = "फ़ोकस किया गया आइटम खोलें";
-"RESET_FOCUS" = "फोकस रीसेट करें";
-"TURN_PAGE_LEFT" = "पृष्ठ बाएँ पलटें";
-"TURN_PAGE_RIGHT" = "पृष्ठ दाएँ पलटें";
-"CHAPTER_FORWARD" = "अगले अध्याय पर जाएँ";
-"CHAPTER_BACKWARD" = "पिछले अध्याय पर जाएँ";
-"OPEN_CHAPTER_LIST" = "अध्याय सूची खोलें";
-"TOGGLE_BARS" = "टूलबार दिखाएँ या छिपाएँ";
-"CLOSE_READER" = "रीडर बंद करें";
-"TOGGLE_PAGE_OFFSET" = "पृष्ठ ऑफसेट टॉगल करें";
-"MIGRATE_CHAPTER_HISTORY" = "अध्याय इतिहास माइग्रेट करें";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "पुराने संस्करणों से बचे हुए पढ़ने के इतिहास को माइग्रेट करें जो स्थानीय डेटाबेस में अध्यायों से जुड़ा नहीं है। यह आमतौर पर अपडेट के बाद स्वचालित रूप से होता है। यदि यह समाप्त नहीं हुआ, तो आप इसे यहां दोबारा चला सकते हैं।";
-
-"TRANSLATION_SOURCE_LABELS" = "स्रोत मेनू और अनुभाग शीर्षकों का अनुवाद करें";
-
-// Local image import
-"IMPORT_PHOTO" = "फ़ोटो आयात करें";
-"LOCAL_IMAGE_IMPORT_TEXT" = "पढ़ने के लिए फ़ोटो, छवि फ़ाइलें या CBZ या ZIP संग्रह आयात करें।";
-
-// Translated page export
-"SAVE_TRANSLATED_IMAGE" = "अनुवाद सहित छवि सहेजें";
-"TRANSLATED_IMAGE_SAVE_FAILED" = "अनुवादित छवि नहीं बन सकी। अनुवाद पूरा होने पर फिर कोशिश करें।";
-
-"TRANSLATION_AUTHORS" = "लेखकों के नामों का अनुवाद करें";
-
-"TRANSLATION_AUTHOR_FILTER" = "लेखकों के नामों की मूल भाषाएँ";
-"TRANSLATION_SOURCE_LABEL_FILTER" = "स्रोत मेनू और अनुभागों की मूल भाषाएँ";
-
-// Shared image retention
-"SAVE_SHARED_IMAGES" = "साझा की गई छवियाँ स्थानीय फ़ाइलों में रखें";
-"SAVE_SHARED_IMAGES_HELP" = "बंद होने पर साझा की गई छवियाँ अस्थायी रूप से खुलती हैं और बंद करने पर मिट जाती हैं। पढ़ने का इतिहास और OCR/अनुवाद कैश सहेजे नहीं जाते।";
-
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "बड़ी फ़िल्टर सूचियों का अनुवाद करें (100 से अधिक विकल्प)";
-
-"SETTING_INVALID_STEPPER_RANGE" = "अमान्य संख्यात्मक सेटिंग रेंज.";
-
-"SETTING_MISSING_CONTENT_HANDLER" = "सेटिंग प्रदर्शित करने में असमर्थ: %@";
-
-"DOWNLOAD_TRANSLATED" = "अनुवाद करके डाउनलोड करें";
-
-"TRANSLATION_STATE_ON" = "चालू";
-"TRANSLATION_STATE_OFF" = "बंद";
-
-"TRANSLATION_ERROR_CONFIGURATION" = "अनुवाद की सेटिंग अमान्य हैं। सर्वर URL, मॉडल और अन्य सेटिंग जाँचें।";
-
-"TRANSLATION_ERROR_REQUEST" = "टेक्स्ट, छवि या भाषा की सेटिंग का उपयोग अनुवाद के लिए नहीं किया जा सका।";
-
-"TRANSLATION_ERROR_RESPONSE" = "अनुवाद सर्वर ने अमान्य प्रतिक्रिया दी। फिर प्रयास करें या मॉडल की सेटिंग जाँचें।";
-
-"TRANSLATION_ERROR_KEY_REQUIRED" = "अनुवाद API कुंजी आवश्यक है।";
-
-"TRANSLATION_ERROR_KEY_ACCESS" = "अनुवाद API कुंजी को Keychain से नहीं पढ़ा जा सका।";
-
-"TRANSLATION_ERROR_ENDPOINT" = "सुरक्षा नीति इस अनुवाद एंडपॉइंट की अनुमति नहीं देती।";
-
-"TRANSLATION_ERROR_REDIRECT" = "अनुवाद एंडपॉइंट का रीडायरेक्ट अस्वीकार कर दिया गया।";
-
-"TRANSLATION_ERROR_RESPONSE_SIZE" = "अनुवाद की प्रतिक्रिया अपने आकार की सीमा से बड़ी है।";
-
-"TRANSLATION_ERROR_HTTP" = "अनुवाद सर्वर ने HTTP %d लौटाया।";
-
-"TRANSLATION_ERROR_HTTP_REQUEST" = "अनुवाद सर्वर ने HTTP %d लौटाया (अनुरोध ID: %@)।";
-
-"TRANSLATION_ERROR_NETWORK_CODE" = "अनुवाद अनुरोध विफल हुआ (त्रुटि %d)।";
-
-"TRANSLATION_ERROR_CONNECTION" = "अनुवाद API से संपर्क नहीं हो सका। नेटवर्क कनेक्शन, API एंडपॉइंट और सर्वर की स्थिति जाँचकर फिर प्रयास करें।";
-
-"TRANSLATION_ERROR_REFUSED" = "अनुवाद प्रदाता ने अनुरोध अस्वीकार कर दिया।";
-
-"TRANSLATION_ERROR_KEY_ACCOUNT" = "API कुंजी सहेजने के लिए उपयोग किया गया पहचानकर्ता अमान्य है।";
-
-"TRANSLATION_ERROR_KEY_INVALID" = "API कुंजी खाली है, बहुत बड़ी है या उसमें असमर्थित वर्ण हैं।";
-
-"TRANSLATION_ERROR_KEY_MISSING" = "इस प्रदाता के लिए कोई API कुंजी सहेजी नहीं गई है।";
-
-"TRANSLATION_ERROR_KEY_ENCODING" = "सहेजी गई API कुंजी को डिकोड नहीं किया जा सका।";
-
-"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychain की कार्रवाई स्थिति कोड %d के साथ विफल हुई।";
-
-"OCR_ERROR_MODEL_MISSING" = "आवश्यक PP-OCRv6 मॉडल मौजूद नहीं है।";
-
-"OCR_ERROR_MODEL_LOAD" = "PP-OCRv6 मॉडल लोड नहीं हो सका।";
-
-
-"OCR_ERROR_IMAGE" = "टेक्स्ट पहचानने के लिए छवि तैयार नहीं हो सकी।";
-
-"OCR_ERROR_OUTPUT" = "PP-OCRv6 मॉडल ने अमान्य या असमर्थित आउटपुट दिया।";
-
-"OCR_ERROR_PREDICTION" = "PP-OCRv6 से टेक्स्ट की पहचान विफल हुई। किसी दूसरी छवि या OCR मॉडल के साथ फिर प्रयास करें।";
-
-
-"TRANSLATION_ERROR_CACHE_STORAGE" = "अनुवाद कैश का भंडारण अमान्य है या उपलब्ध नहीं है।";
-
-"TRANSLATION_ERROR_CACHE_SAVE" = "अनुवाद कैश सहेजा नहीं जा सका।";
-
-"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud सिंक में बदलाव Aidoku को पूरी तरह बंद करके दोबारा खोलने पर लागू होंगे। तब तक मौजूदा सिंक सेटिंग सक्रिय रहेगी।";
-
-// Translation settings section
-
-"TRANSLATION_TARGETS" = "क्या अनुवाद करना है";
-
-// Download page counts and single-series totals.
-"PAGES_%i_OF_%i" = "पृष्ठ: %i / %i";
-"1_SERIES" = "1 श्रृंखला";
-"SKIPPING_ONE_CHAPTER" = "1 अध्याय छोड़ा जा रहा है क्योंकि वह स्रोत में उपलब्ध नहीं है या फ़िल्टर करके हटा दिया गया है";
-"BACKUP_CREATE_ERROR_TEXT" = "बैकअप नहीं बनाया जा सका। कृपया फिर से प्रयास करें।";
-"YES" = "हाँ";
-"NO" = "नहीं";
-"CHAPTERS_%i_OF_%i" = "अध्याय: %i / %i";
-"TRACKING_REGISTRATION_FAILED" = "शीर्षक को ट्रैकिंग में नहीं जोड़ा जा सका। कृपया फिर से प्रयास करें।";
-"SORT_READ_PROGRESS" = "पढ़ने की प्रगति";
-"SORT_RELEASE_YEAR" = "प्रकाशन वर्ष";
-"SOURCE_INVALID_PAGE_COUNT" = "पृष्ठों की संख्या अमान्य है";
-"SOURCE_INVALID_GENRE_ID" = "शैली की ID अमान्य है";
-"SOURCE_INVALID_LISTING" = "सूची अमान्य है";
-"SOURCE_INVALID_LISTING_TYPE" = "सूची का प्रकार अमान्य है";
-"SOURCE_INVALID_ITEM_TYPE" = "आइटम का प्रकार अमान्य है";
-"DICTIONARY_ERROR" = "शब्दकोश त्रुटि";
-"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "शब्दकोश की सेटिंग सहेजी नहीं जा सकीं: %@";
-"DICTIONARY_IMPORT_ERRORS_%@" = "चुने गए शब्दकोश आयात नहीं किए जा सके:\n%@";
-"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "कुछ शब्दकोश आयात नहीं किए जा सके:\n%@";
-"DICTIONARY_IMPORT_FAILED" = "शब्दकोश आयात विफल रहा।";
-"RECOMMENDED_JMDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) द्वारा अनुरक्षित एक व्यापक जापानी–अंग्रेज़ी शब्दकोश।";
-"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Electronic Dictionary Research and Development Group (EDRDG) द्वारा अनुरक्षित जापानी व्यक्तिवाचक संज्ञाओं का शब्दकोश।";
-"RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe के मीडिया पाठ-संग्रह पर आधारित शब्द आवृत्ति शब्दकोश।";
-
-// Reader background translation and preparation limits
-"TRANSLATION_BACKGROUND" = "मूल पृष्ठ दिखाते समय अनुवाद करें";
-"TRANSLATION_BACKGROUND_HELP" = "अनुवाद बटन बंद होने पर भी पढ़ते समय अनुवाद जारी रहता है। मूल पृष्ठ दिखाई देते रहते हैं। ऐप निष्क्रिय होने पर अनुवाद रुक जाता है।";
-"TRANSLATION_PRETRANSLATION_LIMIT" = "पहले से अनुवाद किए जाने वाले पृष्ठ";
-"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "पहले से अनुवाद किए जाने वाले पृष्ठों की अधिकतम संख्या। दिखाई दे रहे पृष्ठ इसमें नहीं गिने जाते। पृष्ठ पढ़ने की प्राथमिकता के अनुसार चुने जाते हैं, जिसमें आगे के पृष्ठों को प्राथमिकता मिलती है।";
-"TRANSLATION_UNLIMITED" = "असीमित";
-"TRANSLATION_PAGE_SETTINGS" = "पृष्ठों का अनुवाद";
-"TRANSLATION_VISIBLE_PAGES_ONLY" = "केवल दिखाई दे रहे पृष्ठ";
-
-// Unsupported installed source package version
-
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 जापानी, चीनी (सरलीकृत और पारंपरिक), अंग्रेज़ी और लैटिन लिपि वाली अन्य भाषाओं का मूल पाठ पढ़ता है, लेकिन कोरियाई, सिरिलिक या वियतनामी नहीं। मूल भाषा का स्वचालित पता लगाना और मूल भाषा के विकल्प भी इन्हीं भाषाओं तक सीमित हैं। आप फिर भी किसी भी लक्ष्य भाषा में अनुवाद कर सकते हैं। Manga चुनने पर पाठ का पता लगाने की सीमा के मान 0.85 और 0.25 लागू होते हैं; पाठ का पता लगाने के लिए इस्तेमाल होने वाला डिफ़ॉल्ट आकार 1120 px है।";
-
-"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "सभी समर्थित OCR भाषाएँ";
+"SUPPORT_VIA_KOFI" = "Ko-Fi के माध्यम से सहयोग करे";

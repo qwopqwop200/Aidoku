@@ -9,21 +9,19 @@
 "OK" = "კარგი";
 "UNKNOWN" = "უცნობი";
 "UNAVAILABLE" = "მიუწვდომელი";
-"RESET" = "გადაყენება";
+"RESET" = "გადატვირთვა";
 "DELETE" = "წაშლა";
 "CLEAR" = "გაწმენდა";
 "SHARE" = "გაზიარება";
 
 // Downloads
 "DOWNLOAD" = "ჩამოტვირთვა";
-"NEXT_UNREAD" = "შემდეგი წაუკითხავი";
-"NEXT_%i_UNREAD" = "შემდეგი %i წაუკითხავი";
-"DOWNLOADED" = "ჩამოტვირთული";
+"DOWNLOADED" = "ჩატვირთული";
 "DOWNLOAD_QUEUE" = "ჩამოტვირთვის რიგი";
 "REMOVE_DOWNLOAD" = "ჩამოტვირთვის წაშლა";
-"REMOVE_DOWNLOADS" = "ჩამოტვირთვების წაშლა";
+"REMOVE_DOWNLOADS" = "ჩატვირთულების წაშლა";
 "REMOVE_DOWNLOADS_CONFIRM" = "გსურთ ყველა არჩეული ჩამოტვირთვის წაშლა?";
-"LIBRARY_SEARCH" = "ბიბლიოთეკაში ძიება";
+"LIBRARY_SEARCH" = "იპოვეთ ბიბლიოთეკაში";
 "SORT_BY" = "დალაგება";
 "FILTER_BY" = "გაფილტვრა";
 "SORT_TITLE" = "სათაური";
@@ -41,7 +39,7 @@
 
 // Browse
 "BROWSE" = "დათვალიერება";
-"BROWSE_NO_SOURCES" = "წყაროები არ არის";
+"BROWSE_NO_SOURCES" = "წყაროები არ არსებობს";
 "ADDING_SOURCES_GUIDE_BUTTON" = "წყაროების დამატების ინსტრუქცია";
 
 // Source
@@ -54,63 +52,63 @@
 
 // Manga
 "UNTITLED" = "უსათაურო";
-"SUGGESTIVE" = "სექსუალური მინიშნებებით";
+"SUGGESTIVE" = "დამაფიქრებელი";
 "NSFW" = "NSFW";
 "MORE" = "მეტი";
-"MISSING_SOURCE" = "დაკარგული წყარო";
+"MISSING_SOURCE" = "არარსებული წყარო";
 "SELECT_ALL" = "ყველას არჩევა";
 
 // Reader
 "CHAPTER" = "თავი";
-"CH_X" = "თ.%g";
-"CH_SPACE_X" = "თ. %g";
+"CH_X" = "თავი.%g";
+"CH_SPACE_X" = "თავი. %g";
 "NO_CHAPTERS" = "არ არის თავები";
 "UNREAD" = "წაუკითხავი";
 "NEXT_COLON" = "შემდეგი:";
 "CURRENT_COLON" = "მიმდინარე:";
-"NO_PREVIOUS_CHAPTER" = "წინა თავი არ არის";
+"NO_PREVIOUS_CHAPTER" = "წინა თავი არ არსებობს";
 "INFINITE_VERTICAL_SCROLL" = "უსასრულო ვერტიკალური სქროლვა";
 "SAVE_TO_PHOTOS" = "ფოტოებში შენახვა";
 
 // History
 "HISTORY" = "ისტორია";
-"REMOVE_ALL_MANGA_HISTORY" = "ამ მანგას კითხვის მთელი ისტორიის წაშლა";
-"HISTORY_LOCKED" = "ისტორია ჩაკეტილია.";
+"REMOVE_ALL_MANGA_HISTORY" = "ყველა მანგის ისტორიის წაშლა";
+"HISTORY_LOCKED" = "ისტორია დაბლოკილია.";
 "VIEW_HISTORY" = "ისტორიის ნახვა";
 "AUTH_TO_ENABLE" = "გაიარეთ ავტორიზაცია ჩასართავად.";
 "ABOUT" = "აპლიკაციის შესახებ";
 "GITHUB_REPO" = "GitHub საცავი";
 "DISCORD_SERVER" = "Discord სერვერი";
 "SUPPPORT_DEVELOPMENT" = "განვითარების მხარდაჭერა";
-"GENERAL" = "ზოგადი";
+"GENERAL" = "მთავარი";
 "ICLOUD_SYNC" = "iCloud სინქრონიზაცია";
 "INCOGNITO_MODE" = "ინკოგნიტო რეჟიმი";
 "APPEARANCE_LIGHT" = "ნათელი";
 "APPEARANCE_DARK" = "მუქი";
-"PORTRAIT" = "ვერტიკალური";
+"PORTRAIT" = "პორტრეტი";
 "UNREAD_CHAPTER_BADGES" = "წაუკითხავი თავების ნიშნები";
 "PIN_UNREAD" = "წაუკითხავი";
-"LIBRARY_UPDATING" = "ბიბლიოთეკის განახლებები";
+"LIBRARY_UPDATING" = "ბიბლიოთეკის განახლება";
 "UPDATE_INTERVAL" = "განახლების ინტერვალი";
 "EVERY_12_HOURS" = "ყოველ 12 საათში";
-"WITH_UNREAD_CHAPTERS" = "წაუკითხავი თავების მქონე";
-"WITH_NO_CHAPTERS_READ" = "რომელთაც წაკითხულად მონიშნული თავები არ აქვთ";
+"WITH_UNREAD_CHAPTERS" = "წაუკითხავ თავებთან ერთად";
+"THAT_HAVENT_BEEN_READ" = "ეს არ არის წაკითხული";
 "SOURCE_LISTS" = "წყაროების სიები";
 "SOURCE_LIST_ADDED_TEXT" = "ახლა შეგიძლიათ გარე წყაროების დათვალიერება დათვალიერების ჩანართში.";
-"SOURCE_LIST_URL" = "წყაროების სიის URL";
-"SOURCE_LIST_ADD" = "წყაროების სიის დამატება";
-"SOURCE_LIST_ADD_TEXT" = "შეიყვანეთ წყაროების სიის URL";
+"SOURCE_LIST_URL" = "წყაროს სიის URL";
+"SOURCE_LIST_ADD" = "დაამატეთ წყაროების სია";
+"SOURCE_LIST_ADD_TEXT" = "შეიყვანეთ წყაროს სიის URL";
 "SOURCE_LIST_ADD_FAIL" = "წყაროების სიის დამატება ვერ მოხერხდა";
 "LOCK_HISTORY_TAB" = "ისტორიის ჩანართის ჩაკეტვა";
 "RENAME_BACKUP" = "სარეზერვო ასლის გადარქმევა";
 "RENAME_BACKUP_TEXT" = "შეიყვანეთ ახალი სახელი თქვენი სარეზერვო ასლისთვის";
 "BACKUP_IMPORT_SUCCESS" = "სარეზერვო ასლი იმპორტირებულია";
 "DISPLAY_LOGS" = "ჟურნალების ჩვენება";
-"RESET_TEXT" = "ეს ქმედება შეუქცევადია. ყველა მონაცემი და ქეში წაიშლება, პარამეტრები კი საწყის მდგომარეობას დაუბრუნდება.";
+"RESET_TEXT" = "ეს ქმედება შეუქცევადია. ყველა მონაცემი, პარამეტრი და ქეში წაიშლება და აღდგება.";
 "LOADING_ELLIPSIS" = "იტვირთება…";
 "CANCEL_DOWNLOAD" = "ჩამოტვირთვის გაუქმება";
 "MANGA_INFO" = "მანგას ინფორმაცია";
-"REMOVE_ALL_DOWNLOADS" = "ყველა ჩამოტვირთვის წაშლა";
+"REMOVE_ALL_DOWNLOADS" = "ყველა ჩატვირთულის წაშლა";
 "LIBRARY_EMPTY" = "ბიბლიოთეკა ცარიელია";
 "ADD_TO_LIBRARY" = "ბიბლიოთეკაში დამატება";
 "CATEGORY_ADD_TEXT" = "შეიყვანეთ შესაქმნელი ახალი კატეგორიის სახელი.";
@@ -132,28 +130,28 @@
 "BUTTON_GET" = "მიღება";
 "BUTTON_ERROR" = "შეცდომა";
 "STATUS_COMPLETED" = "დასრულებული";
-"STATUS_HIATUS" = "დროებით შეჩერებული";
-"SOURCE_ORDER" = "წყაროს თანმიმდევრობა";
-"MISSING_SOURCE_TEXT" = "ამ მანგას თავდაპირველი წყარო ვერ მოიძებნა. ხელახლა დააყენეთ წყარო ან წაშალეთ ეს ნაწარმოები ბიბლიოთეკიდან.";
-"DESELECT_ALL" = "ყველას მონიშვნის მოხსნა";
+"STATUS_HIATUS" = "ჰიატუსი";
+"SOURCE_ORDER" = "წყაროების რიგი";
+"MISSING_SOURCE_TEXT" = "როგორც ჩანს, ორიგინალი წყარო აკლია ამ მანგას. გთხოვთ, ხელახლა გადმოწეროთ ან წაშალოთ ეს სათაური თქვენი ბიბლიოთეკიდან.";
+"DESELECT_ALL" = "გააუქმეთ ყველა მონიშვნა";
 "NO_CHAPTERS_AVAILABLE" = "თავები არ არის ხელმისაწვდომი";
 "CONTINUE_READING" = "კითხვის გაგრძელება";
 "MARK" = "მონიშვნა";
 "AUTH_TO_DISABLE" = "გაიარეთ ავტორიზაცია გასათიშად.";
 "APPEARANCE" = "გარეგნობა";
-"SELECT_CHAPTERS" = "თავების არჩევა";
+"SELECT_CHAPTERS" = "აირჩიეთ თავები";
 "MARK_ALL" = "ყველას მონიშვნა";
-"MARK_PREVIOUS" = "ყველა წინა თავის მონიშვნა";
+"MARK_PREVIOUS" = "წინას მონიშვნა";
 "VERTICAL_SCROLL" = "ვერტიკალური სქროლვა";
 "VOLUME_X" = "ტომი %g";
 "CHAPTER_X" = "თავი %g";
-"VOL_SPACE_X" = "ტ. %g";
-"READ" = "წაკითხული";
+"VOL_SPACE_X" = "ტომი.%g";
+"READ" = "წაკითხვა";
 "MARK_READ" = "წაკითხულად მონიშვნა";
 "MARK_UNREAD" = "წაუკითხავად მონიშვნა";
 "PREVIOUS_COLON" = "წინა:";
 "FINISHED_COLON" = "დასრულებული:";
-"VOL_X" = "ტ.%g";
+"VOL_X" = "ტომი.%g";
 "DEFAULT" = "ნაგულისხმევი";
 "LTR" = "მარცხნიდან მარჯვნივ";
 "RTL" = "მარჯვნიდან მარცხნივ";
@@ -171,32 +169,32 @@
 // Settings
 "SETTINGS" = "პარამეტრები";
 "BACKUP_INFO" = "დიდხანს დააჭირეთ სარეზერვო ასლს მისი ექსპორტისთვის, ან გადაფურცლეთ მარცხნივ წასაშლელად.";
-"BACKUP_IMPORT_FAIL_TEXT" = "სარეზერვო ასლის იმპორტი ვერ მოხერხდა. გთხოვთ, დარწმუნდეთ, რომ თქვენი სარეზერვო ასლი არის სათანადო ფორმატში.";
+"BACKUP_IMPORT_FAIL_TEXT" = "სარეზერვო ასლის შენახვა ვერ მოხერხდა. გთხოვთ, დარწმუნდეთ, რომ თქვენი სარეზერვო ასლი არის სათანადო ფორმატში.";
 "%@_AGO" = "%@ წინ";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "ეს წაშლის ამ თავის ისტორიას. დარწმუნებული ხართ, რომ გსურთ გაგრძელება?";
-"VIEW_MORE" = "მეტის ნახვა";
-"INCOGNITO_MODE_TEXT" = "ჩართვისას დროებით აჩერებს კითხვის ისტორიის ჩაწერას";
+"VIEW_MORE" = "იხილეთ მეტი";
+"INCOGNITO_MODE_TEXT" = "აჩერებს წაკითხვის ისტორიას, როდესაც ჩართულია";
 "NEVER" = "არასოდეს";
-"LANDSCAPE" = "ჰორიზონტალური";
+"LANDSCAPE" = "პეიზაჟი";
 "BACKUPS" = "სარეზერვო ასლები";
 "READER" = "მკითხველი";
 "SKIP_TITLES" = "სათაურების გამოტოვება";
 "ONLY_UPDATE_ON_WIFI" = "მხოლოდ Wi-Fi-ზე განახლება";
 "EXCLUDED_CATEGORIES" = "გამორიცხული კატეგორიები";
 "REFRESH_METADATA" = "მეტამონაცემების განახლება";
-"DAILY" = "ყოველდღე";
-"WEEKLY" = "ყოველკვირა";
+"DAILY" = "ყოველდღიური";
+"WEEKLY" = "ყოველკვირეული";
 "EVERY_2_DAYS" = "ყოველ 2 დღეში";
-"WITH_COMPLETED_STATUS" = "დასრულებული სტატუსით";
+"WITH_COMPLETED_STATUS" = "დასრულებულის სტატუსით";
 "IMPORT_FAIL" = "იმპორტი ვერ მოხერხდა";
 "RESTORE" = "აღდგენა";
 "SOURCE_LIST_ADDED" = "დამატებულია წყაროების სია";
-"SOURCE_LIST_ADD_FAIL_TEXT" = "მითითებული წყაროების სიის URL არასწორია ან უკვე დამატებულია.";
-"CORRUPTED_BACKUP" = "დაზიანებული სარეზერვო ასლი";
+"SOURCE_LIST_ADD_FAIL_TEXT" = "მოწოდებული წყაროს სიის URL არასწორია ან უკვე დამატებულია.";
+"CORRUPTED_BACKUP" = "დაზიანებულია სარეზერვო ასლი";
 "BACKUP_NAME" = "სარეზერვო ასლის სახელი";
 "CORRUPTED_BACKUP_TEXT" = "როგორც ჩანს, ამ სარეზერვო ასლს არასწორად აქვს კონფიგურირებული მონაცემები. სახელის გადარქმევა შეუძლებელია.";
 "MISSING_SOURCES" = "დაკარგული წყაროები";
-"MISSING_SOURCES_TEXT" = "აღდგენილი სარეზერვო ასლი შეიძლება შეიცავდეს მონაცემებს შემდეგი წყაროებიდან, რომლებიც ამჟამად დაყენებული არ არის:";
+"MISSING_SOURCES_TEXT" = "აღდგენილი სარეზერვო ასლი შეიძლება შეიცავდეს მონაცემებს შემდეგი წყაროებიდან, რომლებიც ამჟამად არ არის დაინსტალირებული:";
 "RESTORE_BACKUP" = "გსურთ ამ სარეზერვო ასლის აღდგენა?";
 "LOGS" = "ჟურნალი";
 "RESTORE_BACKUP_TEXT" = "ყველა მიმდინარე მონაცემი წაიშლება და ჩანაცვლდება ამ სარეზერვო მონაცემებით.";
@@ -205,881 +203,18 @@
 "EXPORT" = "ექსპორტი";
 "LOG_SERVER" = "ჟურნალის სერვერი";
 "ALWAYS_ASK" = "ყოველთვის იკითხე";
-"BUILD" = "ბილდი";
+"BUILD" = "ასამბლეა";
 "USE_SYSTEM_APPEARANCE" = "სისტემის გარეგნობის გამოყენება";
-"OPEN_READER_VIEW" = "კითხვის რეჟიმის გახსნა";
-"DOWNSAMPLE_IMAGES" = "სურათების გარჩევადობის შემცირება";
-"LOGGING" = "მოვლენების აღრიცხვა";
+"OPEN_READER_VIEW" = "გახსენით Reading View";
+"DOWNSAMPLE_IMAGES" = "სურათების ხარისხის შემცირება";
+"LOGGING" = "ლოგები";
 "ADVANCED" = "გაფართოებული";
 "CLEAR_NETWORK_CACHE" = "ქსელის ქეშის გასუფთავება";
 "CLEAR_NETWORK_CACHE_TEXT" = "ეს ქმედება შეუქცევადია. ქეშირებული ქსელის მოთხოვნები და სურათები გასუფთავდება.";
 "CLEAR_READ_HISTORY" = "წაკითხვის ისტორიის გასუფთავება";
 "CLEAR_READ_HISTORY_TEXT" = "ეს ქმედება შეუქცევადია. წაკითხვის მთელი ისტორია წაიშლება.";
-"RESET_SETTINGS" = "პარამეტრების გადაყენება";
+"RESET_SETTINGS" = "პარამეტრების გადატვირთვა";
 "RESET_SETTINGS_TEXT" = "ეს ქმედება შეუქცევადია. აპისა და წყაროს ყველა პარამეტრი გადაყენდება.";
-"START_TRACKING" = "თვალყურის დევნების დაწყება";
-"STOP_TRACKING" = "თვალყურის დევნების შეწყვეტა";
-"ONESHOT" = "ერთნაწილიანი ისტორია";
-
-"TRANSLATION_TITLE" = "OCR და თარგმანი";
-
-"TRANSLATION_KEY_REPLACE" = "შენახული API გასაღების შეცვლა (არასავალდებულო)";
-
-"TRANSLATION_KEY" = "API გასაღები";
-
-"TRANSLATION_KEY_SAVED" = "API გასაღები შენახულია Keychain-ში";
-
-"TRANSLATION_KEY_DELETE" = "API გასაღების წაშლა";
-
-"TRANSLATION_MODEL" = "მოდელის ID";
-
-"TRANSLATION_GET_KEY" = "OpenAI API გასაღებების გვერდის გახსნა";
-
-"TRANSLATION_LANGUAGE" = "ენები";
-
-"TRANSLATION_TARGET" = "სამიზნე ენა";
-
-"TRANSLATION_AUTO" = "ავტომატური ამოცნობა";
-
-"TRANSLATION_CLEAR_CACHE" = "თარგმანის ქეშის გასუფთავება";
-
-"TRANSLATION_CACHE_CLEARED" = "თარგმანის ქეში გასუფთავდა.";
-
-"TRANSLATION_NOTICES" = "OCR და თარგმანის ლიცენზიები";
-
-"TRANSLATION_ADVANCED" = "თარგმანის ვარიანტები";
-
-"TRANSLATION_REASONING" = "მსჯელობის ძალისხმევა";
-
-"TRANSLATION_MODEL_DEFAULT" = "მოდელის ნაგულისხმევი მნიშვნელობა";
-
-"TRANSLATION_CONCURRENCY" = "ერთდროული მოთხოვნები";
-
-"TRANSLATION_PROVIDER" = "თარგმანის პროვაიდერი";
-
-"TRANSLATION_BASE_URL" = "სერვერის URL";
-
-"TRANSLATION_API_FORMAT" = "API ფორმატი";
-
-"TRANSLATION_CUSTOM_HELP" = "შეიყვანეთ HTTPS საბაზისო URL ან სრული API საბოლოო წერტილი და თქვენი სერვერის მიერ მხარდაჭერილი მოდელი. თითოეულ სერვერის URL-ს საკუთარი შენახული გასაღები აქვს; URL-ის შეცვლა ასუფთავებს მხოლოდ გასაღების შეყვანის ველს. Responses და Chat Completions იყენებენ სტრუქტურირებულ JSON გამომავალს.";
-
-"TRANSLATION_AUTOMATIC" = "ავტომატური თარგმანი";
-
-"TRANSLATION_AUTOMATIC_HELP" = "ავტომატურად თარგმნის და აჩვენებს გვერდებს კითხვის რეჟიმში. თარგმნის ღილაკი კითხვის რეჟიმში ამ პარამეტრს რთავს ან თიშავს.";
-
-"TRANSLATION_TEST" = "API კავშირის შემოწმება";
-
-"TRANSLATION_TEST_RUNNING" = "კავშირის შემოწმება…";
-
-"TRANSLATION_TEST_SUCCESS" = "კავშირი წარმატებულია";
-
-"TRANSLATION_TEST_FAILURE" = "კავშირი ვერ მოხერხდა";
-
-"TRANSLATION_TEST_HELP" = "თარგმნის მოკლე წინადადებას ამ ფორმის მნიშვნელობების გამოყენებით. ამ სერვერის შენახული გასაღების გამოსაყენებლად დატოვეთ გასაღების ველი ცარიელი. ცვლილებები ავტომატურად ინახება.";
-
-"SEARCH_SUGGESTIONS" = "ძიების შეთავაზებები";
-
-"TRANSLATION_CACHE" = "ოფლაინ ქეში";
-
-"TRANSLATION_CACHE_LIMIT" = "მაქსიმალური საცავი";
-
-"TRANSLATION_CACHE_USED" = "გამოყენებული საცავი";
-
-"TRANSLATION_CACHE_HELP" = "ავტომატურად ინახება OCR შედეგები, გვერდების თარგმანები, მანგასა და თავების სათაურების, ავტორების სახელების, ტეგების, მანგას აღწერების, წყაროს მენიუებისა და სექციების სათაურების თარგმანები და ტექსტის განლაგება. მიმდინარე და ახლომდებარე გვერდების სურათები მხოლოდ მეხსიერებაში ინახება. არჩეული ლიმიტის მიღწევისას პირველად იშლება შედეგები, რომელთა ბოლო გამოყენებიდან ყველაზე მეტი დრო გავიდა. ნაგულისხმევი: 1 GB. მაქსიმუმი: 100 GB. ცვლილებები ავტომატურად მოქმედებს; ლიმიტის შემცირებისას შედეგები იმავე რიგით იშლება, სანამ ქეშის ზომა ლიმიტში არ ჩაეტევა.";
-
-"TRANSLATION_SOURCE_FILTER" = "საწყისი ენების ფილტრი";
-
-"TRANSLATION_FILTER_ALL" = "ყველა აღმოჩენილი ენა";
-
-"TRANSLATION_FILTER_HELP" = "აირჩიეთ სათარგმნი ტექსტის საწყისი ენები. არჩეულ ენებს მიღმა არსებული ან გაურკვეველი ენის ტექსტი უცვლელი რჩება. ფილტრის მოსახსნელად აირჩიეთ ყველა აღმოჩენილი ენა.";
-
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "ითარგმნება მხოლოდ ის ტექსტი, რომელიც არჩეულ ორიგინალ ენად არის ამოცნობილი. ენები, რომელთა ამოცნობაც მოწყობილობაზე შეუძლებელია, არ იფილტრება.";
-
-"HTTPS_BYPASS" = "HTTPS ბლოკირების შემოვლითი გზა";
-
-"HTTPS_BYPASS_HELP" = "წყაროს მოთხოვნებისთვის, სურათებისთვის, ჩამოტვირთვებისა და წყაროს ვებგვერდებისთვის გამოიყენება TLS ფრაგმენტაცია და დაშიფრული DNS (Cloudflare). მოქმედებს ახალ კავშირებზე. ეს ვერ აუვლის გვერდს IP ბლოკირებასა და ვებგვერდის მიერ დაწესებულ შეზღუდვებს.";
-
-"HTTPS_BYPASS_TEST" = "კავშირის შემოწმება";
-
-"HTTPS_BYPASS_TEST_HELP" = "ამოწმებს ამ HTTPS მისამართს შემოვლითი გზით, მაშინაც კი, როდესაც გადამრთველი გამორთულია. პასუხი ადასტურებს კავშირის არსებობას და არა იმას, რომ ინტერნეტ-პროვაიდერის ბლოკირება არსებობდა.";
-
-"HTTPS_BYPASS_INVALID_URL" = "შეიყვანეთ HTTPS URL მომხმარებლის სახელის ან პაროლის გარეშე.";
-
-"HTTPS_BYPASS_TEST_RESULT" = "HTTP %d მიღებულია · გამოყენებულია TLS ფრაგმენტაცია";
-
-"HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d მიღებულია · TLS ფრაგმენტაცია არ არის დადასტურებული";
-
-"HTTPS_BYPASS_TEST_FAILED" = "HTTPS შემოვლითი გზით დაკავშირება ვერ მოხერხდა.";
-
-"TRANSLATION_MANGA_TITLES" = "მანგას სათაურების თარგმნა";
-
-"TRANSLATION_CHAPTER_TITLES" = "თავების სათაურების თარგმნა";
-
-"TRANSLATION_TITLES_HELP" = "იყენებს თარგმანის API-სა და სამიზნე ენას გვერდების ავტომატური თარგმნისგან დამოუკიდებლად. კონკრეტული პარამეტრის გამორთვა მის შესაბამის თავდაპირველ ტექსტს აჩვენებს. თავდაპირველი ტექსტი ხილული რჩება ჩატვირთვისას ან თარგმანის წარუმატებლობისას.";
-
-"TRANSLATION_MANGA_TITLE_FILTER" = "მანგას სათაურის ენები";
-
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "თავების სათაურების ენები";
-
-"TRANSLATION_PAGE_SOURCE" = "გვერდის საწყისი ენა";
-
-"TRANSLATION_MANGA_DESCRIPTIONS" = "მანგას აღწერების თარგმნა";
-
-"TRANSLATION_DESCRIPTION_FILTER" = "მანგას აღწერის ენები";
-
-"TRANSLATION_METADATA_FILTER_HELP" = "ავტომატურად ამოიცნობს საწყის ენას და თარგმნის მხოლოდ არჩეულ ენებს. ყველა აღმოჩენილი ენის არჩევა ხსნის შეზღუდვას. თითოეული ელემენტის ენის ფილტრი დამოუკიდებელია გვერდებისა და სხვა ელემენტების ენის პარამეტრებისგან.";
-
-"TRANSLATION_CUSTOM_PROVIDER" = "მორგებული (OpenAI-სთან თავსებადი)";
-
-"TRANSLATION_REASONING_NONE" = "გამორთული";
-
-"TRANSLATION_REASONING_MINIMAL" = "მინიმალური";
-
-"TRANSLATION_REASONING_LOW" = "დაბალი";
-
-"TRANSLATION_REASONING_MEDIUM" = "საშუალო";
-
-"TRANSLATION_REASONING_HIGH" = "მაღალი";
-
-"TRANSLATION_REASONING_XHIGH" = "ძალიან მაღალი";
-
-"TRANSLATION_REASONING_MAX" = "მაქსიმალური";
-
-"TRANSLATION_MANGA_TAGS" = "მანგას ტეგების თარგმნა";
-"TRANSLATION_TAG_FILTER" = "ტეგების საწყისი ენები";
-
-"TRANSLATION_SOURCE_LABELS" = "წყაროს მენიუებისა და სექციების სათაურების თარგმნა";
-
-// Completed app localization
-"DONE" = "მზადაა";
-"EDIT" = "რედაქტირება";
-"INVALID" = "არასწორი";
-"PAUSE" = "პაუზა";
-"RESUME" = "გაგრძელება";
-"COPY" = "კოპირება";
-"WARNING" = "გაფრთხილება";
-"ENABLE_PERMISSION" = "ნებართვის ჩართვა";
-"PHOTOS_ACCESS_DENIED_TEXT" = "წვდომა ადრე უარყოფილი იყო. სურათების ფოტოების ბიბლიოთეკაში შესანახად მიეცით Aidoku-ს თქვენს ფოტოებზე წვდომა. წვდომის ჩართვა კონფიდენციალურობის პარამეტრებში შეგიძლიათ.";
-"CONTENT" = "შინაარსი";
-"%@_EXPERIMENTAL" = "%@ (ექსპერიმენტული)";
-"DOWNLOADING" = "მიმდინარეობს ჩამოტვირთვა";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "დარწმუნებული ხართ, რომ გსურთ ყველა ჩამოტვირთვის წაშლა?";
-"NO_WIFI_ALERT_TITLE" = "Wi-Fi არ არის";
-"NO_WIFI_ALERT_MESSAGE" = "ამ კონტენტის ჩამოსატვირთად საჭიროა დაუკავშირდეთ Wi-Fi-ს. გთხოვთ, დაუკავშირდეთ Wi-Fi-ს და სცადოთ ხელახლა.";
-"DOWNLOAD_ANYWAY_MESSAGE" = "ამჟამად Wi-Fi-სთან არ ხართ დაკავშირებული. მაინც ჩამოტვირთოთ?";
-"PROCESSING_QUEUE" = "მუშავდება რიგი…";
-"DOWNLOADING_PAUSED" = "ჩამოტვირთვა შეჩერებულია";
-"PAUSED" = "შეჩერებულია";
-"CANCEL_ALL_DOWNLOADS" = "ყველა ჩამოტვირთვის გაუქმება";
-"DOWNLOADS" = "ჩამოტვირთვები";
-"NO_DOWNLOADS" = "ჩამოტვირთვები არ არის";
-"NO_DOWNLOADS_TEXT" = "ჩამოტვირთული შინაარსი აქ გამოჩნდება.";
-"DOWNLOADED_CHAPTERS" = "ჩამოტვირთული თავები";
-"DOWNLOAD_INCOMPLETE" = "არასრული ჩამოტვირთვა";
-"DOWNLOAD_STORAGE_USED" = "ჩამოტვირთვების საერთო ზომა";
-"%i_SERIES" = "%i სერია";
-"IN_LIBRARY" = "ბიბლიოთეკაში";
-"VIEW_SERIES" = "სერიის ნახვა";
-"VIEW_FILES" = "ფაილების ნახვა";
-"COMPRESS_DOWNLOADS" = "ჩამოტვირთვების შეკუმშვა";
-"PARALLEL_DOWNLOADS" = "პარალელური ჩამოტვირთვები";
-"BACKGROUND_DOWNLOADING" = "ფონური ჩამოტვირთვა";
-"METADATA_DETECTED" = "აღმოჩენილია ძველი მეტამონაცემები";
-"METADATA_DETECTED_TEXT" = "ძველი JSON მეტამონაცემები ComicInfo.xml ფაილებში გადაიტანება.";
-"CATEGORY_SEARCH" = "კატეგორიაში ძიება";
-"LIBRARY_ADD_CONTENT" = "დაამატეთ შინაარსი დათვალიერების ჩანართიდან.";
-"LIBRARY_ADJUST_FILTERS" = "დაარეგულირეთ თქვენი ფილტრები მეტი კონტენტის სანახავად.";
-"REMOVE_FILTER" = "ფილტრის ამოღება";
-"AND_MORE" = "და სხვა";
-"NOT_%@" = "არა %@";
-"FILTER_SEPARATOR" = ", ";
-"IS_TRACKING" = "თვალყურდევნებული";
-"FILTER_HAS_UNREAD" = "წაუკითხავი";
-"FILTER_STARTED" = "კითხვა დაწყებულია";
-"ASCENDING" = "აღმავალი";
-"DESCENDING" = "დაღმავალი";
-"OLDEST_FIRST" = "ჯერ ყველაზე ძველი";
-"NEWEST_FIRST" = "ჯერ ყველაზე ახალი";
-"HIGHEST_FIRST" = "ჯერ ყველაზე მაღალი";
-"LOWEST_FIRST" = "ჯერ ყველაზე დაბალი";
-"COVER" = "ყდა";
-"LAYOUT_GRID" = "ბადე";
-"LAYOUT_LIST" = "სია";
-"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "ბიბლიოთეკიდან ელემენტის ამოღება";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "%i ელემენტის ამოღება ბიბლიოთეკიდან";
-"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "ელემენტის ამოღება კატეგორიიდან %@";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "%i ელემენტის ამოღება კატეგორიიდან %@";
-"REFRESHING_LIBRARY" = "ბიბლიოთეკის განახლება…";
-"PROCESSING_ENTRIES" = "ჩანაწერების დამუშავება…";
-"REFRESH_NO_WIFI" = "არ არის დაკავშირებული Wi-Fi-თან";
-"REFRESH_NO_WIFI_TEXT" = "პარამეტრი „მხოლოდ Wi-Fi-ზე განახლება“ ჩართულია, ამიტომ ბიბლიოთეკის განახლება შეუძლებელია, სანამ Wi-Fi კავშირი არ იქნება ხელმისაწვდომი.";
-"REFRESH_ANYWAY" = "მაინც განახლება";
-"REMOVE_FROM_LIBRARY_CONFIRM" = "გსურთ ბიბლიოთეკიდან წაშლა?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "ამ სერიის ბიბლიოთეკიდან წაშლა ასევე წაშლის მის ყველა კავშირს ტრეკერებთან. დარწმუნებული ხართ, რომ გსურთ გაგრძელება?";
-"LIBRARY_REFRESH_INTERRUPTED" = "ბიბლიოთეკის განახლება შეწყდა";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "ბიბლიოთეკის ბოლო განახლება დასრულებამდე შეწყდა. გსურთ მისი გაგრძელება?";
-"CATEGORY" = "კატეგორია";
-"UNCATEGORIZED" = "კატეგორიის გარეშე";
-"CATEGORY_NAME" = "კატეგორიის სახელი";
-"ADD_TO_CATEGORY" = "კატეგორიაში დამატება";
-"ADD_TO_CATEGORIES" = "კატეგორიებში დამატება";
-"RENAME_CATEGORY_INFO" = "შეიყვანეთ ახალი სახელი ამ კატეგორიისთვის.";
-"RENAME_CATEGORY_FAIL" = "კატეგორიის სახელის გადარქმევა ვერ მოხერხდა";
-"RENAME_CATEGORY" = "კატეგორიის სახელის შეცვლა";
-"RENAME_CATEGORY_FAIL_INFO" = "კატეგორიების სახელები უნდა იყოს უნიკალური.";
-"FILTER_GROUPS" = "ფილტრის ჯგუფები";
-"CREATE_FILTER_GROUP" = "ფილტრის ჯგუფის შექმნა";
-"EDIT_FILTER_GROUP" = "ფილტრის ჯგუფის რედაქტირება";
-"CLEAR_FILTERS" = "ფილტრების გასუფთავება";
-"SHOW_UNCATEGORIZED_CATEGORY" = "„კატეგორიის გარეშე“ კატეგორიის ჩვენება";
-"BROWSE_NO_SOURCES_TEXT_NEW" = "დაამატეთ წყარო პლუს ღილაკით.";
-"PIN" = "ჩამაგრება";
-"UNPIN" = "ჩამაგრების მოხსნა";
-"DISABLE" = "გამორთვა";
-"ENABLE" = "ჩართვა";
-"REORDER" = "თანმიმდევრობის შეცვლა";
-"EDIT_SOURCES" = "წყაროების რედაქტირება";
-"CONTENT_RATING" = "კონტენტის რეიტინგი";
-"SAFE" = "უსაფრთხო";
-"CONTAINS_NSFW" = "შეიცავს NSFW-ს";
-"PRIMARILY_NSFW" = "ძირითადად NSFW";
-"REMOVE_LOCAL_SOURCE" = "წაშალოთ ლოკალური წყარო?";
-"REMOVE_LOCAL_SOURCE_TEXT" = "ეს წაშლის ყველა იმპორტირებულ ლოკალურ ფაილს.";
-"MISSING_SOURCE_LIST" = "არ არის წყაროების სიებში";
-"MISSING_SOURCE_LIST_INFO" = "ეს გარე წყარო მიუწვდომელია არცერთ კონფიგურირებულ წყაროს სიაში. ეს ნიშნავს, რომ ის არ მიიღებს განახლებებს და შეიძლება მომავალში გაფუჭდეს.";
-"BASE_URL" = "საბაზისო URL";
-"SEE_ALL" = "იხილეთ ყველა";
-"HOME" = "მთავარი";
-"FILTERS" = "ფილტრები";
-"APPLY" = "გამოყენება";
-"RANGE_FROM" = "დასაწყისი";
-"RANGE_TO" = "დასასრული";
-"SOURCE_SETTINGS" = "წყაროს პარამეტრები";
-"RESET_SETTINGS_CONFIRM_%@" = "დარწმუნებული ხართ, რომ გსურთ %@-ის ყველა პარამეტრის საწყის მდგომარეობაზე დაბრუნება?";
-"CANCEL_CONFIRM" = "დარწმუნებული ხართ, რომ გსურთ გაუქმება?";
-"CANCEL_CONFIRM_TEXT" = "თქვენი ცვლილებები გაუქმდება.";
-"DISCARD_CHANGES" = "ცვლილებების გაუქმება";
-"INVALID_URL" = "არასწორი URL";
-"INVALID_URL_TEXT" = "ამ წყაროს URL არასწორია.";
-"MORE_BARBUTTON" = "მეტი";
-"RETRY" = "ხელახლა ცდა";
-"RESTART" = "გადატვირთვა";
-"UNIMPLEMENTED" = "განუხორციელებელი";
-"NETWORK_ERROR" = "ქსელის შეცდომა";
-"DECODING_ERROR" = "დეკოდირების შეცდომა";
-"HTML_ERROR" = "HTML შეცდომა";
-"JSON_ERROR" = "JSON შეცდომა";
-"UNKNOWN_ERROR" = "უცნობი შეცდომა";
-"SOURCE_CRASHED" = "წყაროს მუშაობა შეწყდა";
-"ADD_SOURCE" = "წყაროს დამატება";
-"IMPORT_SOURCE" = "წყაროს იმპორტი";
-"BUILT_IN_SOURCES" = "ჩამონტაჟებული წყაროები";
-"EXTERNAL_SOURCES" = "გარე წყაროები";
-"NO_RESULTS" = "შედეგები არ არის";
-"NO_EXTERNAL_SOURCES" = "არ არის გარე წყაროები";
-"NO_EXTERNAL_SOURCES_INFO" = "გარე წყაროების დასაყენებლად დააკონფიგურირეთ წყაროების სიები პარამეტრების ჩანართში.";
-"NO_AVAILABLE_SOURCES" = "არ არის ხელმისაწვდომი წყაროები";
-"NO_AVAILABLE_SOURCES_INFO" = "დაარეგულირეთ თქვენი ფილტრები მეტი გარე წყაროების სანახავად.";
-"ALL_SOURCES_INSTALLED" = "ყველა წყარო დაყენებულია";
-"ALL_SOURCES_INSTALLED_INFO" = "დასაყენებელი გარე წყაროები არ არის დარჩენილი.";
-"SAVE" = "შენახვა";
-"SAVED_SEARCHES" = "შენახული ძიებები";
-"NAME_SAVED_SEARCH" = "შენახული ძიების დასახელება";
-"NAME_SAVED_SEARCH_INFO" = "ამ ძიების შენახვა შეინახავს ამჟამად კონფიგურირებულ ფილტრებს და საძიებო ტექსტს.";
-"SAVED_SEARCH_NAME" = "სახელი";
-"SAVE_SEARCH_FAIL" = "შენახვა ვერ მოხერხდა";
-"SAVE_SEARCH_FAIL_INFO" = "ამ სახელით შენახული ძიება უკვე არსებობს. გთხოვთ, აირჩიოთ უნიკალური სახელი.";
-"INCOGNITO_FILTERS_NOTICE" = "შეცვლილი ფილტრები არ რჩება ინკოგნიტო რეჟიმში.";
-"LOCAL_FILES" = "ლოკალური ფაილები";
-"LOCAL_FILES_TAGLINE" = "კითხვა ლოკალური ფაილებიდან";
-"LOCAL_FILES_INFO" = "ლოკალური ფაილების წყარო საშუალებას გაძლევთ თქვენი საკითხავი ბიბლიოთეკა პირდაპირ Aidoku-ში შემოიტანოთ და მართოთ.";
-"LOCAL_FILES_SETUP" = "ლოკალური ფაილების დაყენება";
-"IMPORT" = "იმპორტი";
-"IMPORT_SETTINGS" = "იმპორტი";
-"IMPORT_FILE" = "ფაილის იმპორტი";
-"LOCAL_FILE_IMPORT" = "ლოკალური ფაილის იმპორტი";
-"LOCAL_FILE_IMPORT_TEXT" = "წასაკითხად შემოიტანეთ სურათების შემცველი CBZ ან ZIP ფაილი.";
-"CHAPTER_TITLE" = "თავის სათაური";
-"SERIES_TITLE" = "სერიის სათაური";
-"DESCRIPTION" = "აღწერა";
-"SERIES" = "სერია";
-"NEW_SERIES" = "ახალი სერია";
-"NEW_SERIES_TEXT" = "შექმენით ახალი სერია ამ ფაილისთვის";
-"SELECT_SERIES" = "სერიის არჩევა";
-"VOLUME_CHAPTER_INVALID_ERROR" = "ამ კონფიგურაციის თავი უკვე არსებობს.";
-"VOLUME_CHAPTER_EMPTY_ERROR" = "საჭიროა ტომის და/ან თავის ნომერი.";
-"SERIES_TITLE_UNIQUE_ERROR" = "ამ სახელწოდებით სერია უკვე არსებობს.";
-"SERIES_TITLE_EMPTY_ERROR" = "ახალი სერიისთვის სათაური უნდა იყოს მითითებული.";
-"CREATE_NEW_SERIES_INFO" = "შემდეგ გვერდზე შეიქმნება ახალი სერია, ან შეგიძლიათ აირჩიოთ არსებული სერია ამ ფაილის დასამატებლად.";
-"ADD_TO_OTHER_SERIES_INFO" = "ფაილი დაემატება არჩეულ სერიას.";
-"%i_PAGES" = "%i გვერდი";
-"1_PAGE" = "1 გვერდი";
-"CBZ_NAME" = "კომიქსების Zip არქივი";
-"ZIP_NAME" = "Zip არქივი";
-"EPUB_NAME" = "EPUB";
-"KOMGA" = "Komga";
-"KOMGA_TAGLINE" = "მედია სერვერი საკუთარი ჰოსტინგით";
-"KOMGA_INFO" = "Komga არის კომიქსებისა და მანგას მედია სერვერი, რომელსაც თავად მართავთ. ამ წყაროს გამოსაყენებლად საჭიროა Komga სერვერის დაყენება და გაშვება.";
-"KOMGA_SETUP" = "Komga-ს დაყენება";
-"DEMO_KOMGA_SERVER" = "დემო Komga სერვერი";
-"DEMO_KOMGA_SERVER_INFO" = "შეგიძლიათ შეხვიდეთ დემო Komga სერვერზე ელფოსტის გამოყენებით `demo@komga.org` და პაროლით `komga-demo`.";
-"SOURCE_NAME" = "წყაროს სახელი";
-"SOURCE_NAME_INFO" = "სახელი, რომლითაც წყარო დათვალიერების ჩანართში გამოჩნდება.";
-"SOURCE_NAME_UNIQUE_ERROR" = "გთხოვთ, აირჩიოთ უნიკალური წყაროს სახელი.";
-"SERVER_URL" = "სერვერის URL";
-"SERVER_URL_INFO" = "სერვერის საბაზისო URL დასაკავშირებლად.";
-"SERVER_URL_UNIQUE_ERROR" = "ამ სერვერთან კონფიგურირებული წყარო უკვე არსებობს.";
-"MIRRORS" = "სარკის სერვერები";
-"MIRRORS_INFO" = "დამატებითი URL-ები, რომლებიც საბაზისო მისამართად გამოიყენება, თუ მთავარ მისამართთან დაკავშირება ვერ მოხერხდა.";
-"SERVER_ERROR" = "სერვერის შეცდომა";
-"SERVER_ERROR_CONNECTION" = "მოცემულ სერვერთან დაკავშირება ვერ მოხერხდა. დარწმუნდით, რომ სერვერი მუშაობს და URL სწორადაა შეყვანილი.";
-"SERVER_ERROR_AUTHENTICATION" = "შესვლა ვერ მოხერხდა. დარწმუნდით, რომ შესვლის მონაცემები სწორადაა შეყვანილი.";
-"OTHER_SETTINGS" = "სხვა პარამეტრები";
-"DISPLAY_DEFAULT" = "ნაგულისხმევი";
-"DISPLAY_CHAPTER" = "თავი";
-"DISPLAY_VOLUME" = "ტომი";
-"USE_CHAPTERS" = "თავების გამოყენება";
-"USE_CHAPTERS_TEXT" = "წიგნების თავებად განხილვა ტომების ნაცვლად";
-"%@_BOOKS" = "%@ წიგნი";
-"1_BOOK" = "1 წიგნი";
-"ON_DECK" = "შემდეგ წასაკითხი";
-"KEEP_READING" = "კითხვის გაგრძელება";
-"RECENTLY_ADDED_BOOKS" = "ახლახან დამატებული წიგნები";
-"RECENTLY_ADDED_SERIES" = "ახლახან დამატებული სერიები";
-"RECENTLY_UPDATED_SERIES" = "ახლახან განახლებული სერიები";
-"RECENTLY_READ_BOOKS" = "ახლახან წაკითხული წიგნები";
-"ANY" = "ნებისმიერი";
-"AUTHOR" = "ავტორი";
-"ARTIST" = "მხატვარი";
-"SORT" = "დალაგება";
-"SORT_NAME" = "სახელი";
-"SORT_DATE_UPDATED" = "განახლების თარიღი";
-"SORT_DATE_READ" = "წაკითხვის თარიღი";
-"SORT_RELEASE_DATE" = "გამოშვების თარიღი";
-"SORT_FOLDER_NAME" = "საქაღალდის სახელი";
-"SORT_BOOKS_COUNT" = "წიგნების რაოდენობა";
-"SORT_RANDOM" = "შემთხვევითი";
-"GENRE" = "ჟანრი";
-"TAG" = "ტეგი";
-"PUBLISHER" = "გამომცემელი";
-"AGE_RATING" = "ასაკობრივი რეიტინგი";
-"RELEASE_DATE" = "გამოშვების თარიღი";
-"SHARING_LABEL" = "გაზიარების ლეიბლი";
-"NOT_LOGGED_IN" = "სისტემაში არ ხართ შესული";
-"NO_SERVER_CONFIGURED" = "სერვერი არ არის კონფიგურირებული";
-"INVALID_SERVER_URL" = "სერვერის URL არასწორია";
-"KAVITA" = "Kavita";
-"KAVITA_TAGLINE" = "საკუთარ სერვერზე განთავსებული ციფრული ბიბლიოთეკა";
-"KAVITA_INFO" = "Kavita არის კომიქსებისა და მანგას მედია სერვერი, რომელსაც თავად მართავთ. ამ წყაროს გამოსაყენებლად საჭიროა Kavita სერვერის დაყენება და გაშვება.";
-"KAVITA_SETUP" = "Kavita-ს დაყენება";
-"DEMO_KAVITA_SERVER" = "დემო Kavita სერვერი";
-"DEMO_KAVITA_SERVER_INFO" = "შეგიძლიათ შეხვიდეთ დემო Kavita სერვერზე მომხმარებლის სახელით `demouser` და პაროლით `Demouser64`.";
-"MORE_IN_%@" = "მეტი: %@";
-"SORT_CHAPTER_ADDED" = "თავის დამატების თარიღი";
-"SORT_TIME_TO_READ" = "კითხვის სავარაუდო დრო";
-"SORT_AVERAGE_RATING" = "საშუალო რეიტინგი";
-"STATUS_ENDED" = "დასრულდა";
-"FORMAT" = "ფორმატი";
-"FORMAT_IMAGE" = "გამოსახულება";
-"FORMAT_EPUB" = "EPUB";
-"FORMAT_PDF" = "PDF";
-"FORMAT_ARCHIVE" = "არქივი";
-"LOGIN_VIA_OIDC" = "შესვლა OIDC-ის საშუალებით";
-"API_KEY" = "API გასაღები";
-"OIDC" = "OIDC";
-"BASIC_LOGIN" = "სტანდარტული შესვლა";
-"API_KEY_LOGIN_INFO" = "შესვლისთვის API გასაღების ხელით მიწოდება უგულებელყოფს შესვლის სხვა მეთოდებს. თქვენ შეგიძლიათ დატოვოთ იგი ცარიელი, რათა გამოიყენოთ შესვლის სხვა მეთოდები.";
-"SUWAYOMI" = "Suwayomi";
-"SUWAYOMI_TAGLINE" = "მანგას მკითხველის სერვერი";
-"SUWAYOMI_INFO" = "Suwayomi არის მანგას კითხვის სერვერი, რომელსაც თავად მართავთ და რომელიც Mihon-ისთვის (Tachiyomi) შექმნილ გაფართოებებს უშვებს. ამ წყაროს გამოსაყენებლად საჭიროა Suwayomi სერვერის დაყენება და გაშვება.";
-"SUWAYOMI_SETUP" = "Suwayomi-ს დაყენება";
-"STATUS_LICENSED" = "ლიცენზირებული";
-"STATUS_PUBLISHING_FINISHED" = "გამოცემა დასრულდა";
-"AUTHOR_NAME" = "ავტორის სახელი";
-"ARTIST_NAME" = "მხატვრის სახელი";
-"INVALID_KEY" = "არასწორი გასაღები";
-"LINK_COPIED" = "ბმული კოპირებულია";
-"LINK_COPIED_TEXT" = "ბმული დაკოპირებულია ბუფერში.";
-"SCANLATOR" = "სკანლატორი";
-"NO_SCANLATOR" = "არ არის სკანლატორი";
-"LOCKED" = "ჩაკეტილი";
-"TOGGLE_LOCK" = "ჩაკეტვის გადართვა";
-"REFRESH_DETAILS" = "დეტალების განახლება";
-"VOLUME" = "ტომი";
-"SKIPPING_CHAPTERS" = "გამოტოვებულია %i თავი, რადგან ისინი წყაროში არ არის ან ფილტრებით გამოირიცხა";
-"OPEN_WEBSITE" = "საიტის გახსნა";
-"SET_COVER_IMAGE" = "ყდის სურათის დაყენება";
-"CHOOSE_CUSTOM_COVER" = "მორგებული ყდის არჩევა";
-"RESET_COVER" = "თავდაპირველი ყდის აღდგენა";
-"NO_HISTORY" = "ისტორია არ არის";
-"NO_HISTORY_TEXT" = "წაკითხვის ისტორია აქ გამოჩნდება.";
-"MANGA_UPDATES" = "განახლებები";
-"NO_UPDATES" = "განახლებები არ არის";
-"%lld_PLUS_MORE" = "+%lld სხვა";
-"RECENTLY_SEARCHED" = "ბოლო ძიებები";
-"NO_RECENT_SEARCHES" = "ბოლო ძიება არ არის";
-"NO_RECENT_SEARCHES_TEXT" = "თქვენი ბოლო ძიებები აქ გამოჩნდება.";
-"SOURCES" = "წყაროები";
-"LOGIN" = "შესვლა";
-"LOGIN_SECTION" = "შესვლა";
-"LOGOUT" = "გამოსვლა";
-"LOGOUT_FROM_%@" = "გამოხვალთ %@-დან?";
-"LOGOUT_CONFIRM" = "დარწმუნებული ხართ, რომ გსურთ გამოსვლა?";
-"USERNAME" = "მომხმარებლის სახელი";
-"EMAIL" = "ელფოსტა";
-"PASSWORD" = "პაროლი";
-"LOGIN_FAILED" = "შესვლა ვერ მოხერხდა";
-"LOGIN_FAILED_TEXT" = "წყაროში შესვლა ვერ მოხერხდა. დარწმუნდით, რომ შესვლის მონაცემები სწორადაა შეყვანილი.";
-"LOGIN_BASIC_TEXT" = "შეყვანილი შესვლის მონაცემები პირდაპირ გადაეცემა წყაროს. არ შეხვიდეთ წყაროში, რომელსაც არ ენდობით.";
-"LOGIN_WEBVIEW_WARNING" = "გსურთ შესვლა ვებ ხედის საშუალებით?";
-"LOGIN_WEBVIEW_WARNING_TEXT" = "ნაჩვენებ ვებ ხედში დაყენებული ყველა ქუქი-ფაილი გადაეცემა წყაროს. არ შეხვიდეთ წყაროში, რომელსაც არ ენდობით.";
-"REFRESH_LOGIN" = "შესვლის განახლება";
-"LOGIN_METHOD" = "შესვლის მეთოდი";
-"BASIC" = "მომხმარებლის სახელი და პაროლი";
-"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "iCloud სინქრონიზაცია ექსპერიმენტული ფუნქციაა. მისმა ჩართვამ ან გამორთვამ შეიძლება მონაცემების დაკარგვა გამოიწვიოს.";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "iCloud სინქრონიზაცია ხელმისაწვდომია მხოლოდ TestFlight-ის საშუალებით დაყენებისას.";
-"LAYOUT" = "განლაგება";
-"STANDARD" = "სტანდარტული";
-"COMPACT" = "კომპაქტური";
-"CUSTOM" = "მორგებული";
-"PORTRAIT_COLUMNS" = "სვეტების რაოდენობა ვერტიკალურ რეჟიმში";
-"LANDSCAPE_COLUMNS" = "სვეტების რაოდენობა ჰორიზონტალურ რეჟიმში";
-"RESUME_LAST_OPENED_CHAPTER" = "ბოლოს გახსნილი თავის კითხვის გაგრძელება";
-"CONTINUE_READING_ON_RESELECT" = "კითხვის გასაგრძელებლად ხელახლა შეეხეთ ისტორიის ჩანართს";
-"DOWNLOADED_CHAPTER_BADGES" = "ჩამოტვირთული თავების ნიშნები";
-"PIN_TITLES" = "სათაურების ჩამაგრება";
-"PIN_DISABLED" = "გამორთული";
-"PIN_UPDATED_CHAPTERS" = "განახლებული თავები";
-"ONLY_DOWNLOAD_ON_WIFI" = "ჩამოტვირთვა მხოლოდ Wi-Fi-ზე";
-"BACKGROUND_REFRESH" = "ფონური განახლება";
-"BACKGROUND_REFRESH_TEXT" = "ბიბლიოთეკის განახლების ხელით დაწყებისას განახლება დასრულდება მაშინაც კი, თუ აპი ფონურ რეჟიმში გადავა.";
-"NEW_CHAPTER_NOTIFICATIONS" = "ახალი თავის შეტყობინებები";
-"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "შეტყობინებების გაგზავნა, როდესაც ბიბლიოთეკა ფონზე განახლდება.";
-"1_NEW_CHAPTER_AVAILABLE" = "ხელმისაწვდომია ახალი თავი";
-"X_NEW_CHAPTERS_AVAILABLE" = "ხელმისაწვდომია %d ახალი თავი";
-"NEW_CHAPTERS_AVAILABLE" = "ახალი თავები ხელმისაწვდომია";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "%d სერიას აქვს ახალი თავები";
-"DELETE_DOWNLOAD_AFTER_READING" = "ჩამოტვირთვის წაშლა წაკითხვის შემდეგ";
-"EVERY_6_HOURS" = "ყოველ 6 საათში";
-"NO_RESULTS_FOR_%@" = "„%@“: შედეგები ვერ მოიძებნა";
-"NO_RESULTS_TEXT" = "შეამოწმეთ მართლწერა ან სცადეთ ახალი ძებნა.";
-"LEARN_MORE" = "შეიტყვეთ მეტი…";
-"INSIGHTS" = "კითხვის სტატისტიკა";
-"STREAKS" = "კითხვის უწყვეტი სერიები";
-"STATS" = "სტატისტიკა";
-"CURRENT_STREAK" = "კითხვის მიმდინარე უწყვეტი სერია";
-"NO_CURRENT_STREAK" = "კითხვის მიმდინარე უწყვეტი სერია არ არის";
-"NO_CURRENT_STREAK_TEXT" = "წაიკითხეთ ყოველდღე, რომ კითხვის უწყვეტი სერია შექმნათ.";
-"LONGEST_STREAK" = "ყველაზე გრძელი კითხვის სერია";
-"DAYS" = "დღე";
-"CHAPTER_PLURAL" = "თავი";
-"CHAPTER_SINGULAR" = "თავი";
-"PAGE_PLURAL" = "გვერდი";
-"PAGE_SINGULAR" = "გვერდი";
-"SERIES_PLURAL" = "სერია";
-"SERIES_SINGULAR" = "სერია";
-"HOUR_PLURAL" = "საათი";
-"HOUR_SINGULAR" = "საათი";
-"ALL_TIME" = "მთელი პერიოდი";
-"THIS_MONTH" = "ამ თვეში";
-"THIS_YEAR" = "ამ წელს";
-"UNAVAILABLE_SOURCE_LISTS" = "მიუწვდომელი წყაროების სიები";
-"UNAVAILABLE_SOURCE_LISTS_TEXT" = "ზემოაღნიშნული წყაროების სიების მიღებისას მოხდა შეცდომა.";
-"COPY_URL" = "URL-ის კოპირება";
-"LEGACY_SOURCE_LIST" = "მოძველებული წყაროების სია";
-"LEGACY_SOURCE_LIST_WARNING" = "გაფრთხილება: მოძველებული წყაროების სია";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "ამჟამად კონფიგურირებული გაქვთ მოძველებული წყაროების სია. ეს ფორმატი მოძველებულია და Aidoku-ს მომავალ ვერსიაში შეწყვეტს მუშაობას. მიუხედავად იმისა, რომ ჯერჯერობით ის მუშაობს, რეკომენდებულია იპოვოთ შემცვლელი და დააკონფიგურიროთ იგი აქ: პარამეტრები > წყაროების სიები.";
-"CROP_BORDERS" = "კიდეების მოჭრა";
-"DISABLE_QUICK_ACTIONS" = "სწრაფი მოქმედებების გამორთვა";
-"DISABLE_DOUBLE_TAP_ZOOM" = "ორმაგი შეხებით მასშტაბირების გამორთვა";
-"LIVE_TEXT" = "ცოცხალი ტექსტი";
-"HIDE_BARS_ON_SWIPE" = "გადაფურცვლისას ზოლების დამალვა";
-"READER_BG_COLOR" = "ფონის ფერი";
-"READER_BG_COLOR_SYSTEM" = "სისტემა";
-"READER_BG_COLOR_AUTO" = "ავტომატური";
-"READER_BG_COLOR_WHITE" = "თეთრი";
-"READER_BG_COLOR_BLACK" = "შავი";
-"TAP_ZONES" = "შეხების ზონები";
-"ZONE_LEFT_RIGHT" = "მარცხენა და მარჯვენა";
-"ZONE_L_SHAPED" = "L-ის ფორმის";
-"ZONE_KINDLE" = "Kindle";
-"ZONE_EDGE" = "კიდე";
-"DISABLED" = "გამორთულია";
-"INVERT_TAP_ZONES" = "შეხების ზონების შებრუნება";
-"ANIMATE_PAGE_TRANSITIONS" = "გვერდის გადასვლების ანიმაცია";
-"TEXT_READER" = "ტექსტის მკითხველი";
-"TEXT_READER_STYLE" = "მკითხველის სტილი";
-"TEXT_READER_PAGED" = "გვერდებად";
-"TEXT_READER_SCROLL" = "სქროლვა";
-"TEXT_FONT_FAMILY" = "შრიფტი";
-"TEXT_FONT_SIZE" = "შრიფტის ზომა";
-"TEXT_LINE_SPACING" = "ხაზების ინტერვალი";
-"TEXT_HORIZONTAL_PADDING" = "ჰორიზონტალური მინდვრები";
-"TEXT_THEME" = "თემა";
-"TEXT_THEME_SEPIA" = "სეფია";
-"TEXT_THEME_PAPER" = "ქაღალდი";
-"TEXT_THEME_GRAY" = "რუხი";
-"DICTIONARY_LOOKUP" = "ლექსიკონში ძიება";
-"DICTIONARY_SETTINGS_TEXT" = "ჩართეთ ლექსიკონში ძიება, რათა გვერდის სურათების OCR დამუშავებით სიტყვები იმპორტირებულ Yomitan ლექსიკონებში მოიძებნოს.";
-"DICTIONARIES" = "ლექსიკონები";
-"ABOUT_DICTIONARIES" = "ლექსიკონების შესახებ";
-"ABOUT_DICTIONARIES_TEXT" = "Yomitan ლექსიკონების იმპორტი შესაძლებელია zip ფაილებიდან. თქვენ შეგიძლიათ ჩართოთ ან გამორთოთ ლექსიკონები და მათი ხელახლა დალაგება შესაძლებელია გადათრევით.";
-"LOOKUP_GESTURE" = "საძიებო ჟესტი";
-"SINGLE_TAP" = "ერთი შეხება";
-"LONG_PRESS" = "ხანგრძლივი დაჭერა";
-"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "სიტყვის დასაწყისზე შეხებით გააქტიურდება ამომხტარი ფანჯარა. ეს გათიშავს ორმაგ შეხებას გასადიდებლად, როდესაც ჩართულია.";
-"LOOKUP_GESTURE_LONG_PRESS_INFO" = "სიტყვის დასაწყისზე ხანგრძლივი დაჭერა სიტყვას მონიშნავს, ხოლო თითის აღება ამომხტარ ფანჯარას გახსნის. ამ ჟესტის ჩართვა გვერდის სწრაფ მოქმედებებს გამორთავს.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "ცვლილება შეზღუდულია ძიების ჟესტით: ერთი შეხება.";
-"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "ცვლილება შეზღუდულია ძიების ჟესტით: ხანგრძლივი დაჭერა.";
-"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR ტექსტის გადაფარვა";
-"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "ძიების გააქტიურებისას სურათის უბნებზე ტექსტურ ველებს აჩვენებს. ეს დაგეხმარებათ დაადგინოთ, რომელი ტექსტი ამოიცნო OCR-მა სწორად.";
-"DICTIONARY_OVERLAY_PADDING" = "ტექსტის ფენის შიდა მინდვრები";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "გადაფარვის ტექსტის ზომა";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "OCR ენების შეზღუდვა";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "ჩართვისას OCR-ით დამუშავდება მხოლოდ ის თავები, რომლებიც არჩეულ ენა(ებ)ზეა მონიშნული. რეკომენდებულია აირჩიოთ მხოლოდ ის ენები, რომლებისთვისაც ლექსიკონები გაქვთ იმპორტირებული.";
-"DICTIONARY_OCR_LANGUAGES" = "OCR ენები";
-"DICTIONARY_POPUP" = "ლექსიკონის ამომხტარი ფანჯარა";
-"DISPLAY_MODE" = "ჩვენების რეჟიმი";
-"DEFAULT_DISPLAY_MODE" = "ნაგულისხმევი";
-"FULL_WIDTH" = "სრული სიგანე";
-"DICTIONARY_POPUP_WIDTH" = "ამომხტარი ფანჯრის სიგანე";
-"DICTIONARY_POPUP_HEIGHT" = "ამომხტარი ფანჯრის სიმაღლე";
-"TERM_DICTIONARIES" = "ტერმინების ლექსიკონები";
-"FREQUENCY_DICTIONARIES" = "სიტყვების სიხშირის ლექსიკონები";
-"PITCH_DICTIONARIES" = "ტონალური მახვილის ლექსიკონები";
-"KANJI_DICTIONARIES" = "კანჯის ლექსიკონები";
-"IMPORTING_DICTIONARY" = "მიმდინარეობს ლექსიკონის იმპორტი…";
-"IMPORT_ERROR" = "იმპორტის შეცდომა";
-"REVISION" = "რევიზია";
-"URL" = "URL";
-"ATTRIBUTION" = "ატრიბუცია";
-"SOURCE_LANGUAGE" = "საწყისი ენა";
-"TARGET_LANGUAGE" = "სამიზნე ენა";
-"TERM_COUNT" = "ლექსიკონის ტერმინების რაოდენობა";
-"TERM_META_COUNT" = "ტერმინის მეტამონაცემების ჩანაწერების რაოდენობა";
-"KANJI_COUNT" = "კანჯის რაოდენობა";
-"KANJI_META_COUNT" = "კანჯი მეტამონაცემების ჩანაწერების რაოდენობა";
-"TAG_COUNT" = "ტეგების რაოდენობა";
-"MEDIA_COUNT" = "მედიის რაოდენობა";
-"IS_UPDATABLE" = "განახლებადი";
-"SIZE" = "ზომა";
-"REMOVE_DICTIONARY" = "ლექსიკონის წაშლა";
-"REMOVE_WORD" = "სიტყვის წაშლა";
-"VOCABULARY" = "ლექსიკა";
-"1_WORD" = "1 სიტყვა";
-"%i_WORDS" = "%i სიტყვა";
-"NO_VOCABULARY" = "შენახული სიტყვები არ არის";
-"NO_VOCABULARY_TEXT" = "შენახული ლექსიკა აქ გამოჩნდება.";
-"DEFINITION" = "განმარტება";
-"VOCAB_CONTEXT" = "კონტექსტი";
-"VOCAB_SOURCE" = "წყარო";
-"CLEAR_VOCABULARY_LIST" = "შენახული სიტყვების სიის გასუფთავება";
-"CLEAR_VOCABULARY_LIST_TEXT" = "ეს ქმედება შეუქცევადია. ყველა შენახული ლექსიკა წაიშლება.";
-"DICTIONARY_UPDATES" = "განახლებები";
-"UPDATE_NOW" = "ახლავე განახლება";
-"LAST_UPDATED_%@" = "ბოლო განახლება: %@";
-"MONTHLY" = "ყოველთვე";
-"GET_RECOMMENDED_DICTIONARIES" = "რეკომენდებული ლექსიკონების მიღება";
-"RECOMMENDED_DICTIONARIES" = "რეკომენდებული ლექსიკონები";
-"RECOMMENDED_DICTIONARIES_NOTE" = "ქვემოთ მოცემული ყველა ლექსიკონი იაპონურ-ინგლისურია. სხვა ენებისთვის იხილეთ ვიქსიკონის ლექსიკონების სია.";
-"RESTORE_MISSING_SOURCES" = "გსურთ დაკარგული წყაროების აღდგენა?";
-"RESTORE_MISSING_SOURCES_TEXT" = "გსურთ დაკარგული წყაროების მოძებნა და დაყენება?";
-"INSTALL_SOURCES" = "წყაროების დაყენება";
-"INSTALLING_SOURCES" = "მიმდინარეობს წყაროების დაყენება…";
-"SOURCE_IMPORT_FAIL_TEXT" = "წყაროს იმპორტი ვერ მოხერხდა. დარწმუნდით, რომ თქვენი aix ფაილი სწორ ფორმატშია.";
-"FILE_IMPORT_FAIL_TEXT" = "ფაილის იმპორტი ვერ მოხერხდა. დარწმუნდით, რომ ეს არის წაკითხვადი სურათის ფაილი ან მოქმედი CBZ ან ZIP არქივი, რომელიც სურათებს შეიცავს.";
-"BACKUP_%@" = "სარეზერვო ასლი %@";
-"CREATE_BACKUP" = "სარეზერვო ასლის შექმნა";
-"IMPORT_BACKUP" = "სარეზერვო ასლის იმპორტი";
-"LIBRARY_ENTRIES" = "ბიბლიოთეკის ჩანაწერები";
-"SENSITIVE_SETTINGS" = "მგრძნობიარე პარამეტრები";
-"NAME" = "სახელი";
-"DATE" = "თარიღი";
-"BACKUP_INFO_TITLE" = "სარეზერვო ასლის ინფორმაცია";
-"AUTOMATIC_BACKUPS" = "ავტომატური სარეზერვო ასლები";
-"BACKUP_INTERVAL" = "სარეზერვო ასლების შექმნის ინტერვალი";
-"AUTO" = "ავტო";
-"LAST_BACKED_UP_%@" = "ბოლო ავტომატური სარეზერვო ასლი: %@";
-"READING_SESSIONS" = "კითხვის სესიები";
-"CLEAR_EXCLUDING_LIBRARY" = "წაკითხვის ისტორიის გასუფთავება ბიბლიოთეკის გამოკლებით";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "ეს ქმედება შეუქცევადია. წაიშლება კითხვის მთელი ისტორია, გარდა ბიბლიოთეკაში არსებული ნაწარმოებების ისტორიისა.";
-"CLEAR_SOURCE_CACHE" = "წყაროს ქეშის გასუფთავება";
-"CLEAR_SOURCE_CACHE_TEXT" = "ასუფთავებს ამ წყაროს მისამართების ქუქი-ფაილებსა და ვებგვერდის მონაცემებს, ასევე წყაროს ქეშირებულ შინაარსს. შეიძლება ხელახლა შესვლა დაგჭირდეთ, ხოლო ჩატვირთვას დროებით მეტი დრო დასჭირდეს.";
-"PAGE_X_OF_X" = "გვერდი %i %i-დან";
-"LIBRARY_LOCKED" = "ბიბლიოთეკა ჩაკეტილია.";
-"CATEGORY_LOCKED" = "კატეგორია ჩაკეტილია.";
-"VIEW_LIBRARY" = "ბიბლიოთეკის ნახვა";
-"CATEGORY_EMPTY" = "კატეგორია ცარიელია";
-"AUTH_TO_OPEN" = "გაიარეთ ავტორიზაცია გასახსნელად.";
-"LOCKED_CATEGORIES" = "ჩაკეტილი კატეგორიები";
-"AUTH_FOR_LIBRARY" = "გაიარეთ ავტორიზაცია ბიბლიოთეკის სანახავად.";
-"LOCK_LIBRARY" = "ბიბლიოთეკის ჩაკეტვა";
-"SET_AS_WIDE_PAGE" = "ფართო გვერდად დაყენება";
-"AUTOMATIC" = "ავტომატური";
-"SET_AS_NORMAL_PAGE" = "ჩვეულებრივ გვერდად დაყენება";
-"PAGES_TO_PRELOAD" = "წინასწარ ჩასატვირთი გვერდები";
-"SINGLE_PAGE" = "ერთი გვერდი";
-"PAGED" = "გვერდებად";
-"PAGE_LAYOUT" = "გვერდის განლაგება";
-"DOUBLE_PAGE" = "ორმაგი გვერდი";
-"PAGE_OFFSET" = "გვერდის წანაცვლება";
-"SPLIT_WIDE_IMAGES" = "ფართო სურათების გაყოფა";
-"REVERSE_SPLIT_ORDER" = "გაყოფილი გვერდების უკუ თანმიმდევრობა";
-"MULTI_LANGUAGE" = "მრავალენოვანი";
-"TRACKING" = "თვალყურის დევნება";
-"TRACKERS" = "ტრეკერები";
-"STATUS" = "სტატუსი";
-"VOLUMES" = "ტომები";
-"SCORE" = "ქულა";
-"TRACK_READING" = "კითხვა";
-"TRACK_PLANNING" = "წასაკითხად დაგეგმილი";
-"TRACK_COMPLETED" = "დასრულებული";
-"TRACK_PAUSED" = "შეჩერებული";
-"TRACK_DROPPED" = "კითხვა შეწყვეტილია";
-"TRACK_REREADING" = "ხელახლა კითხვა";
-"STARTED" = "დაწყების თარიღი";
-"FINISHED" = "დასრულების თარიღი";
-"SET_TRACK_CHAPTER_OFFSET" = "თავის ნომრის წანაცვლების დაყენება";
-"TRACK_CHAPTER_OFFSET_TEXT" = "დაარეგულირეთ ტრეკერის თავების ავტომატური განახლებები ამ სათაურისთვის, როდესაც წყაროს თავების ნომრები განსხვავდება ტრეკერის თავების ნომრებისგან.";
-"TITLE_DISPLAY_MODE" = "სათაურის ჩვენების რეჟიმი";
-"STATUS_NOT_PUBLISHED" = "არ არის გამოქვეყნებული";
-"MANGA" = "მანგა";
-"MANHWA" = "მანჰვა";
-"MANHUA" = "მანჰუა";
-"LIGHT_NOVEL" = "მსუბუქი რომანი";
-"OEL" = "OEL";
-"COMIC" = "კომიქსი";
-"BOOK" = "წიგნი";
-"TRACK" = "თვალყურის დევნება";
-"STATUS_COLON_%@" = "სტატუსი: %@";
-"TYPE_COLON_%@" = "ტიპი: %@";
-"VIEW_ON_WEBSITE" = "ნახვა საიტზე";
-"CLEAR_TRACKED_MANGA" = "ტრეკერებთან ყველა კავშირის წაშლა";
-"CLEAR_TRACKED_MANGA_TEXT" = "ეს ქმედება შეუქცევადია. მანგაზე დამატებული ტრეკერების ყველა კავშირი წაიშლება.";
-"SEARCH_OPTIONS" = "ძიების პარამეტრები";
-"SHOW_NSFW_RESULTS" = "NSFW შედეგების ჩვენება";
-"UPDATE_AFTER_READING" = "წაკითხვის შემდეგ განახლება";
-"UPDATE_AFTER_READING_INFO" = "თავის წაკითხვის შემდეგ ტრეკერი განახლდება ამჟამად წაკითხული თავისა და/ან ტომის შესაბამისად.";
-"AUTO_SYNC_HISTORY" = "ისტორიის ავტომატური სინქრონიზაცია";
-"AUTO_SYNC_HISTORY_INFO" = "როდესაც ტრეკერი თავებისა და/ან ტომების კითხვაში შემდგომ პროგრესს აღრიცხავს, კითხვის ლოკალური ისტორია შესაბამისად განახლდება.";
-"SYNC_WITH_TRACKER" = "სინქრონიზაცია ტრეკერთან";
-"SYNC_WITH_TRACKER_INFO_%i" = "ტრეკერის მიხედვით, %i თავი უკვე წაკითხულია. გსურთ ამ თავების წაკითხულად მონიშვნა?";
-"SYNC_WITH_TRACKER_INFO_1" = "ტრეკერის მიხედვით, 1 თავი უკვე წაკითხულია. გსურთ ამ თავის წაკითხულად მონიშვნა?";
-"UNAVAILABLE_TRACKER_ITEM" = "მიუწვდომელი ტრეკერის ელემენტი";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "ეს დაკავშირებული ტრეკერის ელემენტი დაკავშირებულია ტრეკერთან, რომელიც აღარ არის ხელმისაწვდომი. თქვენ უნდა წაშალოთ ეს ელემენტი ან ხელახლა შეხვიდეთ ასოცირებულ ტრეკერში.";
-"ENHANCED_TRACKERS" = "გაფართოებული ტრეკერები";
-"ENHANCED_TRACKERS_INFO" = "გაფართოებულ ტრეკერებს შეუძლიათ ავტომატურად დაუკავშირდნენ მხარდაჭერილი წყაროებიდან ბიბლიოთეკაში დამატებულ ელემენტებს და კითხვის ისტორია ორივე მიმართულებით დაასინქრონონ.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "წყაროსთვის თვალყურის დევნების გამორთვა წაშლის ამ წყაროს ტრეკერებთან კავშირებს. ჩართვა ავტომატურად დააკავშირებს ბიბლიოთეკაში ამ წყაროდან დამატებულ ელემენტებს.";
-"TRACKER_LOGOUT_INFO" = "გამოსვლა ყველა სერიიდან წაშლის ამ ტრეკერთან დაკავშირებულ თვალყურის დევნების ინფორმაციას.";
-"CACHE_SIZE_%@" = "ქეშის ზომა: %@";
-"SUPPORT_VIA_KOFI" = "მხარდაჭერა Ko-fi-ის საშუალებით";
-"SORT_UNREAD_CHAPTERS" = "წაუკითხავი თავები";
-"SET_AS_SINGLE_PAGE" = "ცალკე გვერდად დაყენება";
-"UNSET_AS_SINGLE_PAGE" = "ცალკე გვერდის რეჟიმის მოხსნა";
-"RELOAD" = "ხელახლა ჩატვირთვა";
-"RELOAD_FAILED" = "ხელახლა ჩატვირთვა ვერ მოხერხდა";
-"RELOAD_FAILED_TEXT" = "სურათის ხელახლა ჩატვირთვა ვერ მოხერხდა. გთხოვთ, სცადოთ ხელახლა.";
-"%i_OF_%i" = "%i %i-დან";
-"%i_PAGES_LEFT" = "დარჩა %i გვერდი";
-"ONE_PAGE_LEFT" = "დარჩა 1 გვერდი";
-"FAILED_CHAPTER_LOAD" = "თავის ჩატვირთვა ვერ მოხერხდა";
-"SORT_LAST_UPDATED" = "ბოლო განახლება";
-"SORT_TOTAL_CHAPTERS" = "თავების საერთო რაოდენობა";
-"FAILED_CHAPTER_LOAD_INFO" = "შეიძლება ხაზგარეშე იყოთ ან წყაროს შეიძლება ჰქონდეს პრობლემები.";
-"WEBTOON" = "Webtoon";
-"CONTINUOUS_WITH_GAPS" = "უწყვეტი შუალედებით";
-"REMOVE_FROM_CATEGORY" = "კატეგორიიდან ამოღება";
-"PINNED" = "ჩამაგრებული";
-"%i_CHAPTERS" = "%i თავი";
-"1_CHAPTER" = "1 თავი";
-"UPCOMING" = "მომავალი";
-"SELECT" = "არჩევა";
-"ADD" = "დამატება";
-"SKIP_DUPLICATE_CHAPTERS" = "დუბლიკატი თავების გამოტოვება";
-"MARK_DUPLICATE_CHAPTERS" = "დუბლიკატი თავების წაკითხულად მონიშვნა";
-"MIGRATE_SOURCES" = "წყაროების მიგრაცია";
-"SYNC_LOCAL_HISTORY" = "ლოკალური ისტორიის სინქრონიზაცია";
-"MIGRATE" = "მიგრაცია";
-"OPTIONS" = "ოფციები";
-"DESTINATION" = "დანიშნულება";
-"SELECTED" = "არჩეული";
-"AVAILABLE" = "ხელმისაწვდომი";
-"NOT_FOUND" = "არ მოიძებნა";
-"MOST_CHAPTERS_SLOWER" = "თავების უდიდესი რაოდენობა (უფრო ნელი)";
-"FIRST_ALTERNATIVE" = "პირველი ალტერნატივა";
-"MIGRATE_%i_ITEMS?" = "გსურთ %i ელემენტის მიგრაცია?";
-"MIGRATE_ONE_ITEM?" = "გსურთ 1 ელემენტის მიგრაცია?";
-"MIGRATE_CONFIRM_TEXT" = "ორიგინალური ჩანაწერების წაკითხვის ისტორია წაიშლება სხვა წყაროზე მიგრაციისას.";
-"MIGRATE_WITH_HISTORY" = "მიგრაცია ისტორიის შენარჩუნებით";
-"SELECT_PINNED_SOURCES" = "ჩამაგრებული წყაროების არჩევა";
-"SEARCH_MANUALLY" = "ხელით ძიება";
-"DONT_MIGRATE" = "მიგრაციის გამოტოვება";
-"SELECTED_%i_OF_%i" = "არჩეული (%i/%i)";
-"MIGRATE_%i_OF_%i" = "მიგრაცია (%i/%i)";
-"SHOW_ENTRY" = "ჩანაწერის ჩვენება";
-"SOURCE_BREAKING_CHANGE" = "წყაროს განახლება მოითხოვს მიგრაციას";
-"SOURCE_BREAKING_CHANGE_TEXT" = "ამ წყაროს მნიშვნელოვანი ცვლილება ჰქონდა და საჭიროებს მიგრაციას თქვენი ბიბლიოთეკისა და ისტორიის შესანახად.";
-"UPLOAD_DATE" = "ატვირთვის თარიღი";
-"ALL_CHAPTERS_READ" = "ყველა თავი წაკითხულია";
-"ALL_CHAPTERS_LOCKED" = "ყველა თავი ჩაკეტილია";
-"DEFAULT_READING_MODE" = "კითხვის ნაგულისხმევი რეჟიმი";
-"PILLARBOX" = "გვერდითი მინდვრები";
-"PILLARBOX_AMOUNT" = "გვერდითი მინდვრების სიგანე";
-"PILLARBOX_ORIENTATION" = "ეკრანის ორიენტაცია გვერდითი მინდვრებისთვის";
-"PILLARBOX_ORIENTATION_INFO" = "აირჩიეთ ეკრანის ორიენტაციები, რომლებშიც გვერდითი მინდვრები გამოჩნდება.";
-"AUTO_SCROLL" = "ავტომატური გადახვევა";
-"AUTO_SCROLL_SPEED" = "ავტომატური გადახვევის სიჩქარე";
-"AUTO_SCROLL_POSITION" = "ავტომატური გადახვევის ღილაკის მდებარეობა";
-"POSITION_LEFT" = "მარცხენა";
-"POSITION_RIGHT" = "მარჯვენა";
-"BOTH" = "ორივე";
-"%@_TRACKER_LOGIN_NEEDED" = "%@: საჭიროა შესვლა";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "თქვენს %@ ტოკენს ვადა გაუვიდა, ამიტომ დაკავშირებული ტრეკერი არ იმუშავებს, სანამ პარამეტრებში ხელახლა არ შეხვალთ.";
-"BACKUP_ERROR" = "სარეზერვო ასლის შეცდომა";
-"BACKUP_ERROR_TEXT" = "აღდგენისას წარმოიშვა შეცდომა: %@. სარეზერვო ასლი შესაძლოა არასწორი იყოს.";
-"READER_ORIENTATION" = "ორიენტაცია";
-"FOLLOW_DEVICE" = "მოწყობილობის მიხედვით";
-"FOCUS_ITEM_LEFT" = "მარცხნივ მდებარე ელემენტზე ფოკუსირება";
-"FOCUS_ITEM_RIGHT" = "მარჯვნივ მდებარე ელემენტზე ფოკუსირება";
-"FOCUS_ITEM_ABOVE" = "ზემოთ მდებარე ელემენტზე ფოკუსირება";
-"FOCUS_ITEM_BELOW" = "ქვემოთ მდებარე ელემენტზე ფოკუსირება";
-"FOCUS_ITEM_NEXT" = "შემდეგ ელემენტზე ფოკუსირება";
-"FOCUS_ITEM_PREV" = "წინა ელემენტზე ფოკუსირება";
-"OPEN_FOCUS_ITEM" = "ფოკუსირებული ელემენტის გახსნა";
-"RESET_FOCUS" = "ფოკუსის გადაყენება";
-"TURN_PAGE_LEFT" = "გვერდის მარცხნივ გადაფურცვლა";
-"TURN_PAGE_RIGHT" = "გვერდის მარჯვნივ გადაფურცვლა";
-"CHAPTER_FORWARD" = "შემდეგ თავზე გადასვლა";
-"CHAPTER_BACKWARD" = "წინა თავზე გადასვლა";
-"OPEN_CHAPTER_LIST" = "თავების სიის გახსნა";
-"TOGGLE_BARS" = "ინსტრუმენტთა ზოლების ჩვენება ან დამალვა";
-"CLOSE_READER" = "მკითხველის დახურვა";
-"TOGGLE_PAGE_OFFSET" = "გვერდის წანაცვლების ჩართვა/გამორთვა";
-"MIGRATE_CHAPTER_HISTORY" = "თავების კითხვის ისტორიის მიგრაცია";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "ძველი ვერსიებიდან დარჩენილი კითხვის ისტორიის მიგრაცია, რომელიც ლოკალურ მონაცემთა ბაზაში თავებთან დაკავშირებული არ არის. ეს ჩვეულებრივ განახლების შემდეგ ავტომატურად ხდება. თუ პროცესი არ დასრულდა, შეგიძლიათ აქედან ხელახლა გაუშვათ.";
-
-// Local image import
-"IMPORT_PHOTO" = "ფოტოების იმპორტი";
-"LOCAL_IMAGE_IMPORT_TEXT" = "წასაკითხად შემოიტანეთ ფოტოები, სურათის ფაილები ან CBZ ან ZIP არქივი.";
-
-// Translated page export
-"SAVE_TRANSLATED_IMAGE" = "თარგმნილი სურათის შენახვა";
-"TRANSLATED_IMAGE_SAVE_FAILED" = "თარგმნილი სურათის შექმნა ვერ მოხერხდა. სცადეთ ხელახლა თარგმანის დასრულების შემდეგ.";
-
-"TRANSLATION_AUTHORS" = "ავტორების სახელების თარგმნა";
-
-"TRANSLATION_AUTHOR_FILTER" = "ავტორების სახელების საწყისი ენები";
-"TRANSLATION_SOURCE_LABEL_FILTER" = "წყაროს მენიუებისა და სექციების საწყისი ენები";
-
-// Shared image retention
-"SAVE_SHARED_IMAGES" = "გაზიარებული სურათების შენახვა ლოკალურ ფაილებში";
-"SAVE_SHARED_IMAGES_HELP" = "გამორთვისას გაზიარებული სურათები დროებით იხსნება და დახურვისას იშლება. კითხვის ისტორია და OCR/თარგმანის ქეში არ ინახება.";
-
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "დიდი ფილტრების სიების თარგმნა (100-ზე მეტი ვარიანტი)";
-
-"SETTING_INVALID_STEPPER_RANGE" = "რიცხვითი პარამეტრების არასწორი დიაპაზონი.";
-
-"SETTING_MISSING_CONTENT_HANDLER" = "პარამეტრის ჩვენება შეუძლებელია: %@";
-
-"DOWNLOAD_TRANSLATED" = "ჩამოტვირთვა თარგმანით";
-
-"TRANSLATION_STATE_ON" = "ჩართული";
-"TRANSLATION_STATE_OFF" = "გამორთული";
-
-"TRANSLATION_ERROR_CONFIGURATION" = "თარგმანის პარამეტრები არასწორია. შეამოწმეთ სერვერის URL, მოდელი და სხვა პარამეტრები.";
-
-"TRANSLATION_ERROR_REQUEST" = "ტექსტის, სურათის ან ენის პარამეტრების თარგმნისთვის გამოყენება ვერ მოხერხდა.";
-
-"TRANSLATION_ERROR_RESPONSE" = "თარგმანის სერვერმა არასწორი პასუხი დააბრუნა. სცადეთ ხელახლა ან შეამოწმეთ მოდელის პარამეტრები.";
-
-"TRANSLATION_ERROR_KEY_REQUIRED" = "საჭიროა თარგმანის API გასაღები.";
-
-"TRANSLATION_ERROR_KEY_ACCESS" = "თარგმანის API გასაღების Keychain-იდან წაკითხვა ვერ მოხერხდა.";
-
-"TRANSLATION_ERROR_ENDPOINT" = "უსაფრთხოების პოლიტიკა თარგმანის API-ის ამ მისამართს არ უშვებს.";
-
-"TRANSLATION_ERROR_REDIRECT" = "თარგმანის API-ის მისამართიდან გადამისამართება უარყოფილია.";
-
-"TRANSLATION_ERROR_RESPONSE_SIZE" = "თარგმანის პასუხმა ზომის ლიმიტს გადააჭარბა.";
-
-"TRANSLATION_ERROR_HTTP" = "თარგმანის სერვერმა დააბრუნა HTTP %d.";
-
-"TRANSLATION_ERROR_HTTP_REQUEST" = "თარგმანის სერვერმა დააბრუნა HTTP %d (მოთხოვნის ID: %@).";
-
-"TRANSLATION_ERROR_NETWORK_CODE" = "თარგმანის მოთხოვნა ვერ შესრულდა (შეცდომა %d).";
-
-"TRANSLATION_ERROR_CONNECTION" = "თარგმანის API-სთან დაკავშირება ვერ მოხერხდა. შეამოწმეთ ქსელთან კავშირი, API-ის მისამართი და სერვერის მდგომარეობა, შემდეგ სცადეთ ხელახლა.";
-
-"TRANSLATION_ERROR_REFUSED" = "თარგმანის პროვაიდერმა მოთხოვნა უარყო.";
-
-"TRANSLATION_ERROR_KEY_ACCOUNT" = "API გასაღების შესანახად გამოყენებული იდენტიფიკატორი არასწორია.";
-
-"TRANSLATION_ERROR_KEY_INVALID" = "API გასაღები ცარიელია, ზედმეტად დიდია ან შეიცავს მხარდაუჭერელ სიმბოლოებს.";
-
-"TRANSLATION_ERROR_KEY_MISSING" = "ამ პროვაიდერისთვის API გასაღები შენახული არ არის.";
-
-"TRANSLATION_ERROR_KEY_ENCODING" = "შენახული API გასაღების დეკოდირება ვერ მოხერხდა.";
-
-"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Keychain-ის ოპერაცია ვერ შესრულდა, მდგომარეობის კოდი: %d.";
-
-"OCR_ERROR_MODEL_MISSING" = "საჭირო PP-OCRv6 მოდელი ვერ მოიძებნა.";
-
-"OCR_ERROR_MODEL_LOAD" = "PP-OCRv6 მოდელის ჩატვირთვა ვერ მოხერხდა.";
-
-
-"OCR_ERROR_IMAGE" = "სურათის ტექსტის ამოცნობისთვის მომზადება ვერ მოხერხდა.";
-
-"OCR_ERROR_OUTPUT" = "PP-OCRv6 მოდელმა არასწორი ან მხარდაუჭერელი შედეგი დააბრუნა.";
-
-"OCR_ERROR_PREDICTION" = "PP-OCRv6-ით ტექსტის ამოცნობა ვერ მოხერხდა. სცადეთ ხელახლა სხვა სურათით ან OCR მოდელით.";
-
-
-"TRANSLATION_ERROR_CACHE_STORAGE" = "თარგმანის ქეშის საცავი არასწორია ან მიუწვდომელია.";
-
-"TRANSLATION_ERROR_CACHE_SAVE" = "თარგმანის ქეშის შენახვა ვერ მოხერხდა.";
-
-"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud-ის სინქრონიზაციის ცვლილებები ამოქმედდება Aidoku-ს სრულად დახურვისა და ხელახლა გახსნის შემდეგ. მანამდე მოქმედებს მიმდინარე პარამეტრი.";
-
-// Translation settings section
-
-"TRANSLATION_TARGETS" = "სათარგმნი შიგთავსი";
-
-// Download page counts and single-series totals.
-"PAGES_%i_OF_%i" = "გვერდები: %i / %i";
-"1_SERIES" = "1 სერია";
-"SKIPPING_ONE_CHAPTER" = "გამოტოვებულია 1 თავი, რადგან ის წყაროში არ არის ან ფილტრებით გამოირიცხა";
-"BACKUP_CREATE_ERROR_TEXT" = "სარეზერვო ასლის შექმნა ვერ მოხერხდა. გთხოვთ, სცადოთ ხელახლა.";
-"YES" = "დიახ";
-"NO" = "არა";
-"CHAPTERS_%i_OF_%i" = "თავები: %i / %i";
-"TRACKING_REGISTRATION_FAILED" = "ნაწარმოების თვალყურის დევნებაში დამატება ვერ მოხერხდა. გთხოვთ, სცადოთ ხელახლა.";
-"SORT_READ_PROGRESS" = "კითხვის პროგრესი";
-"SORT_RELEASE_YEAR" = "გამოცემის წელი";
-"SOURCE_INVALID_PAGE_COUNT" = "გვერდების არასწორი რაოდენობა";
-"SOURCE_INVALID_GENRE_ID" = "ჟანრის არასწორი ID";
-"SOURCE_INVALID_LISTING" = "არასწორი სია";
-"SOURCE_INVALID_LISTING_TYPE" = "სიის არასწორი ტიპი";
-"SOURCE_INVALID_ITEM_TYPE" = "ელემენტის არასწორი ტიპი";
-"DICTIONARY_ERROR" = "ლექსიკონის შეცდომა";
-"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "ლექსიკონების პარამეტრების შენახვა ვერ მოხერხდა: %@";
-"DICTIONARY_IMPORT_ERRORS_%@" = "არჩეული ლექსიკონების იმპორტი ვერ მოხერხდა:\n%@";
-"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "ზოგიერთი ლექსიკონის იმპორტი ვერ მოხერხდა:\n%@";
-"DICTIONARY_IMPORT_FAILED" = "ლექსიკონის იმპორტი ვერ მოხერხდა.";
-"RECOMMENDED_JMDICT_DESCRIPTION" = "ვრცელი იაპონურ-ინგლისური ლექსიკონი, რომელსაც უვლის Electronic Dictionary Research and Development Group (EDRDG).";
-"RECOMMENDED_JMNEDICT_DESCRIPTION" = "იაპონური საკუთარი სახელების ლექსიკონი, რომელსაც უვლის Electronic Dictionary Research and Development Group (EDRDG).";
-"RECOMMENDED_JITEN_DESCRIPTION" = "სიხშირული ლექსიკონი, რომელიც ეფუძნება https://jiten.moe-ის მედიაკორპუსს.";
-
-// Reader background translation and preparation limits
-"TRANSLATION_BACKGROUND" = "თარგმნა ორიგინალის ჩვენებისას";
-"TRANSLATION_BACKGROUND_HELP" = "თარგმნა გრძელდება კითხვისას მაშინაც, როცა თარგმნის ღილაკი გამორთულია. ორიგინალი გვერდები ხილული რჩება. თარგმნა შეჩერდება, როცა აპი არააქტიურია.";
-"TRANSLATION_PRETRANSLATION_LIMIT" = "წინასწარ სათარგმნი გვერდების რაოდენობა";
-"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "წინასწარ სათარგმნი გვერდების მაქსიმალური რაოდენობა, ხილული გვერდების გარდა. გვერდები კითხვის პრიორიტეტის მიხედვით შეირჩევა და უპირატესობა მომდევნო გვერდებს ენიჭება.";
-"TRANSLATION_UNLIMITED" = "შეუზღუდავი";
-"TRANSLATION_PAGE_SETTINGS" = "გვერდების თარგმნა";
-"TRANSLATION_VISIBLE_PAGES_ONLY" = "მხოლოდ ხილული გვერდები";
-
-// Unsupported installed source package version
-
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 კითხულობს იაპონურ, ჩინურ (გამარტივებული და ტრადიციული დამწერლობით), ინგლისურ და ლათინური დამწერლობის სხვა ენებზე დაწერილ ორიგინალ ტექსტს, მაგრამ არა კორეულს, კირილიცას ან ვიეტნამურს. ორიგინალის ენის ავტომატური განსაზღვრა და ორიგინალის ენის არჩევანიც ამ ენებით შემოიფარგლება. ნებისმიერ სამიზნე ენაზე თარგმნა კვლავ შესაძლებელია. Manga-ს არჩევისას ტექსტის აღმოჩენის ზღვრები დაყენდება 0,85-სა და 0,25-ზე; აღმოჩენის ნაგულისხმევი ზომაა 1120 px.";
-
-"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "OCR-ის მიერ მხარდაჭერილი ყველა ენა";
+"START_TRACKING" = "ტრეკინგის დაწყება";
+"STOP_TRACKING" = "ტრეკინგის შეჩერება";
+"ONESHOT" = "ერთი-ცდით";

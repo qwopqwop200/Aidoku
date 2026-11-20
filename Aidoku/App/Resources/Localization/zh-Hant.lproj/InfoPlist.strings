@@ -1,5 +1,0 @@
-/* Localized app information. */
-
-// Completed app localization
-"CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "當漫畫伺服器或自訂翻譯伺服器位於您的區域網路中時，Aidoku 會連線至這些伺服器。";

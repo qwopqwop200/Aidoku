@@ -1,5 +1,0 @@
-/* Localized app information. */
-
-// Completed app localization
-"CFBundleDisplayName" = "Aidoku";
-"NSLocalNetworkUsageDescription" = "Aidoku подключается к серверам манги и вашему пользовательскому серверу перевода, когда их адреса находятся в вашей локальной сети.";

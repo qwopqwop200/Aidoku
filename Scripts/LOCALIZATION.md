@@ -1,12 +1,13 @@
 # App localization
 
-`Aidoku/App/Resources/Localization/en.lproj` defines the UI keys. Every language
-listed in the Xcode project's `knownRegions` must provide the same keys in
-`Localizable.strings` and `InfoPlist.strings`. The separate `AidokuShare` target
-must provide its own `Localizable.strings` for the same locales.
+`Aidoku/App/Resources/Localization/en.lproj` defines the UI keys. This fork
+maintains English and Korean only: `ko.lproj` must provide the same keys in
+`Localizable.strings` and `InfoPlist.strings`. The other locales stay as upstream
+ships them; keys they lack fall back to English. The separate `AidokuShare` target
+ships its own `Localizable.strings` in English and Korean.
 
 When adding UI text, use `NSLocalizedString`, add the English entry, and translate
-it in every locale. Keep stored setting values, provider names, API protocol
+it in Korean. Keep stored setting values, provider names, API protocol
 names, and font family identifiers unchanged; localize their display labels.
 Permission descriptions must also match the English text in `Aidoku/Info.plist`.
 

@@ -1,6 +1,6 @@
 
 
-"REMOVE_DOWNLOADS_CONFIRM" = "Да се премахнат ли всички избрани изтегляния?";
+"REMOVE_DOWNLOADS_CONFIRM" = "Премахни всички избрани изтегляния?";
 "UNINSTALL" = "Деинсталиране";
 "DELETE" = "Изтриване";
 "COPY" = "Копиране";
@@ -8,18 +8,18 @@
 "DOWNLOAD_QUEUE" = "Опашка за изтегляне";
 "SORT_LAST_READ" = "Последно четено";
 "ADD_TO_LIBRARY" = "Добави в библиотека";
-"INSTALLED" = "Инсталирани";
+"INSTALLED" = "Инсталиран";
 "FILTER_BY" = "Филтрирай по";
 "LANGUAGE" = "Език";
 "SORT_BY" = "Сортирай по";
-"EXTERNAL" = "Външни";
+"EXTERNAL" = "Външен";
 "SORT_TITLE" = "Заглавие";
 
 // Browse
 "BROWSE" = "Разглеждане";
 "COVER" = "Корица";
 "SORT_LATEST_CHAPTER" = "Последна глава";
-"BUTTON_UPDATE" = "ОБНОВИ";
+"BUTTON_UPDATE" = "АКТУАЛИЗИРАНЕ";
 "ALWAYS_ASK" = "Питай винаги";
 "SHARE" = "Споделяне";
 "REORDER" = "Пренареждане";
@@ -28,12 +28,12 @@
 // General
 "CONTINUE" = "Продължи";
 "CANCEL" = "Отказ";
-"DEFAULT_CATEGORY" = "Категория по подразбиране";
+"DEFAULT_CATEGORY" = "Категория под разбиране";
 "BUTTON_GET" = "ИЗТЕГЛЯНЕ";
-"NONE" = "Няма";
+"NONE" = "Празно";
 "INFO" = "Информация";
 "PIN" = "Закачи";
-"CATEGORY_ADD_TEXT" = "Въведете името на новата категория, която да създадете.";
+"CATEGORY_ADD_TEXT" = "Въведете заглавието на новата категория, която да създадете.";
 "EDIT_CATEGORIES" = "Редактиране на категории";
 "RESET" = "Нулиране";
 "UNPIN" = "Откачи";
@@ -60,12 +60,10 @@
 
 // Downloads
 "DOWNLOAD" = "Изтегляне";
-"NEXT_UNREAD" = "Следваща непрочетена";
-"NEXT_%i_UNREAD" = "Следващи %i непрочетени";
-"CATEGORY_ADD" = "Добавяне на категория";
+"CATEGORY_ADD" = "Добавяне на категории";
 "CANCEL_DOWNLOAD" = "Откажи изтегляне";
 "MANGA_INFO" = "Информация за мангата";
-"UNAVAILABLE" = "Недостъпно";
+"UNAVAILABLE" = "Недостъпен";
 "BROWSE_NO_SOURCES" = "Няма източници";
 "OK" = "ОК";
 "REMOVE" = "Премахване";
@@ -75,133 +73,133 @@
 "RENAME" = "Преименуване";
 "ADDING_SOURCES_GUIDE_BUTTON" = "Ръководство за добавяне на източници";
 "BUTTON_FILTER" = "Филтър";
-"STATUS_CANCELLED" = "Прекратен";
+"STATUS_CANCELLED" = "Отказан";
 "STATUS_ONGOING" = "Текущо";
 "STATUS_COMPLETED" = "Приключен";
-"STATUS_HIATUS" = "Временно прекъснато";
-"MORE" = "Още";
-"SOURCE_ORDER" = "Ред в източника";
+"STATUS_HIATUS" = "Неактивен";
+"MORE" = "още";
+"SOURCE_ORDER" = "Ред на източник";
 "NSFW" = "NSFW";
-"SUGGESTIVE" = "Със сексуални намеци";
+"SUGGESTIVE" = "Подсказващи";
 "BUILD" = "Билд";
-"READ" = "Прочетено";
+"READ" = "Прочетен";
 "MARK_ALL" = "Маркиране на всички";
 "MARK" = "Маркиране";
 "MARK_READ" = "Маркиране като прочетено";
 "MARK_UNREAD" = "Маркиране като непрочетено";
-"NEXT_COLON" = "Следваща:";
-"FINISHED_COLON" = "Завършена:";
-"CURRENT_COLON" = "Текуща:";
+"NEXT_COLON" = "Следващ:";
+"FINISHED_COLON" = "Завършен:";
+"CURRENT_COLON" = "Текущ:";
 "CH_X" = "Гл.%g";
 "VOL_SPACE_X" = "Том %g";
 "CH_SPACE_X" = "Гл. %g";
-"VOL_X" = "Т.%g";
-"START_READING" = "Започване на четенето";
+"VOL_X" = "Том%g";
+"START_READING" = "Начално на четенето";
 "CONTINUE_READING" = "Продължаване на четенето";
 "MISSING_SOURCE" = "Липсващ източник";
 "CHAPTERS" = "Глави";
 "DESELECT_ALL" = "Премахване на избор за всички";
 "VOLUME_X" = "Том %g";
 "CHAPTER_X" = "Глава %g";
-"NO_CHAPTERS" = "Няма глави";
+"NO_CHAPTERS" = "Без глави";
 "NO_CHAPTERS_AVAILABLE" = "Няма налични глави";
 "NO_NEXT_CHAPTER" = "Няма следваща глава";
 "NO_PREVIOUS_CHAPTER" = "Няма предишна глава";
 "READER_SETTINGS" = "Настройки за четеца";
-"DEFAULT" = "По подразбиране";
+"DEFAULT" = "Подразбиране";
 "LTR" = "Ляво към дясно";
 "EXPERIMENTAL" = "Експериментално";
 "INFINITE_VERTICAL_SCROLL" = "Безкрайно вертикално скролиране";
-"SAVE_TO_PHOTOS" = "Запазване в Снимки";
+"SAVE_TO_PHOTOS" = "Запазване към Снимки";
 "%@_AGO" = "Преди %@";
-"REMOVE_ALL_MANGA_HISTORY" = "Премахване на цялата история за тази манга";
+"REMOVE_ALL_MANGA_HISTORY" = "Премахване на историята за всички манги";
 "HISTORY_LOCKED" = "Историята е заключена.";
 "VIEW_HISTORY" = "Преглед на историята";
-"AUTH_FOR_HISTORY" = "Удостоверете самоличността си, за да прегледате историята на четене.";
+"AUTH_FOR_HISTORY" = "Автентикация за преглед на историята.";
 "VIEW_MORE" = "Преглед на още";
-"AUTH_TO_ENABLE" = "Удостоверете самоличността си, за да включите.";
-"AUTH_TO_DISABLE" = "Удостоверете самоличността си, за да изключите.";
+"AUTH_TO_ENABLE" = "Автентикация за да се включи.";
+"AUTH_TO_DISABLE" = "Автентикация за да се изключи.";
 "GITHUB_REPO" = "GitHub хранилище";
 "SUPPPORT_DEVELOPMENT" = "Подкрепа на развитие";
 "GENERAL" = "Общи";
 "ICLOUD_SYNC" = "iCloud синхронизация";
-"INCOGNITO_MODE" = "Режим „инкогнито“";
+"INCOGNITO_MODE" = "Режим \"Инкогнито\"";
 "APPEARANCE" = "Изглед";
 "APPEARANCE_LIGHT" = "Светъл";
 "APPEARANCE_DARK" = "Тъмен";
 "USE_SYSTEM_APPEARANCE" = "Системен изглед";
-"PORTRAIT" = "Вертикална";
-"LANDSCAPE" = "Хоризонтална";
+"PORTRAIT" = "Портрет";
+"LANDSCAPE" = "Пейзаж";
 "READER" = "Четец";
 "OPEN_READER_VIEW" = "Отваряне на изглед за четене";
 "UNREAD_CHAPTER_BADGES" = "Значки за непрочетени глави";
-"LIBRARY_UPDATING" = "Актуализации на библиотеката";
+"LIBRARY_UPDATING" = "Обновяване на библиотеката";
 "UPDATE_INTERVAL" = "Интервал на обновяване";
 "SKIP_TITLES" = "Пропускане на заглавията";
 "EXCLUDED_CATEGORIES" = "Изключени категории";
 "NEVER" = "Никога";
 "EVERY_12_HOURS" = "Всеки 12 часа";
-"WITH_COMPLETED_STATUS" = "Със статус „Приключен“";
-"WITH_NO_CHAPTERS_READ" = "Без глави, маркирани като прочетени";
+"WITH_COMPLETED_STATUS" = "Със статус на приключен";
+"THAT_HAVENT_BEEN_READ" = "Които не са били четени";
 "SOURCE_LISTS" = "Списъци с източници";
 "SOURCE_LIST_ADDED" = "Списък с източници е добавен";
-"SOURCE_LIST_ADDED_TEXT" = "Вече можете да разглеждате външните източници в раздела „Разглеждане“.";
+"SOURCE_LIST_ADDED_TEXT" = "Сега можете да преглеждате външни източници в раздела Преглед.";
 "SOURCE_LIST_URL" = "URL на списъка с източници";
 "SOURCE_LIST_ADD_FAIL" = "Неуспешно добавяне на списък с източници";
 "BACKUPS" = "Резервни копия";
 "BACKUP_NAME" = "Име на резервно копие";
 "RENAME_BACKUP" = "Преименуване на резервно копие";
-"DOWNSAMPLE_IMAGES" = "Намаляване на резолюцията на изображенията";
-"LOCK_HISTORY_TAB" = "Заключване на раздела „История“";
+"DOWNSAMPLE_IMAGES" = "Намаляване на извадката на изображенията";
+"LOCK_HISTORY_TAB" = "Заключване на раздела за История";
 
 // Manga
-"UNTITLED" = "Без заглавие";
+"UNTITLED" = "Неозаглавен";
 
 // Reader
 "CHAPTER" = "Глава";
 
 // History
-"HISTORY" = "История";
+"HISTORY" = "Истори";
 
 // Search
 "SEARCH" = "Търсене";
 
 // Settings
 "SETTINGS" = "Настройки";
-"UNREAD" = "Непрочетено";
-"MARK_PREVIOUS" = "Маркиране на предишните глави";
-"PREVIOUS_COLON" = "Предишна:";
+"UNREAD" = "Нечетен";
+"MARK_PREVIOUS" = "Маркиране на предишните";
+"PREVIOUS_COLON" = "Предишен:";
 "SELECT_CHAPTERS" = "Избор на глави";
-"SELECT_ALL" = "Избор на всички";
+"SELECT_ALL" = "Изобр на всички";
 "LIST_HEADER" = "Списък";
 "LIST_ALL" = "Всички";
 "READING_MODE" = "Режим на четене";
 "RTL" = "Дясно към ляво";
-"VERTICAL" = "Вертикално";
+"VERTICAL" = "Верикално";
 "VERTICAL_SCROLL" = "Вертикален скрол";
 "PAGE_X" = "Страница %i";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "Това ще премахне историята за тази глава. Сигурни ли сте че искате да продължите?";
 "ABOUT" = "Относно";
-"DISCORD_SERVER" = "Discord сървър";
-"MISSING_SOURCE_TEXT" = "Изглежда, че източникът на тази манга липсва. Инсталирайте го отново или премахнете това заглавие от библиотеката си.";
-"INCOGNITO_MODE_TEXT" = "Спира записването на историята на четене, когато е включено";
-"PIN_UNREAD" = "Непрочетени";
+"DISCORD_SERVER" = "Дискорд сървър";
+"MISSING_SOURCE_TEXT" = "Изглежда, че оригиналният източник липсва за тази манга. Моля, изтеглете я отново или премахнете това заглавие от библиотеката си.";
+"INCOGNITO_MODE_TEXT" = "Паузиране на исторята на четене когато е включено";
+"PIN_UNREAD" = "Нечетени";
 "ONLY_UPDATE_ON_WIFI" = "Обновяване само през Wi-Fi";
 "DAILY" = "Ежедневно";
 "REFRESH_METADATA" = "Обновяване на метаданни";
 "EVERY_2_DAYS" = "Всеки 2 дни";
 "WEEKLY" = "Седмично";
 "WITH_UNREAD_CHAPTERS" = "С непрочетени глави";
-"SOURCE_LIST_ADD" = "Добавяне на списък с източници";
-"CROP_BORDERS" = "Изрязване на полетата";
+"SOURCE_LIST_ADD" = "Добавяне на списък източници";
+"CROP_BORDERS" = "Изрязване на рамктие";
 "SOURCE_LIST_ADD_TEXT" = "Въведете URL адреса на списъка с източници";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "Предоставеният URL адрес на списъка с източници е невалиден или вече е бил добавен.";
 "RENAME_BACKUP_TEXT" = "Въведете ново име за резервно копие";
 "CORRUPTED_BACKUP" = "Повредено резервно копие";
-"ONLY_DOWNLOAD_ON_WIFI" = "Изтегляне само през Wi-Fi";
-"READER_BG_COLOR_SYSTEM" = "Системно";
+"ONLY_DOWNLOAD_ON_WIFI" = "Изтегляне само в Wi-Fi";
+"READER_BG_COLOR_SYSTEM" = "Система";
 "READER_BG_COLOR_WHITE" = "Бяло";
-"SET_AS_WIDE_PAGE" = "Задаване като широка страница";
+"SET_AS_WIDE_PAGE" = "Задаване на страница по ширина";
 "DELETE_DOWNLOAD_AFTER_READING" = "Изтриване на изтегленото след прочитане";
 "EXPORT" = "Експорт";
 "ADVANCED" = "Разширени";
@@ -220,20 +218,20 @@
 "RESET_TEXT" = "Това действие е необратимо. Всички данни, настройки и кешове ще бъдат изтрити и нулирани.";
 "CLEAR_READ_HISTORY" = "Изчистване на историята на четене";
 "CLEAR_NETWORK_CACHE_TEXT" = "Това действие е необратимо. Кешираните мрежови заявки и изображения ще бъдат изтрити.";
-"RESET_SETTINGS" = "Нулиране на настройките";
+"RESET_SETTINGS" = "Възтановяване на настройките";
 "PAGE_X_OF_X" = "Страница %i от %i";
 "LIBRARY_LOCKED" = "Библиотеката е заключена.";
 "CATEGORY_LOCKED" = "Категорията е заключена.";
 "CATEGORY_EMPTY" = "Празна категория";
 "LOCK_LIBRARY" = "Заключване на библиотеката";
-"AUTH_FOR_LIBRARY" = "Удостоверете самоличността си, за да прегледате библиотеката.";
-"AUTH_TO_OPEN" = "Удостоверете самоличността си, за да отворите.";
+"AUTH_FOR_LIBRARY" = "Влизане за преглед на библиотека.";
+"AUTH_TO_OPEN" = "Влезте, за да го отворите.";
 "LOCKED_CATEGORIES" = "Заключени категории";
 "AUTOMATIC" = "Автоматично";
-"NO_WIFI_ALERT_MESSAGE" = "За да изтеглите това съдържание, е нужна връзка с Wi-Fi. Свържете се с Wi-Fi и опитайте отново.";
-"SKIPPING_CHAPTERS" = "Пропускат се %i глави, защото липсват в източника или са изключени от филтрите";
+"NO_WIFI_ALERT_MESSAGE" = "Трябва да сте свързани към Wi-Fi за да свалите това съдържание. Моля свържете се към Wi-Fi опитайте отново.";
+"SKIPPING_CHAPTERS" = "Пропускане на %i chapters, или източника липсва или са филтирани";
 "RESUME" = "Продължи";
-"NO_WIFI_ALERT_TITLE" = "Няма Wi-Fi";
+"NO_WIFI_ALERT_TITLE" = "Без Wi-FI";
 "PAUSE" = "Пауза";
 "WARNING" = "Предупреждение";
 "DOWNLOAD_ANYWAY_MESSAGE" = "Не сте на Wi-Fi. Изтегляне въпреки това?";
@@ -244,20 +242,20 @@
 "DISPLAY_LOGS" = "Показ на логове";
 "EXPORT_LOGS" = "Експортване на логове";
 "LOG_SERVER" = "Сървър за логване";
-"PAGE_LAYOUT" = "Оформление на страницата";
+"PAGE_LAYOUT" = "Изглед на страницата";
 "DOUBLE_PAGE" = "Двойна страница";
 "MULTI_LANGUAGE" = "Многоезичен";
-"SET_AS_NORMAL_PAGE" = "Задаване като нормална страница";
+"SET_AS_NORMAL_PAGE" = "Задайте като нормална страница";
 "MISSING_SOURCES_TEXT" = "Възстановеното резервно копие може да съдържа данни от следните източници, които в момента не са инсталирани:";
 "TRACKERS" = "Тракери";
 "LOGOUT" = "Излизане";
-"STARTED" = "Начална дата";
+"STARTED" = "Започнат";
 "SCORE" = "Оценка";
-"TRACK_PAUSED" = "На пауза";
+"TRACK_PAUSED" = "Паузирано";
 "PAGES_TO_PRELOAD" = "Страници за предварително зареждане";
 "IMPORT_FAIL" = "Неуспешен импорт";
 "BACKUP_IMPORT_SUCCESS" = "Импортирано резервно копие";
-"BACKUP_IMPORT_FAIL_TEXT" = "Неуспешно импортиране на резервното копие. Моля, уверете се, че вашето резервно копие е в правилния формат.";
+"BACKUP_IMPORT_FAIL_TEXT" = "Не успя да запише резервно копие. Моля, уверете се, че вашето резервно копие е в правилния формат.";
 "CLEAR_NETWORK_CACHE" = "Изчистване на мрежовия кеш";
 "VIEW_LIBRARY" = "Преглед на библиотека";
 "PAGED" = "Странициран";
@@ -266,793 +264,87 @@
 "STATUS" = "Статус";
 "VOLUMES" = "Томове";
 "TRACK_REREADING" = "Препрочитане";
-"REMOVE_ALL_DOWNLOADS_CONFIRM" = "Сигурни ли сте, че искате да премахнете всички изтегляния?";
+"REMOVE_ALL_DOWNLOADS_CONFIRM" = "Сигурни ли сте че искате да премахнете всички сваляния?";
 "SORT_UNREAD_CHAPTERS" = "Непрочетени глави";
-"ONESHOT" = "Уаншот";
+"ONESHOT" = "One-shot";
 "%i_PAGES_LEFT" = "%i оставащи страници";
-"FAILED_CHAPTER_LOAD" = "Неуспешно зареждане на главата";
+"FAILED_CHAPTER_LOAD" = "Неуспех при зареждане на глава";
 "SORT_LAST_UPDATED" = "Последно обновление";
 "UPCOMING" = "Предстоящи";
 "CATEGORY_NAME" = "Име на категория";
 "FIRST_ALTERNATIVE" = "Първа алтернатива";
-"MIGRATE_%i_ITEMS?" = "Мигриране на %i обекта?";
+"MIGRATE_%i_ITEMS?" = "Мигриране на %i обекти?";
 "MIGRATE_ONE_ITEM?" = "Мигриране на 1 обект?";
 "UPLOAD_DATE" = "Дата на качване";
-"PILLARBOX" = "Странични полета";
-"PILLARBOX_AMOUNT" = "Ширина на страничните полета";
+"PILLARBOX" = "Pillarbox";
+"PILLARBOX_AMOUNT" = "Pillarbox количество";
 "%i_CHAPTERS" = "%i глави";
 "%i_OF_%i" = "%i от %i";
-"RELOAD" = "Презареждане";
-"ONE_PAGE_LEFT" = "Остава 1 страница";
-"FAILED_CHAPTER_LOAD_INFO" = "Може би сте офлайн или източникът има проблеми.";
-"WEBTOON" = "Уебтун";
+"RELOAD" = "Презареди";
+"ONE_PAGE_LEFT" = "1 оставаща страници";
+"FAILED_CHAPTER_LOAD_INFO" = "Може би сте офлайн или източника има проблеми.";
+"WEBTOON" = "Webtoon";
 "1_CHAPTER" = "1 глава";
 "DEFAULT_READING_MODE" = "Режим на четене по подразбиране";
-"PILLARBOX_ORIENTATION_INFO" = "Изберете ориентациите на екрана, при които да се показват страничните полета.";
+"PILLARBOX_ORIENTATION_INFO" = "Pillarbox Orientation определя за кои ориентации трябва да бъде активирана функцията pillarboxing.";
 "BACKUP_ERROR_TEXT" = "По време на възстановяването беше открита грешка: %@. Възможно е резервното копие да е невалидно.";
-"IS_TRACKING" = "Проследявани";
+"IS_TRACKING" = "Следене";
 "ALL_CHAPTERS_READ" = "Всички глави са прочетени";
-"CLEAR_READ_HISTORY_TEXT" = "Това действие е необратимо. Цялата история на четене ще бъде изтрита.";
-"RESET_SETTINGS_TEXT" = "Това действие е необратимо. Всички настройки на приложението и източниците ще бъдат нулирани.";
-"START_TRACKING" = "Започване на проследяването";
-"FINISHED" = "Крайна дата";
+"CLEAR_READ_HISTORY_TEXT" = "Това действие е необратимо. Всичката история ще бъде изтрита.";
+"RESET_SETTINGS_TEXT" = "Това действие е необратимо. Всички настройки и източници ще бъдат рестартрирани.";
+"START_TRACKING" = "Започни следването";
+"FINISHED" = "Приключено";
 "TRACK_READING" = "Четене";
 "TRACK_PLANNING" = "Планиране";
-"TRACK_DROPPED" = "Изоставено";
-"STOP_TRACKING" = "Спиране на проследяването";
-"TRACK" = "Проследяване";
+"TRACK_DROPPED" = "Спрян";
+"STOP_TRACKING" = "Спиране на следенето";
+"TRACK" = "Следване";
 "MANGA" = "Манга";
-"LIGHT_NOVEL" = "Лайт новела";
+"LIGHT_NOVEL" = "Light Novel";
 "STATUS_NOT_PUBLISHED" = "Не публикувано";
-"MANHWA" = "Манхва";
+"MANHWA" = "Манхуа";
 "MANHUA" = "Манхуа";
 "STATUS_COLON_%@" = "Статус: %@";
 "TYPE_COLON_%@" = "Тип: %@";
-"VIEW_ON_WEBSITE" = "Преглед в уебсайта";
-"CLEAR_TRACKED_MANGA" = "Премахване на всички връзки с тракери";
-"CLEAR_TRACKED_MANGA_TEXT" = "Това действие е необратимо. Всички връзки на мангата с тракери ще бъдат премахнати.";
+"VIEW_ON_WEBSITE" = "Преглед на уебсайта";
+"CLEAR_TRACKED_MANGA" = "Изчистване на следената манга";
+"CLEAR_TRACKED_MANGA_TEXT" = "Това действие е необратимо. Следването за всички тракери добавени към мангата ще бъде премахнато.";
 "CACHE_SIZE_%@" = "Размер на кеша: %@";
 "SUPPORT_VIA_KOFI" = "Подкрепи чрез Ko-Fi";
 "SORT_TOTAL_CHAPTERS" = "Общо глави";
 "REMOVE_FROM_CATEGORY" = "Премахване от категория";
-"PINNED" = "Закачени";
+"PINNED" = "Пиннати";
 "SELECT" = "Избор";
 "ADD_TO_CATEGORY" = "Добавяне към категория";
 "ADD_TO_CATEGORIES" = "Добавяне към категории";
-"RENAME_CATEGORY_INFO" = "Въведете ново име за тази категория.";
+"RENAME_CATEGORY_INFO" = "Добавете нови име за тази категория.";
 "RENAME_CATEGORY_FAIL" = "Неуспех при преименуване на категория";
 "SKIP_DUPLICATE_CHAPTERS" = "Пропускане на дублирани глави";
 "RENAME_CATEGORY" = "Преименуване на категория";
 "RENAME_CATEGORY_FAIL_INFO" = "Имената на категориите трябва да са уникални.";
-"MIGRATE_SOURCES" = "Мигриране на източници";
+"MIGRATE_SOURCES" = "Миграция на източника";
 "SYNC_LOCAL_HISTORY" = "Синхронизация на локалната история";
 "MIGRATE" = "Миграция";
 "OPTIONS" = "Настройки";
-"SELECTED" = "Избрани";
-"DESTINATION" = "Цел";
-"AVAILABLE" = "Налични";
+"SELECTED" = "Избран";
+"DESTINATION" = "Дестинация";
+"AVAILABLE" = "Достъпен";
 "NOT_FOUND" = "Не намерен";
-"MOST_CHAPTERS_SLOWER" = "Най-много глави (по-бавно)";
-"PILLARBOX_ORIENTATION" = "Ориентация за страничните полета";
-"BACKUP_ERROR" = "Грешка при резервно копие";
+"MOST_CHAPTERS_SLOWER" = "Повечето глави (по-бавно)";
+"PILLARBOX_ORIENTATION" = "Pillarbox ориентация";
+"BACKUP_ERROR" = "Грешка при възстановяване на резервно копие";
 "BOTH" = "И двете";
 "SCANLATOR" = "Сканлатор";
 "NO_SCANLATOR" = "Без сканлатор";
 "INVALID" = "Невалидно";
 "ENABLE_PERMISSION" = "Включване на разрешения";
 "CONTENT" = "Съдържание";
-"%@_EXPERIMENTAL" = "%@ (експериментално)";
-"NO_DOWNLOADS" = "Няма изтегляния";
+"%@_EXPERIMENTAL" = "%@ (Експериментално)";
+"NO_DOWNLOADS" = "Без сваляния";
 "NO_DOWNLOADS_TEXT" = "Изтегленото съдържание ще се появи тук.";
-"DOWNLOADED_CHAPTERS" = "Изтеглени глави";
-"DOWNLOAD_STORAGE_USED" = "Място, заето от изтеглените файлове";
+"DOWNLOADED_CHAPTERS" = "Свалени глави";
+"TOTAL_DOWNLOADS" = "Всичко свалено";
 "IN_LIBRARY" = "В библиотека";
 "%i_SERIES" = "%i серии";
-"VIEW_SERIES" = "Преглед на поредицата";
-"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Премахване на елемент от библиотеката";
-
-"TRANSLATION_TITLE" = "OCR и превод";
-
-"TRANSLATION_KEY_REPLACE" = "Замяна на запазен API ключ (по избор)";
-
-"TRANSLATION_KEY" = "API ключ";
-
-"TRANSLATION_KEY_SAVED" = "API ключът е запазен в Keychain";
-
-"TRANSLATION_KEY_DELETE" = "Изтриване на API ключ";
-
-"TRANSLATION_MODEL" = "ID на модела";
-
-"TRANSLATION_GET_KEY" = "Отваряне на страницата с API ключове на OpenAI";
-
-"TRANSLATION_LANGUAGE" = "Езици";
-
-"TRANSLATION_TARGET" = "Превод на";
-
-"TRANSLATION_AUTO" = "Откриване автоматично";
-
-"TRANSLATION_CLEAR_CACHE" = "Изчистване на кеша за превод";
-
-"TRANSLATION_CACHE_CLEARED" = "Кешът на превода е изчистен.";
-
-"TRANSLATION_NOTICES" = "Лицензи за OCR и превод";
-
-"TRANSLATION_ADVANCED" = "Опции за превод";
-
-"TRANSLATION_REASONING" = "Ниво на разсъждение";
-
-"TRANSLATION_MODEL_DEFAULT" = "По подразбиране за модела";
-
-"TRANSLATION_CONCURRENCY" = "Едновременни заявки";
-
-"TRANSLATION_PROVIDER" = "Доставчик на преводи";
-
-"TRANSLATION_BASE_URL" = "URL адрес на сървъра";
-
-"TRANSLATION_API_FORMAT" = "API формат";
-
-"TRANSLATION_CUSTOM_HELP" = "Въведете базов HTTPS URL адрес или пълна крайна точка на API и модел, поддържан от вашия сървър. Всеки URL адрес на сървъра има свой собствен записан ключ; промяната на URL изчиства всеки ключ, който въвеждате. Responses и Chat Completions използват структуриран JSON изход.";
-
-"TRANSLATION_AUTOMATIC" = "Автоматичен превод";
-
-"TRANSLATION_AUTOMATIC_HELP" = "Автоматично превежда и показва страниците в четеца. Бутонът за превод в четеца включва или изключва тази настройка.";
-
-"TRANSLATION_TEST" = "Проверка на връзката с API";
-
-"TRANSLATION_TEST_RUNNING" = "Връзката се тества…";
-
-"TRANSLATION_TEST_SUCCESS" = "Връзката е успешна";
-
-"TRANSLATION_TEST_FAILURE" = "Неуспешна връзка";
-
-"TRANSLATION_TEST_HELP" = "Превежда кратко изречение, като използва стойностите в тази форма. Оставете ключа празен, за да използвате записания ключ на този сървър. Промените се запазват автоматично.";
-
-"SEARCH_SUGGESTIONS" = "Предложения за търсене";
-
-"TRANSLATION_CACHE" = "Офлайн кеш";
-
-"TRANSLATION_CACHE_LIMIT" = "Максимален размер на кеша";
-
-"TRANSLATION_CACHE_USED" = "Използвано място";
-
-"TRANSLATION_CACHE_HELP" = "Автоматично запазва резултатите от OCR, преводите на страници, заглавия на манга и глави, имена на автори, етикети, описания на манга, менюта и заглавия на раздели на източниците, както и оформлението на текста. Изображенията се пазят само в оперативната памет за текущата и близките страници. При достигане на лимита се премахват резултатите, които не са използвани от най-дълго време. По подразбиране: 1 GB. Максимум: 100 GB. Промените се прилагат автоматично; при намаляване на лимита най-отдавна използваните резултати се изтриват, докато кешът се вмести в лимита.";
-
-"TRANSLATION_SOURCE_FILTER" = "Филтър за изходните езици на превода";
-
-"TRANSLATION_FILTER_ALL" = "Всички открити езици";
-
-"TRANSLATION_FILTER_HELP" = "Изберете езиците на оригинала за превод. Текстът на неизбрани езици или текстът, чийто език не е разпознат надеждно, остава непроменен. Изберете „Всички открити езици“, за да премахнете филтъра.";
-
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Превежда се само текст, идентифициран като избрания оригинален език. Езиците без откриване на устройството остават нефилтрирани.";
-
-"HTTPS_BYPASS" = "Заобикаляне на блокирането на HTTPS";
-
-"HTTPS_BYPASS_HELP" = "Използва фрагментиране на TLS и криптиран DNS (Cloudflare) за заявки за източници, изображения, изтегляния и уеб изгледи на източници. Отнася се за нови връзки. IP блокировките и ограниченията, наложени от уебсайта, не се заобикалят.";
-
-"HTTPS_BYPASS_TEST" = "Проверка на връзката";
-
-"HTTPS_BYPASS_TEST_HELP" = "Проверява този HTTPS адрес чрез заобикаляне на блокирането, дори когато превключвателят е изключен. Отговорът потвърждава връзката, а не наличието на блокиране от интернет доставчика.";
-
-"HTTPS_BYPASS_INVALID_URL" = "Въведете HTTPS URL без потребителско име или парола.";
-
-"HTTPS_BYPASS_TEST_RESULT" = "Получен е HTTP %d · TLS фрагментацията е приложена";
-
-"HTTPS_BYPASS_TEST_UNCONFIRMED" = "Получен е HTTP %d · TLS фрагментацията не е потвърдена";
-
-"HTTPS_BYPASS_TEST_FAILED" = "Неуспешно свързване чрез заобикаляне на блокирането на HTTPS.";
-
-"TRANSLATION_MANGA_TITLES" = "Превод на заглавия на манга";
-
-"TRANSLATION_CHAPTER_TITLES" = "Превод на заглавия на глави";
-
-"TRANSLATION_TITLES_HELP" = "Използва вашия API за превод и целевия език независимо от автоматичния превод на страници. Изключете съответната опция, за да се показва оригиналният текст за нея. Оригиналите остават видими по време на зареждане или ако преводът е неуспешен.";
-
-"TRANSLATION_MANGA_TITLE_FILTER" = "Езици за заглавия на манга";
-
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "Езици на заглавията на главите";
-
-"TRANSLATION_PAGE_SOURCE" = "Изходен език на страницата";
-
-"TRANSLATION_MANGA_DESCRIPTIONS" = "Превод на описания на манга";
-
-"TRANSLATION_DESCRIPTION_FILTER" = "Езици за описание на манга";
-
-"TRANSLATION_METADATA_FILTER_HELP" = "Автоматично открива изходния език и превежда само избраните езици. Опцията „Всички открити езици“ премахва ограничението. Езиковият филтър на всеки елемент е независим от настройките за езика на страниците и другите елементи.";
-
-"TRANSLATION_CUSTOM_PROVIDER" = "Собствен сървър (съвместим с OpenAI)";
-
-"TRANSLATION_REASONING_NONE" = "Няма";
-
-"TRANSLATION_REASONING_MINIMAL" = "Минимално";
-
-"TRANSLATION_REASONING_LOW" = "Ниско";
-
-"TRANSLATION_REASONING_MEDIUM" = "Средно";
-
-"TRANSLATION_REASONING_HIGH" = "Високо";
-
-"TRANSLATION_REASONING_XHIGH" = "Много високо";
-
-"TRANSLATION_REASONING_MAX" = "Максимум";
-
-"TRANSLATION_MANGA_TAGS" = "Превод на етикетите на мангата";
-"TRANSLATION_TAG_FILTER" = "Изходни езици на етикетите";
-
-// Completed app localization
-"DONE" = "Готово";
-"EDIT" = "Редактиране";
-"PHOTOS_ACCESS_DENIED_TEXT" = "Достъпът е бил отказан. Разрешете на Aidoku достъп до снимките, за да запазвате изображения във фотобиблиотеката. Можете да разрешите достъпа в настройките за поверителност.";
-"DOWNLOADING" = "Изтегляне";
-"PROCESSING_QUEUE" = "Опашката се обработва…";
-"DOWNLOADING_PAUSED" = "Изтеглянето е на пауза";
-"PAUSED" = "На пауза";
-"CANCEL_ALL_DOWNLOADS" = "Отказ от всички изтегляния";
-"DOWNLOADS" = "Изтегляния";
-"DOWNLOAD_INCOMPLETE" = "Непълно изтегляне";
-"VIEW_FILES" = "Преглед на файлове";
-"COMPRESS_DOWNLOADS" = "Компресиране на изтеглянията";
-"PARALLEL_DOWNLOADS" = "Паралелни изтегляния";
-"BACKGROUND_DOWNLOADING" = "Изтегляне във фонов режим";
-"METADATA_DETECTED" = "Открити са наследени метаданни";
-"METADATA_DETECTED_TEXT" = "Наследените JSON метаданни ще бъдат мигрирани към ComicInfo.xml файлове.";
-"CATEGORY_SEARCH" = "Търсене в категорията";
-"LIBRARY_ADD_CONTENT" = "Добавете съдържание от раздела за разглеждане.";
-"LIBRARY_ADJUST_FILTERS" = "Коригирайте филтрите си, за да видите повече съдържание.";
-"REMOVE_FILTER" = "Премахване на филтъра";
-"AND_MORE" = "и още";
-"NOT_%@" = "Не %@";
-"FILTER_SEPARATOR" = ", ";
-"FILTER_HAS_UNREAD" = "Непрочетено";
-"FILTER_STARTED" = "Започнато";
-"ASCENDING" = "Възходящо";
-"DESCENDING" = "Низходящо";
-"OLDEST_FIRST" = "Първо най-старите";
-"NEWEST_FIRST" = "Първо най-новите";
-"HIGHEST_FIRST" = "Първо най-високите";
-"LOWEST_FIRST" = "Първо най-ниските";
-"LAYOUT_GRID" = "Решетка";
-"LAYOUT_LIST" = "Списък";
-"REMOVING_%i_ITEMS_FROM_LIBRARY" = "Премахване на %i елемента от библиотеката";
-"REMOVING_(ONE)_ITEM_FROM_CATEGORY_%@" = "Премахване на елемент от категория %@";
-"REMOVING_%i_ITEMS_FROM_CATEGORY_%@" = "Премахване на %i елемента от категория %@";
-"REFRESHING_LIBRARY" = "Опресняване на библиотеката…";
-"PROCESSING_ENTRIES" = "Записите се обработват…";
-"REFRESH_NO_WIFI" = "Няма връзка с Wi-Fi";
-"REFRESH_NO_WIFI_TEXT" = "Настройката за актуализиране само през Wi-Fi е активирана. Свържете се с Wi-Fi, за да обновите библиотеката си.";
-"REFRESH_ANYWAY" = "Опресни въпреки това";
-"REMOVE_FROM_LIBRARY_CONFIRM" = "Премахване от библиотеката?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Премахването на тази поредица от библиотеката ще премахне и връзките ѝ с тракерите. Сигурни ли сте, че искате да продължите?";
-"LIBRARY_REFRESH_INTERRUPTED" = "Опресняването на библиотеката е прекъснато";
-"LIBRARY_REFRESH_INTERRUPTED_TEXT" = "Последното опресняване на библиотеката беше прекъснато, преди да завърши. Искате ли да възобновите?";
-"CATEGORY" = "Категория";
-"UNCATEGORIZED" = "Без категория";
-"FILTER_GROUPS" = "Групи филтри";
-"CREATE_FILTER_GROUP" = "Създаване на филтърна група";
-"EDIT_FILTER_GROUP" = "Редактиране на филтърна група";
-"CLEAR_FILTERS" = "Изчистване на филтри";
-"SHOW_UNCATEGORIZED_CATEGORY" = "Показване на категорията „Без категория“";
-"BROWSE_NO_SOURCES_TEXT_NEW" = "Добавете източник с бутона плюс.";
-"DISABLE" = "Деактивиране";
-"ENABLE" = "Активиране";
-"EDIT_SOURCES" = "Редактиране на източници";
-"CONTENT_RATING" = "Оценка на съдържанието";
-"SAFE" = "Без съдържание за възрастни";
-"CONTAINS_NSFW" = "Съдържа NSFW";
-"PRIMARILY_NSFW" = "Основно NSFW";
-"REMOVE_LOCAL_SOURCE" = "Премахване на локален източник?";
-"REMOVE_LOCAL_SOURCE_TEXT" = "Това ще премахне всички импортирани локални файлове.";
-"MISSING_SOURCE_LIST" = "Не е в списъците с източници";
-"MISSING_SOURCE_LIST_INFO" = "Този външен източник не е наличен в нито един от конфигурираните списъци с източници. Това означава, че няма да получава актуализации и може да се повреди в бъдеще.";
-"BASE_URL" = "Основен URL адрес";
-"SEE_ALL" = "Вижте всички";
-"HOME" = "Начало";
-"FILTERS" = "Филтри";
-"APPLY" = "Прилагане";
-"RANGE_FROM" = "От";
-"RANGE_TO" = "До";
-"SOURCE_SETTINGS" = "Настройки на източника";
-"RESET_SETTINGS_CONFIRM_%@" = "Сигурни ли сте, че искате да нулирате всички настройки за %@?";
-"CANCEL_CONFIRM" = "Сигурни ли сте, че искате да отмените?";
-"CANCEL_CONFIRM_TEXT" = "Вашите промени ще бъдат отхвърлени.";
-"DISCARD_CHANGES" = "Отхвърляне на промените";
-"INVALID_URL" = "Невалиден URL адрес";
-"INVALID_URL_TEXT" = "URL адресът за този източник е невалиден.";
-"MORE_BARBUTTON" = "Още";
-"RETRY" = "Опитайте отново";
-"RESTART" = "Рестартиране";
-"UNIMPLEMENTED" = "Нереализирано";
-"NETWORK_ERROR" = "Мрежова грешка";
-"DECODING_ERROR" = "Грешка при декодиране";
-"HTML_ERROR" = "HTML грешка";
-"JSON_ERROR" = "JSON грешка";
-"UNKNOWN_ERROR" = "Неизвестна грешка";
-"SOURCE_CRASHED" = "Източникът се срина";
-"ADD_SOURCE" = "Добавяне на източник";
-"IMPORT_SOURCE" = "Импортиране на източник";
-"BUILT_IN_SOURCES" = "Вградени източници";
-"EXTERNAL_SOURCES" = "Външни източници";
-"NO_RESULTS" = "Няма резултати";
-"NO_EXTERNAL_SOURCES" = "Няма външни източници";
-"NO_EXTERNAL_SOURCES_INFO" = "Конфигурирайте списъци с източници в раздела с настройки, за да инсталирате външни източници.";
-"NO_AVAILABLE_SOURCES" = "Няма налични източници";
-"NO_AVAILABLE_SOURCES_INFO" = "Коригирайте филтрите си, за да видите повече външни източници.";
-"ALL_SOURCES_INSTALLED" = "Всички източници са инсталирани";
-"ALL_SOURCES_INSTALLED_INFO" = "Няма останали външни източници за инсталиране.";
-"SAVE" = "Запазване";
-"SAVED_SEARCHES" = "Запазени търсения";
-"NAME_SAVED_SEARCH" = "Дайте име на това запазено търсене";
-"NAME_SAVED_SEARCH_INFO" = "Запазването на това търсене ще съхрани текущо конфигурираните филтри и текста за търсене.";
-"SAVED_SEARCH_NAME" = "Име";
-"SAVE_SEARCH_FAIL" = "Неуспешно запазване";
-"SAVE_SEARCH_FAIL_INFO" = "Вече има запазено търсене с това име. Изберете друго име.";
-"INCOGNITO_FILTERS_NOTICE" = "Модифицираните филтри не се запазват в режим „инкогнито“.";
-"LOCAL_FILES" = "Локални файлове";
-"LOCAL_FILES_TAGLINE" = "Четене от локални файлове";
-"LOCAL_FILES_INFO" = "Източникът за локални файлове позволява да импортирате произведения и да управлявате собствената си библиотека за четене директно в Aidoku.";
-"LOCAL_FILES_SETUP" = "Настройка на локални файлове";
-"IMPORT" = "Импортиране";
-"IMPORT_SETTINGS" = "Импортиране";
-"IMPORT_FILE" = "Импортиране на файл";
-"LOCAL_FILE_IMPORT" = "Импортиране на локални файлове";
-"LOCAL_FILE_IMPORT_TEXT" = "Импортирайте CBZ или ZIP файл, съдържащ изображения за четене.";
-"CHAPTER_TITLE" = "Заглавие на глава";
-"SERIES_TITLE" = "Заглавие на поредицата";
-"DESCRIPTION" = "Описание";
-"SERIES" = "Серия";
-"NEW_SERIES" = "Нова серия";
-"NEW_SERIES_TEXT" = "Създаване на нова серия за този файл";
-"SELECT_SERIES" = "Избор на серия";
-"VOLUME_CHAPTER_INVALID_ERROR" = "Вече съществува глава с тази конфигурация.";
-"VOLUME_CHAPTER_EMPTY_ERROR" = "Изисква се номер на том и/или глава.";
-"SERIES_TITLE_UNIQUE_ERROR" = "Поредица с това заглавие вече съществува.";
-"SERIES_TITLE_EMPTY_ERROR" = "За нова серия трябва да се предостави заглавие.";
-"CREATE_NEW_SERIES_INFO" = "Нова поредица ще бъде създадена на следващата страница или можете да изберете съществуваща поредица, към която да добавите този файл.";
-"ADD_TO_OTHER_SERIES_INFO" = "Файлът ще бъде добавен към избраната серия.";
-"%i_PAGES" = "%i страници";
-"1_PAGE" = "1 страница";
-"CBZ_NAME" = "Zip архив на комикси";
-"ZIP_NAME" = "Zip архив";
-"EPUB_NAME" = "EPUB";
-"KOMGA" = "Komga";
-"KOMGA_TAGLINE" = "Самостоятелно хостван медиен сървър";
-"KOMGA_INFO" = "Komga е самостоятелно хостван медиен сървър за комикси и манга. Ще ви е необходим настроен и работещ Komga сървър, за да използвате този източник.";
-"KOMGA_SETUP" = "Настройка на Komga";
-"DEMO_KOMGA_SERVER" = "Демо Komga сървър";
-"DEMO_KOMGA_SERVER_INFO" = "Можете да влезете в демо сървъра на Komga, като използвате имейл `demo@komga.org` и парола `komga-demo`.";
-"SOURCE_NAME" = "Име на източника";
-"SOURCE_NAME_INFO" = "Името на този източник, което се показва в раздела „Разглеждане“.";
-"SOURCE_NAME_UNIQUE_ERROR" = "Моля, изберете уникално име на източника.";
-"SERVER_URL" = "URL адрес на сървъра";
-"SERVER_URL_INFO" = "Основният URL адрес на сървър, към който да се свържете.";
-"SERVER_URL_UNIQUE_ERROR" = "Вече съществува източник, конфигуриран с този сървър.";
-"MIRRORS" = "Огледални сървъри";
-"MIRRORS_INFO" = "Допълнителни URL адреси, които да опитате да използвате като основен URL адрес, ако основният не успее да се свърже.";
-"SERVER_ERROR" = "Грешка на сървъра";
-"SERVER_ERROR_CONNECTION" = "Не може да се осъществи връзка с посочения сървър. Уверете се, че екземплярът на сървъра работи и URL адресът е въведен правилно.";
-"SERVER_ERROR_AUTHENTICATION" = "Не можете да влезете. Уверете се, че вашите идентификационни данни са въведени правилно.";
-"OTHER_SETTINGS" = "Други настройки";
-"DISPLAY_DEFAULT" = "По подразбиране";
-"DISPLAY_CHAPTER" = "Глава";
-"DISPLAY_VOLUME" = "Том";
-"USE_CHAPTERS" = "Използване на глави";
-"USE_CHAPTERS_TEXT" = "Третиране на книгите като глави вместо като томове";
-"%@_BOOKS" = "%@ книги";
-"1_BOOK" = "1 книга";
-"ON_DECK" = "Следващо за четене";
-"KEEP_READING" = "Продължаване на четенето";
-"RECENTLY_ADDED_BOOKS" = "Наскоро добавени книги";
-"RECENTLY_ADDED_SERIES" = "Наскоро добавени поредици";
-"RECENTLY_UPDATED_SERIES" = "Наскоро актуализирани поредици";
-"RECENTLY_READ_BOOKS" = "Наскоро прочетени книги";
-"ANY" = "Всякакви";
-"AUTHOR" = "Автор";
-"ARTIST" = "Художник";
-"SORT" = "Сортиране";
-"SORT_NAME" = "Име";
-"SORT_DATE_UPDATED" = "Дата на актуализиране";
-"SORT_DATE_READ" = "Дата на прочитане";
-"SORT_RELEASE_DATE" = "Дата на издаване";
-"SORT_FOLDER_NAME" = "Име на папка";
-"SORT_BOOKS_COUNT" = "Брой книги";
-"SORT_RANDOM" = "Случайно";
-"GENRE" = "Жанр";
-"TAG" = "Етикет";
-"PUBLISHER" = "Издател";
-"AGE_RATING" = "Възрастова оценка";
-"RELEASE_DATE" = "Дата на издаване";
-"SHARING_LABEL" = "Етикет за споделяне";
-"NOT_LOGGED_IN" = "Не сте влезли в системата";
-"NO_SERVER_CONFIGURED" = "Няма конфигуриран сървър";
-"INVALID_SERVER_URL" = "Невалиден URL адрес на сървъра";
-"KAVITA" = "Kavita";
-"KAVITA_TAGLINE" = "Самостоятелно хоствана цифрова библиотека";
-"KAVITA_INFO" = "Kavita е самостоятелно хостван медиен сървър за комикси и манга. Ще ви трябва Kavita сървър, настроен и работещ, за да използвате този източник.";
-"KAVITA_SETUP" = "Настройка на Kavita";
-"DEMO_KAVITA_SERVER" = "Демо Kavita сървър";
-"DEMO_KAVITA_SERVER_INFO" = "Можете да влезете в демонстрационния Kavita сървър, като използвате потребителското име `demouser` и паролата `Demouser64`.";
-"MORE_IN_%@" = "Още в %@";
-"SORT_CHAPTER_ADDED" = "Дата на добавяне на глава";
-"SORT_TIME_TO_READ" = "Време за четене";
-"SORT_AVERAGE_RATING" = "Средна оценка";
-"STATUS_ENDED" = "Приключено";
-"FORMAT" = "Формат";
-"FORMAT_IMAGE" = "Изображение";
-"FORMAT_EPUB" = "EPUB";
-"FORMAT_PDF" = "PDF";
-"FORMAT_ARCHIVE" = "Архив";
-"LOGIN_VIA_OIDC" = "Вход чрез OIDC";
-"API_KEY" = "API ключ";
-"OIDC" = "OIDC";
-"BASIC_LOGIN" = "Влизане с парола";
-"API_KEY_LOGIN_INFO" = "Ръчното предоставяне на API ключ за влизане ще замени другите методи за влизане. Можете да го оставите празно, за да използвате други методи за влизане.";
-"SUWAYOMI" = "Suwayomi";
-"SUWAYOMI_TAGLINE" = "Сървър за четене на манга";
-"SUWAYOMI_INFO" = "Suwayomi е самостоятелно хостван сървър за четене на манга, който изпълнява разширения, създадени за Mihon (Tachiyomi). Ще ви трябва Suwayomi сървър, настроен и работещ, за да използвате този източник.";
-"SUWAYOMI_SETUP" = "Настройка на Suwayomi";
-"STATUS_LICENSED" = "Лицензиран";
-"STATUS_PUBLISHING_FINISHED" = "Публикуването приключи";
-"AUTHOR_NAME" = "Име на автора";
-"ARTIST_NAME" = "Име на художника";
-"INVALID_KEY" = "Невалиден ключ";
-"LOCKED" = "Заключено";
-"TOGGLE_LOCK" = "Превключване на заключване";
-"REFRESH_DETAILS" = "Обновяване на подробностите";
-"VOLUME" = "Том";
-"OPEN_WEBSITE" = "Отваряне на уебсайта";
-"SET_COVER_IMAGE" = "Задаване на изображение за корица";
-"CHOOSE_CUSTOM_COVER" = "Избор на собствена корица";
-"RESET_COVER" = "Възстановяване на корицата";
-"NO_HISTORY" = "Няма история";
-"NO_HISTORY_TEXT" = "Историята на четене ще се появи тук.";
-"RECENTLY_SEARCHED" = "Наскоро търсено";
-"NO_RECENT_SEARCHES" = "Няма скорошни търсения";
-"NO_RECENT_SEARCHES_TEXT" = "Скорошните ви търсения ще се показват тук.";
-"SOURCES" = "Източници";
-"LOGIN" = "Влизане";
-"LOGIN_SECTION" = "Вход";
-"LOGOUT_CONFIRM" = "Сигурни ли сте, че искате да излезете?";
-"USERNAME" = "Потребителско име";
-"EMAIL" = "Имейл";
-"PASSWORD" = "Парола";
-"LOGIN_FAILED" = "Неуспешно влизане";
-"LOGIN_FAILED_TEXT" = "Неуспешно влизане в източника. Уверете се, че вашите идентификационни данни са въведени правилно.";
-"LOGIN_BASIC_TEXT" = "Всички въведени идентификационни данни ще бъдат дадени директно на източника. Не влизайте в източник, на който нямате доверие.";
-"LOGIN_WEBVIEW_WARNING" = "Влизане чрез уеб изглед?";
-"LOGIN_WEBVIEW_WARNING_TEXT" = "Всички бисквитки, зададени в представения уеб изглед, ще бъдат предоставени на източника. Не влизайте в източник, на който нямате доверие.";
-"REFRESH_LOGIN" = "Обновяване на входа";
-"LOGIN_METHOD" = "Метод на влизане";
-"BASIC" = "Потребителско име и парола";
-"ICLOUD_SYNC_TEXT_EXPERIMENTAL" = "Синхронизацията с iCloud е експериментална функция. Включването или изключването ѝ може да доведе до загуба на данни.";
-"ICLOUD_SYNC_TEXT_SIDELOADED" = "Синхронизацията с iCloud е налична само при инсталиране чрез TestFlight.";
-"LAYOUT" = "Оформление";
-"STANDARD" = "Стандартен";
-"COMPACT" = "Компактен";
-"CUSTOM" = "Персонализирано";
-"PORTRAIT_COLUMNS" = "Колони във вертикална ориентация";
-"LANDSCAPE_COLUMNS" = "Колони в хоризонтална ориентация";
-"RESUME_LAST_OPENED_CHAPTER" = "Възобновяване на последната отворена глава";
-"CONTINUE_READING_ON_RESELECT" = "Повторно докосване на „История“ за продължаване на четенето";
-"DOWNLOADED_CHAPTER_BADGES" = "Значки за изтеглени глави";
-"PIN_TITLES" = "Закачане на заглавия";
-"PIN_DISABLED" = "Деактивирано";
-"PIN_UPDATED_CHAPTERS" = "Актуализирани глави";
-"BACKGROUND_REFRESH" = "Обновяване във фонов режим";
-"BACKGROUND_REFRESH_TEXT" = "Когато стартирате ръчно опресняване на библиотека, оставете опресняването да завърши дори ако приложението е на заден план.";
-"NEW_CHAPTER_NOTIFICATIONS" = "Известия за нови глави";
-"NEW_CHAPTER_NOTIFICATIONS_TEXT" = "Изпращане на известия при обновяване на библиотеката във фонов режим.";
-"1_NEW_CHAPTER_AVAILABLE" = "Налична е нова глава";
-"X_NEW_CHAPTERS_AVAILABLE" = "Налични нови глави: %d";
-"NEW_CHAPTERS_AVAILABLE" = "Налични нови глави";
-"X_SERIES_HAVE_NEW_CHAPTERS" = "Поредици с нови глави: %d";
-"EVERY_6_HOURS" = "На всеки 6 часа";
-"NO_RESULTS_FOR_%@" = "Няма резултати за „%@“";
-"NO_RESULTS_TEXT" = "Проверете правописа или опитайте ново търсене.";
-"LEARN_MORE" = "Научете повече…";
-"INSIGHTS" = "Статистика за четенето";
-"STREAKS" = "Поредици от дни с четене";
-"STATS" = "Статистика";
-"CURRENT_STREAK" = "Текуща поредица от четене";
-"NO_CURRENT_STREAK" = "Няма текуща поредица от четене";
-"NO_CURRENT_STREAK_TEXT" = "Четете всеки ден, за да изградите поредица.";
-"LONGEST_STREAK" = "Най-дългата поредица от четене";
-"DAYS" = "Дни";
-"CHAPTER_PLURAL" = "Глави";
-"CHAPTER_SINGULAR" = "Глава";
-"PAGE_PLURAL" = "Страници";
-"PAGE_SINGULAR" = "Страница";
-"SERIES_PLURAL" = "Поредици";
-"SERIES_SINGULAR" = "Поредица";
-"HOUR_PLURAL" = "Часове";
-"HOUR_SINGULAR" = "Час";
-"ALL_TIME" = "За цялото време";
-"THIS_MONTH" = "Този месец";
-"THIS_YEAR" = "Тази година";
-"UNAVAILABLE_SOURCE_LISTS" = "Неналични списъци с източници";
-"UNAVAILABLE_SOURCE_LISTS_TEXT" = "Възникна грешка при извличането на горните списъци с източници.";
-"COPY_URL" = "Копиране на URL";
-"LEGACY_SOURCE_LIST" = "Остарял списък с източници";
-"LEGACY_SOURCE_LIST_WARNING" = "Предупреждение: остарял списък с източници";
-"LEGACY_SOURCE_LIST_WARNING_INFO" = "В момента имате конфигуриран остарял списък с източници. Този формат е остарял и ще спре да работи в бъдеща версия на Aidoku. Въпреки че засега все още работи, препоръчваме ви да намерите заместител и да го конфигурирате в „Настройки“ > „Списъци с източници“.";
-"DISABLE_QUICK_ACTIONS" = "Деактивиране на бързите действия";
-"DISABLE_DOUBLE_TAP_ZOOM" = "Деактивиране на мащабирането с двойно докосване";
-"LIVE_TEXT" = "Текст на живо";
-"HIDE_BARS_ON_SWIPE" = "Скриване на ленти при плъзгане";
-"READER_BG_COLOR_AUTO" = "Автоматично";
-"TAP_ZONES" = "Зони за докосване";
-"ZONE_LEFT_RIGHT" = "Ляво и дясно";
-"ZONE_L_SHAPED" = "L-образна";
-"ZONE_KINDLE" = "Kindle";
-"ZONE_EDGE" = "Край";
-"DISABLED" = "Деактивирано";
-"INVERT_TAP_ZONES" = "Инвертиране на зони за докосване";
-"ANIMATE_PAGE_TRANSITIONS" = "Анимиране на преходи на страници";
-"TEXT_READER" = "Четец на текст";
-"TEXT_READER_STYLE" = "Стил на четеца";
-"TEXT_READER_PAGED" = "По страници";
-"TEXT_READER_SCROLL" = "Превъртане";
-"TEXT_FONT_FAMILY" = "Шрифт";
-"TEXT_FONT_SIZE" = "Размер на шрифта";
-"TEXT_LINE_SPACING" = "Разстояние между редовете";
-"TEXT_HORIZONTAL_PADDING" = "Хоризонтални полета";
-"TEXT_THEME" = "Тема";
-"TEXT_THEME_SEPIA" = "Сепия";
-"TEXT_THEME_PAPER" = "Хартия";
-"TEXT_THEME_GRAY" = "Сив";
-"DICTIONARY_LOOKUP" = "Търсене в речника";
-"DICTIONARY_SETTINGS_TEXT" = "Активирайте търсенето в речника, за да позволите OCR обработка на изображения на страници за търсене на думи във всички импортирани речници на Yomitan.";
-"DICTIONARIES" = "Речници";
-"ABOUT_DICTIONARIES" = "Относно речниците";
-"ABOUT_DICTIONARIES_TEXT" = "Речниците на Yomitan могат да бъдат импортирани от zip файлове. Можете да активирате или деактивирате речниците и те могат да бъдат пренаредени чрез плъзгане.";
-"LOOKUP_GESTURE" = "Жест за търсене";
-"SINGLE_TAP" = "Едно докосване";
-"LONG_PRESS" = "Продължително натискане";
-"LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Докосването на началото на дума отваря изскачащия прозорец. В този режим увеличаването с двойно докосване е изключено.";
-"LOOKUP_GESTURE_LONG_PRESS_INFO" = "Задържането на пръста върху началото на дума я маркира, а отпускането отваря изскачащия прозорец. В този режим бързите действия за страницата са изключени.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Заключено чрез жест за търсене: едно докосване.";
-"LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Заключено чрез жест за търсене: продължително натискане.";
-"DICTIONARY_TEXT_OVERLAY_MODE" = "OCR наслагване на текст";
-"DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Показва текстови полета в областите на изображението, когато е активирано търсене. Това може да бъде полезно за определяне кой текст е разпознат правилно от OCR.";
-"DICTIONARY_OVERLAY_PADDING" = "Отстъпи на наслагването";
-"DICTIONARY_OVERLAY_TEXT_SCALE" = "Размер на насложен текст";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES" = "Ограничаване на OCR езиците";
-"DICTIONARY_RESTRICT_OCR_LANGUAGES_INFO" = "Когато е активирано, само глави, маркирани като избрания език(ци), ще бъдат обработени за OCR. Препоръчително е да изберете само езиците, за които имате импортирани речници.";
-"DICTIONARY_OCR_LANGUAGES" = "OCR езици";
-"DICTIONARY_POPUP" = "Изскачащ прозорец на речника";
-"DISPLAY_MODE" = "Режим на показване";
-"DEFAULT_DISPLAY_MODE" = "По подразбиране";
-"FULL_WIDTH" = "Пълна ширина";
-"DICTIONARY_POPUP_WIDTH" = "Ширина на изскачащ прозорец";
-"DICTIONARY_POPUP_HEIGHT" = "Височина на изскачащ прозорец";
-"TERM_DICTIONARIES" = "Терминологични речници";
-"FREQUENCY_DICTIONARIES" = "Честотни речници на думите";
-"PITCH_DICTIONARIES" = "Речници за тонално ударение";
-"KANJI_DICTIONARIES" = "Речници на канджи";
-"IMPORTING_DICTIONARY" = "Импортиране на речник…";
-"IMPORT_ERROR" = "Грешка при импортиране";
-"REVISION" = "Ревизия";
-"URL" = "URL адрес";
-"ATTRIBUTION" = "Авторство";
-"SOURCE_LANGUAGE" = "Изходен език";
-"TARGET_LANGUAGE" = "Целеви език";
-"TERM_COUNT" = "Брой термини в речника";
-"TERM_META_COUNT" = "Брой записи на метаданни за термини";
-"KANJI_COUNT" = "Брой канджи";
-"KANJI_META_COUNT" = "Брой записи на метаданни за канджи";
-"TAG_COUNT" = "Брой етикети";
-"MEDIA_COUNT" = "Брой медии";
-"IS_UPDATABLE" = "Може да се актуализира";
-"SIZE" = "Размер";
-"REMOVE_DICTIONARY" = "Премахване на речника";
-"REMOVE_WORD" = "Премахване на дума";
-"VOCABULARY" = "Запазени думи";
-"1_WORD" = "1 дума";
-"%i_WORDS" = "%i думи";
-"NO_VOCABULARY" = "Няма запазени думи";
-"NO_VOCABULARY_TEXT" = "Запазените думи ще се показват тук.";
-"DEFINITION" = "Определение";
-"VOCAB_CONTEXT" = "Контекст";
-"VOCAB_SOURCE" = "Източник";
-"CLEAR_VOCABULARY_LIST" = "Изчистване на списъка със запазени думи";
-"CLEAR_VOCABULARY_LIST_TEXT" = "Това действие е необратимо. Всички запазени думи ще бъдат премахнати.";
-"DICTIONARY_UPDATES" = "Актуализации";
-"UPDATE_NOW" = "Актуализиране сега";
-"LAST_UPDATED_%@" = "Последна актуализация: %@";
-"MONTHLY" = "Месечно";
-"GET_RECOMMENDED_DICTIONARIES" = "Изтегляне на препоръчани речници";
-"RECOMMENDED_DICTIONARIES" = "Препоръчани речници";
-"RECOMMENDED_DICTIONARIES_NOTE" = "Всички речници по-долу са японско-английски. За други езици можете да проверите списъка с речници на Wiktionary.";
-"RESTORE_MISSING_SOURCES" = "Възстановяване на липсващите източници?";
-"RESTORE_MISSING_SOURCES_TEXT" = "Искате ли да потърсите и инсталирате липсващи източници?";
-"INSTALL_SOURCES" = "Инсталиране на източници";
-"INSTALLING_SOURCES" = "Източниците се инсталират…";
-"SOURCE_IMPORT_FAIL_TEXT" = "Неуспешно импортиране на източника. Моля, уверете се, че вашият aix файл е валиден.";
-"FILE_IMPORT_FAIL_TEXT" = "Неуспешно импортиране на файл. Уверете се, че това е четим файл с изображение или валиден CBZ или ZIP архив, съдържащ изображения.";
-"BACKUP_%@" = "Резервно копие %@";
-"CREATE_BACKUP" = "Създаване на резервно копие";
-"IMPORT_BACKUP" = "Импортиране на резервно копие";
-"LIBRARY_ENTRIES" = "Записи в библиотеката";
-"SENSITIVE_SETTINGS" = "Чувствителни настройки";
-"NAME" = "Име";
-"DATE" = "Дата";
-"BACKUP_INFO_TITLE" = "Информация за резервното копие";
-"AUTOMATIC_BACKUPS" = "Автоматично архивиране";
-"BACKUP_INTERVAL" = "Интервал на архивиране";
-"AUTO" = "Авто";
-"LAST_BACKED_UP_%@" = "Последно автоматично архивиране: %@";
-"READING_SESSIONS" = "Сесии за четене";
-"CLEAR_EXCLUDING_LIBRARY" = "Изчистване на историята на четене, с изключение на библиотеката";
-"CLEAR_EXCLUDING_LIBRARY_TEXT" = "Това действие е необратимо. Историята на четене на всички произведения, които не са в библиотеката, ще бъде премахната.";
-"CLEAR_SOURCE_CACHE" = "Изчистване на кеша на източника";
-"CLEAR_SOURCE_CACHE_TEXT" = "Изтрива бисквитките и данните на уебсайтовете за адресите на този източник, както и кешираното съдържание на източника. Може да се наложи да влезете отново в акаунта си, а зареждането временно да отнема повече време.";
-"PAGE_OFFSET" = "Отместване на страницата";
-"SPLIT_WIDE_IMAGES" = "Разделяне на широки изображения";
-"REVERSE_SPLIT_ORDER" = "Обратен ред на разделените страници";
-"TRACKING" = "Проследяване";
-"TRACK_COMPLETED" = "Завършено";
-"SET_TRACK_CHAPTER_OFFSET" = "Задаване на отместване на главите";
-"TRACK_CHAPTER_OFFSET_TEXT" = "Коригирайте автоматичното обновяване на напредъка за това заглавие в тракера, ако номерата на главите в източника се различават от тези в тракера.";
-"TITLE_DISPLAY_MODE" = "Режим на показване на заглавие";
-"OEL" = "OEL";
-"COMIC" = "Комикс";
-"BOOK" = "Книга";
-"SEARCH_OPTIONS" = "Опции за търсене";
-"SHOW_NSFW_RESULTS" = "Показване на NSFW резултати";
-"UPDATE_AFTER_READING" = "Актуализиране след четене";
-"UPDATE_AFTER_READING_INFO" = "След прочитането на глава тракерът се актуализира автоматично според току-що прочетената глава и/или том.";
-"AUTO_SYNC_HISTORY" = "Автоматично синхронизиране на историята";
-"AUTO_SYNC_HISTORY_INFO" = "Когато тракерът отчете прочитането на по-късна глава и/или том, локалната история на четене се актуализира съответно.";
-"SYNC_WITH_TRACKER" = "Синхронизиране с тракера";
-"SYNC_WITH_TRACKER_INFO_%i" = "Вече прочетени глави според тракера: %i. Искате ли да ги маркирате като прочетени?";
-"SYNC_WITH_TRACKER_INFO_1" = "Според тракера 1 глава вече е прочетена. Искате ли да я маркирате като прочетена?";
-"UNAVAILABLE_TRACKER_ITEM" = "Недостъпен елемент за проследяване";
-"UNAVAILABLE_TRACKER_ITEM_INFO" = "Този свързан елемент за проследяване е свързан с тракер, който вече не е наличен. Трябва или да премахнете този елемент, или да влезете отново в свързания тракер.";
-"ENHANCED_TRACKERS" = "Подобрени тракери";
-"ENHANCED_TRACKERS_INFO" = "Подобрените тракери могат автоматично да се свързват с произведенията, добавени в библиотеката от поддържани източници, и да синхронизират историята на четене в двете посоки.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "Изключването на проследяването за източник премахва връзките с тракера само за този източник. Включването автоматично свързва с тракера произведенията от този източник във вашата библиотека.";
-"TRACKER_LOGOUT_INFO" = "При излизане от акаунта връзките на всички поредици с този тракер ще бъдат премахнати от Aidoku.";
-"SET_AS_SINGLE_PAGE" = "Задаване като единична страница";
-"UNSET_AS_SINGLE_PAGE" = "Премахване на настройката като единична страница";
-"RELOAD_FAILED" = "Неуспешно презареждане";
-"RELOAD_FAILED_TEXT" = "Неуспешно презареждане на изображението. Моля, опитайте отново.";
-"CONTINUOUS_WITH_GAPS" = "Непрекъснато с отстояния";
-"ADD" = "Добавяне";
-"MARK_DUPLICATE_CHAPTERS" = "Маркиране на дублираните глави като прочетени";
-"MIGRATE_CONFIRM_TEXT" = "Историята на четене за оригиналните записи ще бъде премахната при мигриране към различен източник.";
-"MIGRATE_WITH_HISTORY" = "Мигриране и запазване на историята";
-"SELECT_PINNED_SOURCES" = "Избор на закачени източници";
-"SEARCH_MANUALLY" = "Ръчно търсене";
-"DONT_MIGRATE" = "Без мигриране";
-"SELECTED_%i_OF_%i" = "Избрано (%i/%i)";
-"MIGRATE_%i_OF_%i" = "Мигриране (%i/%i)";
-"SHOW_ENTRY" = "Показване на записа";
-"SOURCE_BREAKING_CHANGE" = "Несъвместима промяна в източника";
-"SOURCE_BREAKING_CHANGE_TEXT" = "Този източник имаше критична промяна и изисква мигриране, за да запази библиотеката и историята ви.";
-"ALL_CHAPTERS_LOCKED" = "Всички глави са заключени";
-"AUTO_SCROLL" = "Автоматично превъртане";
-"AUTO_SCROLL_SPEED" = "Скорост на автоматично превъртане";
-"AUTO_SCROLL_POSITION" = "Позиция на бутона за автоматично превъртане";
-"POSITION_LEFT" = "Вляво";
-"POSITION_RIGHT" = "Вдясно";
-"%@_TRACKER_LOGIN_NEEDED" = "%@: необходимо е влизане";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Вашият токен %@ е изтекъл, така че свързаният тракер ще спре да работи, докато не влезете отново от настройките.";
-"READER_ORIENTATION" = "Ориентация";
-"FOLLOW_DEVICE" = "Като устройството";
-"FOCUS_ITEM_LEFT" = "Фокусиране на елемента вляво";
-"FOCUS_ITEM_RIGHT" = "Фокусиране на елемента вдясно";
-"FOCUS_ITEM_ABOVE" = "Фокусиране на елемента по-горе";
-"FOCUS_ITEM_BELOW" = "Фокусиране на елемента по-долу";
-"FOCUS_ITEM_NEXT" = "Фокусиране на следващия елемент";
-"FOCUS_ITEM_PREV" = "Фокусиране на предишния елемент";
-"OPEN_FOCUS_ITEM" = "Отваряне на фокусирания елемент";
-"RESET_FOCUS" = "Нулиране на фокуса";
-"TURN_PAGE_LEFT" = "Обръщане на страницата наляво";
-"TURN_PAGE_RIGHT" = "Обръщане на страницата надясно";
-"CHAPTER_FORWARD" = "Глава напред";
-"CHAPTER_BACKWARD" = "Глава назад";
-"OPEN_CHAPTER_LIST" = "Отваряне на списъка с глави";
-"TOGGLE_BARS" = "Показване или скриване на ленти с инструменти";
-"CLOSE_READER" = "Затваряне на четеца";
-"TOGGLE_PAGE_OFFSET" = "Превключване на отместването на страницата";
-"MIGRATE_CHAPTER_HISTORY" = "Мигриране на историята на главите";
-"MIGRATE_CHAPTER_HISTORY_TEXT" = "Мигрира историята на четене, останала от по-стари версии, която не е свързана с глави в локалната база данни. Това обикновено се случва автоматично след актуализация. Ако не завърши, можете да го стартирате отново тук.";
-
-"TRANSLATION_SOURCE_LABELS" = "Превод на менютата и заглавията на разделите на източника";
-
-// Local image import
-"IMPORT_PHOTO" = "Импортиране на снимки";
-"LOCAL_IMAGE_IMPORT_TEXT" = "Импортирайте снимки, файлове с изображения или CBZ или ZIP архив за четене.";
-
-// Translated page export
-"SAVE_TRANSLATED_IMAGE" = "Запазване на изображение с превод";
-"TRANSLATED_IMAGE_SAVE_FAILED" = "Преведеното изображение не може да бъде създадено. Опитайте отново след завършване на превода.";
-
-"TRANSLATION_AUTHORS" = "Превод на имената на авторите";
-
-"TRANSLATION_AUTHOR_FILTER" = "Изходни езици на имената на авторите";
-"TRANSLATION_SOURCE_LABEL_FILTER" = "Изходни езици на менютата и разделите на източника";
-
-// Shared image retention
-"SAVE_SHARED_IMAGES" = "Запазване на споделените изображения в локални файлове";
-"SAVE_SHARED_IMAGES_HELP" = "Когато е изключено, споделените изображения се отварят временно и се изтриват при затваряне. Историята на четене и кешовете за OCR и превод не се запазват.";
-
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "Превод на големи списъци с филтри (над 100 опции)";
-
-"SETTING_INVALID_STEPPER_RANGE" = "Невалиден диапазон на числова настройка.";
-
-"SETTING_MISSING_CONTENT_HANDLER" = "Не може да се покаже настройката: %@";
-
-"DOWNLOAD_TRANSLATED" = "Изтегляне с превод";
-
-"TRANSLATION_STATE_ON" = "Включено";
-"TRANSLATION_STATE_OFF" = "Изключено";
-
-"TRANSLATION_ERROR_CONFIGURATION" = "Настройките за превод са невалидни. Проверете URL адреса на сървъра, модела и останалите настройки.";
-"TRANSLATION_ERROR_REQUEST" = "Текстът, изображението или езиковите настройки не могат да се използват за превод.";
-"TRANSLATION_ERROR_RESPONSE" = "Сървърът за превод върна невалиден отговор. Опитайте отново или проверете настройките на модела.";
-"TRANSLATION_ERROR_KEY_REQUIRED" = "За превод е необходим API ключ.";
-"TRANSLATION_ERROR_KEY_ACCESS" = "API ключът за превод не може да бъде прочетен от Keychain.";
-"TRANSLATION_ERROR_ENDPOINT" = "Крайната точка на API за превод не е разрешена от правилата за сигурност.";
-"TRANSLATION_ERROR_REDIRECT" = "Пренасочването на крайната точка на API за превод е отхвърлено.";
-"TRANSLATION_ERROR_RESPONSE_SIZE" = "Отговорът от сървъра за превод надвиши допустимия размер.";
-"TRANSLATION_ERROR_HTTP" = "Сървърът за превод върна HTTP %d.";
-"TRANSLATION_ERROR_HTTP_REQUEST" = "Сървърът за превод върна HTTP %d (ID на заявката: %@).";
-"TRANSLATION_ERROR_NETWORK_CODE" = "Заявката за превод е неуспешна (грешка %d).";
-"TRANSLATION_ERROR_CONNECTION" = "Не може да се осъществи връзка с API за превод. Проверете мрежовата връзка, крайната точка на API и състоянието на сървъра, след което опитайте отново.";
-"TRANSLATION_ERROR_REFUSED" = "Доставчикът на превод отхвърли заявката.";
-"TRANSLATION_ERROR_KEY_ACCOUNT" = "Идентификаторът, използван за съхраняване на API ключа, е невалиден.";
-"TRANSLATION_ERROR_KEY_INVALID" = "API ключът е празен, твърде дълъг или съдържа неподдържани знаци.";
-"TRANSLATION_ERROR_KEY_MISSING" = "Няма запазен API ключ за този доставчик.";
-"TRANSLATION_ERROR_KEY_ENCODING" = "Запазеният API ключ не може да бъде декодиран.";
-"TRANSLATION_ERROR_KEYCHAIN_STATUS" = "Операцията с Keychain е неуспешна с код на състоянието %d.";
-"OCR_ERROR_MODEL_MISSING" = "Липсва необходим модел на PP-OCRv6.";
-"OCR_ERROR_MODEL_LOAD" = "Модел на PP-OCRv6 не може да бъде зареден.";
-"OCR_ERROR_IMAGE" = "Изображението не може да бъде подготвено за разпознаване на текст.";
-"OCR_ERROR_OUTPUT" = "Моделът на PP-OCRv6 върна невалиден или неподдържан резултат.";
-"OCR_ERROR_PREDICTION" = "Разпознаването на текст с PP-OCRv6 е неуспешно. Опитайте с друго изображение или OCR модел.";
-"TRANSLATION_ERROR_CACHE_STORAGE" = "Хранилището за кеша за превод е невалидно или недостъпно.";
-"TRANSLATION_ERROR_CACHE_SAVE" = "Кешът за превод не може да бъде запазен.";
-
-"ICLOUD_SYNC_RESTART_REQUIRED" = "Промените в синхронизирането с iCloud влизат в сила след пълно затваряне и повторно отваряне на Aidoku. Дотогава текущата настройка остава активна.";
-
-// Translation settings section
-
-"TRANSLATION_TARGETS" = "Какво да се превежда";
-
-// Download page counts and single-series totals.
-"PAGES_%i_OF_%i" = "Страници: %i / %i";
-"1_SERIES" = "1 серия";
-"SKIPPING_ONE_CHAPTER" = "Пропуска се 1 глава, защото липсва в източника или е изключена от филтрите";
-"BACKUP_CREATE_ERROR_TEXT" = "Резервното копие не можа да бъде създадено. Моля, опитайте отново.";
-"YES" = "Да";
-"NO" = "Не";
-"CHAPTERS_%i_OF_%i" = "Глави: %i / %i";
-"TRACKING_REGISTRATION_FAILED" = "Заглавието не можа да бъде добавено за проследяване. Моля, опитайте отново.";
-"SORT_READ_PROGRESS" = "Напредък на четенето";
-"SORT_RELEASE_YEAR" = "Година на издаване";
-"SOURCE_INVALID_PAGE_COUNT" = "Невалиден брой страници";
-"SOURCE_INVALID_GENRE_ID" = "Невалиден идентификатор на жанр";
-"SOURCE_INVALID_LISTING" = "Невалиден списък";
-"SOURCE_INVALID_LISTING_TYPE" = "Невалиден тип списък";
-"SOURCE_INVALID_ITEM_TYPE" = "Невалиден тип елемент";
-"DICTIONARY_ERROR" = "Грешка в речника";
-"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Настройките на речниците не могат да бъдат запазени: %@";
-"DICTIONARY_IMPORT_ERRORS_%@" = "Избраните речници не могат да бъдат импортирани:\n%@";
-"DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Някои речници не могат да бъдат импортирани:\n%@";
-"DICTIONARY_IMPORT_FAILED" = "Импортирането на речника е неуспешно.";
-"RECOMMENDED_JMDICT_DESCRIPTION" = "Изчерпателен японско-английски речник, поддържан от Electronic Dictionary Research and Development Group (EDRDG).";
-"RECOMMENDED_JMNEDICT_DESCRIPTION" = "Речник на японските собствени имена, поддържан от Electronic Dictionary Research and Development Group (EDRDG).";
-"RECOMMENDED_JITEN_DESCRIPTION" = "Честотен речник, базиран на медийния корпус на https://jiten.moe.";
-
-// Reader background translation and preparation limits
-"TRANSLATION_BACKGROUND" = "Превод при показване на оригиналите";
-"TRANSLATION_BACKGROUND_HELP" = "Преводът продължава, докато четете с изключен бутон за превод. Оригиналните страници остават видими. Преводът се поставя на пауза, когато приложението не е активно.";
-"TRANSLATION_PRETRANSLATION_LIMIT" = "Страници за предварителен превод";
-"TRANSLATION_PRETRANSLATION_LIMIT_HELP" = "Максимален брой страници за предварителен превод, без да се броят видимите. Страниците се избират по приоритет на четене, с предимство за следващите страници.";
-"TRANSLATION_UNLIMITED" = "Без ограничение";
-"TRANSLATION_PAGE_SETTINGS" = "Превод на страници";
-"TRANSLATION_VISIBLE_PAGES_ONLY" = "Само видимите страници";
-
-// Unsupported installed source package version
-
-"TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3 разпознава изходен текст на японски, китайски (опростена и традиционна писменост), английски и други езици на латиница, но не и корейски, кирилица или виетнамски. Автоматичното определяне и изборът на езика на оригинала са ограничени до тези езици. Преводът на всеки целеви език остава достъпен. При избор на Manga се прилагат прагове за откриване 0.85 и 0.25; размерът на изображението за откриване по подразбиране е 1120 пиксела.";
-"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "Всички поддържани OCR езици";
+"VIEW_SERIES" = "Преглед на серии";
+"REMOVING_(ONE)_ITEM_FROM_LIBRARY" = "Премахване на предмет от библиотека";
