@@ -106,18 +106,11 @@ enum TranslationPerformanceDiagnostics {
     }
 
     static func elapsedMilliseconds(since uptime: TimeInterval) -> Double {
-        max(
-            0,
-            (ProcessInfo.processInfo.systemUptime - uptime) * 1_000
-        )
+        max(0, (ProcessInfo.processInfo.systemUptime - uptime) * 1_000)
     }
 
-    static func sourceBytes(
-        in request: RemoteTranslationRequest
-    ) -> Int {
-        request.segments.reduce(into: 0) {
-            $0 += $1.text.utf8.count
-        }
+    static func sourceBytes(in request: RemoteTranslationRequest) -> Int {
+        request.segments.reduce(into: 0) { $0 += $1.text.utf8.count }
     }
 }
 
@@ -284,8 +277,7 @@ actor TranslationService {
         let cacheStorageGeneration: UInt64
         let networkTask: Task<Void, Never>
         let priorities: TranslationRequestPrioritySet
-        var waiters:
-            [UUID: CheckedContinuation<RemoteTranslationBatchResult, Error>]
+        var waiters: [UUID: CheckedContinuation<RemoteTranslationBatchResult, Error>]
     }
 
     private let client: RemoteTranslating
@@ -355,83 +347,46 @@ actor TranslationService {
     ) async throws -> RemoteTranslationBatchResult {
         let startedAt = ProcessInfo.processInfo.systemUptime
         let segmentCount = request.segments.count
-        let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(
-            in: request
-        )
-        try Task.checkCancellation()
-        try request.validate()
-        let canonicalRequest =
-            request.canonicalizedForTranslationSemantics()
-        let endpoint = try configuration.validatedEndpoint()
-        let key = TranslationCacheKey(
-            configuration: configuration,
-            endpoint: endpoint,
-            request: canonicalRequest.request
-        )
-        let admission = try await admittedCacheLookup(for: key, request: canonicalRequest.request)
-        if let cached = admission.cached {
-            let canonicalResult = RemoteTranslationBatchResult(
-                translations: cached.translations,
-                source: cached.source,
-                providerRequestID: nil
-            )
-            let result = try canonicalRequest.restoringCallerSegmentIDs(
-                in: canonicalResult
-            )
+        let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(in: request)
+        let completed = { (result: RemoteTranslationBatchResult) in
             TranslationPerformanceDiagnostics.serviceCompleted(
-                source: result.source,
-                segmentCount: segmentCount,
-                sourceBytes: sourceBytes,
-                elapsedMilliseconds:
-                    TranslationPerformanceDiagnostics
-                        .elapsedMilliseconds(since: startedAt)
+                source: result.source, segmentCount: segmentCount, sourceBytes: sourceBytes,
+                elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt)
             )
             return result
         }
-        let cacheStorageGeneration = admission.storageGeneration
-        let purgeAdmissionGeneration = admission.purgeGeneration
+        try Task.checkCancellation()
+        try request.validate()
+        let canonicalRequest = request.canonicalizedForTranslationSemantics()
+        let key = TranslationCacheKey(configuration: configuration,
+                                      endpoint: try configuration.validatedEndpoint(), request: canonicalRequest.request)
+        let admission = try await admittedCacheLookup(for: key, request: canonicalRequest.request)
+        if let cached = admission.cached {
+            return completed(try canonicalRequest.restoringCallerSegmentIDs(in: RemoteTranslationBatchResult(
+                translations: cached.translations, source: cached.source, providerRequestID: nil
+            )))
+        }
 
         let waiterID = UUID()
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
-            let canonicalResult: RemoteTranslationBatchResult =
-                try await withCheckedThrowingContinuation {
-                    (
-                        continuation:
-                            CheckedContinuation<RemoteTranslationBatchResult, Error>
-                    ) in
+            let canonicalResult = try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<RemoteTranslationBatchResult, Error>) in
                 if Task.isCancelled {
                     continuation.resume(throwing: CancellationError())
                     return
                 }
                 register(
-                    waiterID: waiterID,
-                    continuation: continuation,
-                    key: key,
-                    request: canonicalRequest.request,
-                    configuration: configuration,
-                    cacheStorageGeneration: cacheStorageGeneration,
-                    purgeAdmissionGeneration: purgeAdmissionGeneration,
-                    priority: priority
+                    waiterID: waiterID, continuation: continuation, key: key,
+                    request: canonicalRequest.request, configuration: configuration,
+                    cacheStorageGeneration: admission.storageGeneration,
+                    purgeAdmissionGeneration: admission.purgeGeneration, priority: priority
                 )
             }
             try Task.checkCancellation()
-            let result = try canonicalRequest.restoringCallerSegmentIDs(
-                in: canonicalResult
-            )
-            TranslationPerformanceDiagnostics.serviceCompleted(
-                source: result.source,
-                segmentCount: segmentCount,
-                sourceBytes: sourceBytes,
-                elapsedMilliseconds:
-                    TranslationPerformanceDiagnostics
-                        .elapsedMilliseconds(since: startedAt)
-            )
-            return result
+            return completed(try canonicalRequest.restoringCallerSegmentIDs(in: canonicalResult))
         } onCancel: {
-            Task {
-                await self.cancelWaiter(waiterID, for: key)
-            }
+            Task { await self.cancelWaiter(waiterID, for: key) }
         }
     }
 
@@ -488,9 +443,7 @@ actor TranslationService {
         purgeAdmissionGeneration: UInt64,
         priority: TranslationRequestPriority
     ) {
-        guard purgeAdmissionGeneration == purgeGeneration,
-              purgeTask == nil
-        else {
+        guard purgeAdmissionGeneration == purgeGeneration, purgeTask == nil else {
             continuation.resume(throwing: CancellationError())
             return
         }
@@ -507,23 +460,12 @@ actor TranslationService {
         let networkTask = Task { [client, providerRequestLimiter] in
             do {
                 let result = try await Self.requestProvider(
-                    client: client,
-                    request: request,
-                    configuration: configuration,
-                    providerRequestLimiter: providerRequestLimiter,
-                    priority: .shared(priorities)
+                    client: client, request: request, configuration: configuration,
+                    providerRequestLimiter: providerRequestLimiter, priority: .shared(priorities)
                 )
-                await finish(
-                    key: key,
-                    requestID: requestID,
-                    result: result
-                )
+                await finish(key: key, requestID: requestID, result: result)
             } catch {
-                finish(
-                    key: key,
-                    requestID: requestID,
-                    error: error
-                )
+                finish(key: key, requestID: requestID, error: error)
             }
         }
         inFlight[key] = InFlightRequest(
@@ -549,9 +491,7 @@ actor TranslationService {
             attempt += 1
             let attemptStartedAt = ProcessInfo.processInfo.systemUptime
             let segmentCount = request.segments.count
-            let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(
-                in: request
-            )
+            let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(in: request)
             do {
                 let result: RemoteTranslationBatchResult
                 if let providerRequestLimiter {
@@ -568,17 +508,10 @@ actor TranslationService {
                     result = try await performProviderAttempt(
                         client: client, request: request, configuration: configuration)
                 }
-                TranslationPerformanceDiagnostics
-                    .providerAttemptCompleted(
-                        attempt: attempt,
-                        segmentCount: segmentCount,
-                        sourceBytes: sourceBytes,
-                        elapsedMilliseconds:
-                            TranslationPerformanceDiagnostics
-                                .elapsedMilliseconds(
-                                    since: attemptStartedAt
-                                )
-                    )
+                TranslationPerformanceDiagnostics.providerAttemptCompleted(
+                    attempt: attempt, segmentCount: segmentCount, sourceBytes: sourceBytes,
+                    elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: attemptStartedAt)
+                )
                 return result
             } catch {
                 if case let RemoteTranslationError.invalidResponse(reason) = error {
@@ -636,33 +569,16 @@ actor TranslationService {
                     }
                     return RemoteTranslationBatchResult(translations: recovered, source: .network, providerRequestID: nil)
                 }
-                let willRetry =
-                    allowsFormatRepair &&
-                    isRepairable &&
+                let willRetry = allowsFormatRepair && isRepairable &&
                     attempt <= min(maximumRetries, maximumStructuredOutputRetries)
                 TranslationPerformanceDiagnostics.providerAttemptFailed(
-                    attempt: attempt,
-                    reason:
-                        isRepairable
-                        ? "invalid_structured_response"
-                        : "remote_error",
-                    willRetry: willRetry,
-                    segmentCount: segmentCount,
-                    sourceBytes: sourceBytes,
-                    elapsedMilliseconds:
-                        TranslationPerformanceDiagnostics
-                            .elapsedMilliseconds(
-                                since: attemptStartedAt
-                            )
+                    attempt: attempt, reason: isRepairable ? "invalid_structured_response" : "remote_error",
+                    willRetry: willRetry, segmentCount: segmentCount, sourceBytes: sourceBytes,
+                    elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: attemptStartedAt)
                 )
-                guard willRetry else {
-                    throw error
-                }
+                guard willRetry else { throw error }
                 try Task.checkCancellation()
-                try await Task.sleep(
-                    nanoseconds:
-                        structuredOutputRetryDelaysNanoseconds[attempt - 1]
-                )
+                try await Task.sleep(nanoseconds: structuredOutputRetryDelaysNanoseconds[attempt - 1])
             }
         }
     }
@@ -691,25 +607,15 @@ actor TranslationService {
     }
 
     private static func isStructuredOutputRetryable(_ error: Error) -> Bool {
-        if let remoteError = error as? RemoteTranslationError,
-           case .invalidResponse = remoteError
-        {
-            return true
-        }
-        if error is DecodingError {
-            return true
-        }
+        if case .invalidResponse? = error as? RemoteTranslationError { return true }
+        if error is DecodingError { return true }
         let cocoaError = error as NSError
         return cocoaError.domain == NSCocoaErrorDomain &&
             cocoaError.code == CocoaError.propertyListReadCorrupt.rawValue
     }
 
     private func cancelWaiter(_ waiterID: UUID, for key: TranslationCacheKey) {
-        guard var request = inFlight[key],
-              let continuation = request.waiters.removeValue(forKey: waiterID)
-        else {
-            return
-        }
+        guard var request = inFlight[key], let continuation = request.waiters.removeValue(forKey: waiterID) else { return }
         request.priorities.remove(waiterID)
         continuation.resume(throwing: CancellationError())
         if request.waiters.isEmpty {
@@ -720,42 +626,18 @@ actor TranslationService {
         }
     }
 
-    private func finish(
-        key: TranslationCacheKey,
-        requestID: UUID,
-        result: RemoteTranslationBatchResult
-    ) async {
-        guard let request = inFlight[key],
-              request.id == requestID
-        else {
-            return
-        }
-        await cache.insert(
-            result.translations,
-            for: key,
-            admittedStorageGeneration: request.cacheStorageGeneration
-        )
-        guard let completed = inFlight[key],
-              completed.id == requestID
-        else {
-            return
-        }
+    private func finish(key: TranslationCacheKey, requestID: UUID, result: RemoteTranslationBatchResult) async {
+        guard let request = inFlight[key], request.id == requestID else { return }
+        await cache.insert(result.translations, for: key, admittedStorageGeneration: request.cacheStorageGeneration)
+        guard let completed = inFlight[key], completed.id == requestID else { return }
         inFlight.removeValue(forKey: key)
         for continuation in completed.waiters.values {
             continuation.resume(returning: result)
         }
     }
 
-    private func finish(
-        key: TranslationCacheKey,
-        requestID: UUID,
-        error: Error
-    ) {
-        guard let request = inFlight[key],
-              request.id == requestID
-        else {
-            return
-        }
+    private func finish(key: TranslationCacheKey, requestID: UUID, error: Error) {
+        guard let request = inFlight[key], request.id == requestID else { return }
         inFlight.removeValue(forKey: key)
         for continuation in request.waiters.values {
             continuation.resume(throwing: error)
@@ -783,22 +665,9 @@ enum BoundedTranslationBatchExecutor {
         priority: TranslationRequestPriority
     ) async throws -> [RemoteTranslationBatchResult] {
         let startedAt = ProcessInfo.processInfo.systemUptime
-        let totalSegments = requests.reduce(into: 0) {
-            $0 += $1.segments.count
-        }
-        let sourceBytes = requests.reduce(into: 0) {
-            $0 += TranslationPerformanceDiagnostics.sourceBytes(in: $1)
-        }
-        let concurrency = min(
-            max(
-                1,
-                min(
-                    allowedMaximumConcurrentRequests,
-                    maximumConcurrentRequests
-                )
-            ),
-            requests.count
-        )
+        let totalSegments = requests.reduce(into: 0) { $0 += $1.segments.count }
+        let sourceBytes = requests.reduce(into: 0) { $0 += TranslationPerformanceDiagnostics.sourceBytes(in: $1) }
+        let concurrency = min(max(1, min(allowedMaximumConcurrentRequests, maximumConcurrentRequests)), requests.count)
         var cachedResults = Array<RemoteTranslationBatchResult?>(repeating: nil, count: requests.count)
         for index in requests.indices {
             cachedResults[index] = try await service.cachedResult(requests[index], configuration: configuration)
@@ -806,19 +675,10 @@ enum BoundedTranslationBatchExecutor {
         let submissionOrder = requests.indices.filter { cachedResults[$0] == nil }.sorted { left, right in
             let leftCount = requests[left].segments.count
             let rightCount = requests[right].segments.count
-            if leftCount != rightCount {
-                return leftCount < rightCount
-            }
-            let leftBytes = TranslationPerformanceDiagnostics.sourceBytes(
-                in: requests[left]
-            )
-            let rightBytes = TranslationPerformanceDiagnostics.sourceBytes(
-                in: requests[right]
-            )
-            if leftBytes != rightBytes {
-                return leftBytes < rightBytes
-            }
-            return left < right
+            if leftCount != rightCount { return leftCount < rightCount }
+            let leftBytes = TranslationPerformanceDiagnostics.sourceBytes(in: requests[left])
+            let rightBytes = TranslationPerformanceDiagnostics.sourceBytes(in: requests[right])
+            return leftBytes != rightBytes ? leftBytes < rightBytes : left < right
         }
         let results = try await withThrowingTaskGroup(
             of: IndexedBatchResult.self,
@@ -842,11 +702,7 @@ enum BoundedTranslationBatchExecutor {
                         try Task.checkCancellation()
                         return try await IndexedBatchResult(
                             index: index,
-                            result: service.translate(
-                                requests[index],
-                                configuration: configuration,
-                                priority: priority
-                            )
+                            result: service.translate(requests[index], configuration: configuration, priority: priority)
                         )
                     }
                 }
@@ -860,22 +716,15 @@ enum BoundedTranslationBatchExecutor {
             try Task.checkCancellation()
             return try orderedResults.enumerated().map { index, result in
                 guard let result else {
-                    throw RemoteTranslationError.invalidResponse(
-                        "translation batch \(index) did not complete"
-                    )
+                    throw RemoteTranslationError.invalidResponse("translation batch \(index) did not complete")
                 }
                 return result
             }
         }
         if let combinedSource = results.combinedTranslationSource {
             TranslationPerformanceDiagnostics.batchGroupCompleted(
-                batchCount: requests.count,
-                totalSegments: totalSegments,
-                sourceBytes: sourceBytes,
-                elapsedMilliseconds:
-                    TranslationPerformanceDiagnostics.elapsedMilliseconds(
-                        since: startedAt
-                    ),
+                batchCount: requests.count, totalSegments: totalSegments, sourceBytes: sourceBytes,
+                elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt),
                 combinedSource: combinedSource
             )
         }

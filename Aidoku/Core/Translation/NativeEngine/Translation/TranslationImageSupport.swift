@@ -8,39 +8,27 @@ final class TranslationImageSupport: @unchecked Sendable {
     static let changed = Notification.Name("TranslationImageSupport.changed")
 
     enum Status: String, Sendable { case unknown, supported, unsupported }
-    struct Snapshot: Equatable, Sendable {
-        let status: Status
-        let revision: Int
-    }
     private let defaults: UserDefaults
     private let lock = NSLock()
 
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
-    func snapshot(for configuration: RemoteTranslationConfiguration) -> Snapshot {
-        lock.lock()
-        defer { lock.unlock() }
-        let key = key(configuration)
-        return Snapshot(status: Status(rawValue: defaults.string(forKey: key) ?? "") ?? .unknown,
-                        revision: defaults.integer(forKey: key + ".revision"))
-    }
-
     func status(for configuration: RemoteTranslationConfiguration) -> Status {
-        lock.lock()
-        defer { lock.unlock() }
-        return Status(rawValue: defaults.string(forKey: key(configuration)) ?? "") ?? .unknown
+        lock.withLock { storedStatus(key(configuration)) }
     }
 
     func revision(for configuration: RemoteTranslationConfiguration) -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return defaults.integer(forKey: key(configuration) + ".revision")
+        lock.withLock { defaults.integer(forKey: key(configuration) + ".revision") }
+    }
+
+    private func storedStatus(_ key: String) -> Status {
+        Status(rawValue: defaults.string(forKey: key) ?? "") ?? .unknown
     }
 
     func record(_ status: Status, for configuration: RemoteTranslationConfiguration) {
         lock.lock()
         let key = key(configuration)
-        let old = Status(rawValue: defaults.string(forKey: key) ?? "") ?? .unknown
+        let old = storedStatus(key)
         guard old != status else { lock.unlock(); return }
         // Reject text-only fallback caches when an explicit retest restores
         // image support. Unknown -> supported does not change request semantics.

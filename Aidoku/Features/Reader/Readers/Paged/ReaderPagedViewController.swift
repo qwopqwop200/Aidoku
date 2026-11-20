@@ -1664,17 +1664,13 @@ private struct ReaderPagedNavigationWindow {
         guard let anchor, anchor != page else { return }
         let delta = page - anchor
         let nextDirection = delta > 0 ? 1 : -1
-        if abs(delta) > (doublePages ? 2 : 1) {
-            direction = nextDirection
+        if nextDirection == direction {
             oppositeSteps = 0
-        } else if nextDirection == direction {
+        } else if abs(delta) > (doublePages ? 2 : 1) || oppositeSteps >= 1 {
+            direction = nextDirection
             oppositeSteps = 0
         } else {
             oppositeSteps += 1
-            if oppositeSteps >= 2 {
-                direction = nextDirection
-                oppositeSteps = 0
-            }
         }
     }
 

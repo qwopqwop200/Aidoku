@@ -15,16 +15,9 @@ struct NativeOCRRGBAFrame: Sendable {
         let minimumBytesPerRow = width.multipliedReportingOverflow(by: 4)
         guard !minimumBytesPerRow.overflow else { return nil }
         let resolvedBytesPerRow = bytesPerRow ?? minimumBytesPerRow.partialValue
-        guard resolvedBytesPerRow >= minimumBytesPerRow.partialValue else {
-            return nil
-        }
-        let requiredBytes = resolvedBytesPerRow.multipliedReportingOverflow(
-            by: height
-        )
-        guard !requiredBytes.overflow, bytes.count >= requiredBytes.partialValue
-        else {
-            return nil
-        }
+        guard resolvedBytesPerRow >= minimumBytesPerRow.partialValue else { return nil }
+        let requiredBytes = resolvedBytesPerRow.multipliedReportingOverflow(by: height)
+        guard !requiredBytes.overflow, bytes.count >= requiredBytes.partialValue else { return nil }
         self.width = width
         self.height = height
         self.bytesPerRow = resolvedBytesPerRow

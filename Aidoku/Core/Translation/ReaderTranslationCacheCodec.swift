@@ -35,7 +35,6 @@ enum ReaderTranslationCacheCodec {
         let candidate = pack(try unpack(data))
         return candidate.count < data.count ? candidate : data
     }
-
 }
 
 /// One lossless source/geometry payload shared by OCR and every translation variant.
@@ -72,15 +71,11 @@ struct ReaderTranslationRegionArchive {
         var segments: [String?] = []
         let source = regions.map { value in
             if let identity = value.translationReuseIdentity {
-                let index: Int
-                if let existing = indices[identity.cacheKey] {
-                    index = existing
-                } else {
-                    index = keys.count
+                if indices[identity.cacheKey] == nil {
+                    indices[identity.cacheKey] = keys.count
                     keys.append(identity.cacheKey)
-                    indices[identity.cacheKey] = index
                 }
-                references.append(index)
+                references.append(indices[identity.cacheKey])
                 segments.append(identity.segmentID)
             } else {
                 references.append(nil)
@@ -110,11 +105,7 @@ struct ReaderTranslationRegionArchive {
     }
 
     static func restore(base: Data, variant: Data) throws -> Data {
-        try JSONEncoder().encode(regions(base: base, variant: variant).map(ReaderTranslationStoredRegion.init))
-    }
-
-    static func regions(base: Data, variant: Data) throws -> [ReaderTranslationRegion] {
-        try record(base: base, variant: variant).regions
+        try JSONEncoder().encode(record(base: base, variant: variant).regions.map(ReaderTranslationStoredRegion.init))
     }
 
     static func record(legacy: Data) throws -> Record {
@@ -127,20 +118,10 @@ struct ReaderTranslationRegionArchive {
     static func record(base: Data, variant: Data) throws -> Record {
         do {
             let decoder = JSONDecoder()
-            var regions: [ReaderTranslationRegion]
-            let sourceBytes: Int
-            do {
-                let raw = try ReaderTranslationCacheCodec.unpack(base)
-                sourceBytes = raw.count
-                regions = try decoder.decode([ReaderTranslationStoredRegion].self, from: raw).map(\.region)
-            }
-            let variantBytes: Int
-            let values: Variant
-            do {
-                let raw = try ReaderTranslationCacheCodec.unpack(variant)
-                variantBytes = raw.count
-                values = try decoder.decode(Variant.self, from: raw)
-            }
+            let rawBase = try ReaderTranslationCacheCodec.unpack(base)
+            var regions = try decoder.decode([ReaderTranslationStoredRegion].self, from: rawBase).map(\.region)
+            let rawVariant = try ReaderTranslationCacheCodec.unpack(variant)
+            let values = try decoder.decode(Variant.self, from: rawVariant)
             guard values.version == 1,
                   values.recoveryFailures.map({ $0.count == regions.count }) ?? true,
                   values.keptSFX.map({ $0.count == regions.count }) ?? true,
@@ -159,7 +140,7 @@ struct ReaderTranslationRegionArchive {
                     } else if values.segments[index] != nil { throw corrupt() }
                 }
             }
-            return .init(regions: regions, decodedByteCount: sourceBytes + variantBytes)
+            return .init(regions: regions, decodedByteCount: rawBase.count + rawVariant.count)
         } catch {
             // Corrupt compressed bases and invalid references follow the same cache-miss path.
             throw corrupt()

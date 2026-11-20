@@ -286,15 +286,16 @@ extension V2StyleEstimator {
         }
         // Enclosed variants (candidate k + j): the part of a mostly-exterior cluster that is
         // cut off from the surroundings, e.g. a white fill inside an outline on a white ground.
+        func measureExtra(_ candidate: Int, into cluster: inout V2StyleFeatures.Cluster) {
+            let members = candidateMembers(crop.crop, candidate: candidate)
+            cluster.inLines = Double(members.reduce(0) { $0 + (crop.crop.lines[$1] ? 1 : 0) }) / Double(lineCount)
+            measureCluster(crop.crop, members: members, labels: labels, scale: s, into: &cluster)
+            if cluster.count < 16 { cluster.count = 0 }
+        }
         for j in 0..<k {
             var cluster = V2StyleFeatures.Cluster()
             cluster.enclosed = true
-            if result.clusters[j].valid, result.clusters[j].exterior >= enclosedExteriorMinimum {
-                let members = candidateMembers(crop.crop, candidate: k + j)
-                cluster.inLines = Double(members.reduce(0) { $0 + (crop.crop.lines[$1] ? 1 : 0) }) / Double(lineCount)
-                measureCluster(crop.crop, members: members, labels: labels, scale: s, into: &cluster)
-                if cluster.count < 16 { cluster.count = 0 }
-            }
+            if result.clusters[j].valid, result.clusters[j].exterior >= enclosedExteriorMinimum { measureExtra(k + j, into: &cluster) }
             result.clusters.append(cluster)
         }
         // Interior re-clustering (candidates 2k + j): separates a thin fill from art colours it was
@@ -308,24 +309,13 @@ extension V2StyleEstimator {
             let flat = centres.flatMap { $0 }
             for i in 0..<n where crop.crop.lineDistance2[i] <= 4 && !crop.crop.exteriorOwn[i] {
                 let r = Float(crop.crop.rgb[i * 3]), g = Float(crop.crop.rgb[i * 3 + 1]), b = Float(crop.crop.rgb[i * 3 + 2])
-                var best = 0, bestD = Float.infinity
-                for j in 0..<interiorClusterCount {
-                    let x = r - flat[j * 3], y = g - flat[j * 3 + 1], z = b - flat[j * 3 + 2]
-                    let d = x * x + y * y + z * z
-                    if d < bestD { bestD = d; best = j }
-                }
-                crop.crop.interiorAssignment[i] = UInt8(best)
+                crop.crop.interiorAssignment[i] = UInt8(nearestCentre(r, g, b, flat, k: interiorClusterCount))
             }
         }
         for j in 0..<interiorClusterCount {
             var cluster = V2StyleFeatures.Cluster()
             cluster.interior = true
-            if interiorCount >= 16 {
-                let members = candidateMembers(crop.crop, candidate: 2 * k + j)
-                cluster.inLines = Double(members.reduce(0) { $0 + (crop.crop.lines[$1] ? 1 : 0) }) / Double(lineCount)
-                measureCluster(crop.crop, members: members, labels: labels, scale: s, into: &cluster)
-                if cluster.count < 16 { cluster.count = 0 }
-            }
+            if interiorCount >= 16 { measureExtra(2 * k + j, into: &cluster) }
             result.clusters.append(cluster)
         }
         return BlockAnalysis(features: result, crop: crop.crop)
@@ -487,19 +477,25 @@ extension V2StyleEstimator {
             crop.rgb.withUnsafeBufferPointer { rgb in
                 flat.withUnsafeBufferPointer { c in
                     for i in 0..<n {
-                        let r = Float(rgb[i * 3]), g = Float(rgb[i * 3 + 1]), b = Float(rgb[i * 3 + 2])
-                        var best = 0, bestD = Float.infinity
-                        for j in 0..<k {
-                            let x = r - c[j * 3], y = g - c[j * 3 + 1], z = b - c[j * 3 + 2]
-                            let d = x * x + y * y + z * z
-                            if d < bestD { bestD = d; best = j }
-                        }
-                        out[i] = UInt8(best)
+                        out[i] = UInt8(nearestCentre(Float(rgb[i * 3]), Float(rgb[i * 3 + 1]), Float(rgb[i * 3 + 2]),
+                                                     c.baseAddress!, k: k))
                     }
                 }
             }
             count = n
         }
+    }
+
+    /// Index of the nearest of `k` flat RGB centres (first on ties).
+    @inline(__always)
+    private static func nearestCentre(_ r: Float, _ g: Float, _ b: Float, _ c: UnsafePointer<Float>, k: Int) -> Int {
+        var best = 0, bestD = Float.infinity
+        for j in 0..<k {
+            let x = r - c[j * 3], y = g - c[j * 3 + 1], z = b - c[j * 3 + 2]
+            let d = x * x + y * y + z * z
+            if d < bestD { bestD = d; best = j }
+        }
+        return best
     }
 
     private static func floodExterior(_ crop: inout Crop) {
@@ -546,24 +542,8 @@ extension V2StyleEstimator {
 
     /// Member pixels of `candidateMask(crop, candidate:)` in raster order.
     static func candidateMembers(_ crop: Crop, candidate: Int) -> [Int] {
-        let n = crop.width * crop.height
-        var members: [Int] = []
-        if candidate >= 2 * clusterCount {
-            let label = UInt8(candidate - 2 * clusterCount)
-            crop.interiorAssignment.withUnsafeBufferPointer { a in
-                for i in 0..<n where a[i] == label { members.append(i) }
-            }
-            return members
-        }
-        let label = UInt8(candidate % clusterCount), enclosed = candidate >= clusterCount
-        crop.assignment.withUnsafeBufferPointer { a in
-            crop.lineDistance2.withUnsafeBufferPointer { d in
-                crop.exteriorOwn.withUnsafeBufferPointer { own in
-                    for i in 0..<n where a[i] == label && d[i] <= 4 && !(enclosed && own[i]) { members.append(i) }
-                }
-            }
-        }
-        return members
+        let mask = candidateMask(crop, candidate: candidate)
+        return mask.indices.filter { mask[$0] }
     }
 
     /// Per-block label plane on a 2 px border: bit 0 member, bit 1 outside the crop, bit 2 already
@@ -786,18 +766,7 @@ extension V2StyleEstimator {
     }
 
     static func channelMedian(_ rgb: [UInt8], mask: [Bool]) -> [Double] {
-        var r = [Int](repeating: 0, count: 256), g = r, b = r
-        var count = 0
-        rgb.withUnsafeBufferPointer { px in
-            mask.withUnsafeBufferPointer { m in
-                for i in 0..<m.count where m[i] {
-                    r[Int(px[i * 3])] += 1; g[Int(px[i * 3 + 1])] += 1; b[Int(px[i * 3 + 2])] += 1
-                    count += 1
-                }
-            }
-        }
-        guard count > 0 else { return [255, 255, 255] }
-        return [histogramMedian(r, count: count), histogramMedian(g, count: count), histogramMedian(b, count: count)]
+        channelMedian(rgb, indices: mask.indices.filter { mask[$0] })
     }
 
     static func channelMedian(_ rgb: [UInt8], indices: [Int]) -> [Double] {
@@ -811,28 +780,24 @@ extension V2StyleEstimator {
 
     /// numpy-style median (mean of the two middle values) of a value histogram.
     static func histogramMedian(_ histogram: [Int], count: Int) -> Double {
-        func kth(_ k: Int) -> Int {
-            var cumulative = 0
-            for (value, c) in histogram.enumerated() {
-                cumulative += c
-                if cumulative > k { return value }
-            }
-            return histogram.count - 1
-        }
+        func kth(_ k: Int) -> Int { histogramRank(histogram, k) }
         return count % 2 == 1 ? Double(kth(count / 2)) : Double(kth(count / 2 - 1) + kth(count / 2)) / 2
     }
 
     /// Median of sqrt(value) over a histogram of squared distances.
     static func squaredHistogramMedian(_ histogram: [Int], count: Int) -> Double {
-        func kth(_ k: Int) -> Double {
-            var cumulative = 0
-            for (value, c) in histogram.enumerated() {
-                cumulative += c
-                if cumulative > k { return Double(value).squareRoot() }
-            }
-            return Double(histogram.count - 1).squareRoot()
-        }
+        func kth(_ k: Int) -> Double { Double(histogramRank(histogram, k)).squareRoot() }
         return count % 2 == 1 ? kth(count / 2) : (kth(count / 2 - 1) + kth(count / 2)) / 2
+    }
+
+    /// Value of the k-th (0-based) histogram sample.
+    private static func histogramRank(_ histogram: [Int], _ k: Int) -> Int {
+        var cumulative = 0
+        for (value, c) in histogram.enumerated() {
+            cumulative += c
+            if cumulative > k { return value }
+        }
+        return histogram.count - 1
     }
 }
 

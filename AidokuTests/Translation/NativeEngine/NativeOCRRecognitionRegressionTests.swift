@@ -28,15 +28,11 @@ struct NativeOCRRecognitionRegressionTests {
     @Test(arguments: [33, 641, 1184, 1500])
     func dynamicTensorUsesExactCropWidthWithoutPadding(width: Int) throws {
         let height = 48
-        let frame = try #require(NativeOCRRGBAFrame(
-            width: width, height: height,
-            bytes: [UInt8](repeating: 255, count: width * height * 4)
-        ))
+        let frame = try #require(NativeOCRRGBAFrame(width: width, height: height,
+            bytes: [UInt8](repeating: 255, count: width * height * 4)))
         let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0),
                        CGPoint(x: width, y: height), CGPoint(x: 0, y: height)]
-        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(
-            polygon: polygon, dynamicWidth: true
-        ))
+        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon, dynamicWidth: true))
         let expectedWidth = min(width, 1184)
         #expect(plan.resizedWidth == expectedWidth)
         #expect(plan.bucket.width == expectedWidth)

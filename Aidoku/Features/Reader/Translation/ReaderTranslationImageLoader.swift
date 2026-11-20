@@ -8,12 +8,10 @@ import UIKit
 actor ReaderTranslationImageLoader {
     private let temporaryStore: ReaderTemporaryPageStore
     private let pipeline = ImagePipeline.shared
-    init(temporaryStore: ReaderTemporaryPageStore) {
-        self.temporaryStore = temporaryStore
-    }
+    init(temporaryStore: ReaderTemporaryPageStore) { self.temporaryStore = temporaryStore }
 
     func load(_ page: Page) async throws -> UIImage {
-        return try await ReaderTranslationDiagnostics.measure("source_decode_load") {
+        try await ReaderTranslationDiagnostics.measure("source_decode_load") {
             try Task.checkCancellation()
             if let image = page.image { return try await processRaw(image) }
             if let archive = page.zipURL, let url = URL(string: archive), let path = page.imageURL {

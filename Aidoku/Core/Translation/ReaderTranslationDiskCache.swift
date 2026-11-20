@@ -224,7 +224,7 @@ actor ReaderTranslationDiskCache {
         try prepare()
         guard let database else { return 0 }
         let marker = Self.legacyPipelinePurgeMarker
-        guard try database.integer("SELECT COUNT(*) FROM cache_policy WHERE name='\(marker)'") == 0 else { return 0 }
+        guard try !database.hasMarker(marker) else { return 0 }
         var cursor = ""
         var deleted = 0
         var visited = 0
@@ -255,7 +255,9 @@ actor ReaderTranslationDiskCache {
         guard let database else { return }
         var cursor = ""
         var processed = 0
-        while let row = try database.nextLegacyRegion(after: cursor) {
+        while let row = try database.nextRow("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%' "
+            + "OR name LIKE 'metadata-%') AND NOT EXISTS (SELECT 1 FROM region_links WHERE region_links.name=cache.name) ORDER BY name LIMIT 1",
+            after: cursor) {
             try Task.checkCancellation()
             cursor = row.name
             if let raw = try? ReaderTranslationCacheCodec.unpack(row.data),
@@ -271,15 +273,17 @@ actor ReaderTranslationDiskCache {
                 guard self.database === database else { return }
             }
         }
-        // Existing variants/layouts upgrade in the background. Each UPDATE is
-        // atomic and leaves source-base IDs, links and exact LRU order intact.
-        if try database.integer("SELECT COUNT(*) FROM cache_policy WHERE name='payload-compression-v2'") == 0 {
+        // Existing variants/layouts, then region bases, upgrade in the background. Each UPDATE is
+        // atomic and leaves source-base IDs, links and exact LRU order intact. Base names remain the
+        // hash of the canonical ATZ1 bytes, so existing links and future deduplication agree.
+        for (marker, table) in [("payload-compression-v2", "cache"), ("base-compression-v2", "region_bases")] {
+            guard try !database.hasMarker(marker) else { continue }
             cursor = ""
-            while let row = try database.nextCompressionCandidate(after: cursor) {
+            while let row = try database.nextRow("SELECT name,data FROM \(table) WHERE name>? ORDER BY name LIMIT 1", after: cursor) {
                 try Task.checkCancellation()
                 cursor = row.name
                 if let packed = try? ReaderTranslationCacheCodec.repack(row.data), packed != row.data {
-                    try database.replacePackedData(packed, name: row.name)
+                    try database.bindBlob(packed, "UPDATE \(table) SET data=?2 WHERE name=?1", name: row.name)
                 }
                 processed += 1
                 if processed.isMultiple(of: 32) {
@@ -287,30 +291,14 @@ actor ReaderTranslationDiskCache {
                     guard self.database === database else { return }
                 }
             }
-            try database.execute("INSERT OR IGNORE INTO cache_policy(name,value) VALUES('payload-compression-v2','1')")
-        }
-        // Base names remain the hash of the canonical ATZ1 bytes. Only their
-        // stored payload changes, so existing links and future deduplication agree.
-        if try database.integer("SELECT COUNT(*) FROM cache_policy WHERE name='base-compression-v2'") == 0 {
-            cursor = ""
-            while let row = try database.nextBaseCompressionCandidate(after: cursor) {
+            if table == "region_bases" {
                 try Task.checkCancellation()
-                cursor = row.name
-                if let packed = try? ReaderTranslationCacheCodec.repack(row.data), packed != row.data {
-                    try database.replacePackedBase(packed, name: row.name)
-                }
-                processed += 1
-                if processed.isMultiple(of: 32) {
-                    await Task.yield()
-                    guard self.database === database else { return }
-                }
+                // Shrinking BLOBs can leave space inside live B-tree pages that
+                // auto_vacuum cannot release. Rebuild once, before marking complete;
+                // SQLite keeps saved work intact and a failed rebuild retries later.
+                try database.execute("VACUUM")
             }
-            try Task.checkCancellation()
-            // Shrinking BLOBs can leave space inside live B-tree pages that
-            // auto_vacuum cannot release. Rebuild once, before marking complete;
-            // SQLite keeps saved work intact and a failed rebuild retries later.
-            try database.execute("VACUUM")
-            try database.execute("INSERT OR IGNORE INTO cache_policy(name,value) VALUES('base-compression-v2','1')")
+            try database.execute("INSERT OR IGNORE INTO cache_policy(name,value) VALUES('\(marker)','1')")
         }
         try trim()
     }
@@ -474,6 +462,40 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         guard sqlite3_step(pointer) == SQLITE_DONE else { throw failure() }
     }
 
+    /// Steps once: true for a row, false when done, throws on any other result.
+    private func hasRow(_ pointer: OpaquePointer) throws -> Bool {
+        let result = sqlite3_step(pointer)
+        guard result == SQLITE_ROW || result == SQLITE_DONE else { throw failure() }
+        return result == SQLITE_ROW
+    }
+
+    private func transaction<T>(_ body: () throws -> T) throws -> T {
+        try execute("BEGIN IMMEDIATE")
+        do {
+            let value = try body()
+            try execute("COMMIT")
+            return value
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
+        }
+    }
+
+    func hasMarker(_ marker: String) throws -> Bool {
+        try integer("SELECT COUNT(*) FROM cache_policy WHERE name='\(marker)'") != 0
+    }
+
+    /// Runs `sql` with `name` bound to ?1 and `data` borrowed as the ?2 BLOB.
+    func bindBlob(_ data: Data, _ sql: String, name: String) throws {
+        try data.withUnsafeBytes { bytes in
+            try statement(sql, name: name) { pointer in
+                let result = sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), nil)
+                guard result == SQLITE_OK else { throw failure() }
+                try step(pointer)
+            }
+        }
+    }
+
     func integer(_ sql: String) throws -> Int64 {
         try statement(sql) { pointer in
             guard sqlite3_step(pointer) == SQLITE_ROW else { throw failure() }
@@ -482,22 +504,15 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func exists(_ name: String) throws -> Bool {
-        try statement("SELECT 1 FROM \(lookupTable) WHERE name=?", name: name) { pointer in
-            let result = sqlite3_step(pointer)
-            guard result == SQLITE_ROW || result == SQLITE_DONE else { throw failure() }
-            return result == SQLITE_ROW
-        }
+        try statement("SELECT 1 FROM \(lookupTable) WHERE name=?", name: name, body: hasRow)
     }
 
     /// Decode inside the statement lifetime so compressed BLOBs need no full
     /// intermediate copy. Capture the snapshot version only when a row needs removal.
     func unpackedData(_ name: String) throws -> Data? {
         var rejectedVersion: Int64?
-        let data: Data? = try statement("SELECT cache.data, region_bases.data FROM \(lookupTable) LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
-            + "region_bases.name=region_links.base WHERE cache.name=?", name: name) { pointer in
-            let result = sqlite3_step(pointer)
-            if result == SQLITE_DONE { return nil }
-            guard result == SQLITE_ROW else { throw failure() }
+        let data: Data? = try statement(payloadSQL, name: name) { pointer in
+            guard try hasRow(pointer) else { return nil }
             do {
                 if sqlite3_column_type(pointer, 1) != SQLITE_NULL {
                     // Shared archives keep their existing owned buffers; restore
@@ -569,12 +584,14 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         return record
     }
 
+    private var payloadSQL: String {
+        "SELECT cache.data, region_bases.data FROM \(lookupTable) LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
+            + "region_bases.name=region_links.base WHERE cache.name=?"
+    }
+
     private func withPayload<T>(_ name: String, _ read: (Data, Data?) throws -> T) throws -> T? {
-        try statement("SELECT cache.data, region_bases.data FROM \(lookupTable) LEFT JOIN region_links USING(name) LEFT JOIN region_bases ON "
-            + "region_bases.name=region_links.base WHERE cache.name=?", name: name) { pointer in
-            let result = sqlite3_step(pointer)
-            if result == SQLITE_DONE { return nil }
-            guard result == SQLITE_ROW else { throw failure() }
+        try statement(payloadSQL, name: name) { pointer in
+            guard try hasRow(pointer) else { return nil }
             return try read(blob(pointer, column: 0), sqlite3_column_type(pointer, 1) == SQLITE_NULL ? nil : blob(pointer, column: 1))
         }
     }
@@ -585,12 +602,9 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         return Data(bytes: bytes, count: count)
     }
 
-    func nextLegacyRegion(after name: String) throws -> (name: String, data: Data)? {
-        try statement("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%' OR name LIKE 'metadata-%') "
-            + "AND NOT EXISTS (SELECT 1 FROM region_links WHERE region_links.name=cache.name) ORDER BY name LIMIT 1", name: name) { pointer in
-            let result = sqlite3_step(pointer)
-            if result == SQLITE_DONE { return nil }
-            guard result == SQLITE_ROW else { throw failure() }
+    func nextRow(_ sql: String, after name: String) throws -> (name: String, data: Data)? {
+        try statement(sql, name: name) { pointer in
+            guard try hasRow(pointer) else { return nil }
             return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1))
         }
     }
@@ -600,62 +614,15 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try statement("SELECT name,data,EXISTS(SELECT 1 FROM region_links WHERE region_links.name=cache.name) FROM cache "
             + "WHERE name>? AND (name GLOB 'ocr-*' OR name GLOB 'translation-*' OR name GLOB 'layout-*' OR name GLOB 'snapshot-*') "
             + "ORDER BY name LIMIT 1", name: name) { pointer in
-            let result = sqlite3_step(pointer)
-            if result == SQLITE_DONE { return nil }
-            guard result == SQLITE_ROW else { throw failure() }
+            guard try hasRow(pointer) else { return nil }
             return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1), sqlite3_column_int(pointer, 2) != 0)
-        }
-    }
-
-    func nextCompressionCandidate(after name: String) throws -> (name: String, data: Data)? {
-        try statement("SELECT name,data FROM cache WHERE name>? ORDER BY name LIMIT 1", name: name) { pointer in
-            let result = sqlite3_step(pointer)
-            if result == SQLITE_DONE { return nil }
-            guard result == SQLITE_ROW else { throw failure() }
-            return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1))
-        }
-    }
-
-    func nextBaseCompressionCandidate(after name: String) throws -> (name: String, data: Data)? {
-        try statement("SELECT name,data FROM region_bases WHERE name>? ORDER BY name LIMIT 1", name: name) { pointer in
-            let result = sqlite3_step(pointer)
-            if result == SQLITE_DONE { return nil }
-            guard result == SQLITE_ROW else { throw failure() }
-            return (String(cString: sqlite3_column_text(pointer, 0)), blob(pointer, column: 1))
-        }
-    }
-
-    func replacePackedBase(_ data: Data, name: String) throws {
-        try data.withUnsafeBytes { bytes in
-            try statement("UPDATE region_bases SET data=?2 WHERE name=?1", name: name) { pointer in
-                let result = sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), nil)
-                guard result == SQLITE_OK else { throw failure() }
-                try step(pointer)
-            }
-        }
-    }
-
-    func replacePackedData(_ data: Data, name: String) throws {
-        try data.withUnsafeBytes { bytes in
-            try statement("UPDATE cache SET data=?2 WHERE name=?1", name: name) { pointer in
-                let result = sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), nil)
-                guard result == SQLITE_OK else { throw failure() }
-                try step(pointer)
-            }
         }
     }
 
     func touch(_ names: [String]) throws {
         // Keep the common newest-only read free of transaction/journal writes.
         guard names.count > 1 else { if let name = names.first { try touch(name) }; return }
-        try execute("BEGIN IMMEDIATE")
-        do {
-            for name in names { try touch(name) }
-            try execute("COMMIT")
-        } catch {
-            try? execute("ROLLBACK")
-            throw error
-        }
+        try transaction { for name in names { try touch(name) } }
     }
 
     func touch(_ name: String) throws {
@@ -673,20 +640,12 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     // A replacement can commit after a failing read releases its SQLite snapshot.
     // Hold the writer lock through the check and delete, including identical-byte replacements.
     private func delete(_ name: String, ifVersionIs version: Int64) throws {
-        try execute("BEGIN IMMEDIATE")
-        do {
-            if try integer("PRAGMA data_version") == version { try delete(name) }
-            try execute("COMMIT")
-        } catch {
-            try? execute("ROLLBACK")
-            throw error
-        }
+        try transaction { if try integer("PRAGMA data_version") == version { try delete(name) } }
     }
 
     func store(_ data: Data, name: String, base: Data? = nil, preservingAccess: Bool = false, touching names: [String] = []) throws {
         recentRegions.removeAll { $0.name == name }
-        try execute("BEGIN IMMEDIATE")
-        do {
+        try transaction {
             for name in names { try touch(name) }
             let accessed: Int64? = preservingAccess ? try statement("SELECT accessed FROM cache WHERE name=?", name: name) { pointer in
                 guard sqlite3_step(pointer) == SQLITE_ROW else { throw failure() }
@@ -697,31 +656,18 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             if let accessed {
                 try statement("UPDATE cache SET accessed=\(accessed) WHERE name=?", name: name, body: step)
             }
-            if let base {
-                let digest = ReaderTranslationCacheIdentity.digest(base)
-                let packedBase = try ReaderTranslationCacheCodec.repack(base)
-                // A surviving sibling link can keep a corrupt shared base alive after
-                // a cache miss. Fresh canonical source data must repair that base,
-                // otherwise recomputing this page repeatedly stores another miss.
-                // Matching bytes perform no UPDATE and keep the common hit cheap.
-                let baseSQL = "INSERT INTO region_bases(name,data) VALUES(?,?) " +
-                    "ON CONFLICT(name) DO UPDATE SET data=excluded.data WHERE region_bases.data != excluded.data"
-                try packedBase.withUnsafeBytes { bytes in
-                    try statement(baseSQL, name: digest) { pointer in
-                        let result = sqlite3_bind_blob(pointer, 2, bytes.baseAddress, Int32(bytes.count), nil)
-                        guard result == SQLITE_OK else { throw failure() }
-                        try step(pointer)
-                    }
-                }
-                try statement("INSERT INTO region_links(name,base) VALUES(?,?)", name: name) { pointer in
-                    guard sqlite3_bind_text(pointer, 2, digest, -1, transient) == SQLITE_OK else { throw failure() }
-                    try step(pointer)
-                }
+            guard let base else { return }
+            let digest = ReaderTranslationCacheIdentity.digest(base)
+            // A surviving sibling link can keep a corrupt shared base alive after
+            // a cache miss. Fresh canonical source data must repair that base,
+            // otherwise recomputing this page repeatedly stores another miss.
+            // Matching bytes perform no UPDATE and keep the common hit cheap.
+            try bindBlob(try ReaderTranslationCacheCodec.repack(base), "INSERT INTO region_bases(name,data) VALUES(?,?) "
+                + "ON CONFLICT(name) DO UPDATE SET data=excluded.data WHERE region_bases.data != excluded.data", name: digest)
+            try statement("INSERT INTO region_links(name,base) VALUES(?,?)", name: name) { pointer in
+                guard sqlite3_bind_text(pointer, 2, digest, -1, transient) == SQLITE_OK else { throw failure() }
+                try step(pointer)
             }
-            try execute("COMMIT")
-        } catch {
-            try? execute("ROLLBACK")
-            throw error
         }
     }
 
@@ -746,12 +692,10 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     /// zero-sized "title" region. Move one row at a time, preserving bytes, bases
     /// and LRU order. Per-row commits make an interrupted upgrade resumable.
     func separateLegacyMetadata() throws {
-        guard try integer("SELECT COUNT(*) FROM cache_policy WHERE name='metadata-kind-v1'") == 0 else { return }
+        guard try !hasMarker("metadata-kind-v1") else { return }
         var cursor = "translation-"
         while let name = try statement("SELECT name FROM cache WHERE name>? AND name<'translation.' ORDER BY name LIMIT 1", name: cursor, body: { pointer -> String? in
-            let result = sqlite3_step(pointer)
-            if result == SQLITE_DONE { return nil }
-            guard result == SQLITE_ROW else { throw failure() }
+            guard try hasRow(pointer) else { return nil }
             return String(cString: sqlite3_column_text(pointer, 0))
         }) {
             try Task.checkCancellation()
@@ -761,8 +705,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                   let regions = try? JSONDecoder().decode([ReaderTranslationStoredRegion].self, from: raw),
                   regions.count == 1, regions[0].id == "title", regions[0].rect == .zero else { continue }
             let destination = "metadata-" + name.dropFirst("translation-".count)
-            try execute("BEGIN IMMEDIATE")
-            do {
+            try transaction {
                 if try !exists(destination) {
                     // Copy the link before deleting the old parent so its shared
                     // base remains referenced throughout the transaction.
@@ -777,10 +720,6 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                     }
                 }
                 try delete(name)
-                try execute("COMMIT")
-            } catch {
-                try? execute("ROLLBACK")
-                throw error
             }
         }
         try execute("INSERT INTO cache_policy(name,value) VALUES('metadata-kind-v1','1')")
@@ -790,13 +729,10 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     /// remove all obsolete translations/layouts, including their unreferenced bases.
     func applyPolicy(_ policy: ReaderTranslationCachePolicy) throws -> (page: Bool, metadata: Bool) {
         recentRegions.removeAll()
-        try execute("BEGIN IMMEDIATE")
-        do {
+        return try transaction {
             func previous(_ key: String) throws -> String? {
                 try statement("SELECT value FROM cache_policy WHERE name=?", name: key) { pointer in
-                    let result = sqlite3_step(pointer)
-                    if result == SQLITE_DONE { return nil }
-                    guard result == SQLITE_ROW else { throw failure() }
+                    guard try hasRow(pointer) else { return nil }
                     return String(cString: sqlite3_column_text(pointer, 0))
                 }
             }
@@ -812,14 +748,11 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                 try execute("DELETE FROM cache WHERE name LIKE 'layout-%' OR name LIKE 'snapshot-%'")
             }
             if metadataChanged { try execute("DELETE FROM cache WHERE name LIKE 'metadata-%'") }
-            try statement("INSERT INTO cache_policy(name,value) VALUES('translation',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", name: policy.translation, body: step)
-            try statement("INSERT INTO cache_policy(name,value) VALUES('layout',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", name: policy.layout, body: step)
-            try statement("INSERT INTO cache_policy(name,value) VALUES('metadata',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", name: policy.metadata, body: step)
-            try execute("COMMIT")
+            for (key, value) in [("translation", policy.translation), ("layout", policy.layout), ("metadata", policy.metadata)] {
+                try statement("INSERT INTO cache_policy(name,value) VALUES('\(key)',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+                              name: value, body: step)
+            }
             return (translationChanged || layoutChanged, metadataChanged)
-        } catch {
-            try? execute("ROLLBACK")
-            throw error
         }
     }
 

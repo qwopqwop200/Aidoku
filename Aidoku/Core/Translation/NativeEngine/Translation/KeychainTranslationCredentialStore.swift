@@ -8,9 +8,7 @@ protocol TranslationCredentialProviding: Sendable {
     func secret(for account: String) throws -> String
 }
 
-protocol TranslationCredentialManaging:
-    TranslationCredentialProviding, Sendable
-{
+protocol TranslationCredentialManaging: TranslationCredentialProviding, Sendable {
     func save(_ secret: String, for account: String) throws
     func containsSecret(for account: String) throws -> Bool
     func deleteSecret(for account: String) throws
@@ -22,17 +20,9 @@ enum TranslationKeychainAccessGroupResolver {
     static func resolve(_ rawValue: Any?) -> String? {
         guard let value = rawValue as? String else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              trimmed == value,
-              trimmed.utf8.count <= 256,
-              !trimmed.contains("$("),
-              !trimmed.contains("${"),
-              !trimmed.unicodeScalars.contains(
-                  where: CharacterSet.controlCharacters.contains
-              )
-        else {
-            return nil
-        }
+        guard !trimmed.isEmpty, trimmed == value, trimmed.utf8.count <= 256,
+              !trimmed.contains("$("), !trimmed.contains("${"),
+              !trimmed.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else { return nil }
         return trimmed
     }
 
@@ -50,23 +40,16 @@ enum TranslationCredentialStoreError: Error, Equatable, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidAccount:
-            return NSLocalizedString("TRANSLATION_ERROR_KEY_ACCOUNT")
-        case .invalidSecret:
-            return NSLocalizedString("TRANSLATION_ERROR_KEY_INVALID")
-        case .notFound:
-            return NSLocalizedString("TRANSLATION_ERROR_KEY_MISSING")
-        case .invalidEncoding:
-            return NSLocalizedString("TRANSLATION_ERROR_KEY_ENCODING")
-        case let .keychainStatus(status):
-            return String(format: NSLocalizedString("TRANSLATION_ERROR_KEYCHAIN_STATUS"), status)
+        case .invalidAccount: NSLocalizedString("TRANSLATION_ERROR_KEY_ACCOUNT")
+        case .invalidSecret: NSLocalizedString("TRANSLATION_ERROR_KEY_INVALID")
+        case .notFound: NSLocalizedString("TRANSLATION_ERROR_KEY_MISSING")
+        case .invalidEncoding: NSLocalizedString("TRANSLATION_ERROR_KEY_ENCODING")
+        case let .keychainStatus(status): String(format: NSLocalizedString("TRANSLATION_ERROR_KEYCHAIN_STATUS"), status)
         }
     }
 }
 
-struct KeychainTranslationCredentialStore:
-    TranslationCredentialManaging, Sendable
-{
+struct KeychainTranslationCredentialStore: TranslationCredentialManaging, Sendable {
     static let maximumSecretBytes = 16 * 1024
 
     let service: String
@@ -82,13 +65,7 @@ struct KeychainTranslationCredentialStore:
 
     func save(_ secret: String, for account: String) throws {
         try validateAccount(account)
-        guard secret == secret.trimmingCharacters(in: .whitespacesAndNewlines),
-              !secret.isEmpty,
-              secret.utf8.count <= Self.maximumSecretBytes,
-              !secret.contains("\r"),
-              !secret.contains("\n"),
-              !secret.contains("\0")
-        else {
+        guard secret == secret.trimmingCharacters(in: .whitespacesAndNewlines), Self.isStorableSecret(secret) else {
             throw TranslationCredentialStoreError.invalidSecret
         }
 
@@ -98,13 +75,8 @@ struct KeychainTranslationCredentialStore:
             kSecValueData as String: secretData,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
         ]
-        let updateStatus = SecItemUpdate(
-            query as CFDictionary,
-            attributes as CFDictionary
-        )
-        if updateStatus == errSecSuccess {
-            return
-        }
+        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if updateStatus == errSecSuccess { return }
         guard updateStatus == errSecItemNotFound else {
             throw TranslationCredentialStoreError.keychainStatus(updateStatus)
         }
@@ -112,14 +84,9 @@ struct KeychainTranslationCredentialStore:
         var addition = query
         attributes.forEach { addition[$0.key] = $0.value }
         let addStatus = SecItemAdd(addition as CFDictionary, nil)
-        if addStatus == errSecSuccess {
-            return
-        }
+        if addStatus == errSecSuccess { return }
         if addStatus == errSecDuplicateItem {
-            let retryStatus = SecItemUpdate(
-                query as CFDictionary,
-                attributes as CFDictionary
-            )
+            let retryStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
             guard retryStatus == errSecSuccess else {
                 throw TranslationCredentialStoreError.keychainStatus(retryStatus)
             }
@@ -136,25 +103,12 @@ struct KeychainTranslationCredentialStore:
 
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound {
-            throw TranslationCredentialStoreError.notFound
-        }
-        guard status == errSecSuccess else {
-            throw TranslationCredentialStoreError.keychainStatus(status)
-        }
-        guard let data = result as? Data,
-              let secret = String(data: data, encoding: .utf8)
-        else {
+        if status == errSecItemNotFound { throw TranslationCredentialStoreError.notFound }
+        guard status == errSecSuccess else { throw TranslationCredentialStoreError.keychainStatus(status) }
+        guard let data = result as? Data, let secret = String(data: data, encoding: .utf8) else {
             throw TranslationCredentialStoreError.invalidEncoding
         }
-        guard secret.utf8.count <= Self.maximumSecretBytes,
-              !secret.isEmpty,
-              !secret.contains("\r"),
-              !secret.contains("\n"),
-              !secret.contains("\0")
-        else {
-            throw TranslationCredentialStoreError.invalidSecret
-        }
+        guard Self.isStorableSecret(secret) else { throw TranslationCredentialStoreError.invalidSecret }
         return secret
     }
 
@@ -165,12 +119,9 @@ struct KeychainTranslationCredentialStore:
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         let status = SecItemCopyMatching(query as CFDictionary, nil)
         switch status {
-        case errSecSuccess:
-            return true
-        case errSecItemNotFound:
-            return false
-        default:
-            throw TranslationCredentialStoreError.keychainStatus(status)
+        case errSecSuccess: return true
+        case errSecItemNotFound: return false
+        default: throw TranslationCredentialStoreError.keychainStatus(status)
         }
     }
 
@@ -189,20 +140,20 @@ struct KeychainTranslationCredentialStore:
             kSecAttrAccount as String: account,
             kSecAttrSynchronizable as String: kCFBooleanFalse as Any,
         ]
-        if let accessGroup {
-            query[kSecAttrAccessGroup as String] = accessGroup
-        }
+        if let accessGroup { query[kSecAttrAccessGroup as String] = accessGroup }
         return query
     }
 
+    /// The secret is sent verbatim in an HTTP header.
+    static func isStorableSecret(_ secret: String) -> Bool {
+        !secret.isEmpty && secret.utf8.count <= maximumSecretBytes &&
+            !secret.contains("\r") && !secret.contains("\n") && !secret.contains("\0")
+    }
+
     private func validateAccount(_ account: String) throws {
-        guard account == account.trimmingCharacters(in: .whitespacesAndNewlines),
-              !account.isEmpty,
+        guard account == account.trimmingCharacters(in: .whitespacesAndNewlines), !account.isEmpty,
               account.utf8.count <= 256,
-              !account.unicodeScalars.contains(
-                  where: CharacterSet.controlCharacters.contains
-              )
-        else {
+              !account.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
             throw TranslationCredentialStoreError.invalidAccount
         }
     }

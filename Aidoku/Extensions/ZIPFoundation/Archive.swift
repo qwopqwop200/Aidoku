@@ -20,6 +20,18 @@ extension Archive {
         let target = path.lowercased()
         return first { $0.path.matchesArchivePath(lowercased: target) }
     }
+
+    /// Extracts an entry into memory, refusing entries larger than `limit` bytes. The declared size is
+    /// checked first, then the streamed byte count, because a hostile archive can understate its size.
+    func extractData(_ entry: Entry, limit: Int) throws -> Data {
+        guard limit >= 0, entry.uncompressedSize <= UInt64(limit) else { throw ArchiveEntryReadError.entryTooLarge }
+        var data = Data()
+        _ = try extract(entry, consumer: { chunk in
+            guard chunk.count <= limit - data.count else { throw ArchiveEntryReadError.entryTooLarge }
+            data.append(chunk)
+        })
+        return data
+    }
 }
 
 extension String {
@@ -31,20 +43,4 @@ extension String {
 
 enum ArchiveEntryReadError: Error {
     case entryTooLarge
-}
-
-extension Archive {
-    /// Extracts an entry into memory, refusing entries larger than `limit` bytes.
-    ///
-    /// The declared size is checked first, and the streamed byte count is checked again,
-    /// because a malformed or hostile archive can understate its uncompressed size.
-    func extractData(_ entry: Entry, limit: Int) throws -> Data {
-        guard limit >= 0, entry.uncompressedSize <= UInt64(limit) else { throw ArchiveEntryReadError.entryTooLarge }
-        var data = Data()
-        _ = try extract(entry, consumer: { chunk in
-            guard chunk.count <= limit - data.count else { throw ArchiveEntryReadError.entryTooLarge }
-            data.append(chunk)
-        })
-        return data
-    }
 }

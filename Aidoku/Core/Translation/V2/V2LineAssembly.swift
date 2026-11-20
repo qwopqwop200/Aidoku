@@ -62,10 +62,7 @@ enum V2LineAssembly {
             let b = items[best.j]
             let box = a.box.union(b.box)
             var merged = a.line
-            merged.polygon = [
-                CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
-                CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)
-            ]
+            merged.polygon = V2RemovalMask.corners(box)
             merged.bounds = box
             merged.vertical = box.height >= box.width
             merged.detectionScore = max(a.line.detectionScore, b.line.detectionScore)

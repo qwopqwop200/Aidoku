@@ -6,6 +6,7 @@
 //
 
 import AidokuRunner
+import CoreData
 import Foundation
 import UIKit
 import ZIPFoundation
@@ -116,13 +117,7 @@ extension SourceManager {
                 let object = CoreDataManager.shared.createSource(source: config.toSource(), context: context)
                 object.customSource = config.encode() as NSObject
             }
-            do {
-                try context.save()
-                return true
-            } catch {
-                LogManager.logger.error("Failed to register default local source: \(error)")
-                return false
-            }
+            return context.saveLogging("Failed to register default local source", rollback: false)
         }
         if success { UserDefaults.standard.set(true, forKey: Self.localDefaultRegistrationKey) }
     }
@@ -650,14 +645,7 @@ extension SourceManager {
         let saved = await CoreDataManager.shared.container.performBackgroundTask { [result] context in
             CoreDataManager.shared.removeSource(key: sourceKey, context: context)
             CoreDataManager.shared.createSource(source: result, context: context)
-            do {
-                try context.save()
-                return true
-            } catch {
-                context.rollback()
-                LogManager.logger.error("Failed to save imported source: \(error)")
-                return false
-            }
+            return context.saveLogging("Failed to save imported source")
         }
         guard saved else { return nil }
         committed = true
@@ -777,13 +765,7 @@ extension SourceManager {
             let result = CoreDataManager.shared.getSource(key: source.key, context: context)
                 ?? CoreDataManager.shared.createSource(source: source, context: context)
             result.customSource = config.encode() as NSObject
-            do {
-                try context.save()
-                return true
-            } catch {
-                LogManager.logger.error("Failed to save custom source: \(error)")
-                return false
-            }
+            return context.saveLogging("Failed to save custom source", rollback: false)
         }
         guard saved else { return nil }
 
@@ -815,14 +797,7 @@ extension SourceManager {
         let newDbSource: SourceObjectData? = await CoreDataManager.shared.container.performBackgroundTask { context in
             let source = CoreDataManager.shared.getSource(key: key, context: context)
             source?.customSource = config.encode() as NSObject
-            do {
-                try context.save()
-                return source?.toData()
-            } catch {
-                context.rollback()
-                LogManager.logger.error("Failed to save custom source: \(error)")
-                return nil
-            }
+            return context.saveLogging("Failed to save custom source") ? source?.toData() : nil
         }
         if updateSourceList, let newSource = await newDbSource?.toNewSource(),
            sourceLoadOwnership.isCurrent(ticket, sourceKey: newSource.key), !disabledSourceKeys.contains(key) {
@@ -866,14 +841,7 @@ extension SourceManager {
             let objects = CoreDataManager.shared.getSources(context: context).map { $0.toData() }
 
             CoreDataManager.shared.clearSources(context: context)
-            do {
-                try context.save()
-                return objects
-            } catch {
-                context.rollback()
-                LogManager.logger.error("Failed to clear sources: \(error)")
-                return nil
-            }
+            return context.saveLogging("Failed to clear sources") ? objects : nil
         }
 
         guard let objects = savedObjects else { return }
@@ -918,12 +886,7 @@ extension SourceManager {
             let data = CoreDataManager.shared.getSource(key: sourceKey, context: context)?.toData()
             if data != nil {
                 CoreDataManager.shared.removeSource(key: sourceKey, context: context)
-                do { try context.save() }
-                catch {
-                    context.rollback()
-                    LogManager.logger.error("Failed to remove source: \(error)")
-                    return nil
-                }
+                guard context.saveLogging("Failed to remove source") else { return nil }
             }
             return data
         }
@@ -1027,11 +990,7 @@ extension SourceManager {
             }
             do {
                 guard let object, let source = try await object.loadNewSource() else {
-                    guard sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
-                    unavailableSourceReasons[sourceKey] = NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT")
-                    await publishSourceState()
-                    guard sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
-                    notifySourcesUnloaded(keys: [sourceKey], skipUpdateNotification: skipUpdateNotification)
+                    await markUnavailable(sourceKey, ticket: ticket, error: nil, skipUpdateNotification: skipUpdateNotification)
                     return
                 }
                 guard object.id == sourceKey,
@@ -1045,14 +1004,22 @@ extension SourceManager {
                 guard sourceLoadOwnership.isCurrent(committedTicket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
                 notifySourcesLoaded(keys: [source.key], skipUpdateNotification: skipUpdateNotification)
             } catch {
-                guard sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
-                unavailableSourceReasons[sourceKey] = error.aidokuDescription()
-                LogManager.logger.error("Failed to load source \(sourceKey): \(error)")
-                await publishSourceState()
-                guard sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey), !disabledSourceKeys.contains(sourceKey) else { return }
-                notifySourcesUnloaded(keys: [sourceKey], skipUpdateNotification: skipUpdateNotification)
+                await markUnavailable(sourceKey, ticket: ticket, error: error, skipUpdateNotification: skipUpdateNotification)
             }
         }
+    }
+
+    /// Publishes a failed enable unless a newer mutation or disable superseded it.
+    private func markUnavailable(
+        _ sourceKey: String, ticket: SourceLoadOwnership.SourceTicket, error: Error?, skipUpdateNotification: Bool
+    ) async {
+        func isCurrent() -> Bool { sourceLoadOwnership.isCurrent(ticket, sourceKey: sourceKey) && !disabledSourceKeys.contains(sourceKey) }
+        guard isCurrent() else { return }
+        unavailableSourceReasons[sourceKey] = error?.aidokuDescription() ?? NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT")
+        if let error { LogManager.logger.error("Failed to load source \(sourceKey): \(error)") }
+        await publishSourceState()
+        guard isCurrent() else { return }
+        notifySourcesUnloaded(keys: [sourceKey], skipUpdateNotification: skipUpdateNotification)
     }
 
     // checks if a source key matches ^[A-Za-z0-9.\-]+$ and doesn't use a reserved prefix
@@ -1198,5 +1165,19 @@ extension SourceManager {
 
     private func notifySourceListsLoaded() {
         NotificationCenter.default.post(name: .updateSourceLists, object: nil)
+    }
+}
+
+private extension NSManagedObjectContext {
+    /// Saves, logging `failure` (and rolling back by default) when the save fails.
+    func saveLogging(_ failure: String, rollback: Bool = true) -> Bool {
+        do {
+            try save()
+            return true
+        } catch {
+            if rollback { self.rollback() }
+            LogManager.logger.error("\(failure): \(error)")
+            return false
+        }
     }
 }

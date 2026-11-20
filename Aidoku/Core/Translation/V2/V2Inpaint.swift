@@ -57,15 +57,7 @@ final class V2AOTModel: @unchecked Sendable {
                                  raw: output, content: content)
             }
         }
-        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let provider = CGDataProvider(data: data as CFData),
-              let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
-                bytesPerRow: width * 4, space: space,
-                bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Big.rawValue
-                    | CGImageAlphaInfo.premultipliedLast.rawValue),
-                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
-        else { throw V2PageRaster.Failure.invalidImage }
-        return image
+        return try V2PageRaster.image(data, width: width, height: height)
     }
 
     /// Fill + prediction into `output`. Returns the content size.

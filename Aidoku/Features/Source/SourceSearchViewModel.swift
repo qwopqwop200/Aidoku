@@ -30,16 +30,13 @@ class SourceSearchViewModel: ObservableObject {
     private var searchTask: Task<(), Never>?
     private var loadMoreTask: Task<(), Never>?
 
-    init(source: AidokuRunner.Source) {
-        getPage = { query, page, filters in
-            try await source.getSearchMangaList(query: query, page: page, filters: filters)
-        }
-        getBookmarks = { await CoreDataManager.shared.bookmarkedMangaKeys(for: $0) }
+    convenience init(source: AidokuRunner.Source) {
+        self.init(getPage: { try await source.getSearchMangaList(query: $0, page: $1, filters: $2) })
     }
 
     init(
         getPage: @escaping (String, Int, [FilterValue]) async throws -> AidokuRunner.MangaPageResult,
-        getBookmarks: @escaping ([AidokuRunner.Manga]) async -> Set<String>
+        getBookmarks: @escaping ([AidokuRunner.Manga]) async -> Set<String> = { await CoreDataManager.shared.bookmarkedMangaKeys(for: $0) }
     ) {
         self.getPage = getPage
         self.getBookmarks = getBookmarks

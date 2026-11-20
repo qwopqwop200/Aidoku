@@ -25,23 +25,16 @@ struct V2PageRaster: Sendable {
     init(_ image: CGImage) throws {
         let width = image.width, height = image.height
         guard width > 0, height > 0, width <= 16_384, height <= 16_384 else { throw Failure.tooLarge }
-        guard let space = CGColorSpace(name: CGColorSpace.sRGB) else { throw Failure.invalidImage }
-        var bytes = [UInt8](repeating: 255, count: width * height * 4)
-        let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
-            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height,
-                bitsPerComponent: 8, bytesPerRow: width * 4, space: space,
-                bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue)
-            else { return false }
-            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-            return true
-        }
-        guard drawn else { throw Failure.invalidImage }
+        guard let bytes = V2RemovalMask.rgbaBytes(image) else { throw Failure.invalidImage }
         self.init(width: width, height: height, rgba: bytes)
     }
 
-    func image() throws -> CGImage {
+    func image() throws -> CGImage { try Self.image(Data(rgba), width: width, height: height) }
+
+    /// Canonical-format image over `data` (no copy of the bytes).
+    static func image(_ data: Data, width: Int, height: Int) throws -> CGImage {
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let provider = CGDataProvider(data: Data(rgba) as CFData),
+              let provider = CGDataProvider(data: data as CFData),
               let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
                 bytesPerRow: width * 4, space: space,
                 bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Big.rawValue

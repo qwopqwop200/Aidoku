@@ -10,9 +10,7 @@ enum NativeCoreMLRecognizerError: Error, Equatable, LocalizedError {
     case modelOutputShape(expected: [Int], actual: [Int])
     case unsupportedModelOutputType
 
-    var errorDescription: String? {
-        NSLocalizedString("OCR_ERROR_OUTPUT")
-    }
+    var errorDescription: String? { NSLocalizedString("OCR_ERROR_OUTPUT") }
 }
 
 @available(iOS 18.0, *)
@@ -33,9 +31,7 @@ struct NativeCoreMLRecognitionBucket: Equatable, Hashable, Sendable {
     let timeSteps: Int
 
     init?(width: Int) {
-        guard (32...2_400).contains(width) else {
-            return nil
-        }
+        guard (32...2_400).contains(width) else { return nil }
         self.width = width
         // Two width strides followed by pooling: floor(ceil(width / 4) / 2).
         timeSteps = (width + 3) / 8
@@ -96,14 +92,7 @@ enum NativeCoreMLRecognitionPreprocessor {
     }
 
     fileprivate struct Homography: Sendable {
-        let a: Double
-        let b: Double
-        let c: Double
-        let d: Double
-        let e: Double
-        let f: Double
-        let g: Double
-        let h: Double
+        let a, b, c, d, e, f, g, h: Double
     }
 
     static func plan(
@@ -137,10 +126,7 @@ enum NativeCoreMLRecognitionPreprocessor {
         let orientedWidth = rotated ? cropHeight : cropWidth
         let orientedHeight = rotated ? cropWidth : cropHeight
         let ratio = Double(orientedWidth) / Double(max(1, orientedHeight))
-        let legacyWidth = Int(min(
-            Double(maximumTargetWidth),
-            max(1, ceil(Double(targetHeight) * ratio))
-        ))
+        let legacyWidth = Int(min(Double(maximumTargetWidth), max(1, ceil(Double(targetHeight) * ratio))))
         // Publisher's rule uses the natural width BEFORE clipping: ordinary
         // lines cap at 640, only natural widths above 2000 can use up to 2400.
         let desiredWidth: Int
@@ -152,27 +138,16 @@ enum NativeCoreMLRecognitionPreprocessor {
         }
         // Sampling keeps the original resizedWidth; ordinary crops stay exact.
         let bucket = NativeCoreMLRecognitionBucket.containing(
-            desiredWidth: desiredWidth,
-            dynamicWidth: dynamicWidth,
-            maximumWidth: maximumWidth
-        )
+            desiredWidth: desiredWidth, dynamicWidth: dynamicWidth, maximumWidth: maximumWidth)
         let resizedWidth = min(bucket.width, desiredWidth, max(32, maximumWidth))
         return Plan(
-            resizedWidth: resizedWidth,
-            bucket: bucket,
-            rotatedCounterClockwise: rotated,
-            cropWidth: cropWidth,
-            cropHeight: cropHeight,
-            orientedWidth: orientedWidth,
-            orientedHeight: orientedHeight,
-            homography: homography
+            resizedWidth: resizedWidth, bucket: bucket, rotatedCounterClockwise: rotated,
+            cropWidth: cropWidth, cropHeight: cropHeight, orientedWidth: orientedWidth,
+            orientedHeight: orientedHeight, homography: homography
         )
     }
 
-    static func prepare(
-        frame: NativeOCRRGBAFrame,
-        plan: Plan
-    ) -> NativeCoreMLPreparedTensor? {
+    static func prepare(frame: NativeOCRRGBAFrame, plan: Plan) -> NativeCoreMLPreparedTensor? {
         let targetWidth = plan.bucket.width
         let planeSize = targetHeight * targetWidth
         var values = [Float](repeating: 0, count: planeSize * 3)
@@ -204,9 +179,7 @@ enum NativeCoreMLRecognitionPreprocessor {
         // bounded region-level task group.
         values.withUnsafeMutableBufferPointer { destination in
             frame.bytes.withUnsafeBufferPointer { sourceBytes in
-                guard let output = destination.baseAddress,
-                      let source = sourceBytes.baseAddress
-                else {
+                guard let output = destination.baseAddress, let source = sourceBytes.baseAddress else {
                     valid = false
                     return
                 }
@@ -218,9 +191,7 @@ enum NativeCoreMLRecognitionPreprocessor {
                     return
                 }
                 for row in 0..<targetHeight {
-                    let orientedY =
-                        (Double(row) + 0.5) * orientedHeight
-                        / Double(targetHeight) - 0.5
+                    let orientedY = (Double(row) + 0.5) * orientedHeight / Double(targetHeight) - 0.5
                     let rowCoordinate = plan.rotatedCounterClockwise
                         ? min(max((Double(plan.cropWidth - 1) - orientedY) / cropWidth, 0), 1)
                         : min(max(orientedY / cropHeight, 0), 1)
@@ -239,30 +210,19 @@ enum NativeCoreMLRecognitionPreprocessor {
                         } else {
                             let u = plan.rotatedCounterClockwise ? rowCoordinate : columnCoordinates[column]
                             let v = plan.rotatedCounterClockwise ? columnCoordinates[column] : rowCoordinate
-                            var projectedX = homography.a * u
-                                + homography.b * v + homography.c
-                            var projectedY = homography.d * u
-                                + homography.e * v + homography.f
+                            var projectedX = homography.a * u + homography.b * v + homography.c
+                            var projectedY = homography.d * u + homography.e * v + homography.f
                             if !isAffine {
-                                let denominator = homography.g * u
-                                    + homography.h * v + 1
-                                guard denominator.isFinite,
-                                      abs(denominator) > 0.000_000_1
-                                else {
+                                let denominator = homography.g * u + homography.h * v + 1
+                                guard denominator.isFinite, abs(denominator) > 0.000_000_1 else {
                                     valid = false
                                     return
                                 }
                                 projectedX /= denominator
                                 projectedY /= denominator
                             }
-                            let sourceX = min(max(
-                                projectedX,
-                                0
-                            ), sourceMaximumX)
-                            let sourceY = min(max(
-                                projectedY,
-                                0
-                            ), sourceMaximumY)
+                            let sourceX = min(max(projectedX, 0), sourceMaximumX)
+                            let sourceY = min(max(projectedY, 0), sourceMaximumY)
                             guard sourceX.isFinite, sourceY.isFinite else {
                                 valid = false
                                 return
@@ -277,23 +237,17 @@ enum NativeCoreMLRecognitionPreprocessor {
                             topRight = y0 * frame.bytesPerRow + x1 * 4
                             bottomLeft = y1 * frame.bytesPerRow + x0 * 4
                             bottomRight = y1 * frame.bytesPerRow + x1 * 4
-
                         }
                         let inverseXWeight = 1 - xWeight
                         let inverseYWeight = 1 - yWeight
 
                         @inline(__always)
                         func interpolate(_ channel: Int) -> Float {
-                            let top = Double(source[topLeft + channel])
-                                    * inverseXWeight
-                                + Double(source[topRight + channel])
-                                    * xWeight
-                            let bottom = Double(source[bottomLeft + channel])
-                                    * inverseXWeight
-                                + Double(source[bottomRight + channel])
-                                    * xWeight
-                            let value = top * inverseYWeight
-                                + bottom * yWeight
+                            let top = Double(source[topLeft + channel]) * inverseXWeight
+                                + Double(source[topRight + channel]) * xWeight
+                            let bottom = Double(source[bottomLeft + channel]) * inverseXWeight
+                                + Double(source[bottomRight + channel]) * xWeight
+                            let value = top * inverseYWeight + bottom * yWeight
                             return Float(value / 127.5 - 1)
                         }
 
@@ -309,9 +263,7 @@ enum NativeCoreMLRecognitionPreprocessor {
         }
         guard valid else { return nil }
         return NativeCoreMLPreparedTensor(
-            values: values,
-            resizedWidth: plan.resizedWidth,
-            bucket: plan.bucket,
+            values: values, resizedWidth: plan.resizedWidth, bucket: plan.bucket,
             rotatedCounterClockwise: plan.rotatedCounterClockwise
         )
     }
@@ -403,12 +355,8 @@ enum NativeCoreMLRecognitionPreprocessor {
     }
 
     private static func makeQuad(_ polygon: [CGPoint], useProvidedOrder: Bool = false) -> Quad? {
-        let finite = polygon.filter {
-            $0.x.isFinite && $0.y.isFinite
-        }
-        guard finite.count == polygon.count, finite.count >= 2 else {
-            return nil
-        }
+        let finite = polygon.filter { $0.x.isFinite && $0.y.isFinite }
+        guard finite.count == polygon.count, finite.count >= 2 else { return nil }
         if finite.count == 4 {
             guard let p = useProvidedOrder ? finite : NativeOCRScopeGeometry.canonicalQuad(finite) else { return nil }
             let quad = Quad(topLeft: p[0], topRight: p[1], bottomRight: p[2], bottomLeft: p[3])
@@ -420,11 +368,7 @@ enum NativeCoreMLRecognitionPreprocessor {
               let maximumX = finite.map(\.x).max(),
               let minimumY = finite.map(\.y).min(),
               let maximumY = finite.map(\.y).max(),
-              maximumX - minimumX > 1,
-              maximumY - minimumY > 1
-        else {
-            return nil
-        }
+              maximumX - minimumX > 1, maximumY - minimumY > 1 else { return nil }
         return Quad(
             topLeft: CGPoint(x: minimumX, y: minimumY),
             topRight: CGPoint(x: maximumX, y: minimumY),
@@ -460,28 +404,15 @@ enum NativeCoreMLRecognitionPreprocessor {
             h = (dx1 * dy3 - dx3 * dy1) / denominator
         }
         let homography = Homography(
-            a: x1 - x0 + g * x1,
-            b: x3 - x0 + h * x3,
-            c: x0,
-            d: y1 - y0 + g * y1,
-            e: y3 - y0 + h * y3,
-            f: y0,
-            g: g,
-            h: h
+            a: x1 - x0 + g * x1, b: x3 - x0 + h * x3, c: x0,
+            d: y1 - y0 + g * y1, e: y3 - y0 + h * y3, f: y0, g: g, h: h
         )
-        let values = [
-            homography.a, homography.b, homography.c,
-            homography.d, homography.e, homography.f,
-            homography.g, homography.h,
-        ]
+        let values = [homography.a, homography.b, homography.c, homography.d, homography.e, homography.f, g, h]
         return values.allSatisfy(\.isFinite) ? homography : nil
     }
 
     private static func signedArea(_ quad: Quad) -> Double {
-        let points = [
-            quad.topLeft, quad.topRight,
-            quad.bottomRight, quad.bottomLeft,
-        ]
+        let points = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft]
         var area = 0.0
         for index in points.indices {
             let next = points[(index + 1) % points.count]
@@ -493,7 +424,6 @@ enum NativeCoreMLRecognitionPreprocessor {
     private static func distance(_ left: CGPoint, _ right: CGPoint) -> Double {
         hypot(Double(right.x - left.x), Double(right.y - left.y))
     }
-
 }
 
 @available(iOS 18.0, *)
@@ -508,26 +438,14 @@ enum NativeCoreMLCTCDecoder {
     /// Decodes the compact output layout: row 0 indices, row 1 scores, then
     /// optionally four (index, score) top-k row pairs for the n-gram arbiter.
     static func decode(
-        output: MLMultiArray,
-        dictionary: [String],
-        expectedShape: [Int],
-        languageModel: NativeMangaNGram? = nil
+        output: MLMultiArray, dictionary: [String], expectedShape: [Int], languageModel: NativeMangaNGram? = nil
     ) throws -> NativeCoreMLDecodedText {
         let actualShape = output.shape.map(\.intValue)
-        guard actualShape.count == 2,
-              actualShape[0] == 2 || actualShape[0] == 10,
-              (4...400).contains(actualShape[1])
-        else {
-            throw NativeCoreMLRecognizerError.modelOutputShape(
-                expected: expectedShape,
-                actual: actualShape
-            )
+        guard actualShape.count == 2, actualShape[0] == 2 || actualShape[0] == 10,
+              (4...400).contains(actualShape[1]) else {
+            throw NativeCoreMLRecognizerError.modelOutputShape(expected: expectedShape, actual: actualShape)
         }
-        let decoded = try decodeCompact(
-            output: output,
-            dictionary: dictionary,
-            timeSteps: actualShape[1]
-        )
+        let decoded = try decodeCompact(output: output, dictionary: dictionary, timeSteps: actualShape[1])
         guard actualShape[0] == 10, let languageModel else { return decoded }
         return try correctCompact(output: output, decoded: decoded, dictionary: dictionary,
             timeSteps: actualShape[1], model: languageModel)
@@ -578,14 +496,9 @@ enum NativeCoreMLCTCDecoder {
     }
 
     private static func decodeCompact(
-        output: MLMultiArray,
-        dictionary: [String],
-        timeSteps: Int
+        output: MLMultiArray, dictionary: [String], timeSteps: Int
     ) throws -> NativeCoreMLDecodedText {
-        guard output.dataType == .float32,
-              output.strides.count == 2,
-              !dictionary.isEmpty
-        else {
+        guard output.dataType == .float32, output.strides.count == 2, !dictionary.isEmpty else {
             throw NativeCoreMLRecognizerError.unsupportedModelOutputType
         }
         let pointer = output.dataPointer.assumingMemoryBound(to: Float.self)
@@ -595,18 +508,11 @@ enum NativeCoreMLCTCDecoder {
         for step in 0..<timeSteps {
             let rawIndex = pointer[step * timeStride]
             let score = pointer[rowStride + step * timeStride]
-            guard rawIndex.isFinite,
-                  score.isFinite,
-                  rawIndex.rounded(.towardZero) == rawIndex,
-                  rawIndex >= 0,
-                  rawIndex <= Float(dictionary.count),
-                  score >= 0,
-                  score <= 1.001
-            else {
+            guard rawIndex.isFinite, score.isFinite, rawIndex.rounded(.towardZero) == rawIndex, rawIndex >= 0,
+                  rawIndex <= Float(dictionary.count), score >= 0, score <= 1.001 else {
                 throw NativeCoreMLRecognizerError.unsupportedModelOutputType
             }
-            let index = Int(rawIndex)
-            collapse.append(index: index, confidence: Double(score), dictionary: dictionary)
+            collapse.append(index: Int(rawIndex), confidence: Double(score), dictionary: dictionary)
         }
         return collapse.result
     }

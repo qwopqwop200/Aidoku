@@ -263,10 +263,7 @@ extension DownloadManager {
                 // check if all chapters have been removed (then remove manga directory)
                 let manga = chapter.mangaIdentifier
                 if Self.pruneEmptyMangaDirectory(cache.directory(for: manga)) {
-                    let sourceDirectory = cache.directory(sourceKey: manga.sourceKey)
-                    sourceDirectory.withUnsafeFileSystemRepresentation { path in
-                        if let path { _ = Darwin.rmdir(path) }
-                    }
+                    _ = Self.posix(cache.directory(sourceKey: manga.sourceKey)) { Darwin.rmdir($0) }
                     NotificationCenter.default.post(name: .downloadsRemoved, object: manga)
                 } else {
                     NotificationCenter.default.post(name: .downloadRemoved, object: chapter)
@@ -288,20 +285,17 @@ extension DownloadManager {
             }
             for entry in entries {
                 // unlink cannot erase a directory that replaces a listed file.
-                let removed: Bool = entry.withUnsafeFileSystemRepresentation { path -> Bool in
-                    guard let path else { return false }
-                    return Darwin.unlink(path) == 0
-                }
-                guard removed else { return false }
+                guard Self.posix(entry, { Darwin.unlink($0) }) else { return false }
             }
             // rmdir is atomic with respect to newly created child entries.
-            return directory.withUnsafeFileSystemRepresentation { path -> Bool in
-                guard let path else { return false }
-                return Darwin.rmdir(path) == 0
-            }
+            return Self.posix(directory) { Darwin.rmdir($0) }
         } catch {
             return false
         }
+    }
+
+    private nonisolated static func posix(_ url: URL, _ call: (UnsafePointer<CChar>) -> Int32) -> Bool {
+        url.withUnsafeFileSystemRepresentation { path in path.map { call($0) == 0 } ?? false }
     }
 
     /// Remove all downloads from a manga.
@@ -312,10 +306,7 @@ extension DownloadManager {
         await cache.remove(manga: manga)
 
         // remove source directory if there are no more manga folders
-        let sourceDirectory = cache.directory(sourceKey: manga.sourceKey)
-        sourceDirectory.withUnsafeFileSystemRepresentation { path in
-            if let path { _ = Darwin.rmdir(path) }
-        }
+        _ = Self.posix(cache.directory(sourceKey: manga.sourceKey)) { Darwin.rmdir($0) }
 
         NotificationCenter.default.post(name: .downloadsRemoved, object: manga)
         // Invalidate cache for UI
@@ -402,14 +393,8 @@ extension DownloadManager {
             if Date().timeIntervalSince(lastCacheUpdate) < cacheValidityDuration {
                 return downloadedMangaCache
             }
-            let work: (id: UUID, revision: UInt64, task: Task<[DownloadedMangaInfo], Never>)
-            if let existing = snapshotWork { work = existing }
-            else {
-                work = (UUID(), snapshotRevision, Task {
-                    await scanDownloadedManga()
-                })
-                snapshotWork = work
-            }
+            let work = snapshotWork ?? (UUID(), snapshotRevision, Task { await scanDownloadedManga() })
+            snapshotWork = work
             let result = await work.task.value
             if snapshotWork?.id == work.id { snapshotWork = nil }
             // A mutation during IO must not resurrect deleted chapters or mark

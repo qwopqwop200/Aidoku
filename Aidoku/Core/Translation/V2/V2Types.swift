@@ -92,7 +92,6 @@ struct V2RowSpans: Sendable, Codable, Equatable {
 
     var bottom: CGFloat { top + CGFloat(halfWidths.count) * step }
 
-
     /// The narrowest half-width over the rows that [y0, y1) touches; 0 outside the spans.
     func halfWidth(_ y0: CGFloat, _ y1: CGFloat) -> CGFloat {
         guard step > 0, y0 >= top - 0.01, y1 <= bottom + 0.01, y1 > y0 else { return 0 }

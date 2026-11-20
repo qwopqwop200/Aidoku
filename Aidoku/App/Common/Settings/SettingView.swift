@@ -1124,6 +1124,12 @@ extension SettingView {
 
         session?.cancel()
         let attempt = oauthAttempt.begin()
+        func failLogin(alert: Bool = true, log message: String? = nil) {
+            SettingsStore.shared.remove(key: key + ".codeVerifier")
+            oauthAttempt.finish(attempt)
+            if alert { showLoginFailAlert = true }
+            if let message { LogManager.logger.error(message) }
+        }
         session = ASWebAuthenticationSession(
             url: url,
             callbackURLScheme: value.callbackScheme ?? "aidoku"
@@ -1135,11 +1141,7 @@ extension SettingView {
                       NativeWebLoginPolicy.validatesCallback(
                         callback, scheme: value.callbackScheme ?? "aidoku", redirectURI: redirectUri, expectedState: expectedState
                       ) else {
-                    SettingsStore.shared.remove(key: key + ".codeVerifier")
-                    oauthAttempt.finish(attempt)
-                    if (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin {
-                        showLoginFailAlert = true
-                    }
+                    failLogin(alert: (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin)
                     return
                 }
 
@@ -1149,18 +1151,12 @@ extension SettingView {
                         let callbackItems = NativeWebLoginPolicy.callbackParameters(callback),
                         let code = callbackItems.first(where: { $0.name == "code" })?.value, !code.isEmpty
                     else {
-                        SettingsStore.shared.remove(key: key + ".codeVerifier")
-                        oauthAttempt.finish(attempt)
-                        showLoginFailAlert = true
-                        LogManager.logger.error("Missing code verifier or code")
+                        failLogin(log: "Missing code verifier or code")
                         return
                     }
 
                     guard let tokenUrl = URL(string: tokenUrlString), NativeWebLoginPolicy.isHTTPURL(tokenUrl) else {
-                        SettingsStore.shared.remove(key: key + ".codeVerifier")
-                        oauthAttempt.finish(attempt)
-                        showLoginFailAlert = true
-                        LogManager.logger.error("Invalid token URL")
+                        failLogin(log: "Invalid token URL")
                         return
                     }
 
@@ -1213,9 +1209,7 @@ extension SettingView {
         session.presentationContextProvider = Self.loginShimController
         if !session.start() {
             self.session = nil
-            SettingsStore.shared.remove(key: key + ".codeVerifier")
-            oauthAttempt.finish(attempt)
-            showLoginFailAlert = true
+            failLogin()
         }
     }
 }

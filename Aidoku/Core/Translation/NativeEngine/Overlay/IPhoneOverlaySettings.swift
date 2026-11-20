@@ -2,15 +2,11 @@
 import Foundation
 
 enum IPhoneOverlayMode: String, Codable, Sendable {
-    case translateOnly
-    case originalAndTranslation
-    case subtitle
-    case sidePanel
+    case translateOnly, originalAndTranslation, subtitle, sidePanel
 }
 
 enum IPhoneOverlayColorMode: String, Codable, Sendable {
-    case white
-    case dark
+    case white, dark
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -24,13 +20,11 @@ enum IPhoneOverlayColorMode: String, Codable, Sendable {
 }
 
 enum IPhoneOverlayTextPlacement: String, Codable, Sendable {
-    case replace
-    case expanded
+    case replace, expanded
 }
 
 enum IPhoneSubtitlePosition: String, Codable, Sendable {
-    case top
-    case bottom
+    case top, bottom
 }
 
 struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
@@ -47,17 +41,8 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     var subtitleContextSentences: Int
 
     private enum CodingKeys: String, CodingKey {
-        case visible
-        case mode
-        case colorMode
-        case preserveSourceTextColor
-        case preserveSourceBackgroundColor
-        case inpaintingEnabled
-        case opacity
-        case textPlacement
-        case subtitlePosition
-        case subtitleMaxLines
-        case subtitleContextSentences
+        case visible, mode, colorMode, preserveSourceTextColor, preserveSourceBackgroundColor, inpaintingEnabled
+        case opacity, textPlacement, subtitlePosition, subtitleMaxLines, subtitleContextSentences
     }
 
     init(
@@ -86,27 +71,12 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         visible = try container.decode(Bool.self, forKey: .visible)
         mode = try container.decode(IPhoneOverlayMode.self, forKey: .mode)
-        colorMode = try container.decode(
-            IPhoneOverlayColorMode.self,
-            forKey: .colorMode
-        )
+        colorMode = try container.decode(IPhoneOverlayColorMode.self, forKey: .colorMode)
         opacity = try container.decode(Double.self, forKey: .opacity)
-        textPlacement = try container.decode(
-            IPhoneOverlayTextPlacement.self,
-            forKey: .textPlacement
-        )
-        subtitlePosition = try container.decode(
-            IPhoneSubtitlePosition.self,
-            forKey: .subtitlePosition
-        )
-        subtitleMaxLines = try container.decode(
-            Int.self,
-            forKey: .subtitleMaxLines
-        )
-        subtitleContextSentences = try container.decode(
-            Int.self,
-            forKey: .subtitleContextSentences
-        )
+        textPlacement = try container.decode(IPhoneOverlayTextPlacement.self, forKey: .textPlacement)
+        subtitlePosition = try container.decode(IPhoneSubtitlePosition.self, forKey: .subtitlePosition)
+        subtitleMaxLines = try container.decode(Int.self, forKey: .subtitleMaxLines)
+        subtitleContextSentences = try container.decode(Int.self, forKey: .subtitleContextSentences)
     }
 
     /// Legacy subtitle/side-panel fields remain decodable so an installed v1

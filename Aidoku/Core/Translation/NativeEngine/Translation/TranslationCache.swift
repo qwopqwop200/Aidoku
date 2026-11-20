@@ -74,11 +74,7 @@ actor TranslationCache {
         for key: TranslationCacheKey,
         admittedStorageGeneration: UInt64? = nil
     ) {
-        if let admittedStorageGeneration,
-           admittedStorageGeneration != storageGeneration
-        {
-            return
-        }
+        if let admittedStorageGeneration, admittedStorageGeneration != storageGeneration { return }
         guard cachedTranslationsAreValid(translations, for: key) else { return }
         insertIntoMemory(translations, for: key)
     }
@@ -105,31 +101,15 @@ actor TranslationCache {
             throw TranslationCacheError.persistenceFailure
         }
         for url in urls where isManagedRecordName(url.lastPathComponent) {
-            do {
-                try fileManager.removeItem(at: url)
-            } catch {
-                throw TranslationCacheError.persistenceFailure
-            }
+            do { try fileManager.removeItem(at: url) } catch { throw TranslationCacheError.persistenceFailure }
         }
     }
 
-    private func insertIntoMemory(
-        _ translations: [RemoteTranslatedSegment],
-        for key: TranslationCacheKey
-    ) {
-        guard let chargeBytes = translationEntryCharge(
-            key: key,
-            translations: translations
-        ), chargeBytes <= maximumBytes else {
-            removeMemoryEntry(key)
-            return
-        }
+    private func insertIntoMemory(_ translations: [RemoteTranslatedSegment], for key: TranslationCacheKey) {
         removeMemoryEntry(key)
-        memoryEntries[key] = MemoryEntry(
-            translations: translations,
-            chargeBytes: chargeBytes,
-            previous: newestMemoryKey
-        )
+        guard let chargeBytes = translationEntryCharge(key: key, translations: translations),
+              chargeBytes <= maximumBytes else { return }
+        memoryEntries[key] = MemoryEntry(translations: translations, chargeBytes: chargeBytes, previous: newestMemoryKey)
         if let newestMemoryKey { memoryEntries[newestMemoryKey]?.next = key }
         else { oldestMemoryKey = key }
         newestMemoryKey = key
@@ -176,40 +156,25 @@ actor TranslationCache {
     }
 }
 
-private func translationEntryCharge(
-    key: TranslationCacheKey,
-    translations: [RemoteTranslatedSegment]
-) -> Int? {
+private func translationEntryCharge(key: TranslationCacheKey, translations: [RemoteTranslatedSegment]) -> Int? {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
     guard let keyData = try? encoder.encode(key),
           let translationData = try? encoder.encode(translations) else { return nil }
-    let (payloadBytes, overflow) = keyData.count.addingReportingOverflow(
-        translationData.count
-    )
+    let (payloadBytes, overflow) = keyData.count.addingReportingOverflow(translationData.count)
     guard !overflow else { return nil }
     let (chargedBytes, overheadOverflow) = payloadBytes.addingReportingOverflow(128)
     return overheadOverflow ? nil : chargedBytes
 }
 
-private func cachedTranslationsAreValid(
-    _ translations: [RemoteTranslatedSegment],
-    for key: TranslationCacheKey
-) -> Bool {
+private func cachedTranslationsAreValid(_ translations: [RemoteTranslatedSegment], for key: TranslationCacheKey) -> Bool {
     guard translations.count == key.segments.count else { return false }
     let expectedIDs = key.segments.map(\.id)
     var accepted = Set<String>()
     for translation in translations {
-        guard expectedIDs.contains(translation.id),
-              accepted.insert(translation.id).inserted,
-              !translation.text.trimmingCharacters(
-                  in: .whitespacesAndNewlines
-              ).isEmpty,
-              translation.text.utf8.count <=
-                TranslationHTTPCodec.maximumTranslationBytes
-        else {
-            return false
-        }
+        guard expectedIDs.contains(translation.id), accepted.insert(translation.id).inserted,
+              !translation.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              translation.text.utf8.count <= TranslationHTTPCodec.maximumTranslationBytes else { return false }
     }
     return accepted.count == expectedIDs.count
 }
@@ -218,13 +183,7 @@ private func isManagedRecordName(_ value: String) -> Bool {
     guard value.hasSuffix(".json") else { return false }
     let stem = String(value.dropLast(5))
     let pieces = stem.split(separator: "-", omittingEmptySubsequences: false)
-    guard pieces.count == 3,
-          pieces[0].count == 16,
-          pieces[1].count == 16,
-          pieces[2].count == 8
-    else {
-        return false
-    }
+    guard pieces.count == 3, pieces[0].count == 16, pieces[1].count == 16, pieces[2].count == 8 else { return false }
     return pieces.joined().unicodeScalars.allSatisfy {
         CharacterSet(charactersIn: "0123456789abcdefABCDEF").contains($0)
     }

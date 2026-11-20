@@ -633,6 +633,19 @@ extension ReaderWebtoonPageNode {
             return false
         }
         let issued = pageLoadGeneration
+        // Keep decoded source pixels for OCR and save/share. The backing view
+        // receives them together with this source-aspect translated canvas.
+        func install(_ prepared: ReaderTranslationPreparedImage?, force: Bool) -> Bool {
+            _translationPage?.reset()
+            preparedTranslation = prepared
+            imageNode.animatedData = gifData
+            image = sourceImage
+            imageNode.image = sourceImage
+            guard imageNode.imageView == nil || imageNode.commitImage() || force else { return false }
+            ReaderTranslationPage.sourceDidLoad(sourceImage, page: page)
+            if isNodeLoaded { displayPage() }
+            return true
+        }
         do {
             while true {
                 try Task.checkCancellation()
@@ -640,18 +653,7 @@ extension ReaderWebtoonPageNode {
                 try Task.checkCancellation()
                 guard issued == pageLoadGeneration else { return false }
                 if prepared?.isCurrent() == false { continue }
-
-                // Keep decoded source pixels for OCR and save/share. The backing view
-                // receives them together with this source-aspect translated canvas.
-                _translationPage?.reset()
-                preparedTranslation = prepared.flatMap { $0.matchesSourceImage(sourceImage) ? $0 : nil }
-                imageNode.animatedData = gifData
-                image = sourceImage
-                imageNode.image = sourceImage
-                if imageNode.imageView != nil, !imageNode.commitImage() { continue }
-                ReaderTranslationPage.sourceDidLoad(sourceImage, page: page)
-                if isNodeLoaded { displayPage() }
-                return true
+                if install(prepared.flatMap { $0.matchesSourceImage(sourceImage) ? $0 : nil }, force: false) { return true }
             }
         } catch is CancellationError {
             return false
@@ -659,15 +661,7 @@ extension ReaderWebtoonPageNode {
             guard !Task.isCancelled, issued == pageLoadGeneration else { return false }
             // A failed cached overlay does not invalidate the decoded source.
             ReaderTranslationDiagnostics.record("loaded_presentation_fallback")
-            _translationPage?.reset()
-            preparedTranslation = nil
-            imageNode.animatedData = gifData
-            image = sourceImage
-            imageNode.image = sourceImage
-            if imageNode.imageView != nil { imageNode.commitImage() }
-            ReaderTranslationPage.sourceDidLoad(sourceImage, page: page)
-            if isNodeLoaded { displayPage() }
-            return true
+            return install(nil, force: true)
         }
     }
 

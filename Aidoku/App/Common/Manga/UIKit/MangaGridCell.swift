@@ -245,6 +245,18 @@ extension MangaGridCell {
 }
 
 extension MangaGridCell {
+    /// Resolves source authentication/rewrites before consulting a cache key.
+    /// A bare-URL hit must not bypass the modified request's identity.
+    static func coverRequest(for url: URL, source: AidokuRunner.Source?) async -> URLRequest {
+        if let fileUrl = url.toAidokuFileUrl() {
+            URLRequest(url: fileUrl)
+        } else if let source {
+            await source.getModifiedImageRequest(url: url, context: nil)
+        } else {
+            URLRequest(url: url)
+        }
+    }
+
     func startImageLoad(url: URL?) {
         preparationTask?.cancel()
         imageGeneration += 1
@@ -280,16 +292,7 @@ extension MangaGridCell {
 
         guard generation == imageGeneration, !Task.isCancelled else { return }
 
-        // Resolve source authentication/rewrites before consulting a cache key.
-        // A bare-URL hit must not bypass the modified request's identity.
-        let urlRequest: URLRequest
-        if let fileUrl = url.toAidokuFileUrl() {
-            urlRequest = URLRequest(url: fileUrl)
-        } else if let source {
-            urlRequest = await source.getModifiedImageRequest(url: url, context: nil)
-        } else {
-            urlRequest = URLRequest(url: url)
-        }
+        let urlRequest = await Self.coverRequest(for: url, source: source)
 
         guard generation == imageGeneration, !Task.isCancelled else { return }
         self.url = (urlRequest.url ?? url).absoluteString

@@ -312,17 +312,13 @@ extension DownloadTask {
                 currentPage += 1
                 do {
                     if let base64 = page.base64, let data = Data(base64Encoded: base64) {
-                        let output = try await translatedData(data, settings: translationSettings)
-                        try Task.checkCancellation()
-                        try output.write(to: targetPath.appendingPathExtension(DownloadImageTranslator.fileExtension(for: output)), options: .atomic)
+                        try await writeImage(data, to: targetPath, settings: translationSettings)
                     } else if let text = page.text, let data = text.data(using: .utf8) {
                         guard translationSettings == nil else { throw DownloadError.pageProcessorFailed }
                         try data.write(to: targetPath.appendingPathExtension("txt"))
                     } else if let image = page.image {
                         guard let data = image.pngData() else { throw DownloadError.pageProcessorFailed }
-                        let output = try await translatedData(data, settings: translationSettings)
-                        try Task.checkCancellation()
-                        try output.write(to: targetPath.appendingPathExtension(DownloadImageTranslator.fileExtension(for: output)), options: .atomic)
+                        try await writeImage(data, to: targetPath, settings: translationSettings)
                     } else {
                         throw DownloadError.pageProcessorFailed
                     }
@@ -466,9 +462,10 @@ extension DownloadTask {
         }
     }
 
-    private func translatedData(_ data: Data, settings: ReaderTranslationSettings?) async throws -> Data {
-        guard let settings else { return data }
-        return try await DownloadImageTranslator.translate(data, settings: settings)
+    private func writeImage(_ data: Data, to targetPath: URL, settings: ReaderTranslationSettings?) async throws {
+        let output = if let settings { try await DownloadImageTranslator.translate(data, settings: settings) } else { data }
+        try Task.checkCancellation()
+        try output.write(to: targetPath.appendingPathExtension(DownloadImageTranslator.fileExtension(for: output)), options: .atomic)
     }
 
     // fetch page data, retrying on any non-2xx HTTP response or network error

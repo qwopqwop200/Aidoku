@@ -132,11 +132,7 @@ actor ReaderTranslationService {
     private func translationService() throws -> TranslationService {
         if let service { return service }
         // Request-level batch reuse stays in memory; the reader's durable cache stores completed pages separately.
-        let cache = TranslationCache()
-        let service = TranslationService(
-            client: client, cache: cache,
-            providerRequestLimiter: limiter
-        )
+        let service = TranslationService(client: client, cache: TranslationCache(), providerRequestLimiter: limiter)
         self.service = service
         return service
     }
@@ -211,9 +207,7 @@ actor ReaderTranslationProgress {
         var expected: [Int: NativeTranslationReuseIdentity] = [:]
         for plan in plans {
             for (id, identity) in try NativeTranslationReuseIdentity.identitiesBySegmentID(configuration: configuration, request: plan.request) {
-                if let index = plan.inputIndicesBySegmentID[id] {
-                    expected[index] = identity
-                }
+                if let index = plan.inputIndicesBySegmentID[id] { expected[index] = identity }
             }
         }
         self.expected = expected
@@ -241,7 +235,5 @@ actor ReaderTranslationProgress {
         }
     }
 
-    func snapshot() -> [ReaderTranslationRegion] {
-        regions
-    }
+    func snapshot() -> [ReaderTranslationRegion] { regions }
 }

@@ -47,10 +47,8 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    private var allOCRSourceLanguagesTitle: String {
-        // The page pipeline always uses the manga recognizer and its language set.
-        NSLocalizedString("TRANSLATION_OCR_SUPPORTED_LANGUAGES")
-    }
+    // The page pipeline always uses the manga recognizer and its language set.
+    private let allOCRSourceLanguagesTitle = NSLocalizedString("TRANSLATION_OCR_SUPPORTED_LANGUAGES")
 
     private var languageSection: some View {
         Section(NSLocalizedString("TRANSLATION_LANGUAGE")) {
@@ -70,12 +68,7 @@ struct ReaderTranslationSettingsView: View {
                         allowedCodes: settings.supportedOCRSourceLanguageCodes,
                         allTitle: allOCRSourceLanguagesTitle)
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(NSLocalizedString("TRANSLATION_SOURCE_FILTER"))
-                        Text(settings.translationSourceLanguages.isEmpty ? allOCRSourceLanguagesTitle :
-                                settings.translationSourceLanguages.map(ReaderTranslationLanguageOptions.name).joined(separator: ", "))
-                            .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                    }
+                    filterLabel("TRANSLATION_SOURCE_FILTER", settings.translationSourceLanguages, allTitle: allOCRSourceLanguagesTitle)
                 }
                 .accessibilityIdentifier("translation.sourceFilter")
             } else {
@@ -87,30 +80,18 @@ struct ReaderTranslationSettingsView: View {
 
     private var translationTargetsSection: some View {
         Section {
-            Toggle(NSLocalizedString("TRANSLATION_MANGA_TITLES"), isOn: persistedSettings.translateMangaTitles)
-                .accessibilityIdentifier("translation.mangaTitles")
-            titleLanguageFilterLink("TRANSLATION_MANGA_TITLE_FILTER", selection: persistedSettings.mangaTitleSourceLanguages,
-                                    accessibilityPrefix: "translation.mangaTitleFilter")
-            Toggle(NSLocalizedString("TRANSLATION_CHAPTER_TITLES"), isOn: persistedSettings.translateChapterTitles)
-                .accessibilityIdentifier("translation.chapterTitles")
-            titleLanguageFilterLink("TRANSLATION_CHAPTER_TITLE_FILTER", selection: persistedSettings.chapterTitleSourceLanguages,
-                                    accessibilityPrefix: "translation.chapterTitleFilter")
-            Toggle(NSLocalizedString("TRANSLATION_AUTHORS"), isOn: persistedSettings.translateAuthors)
-                .accessibilityIdentifier("translation.authors")
-            titleLanguageFilterLink("TRANSLATION_AUTHOR_FILTER", selection: persistedSettings.authorSourceLanguages,
-                                    accessibilityPrefix: "translation.authorFilter")
-            Toggle(NSLocalizedString("TRANSLATION_MANGA_TAGS"), isOn: persistedSettings.translateMangaTags)
-                .accessibilityIdentifier("translation.mangaTags")
-            titleLanguageFilterLink("TRANSLATION_TAG_FILTER", selection: persistedSettings.mangaTagSourceLanguages,
-                                    accessibilityPrefix: "translation.tagFilter")
-            Toggle(NSLocalizedString("TRANSLATION_MANGA_DESCRIPTIONS"), isOn: persistedSettings.translateMangaDescriptions)
-                .accessibilityIdentifier("translation.mangaDescriptions")
-            titleLanguageFilterLink("TRANSLATION_DESCRIPTION_FILTER", selection: persistedSettings.mangaDescriptionSourceLanguages,
-                                    accessibilityPrefix: "translation.descriptionFilter")
-            Toggle(NSLocalizedString("TRANSLATION_SOURCE_LABELS"), isOn: persistedSettings.translateSourceLabels)
-                .accessibilityIdentifier("translation.sourceLabels")
-            titleLanguageFilterLink("TRANSLATION_SOURCE_LABEL_FILTER", selection: persistedSettings.sourceLabelSourceLanguages,
-                                    accessibilityPrefix: "translation.sourceLabelFilter")
+            targetRows("TRANSLATION_MANGA_TITLES", \.translateMangaTitles, id: "translation.mangaTitles",
+                       filter: "TRANSLATION_MANGA_TITLE_FILTER", \.mangaTitleSourceLanguages, filterID: "translation.mangaTitleFilter")
+            targetRows("TRANSLATION_CHAPTER_TITLES", \.translateChapterTitles, id: "translation.chapterTitles",
+                       filter: "TRANSLATION_CHAPTER_TITLE_FILTER", \.chapterTitleSourceLanguages, filterID: "translation.chapterTitleFilter")
+            targetRows("TRANSLATION_AUTHORS", \.translateAuthors, id: "translation.authors",
+                       filter: "TRANSLATION_AUTHOR_FILTER", \.authorSourceLanguages, filterID: "translation.authorFilter")
+            targetRows("TRANSLATION_MANGA_TAGS", \.translateMangaTags, id: "translation.mangaTags",
+                       filter: "TRANSLATION_TAG_FILTER", \.mangaTagSourceLanguages, filterID: "translation.tagFilter")
+            targetRows("TRANSLATION_MANGA_DESCRIPTIONS", \.translateMangaDescriptions, id: "translation.mangaDescriptions",
+                       filter: "TRANSLATION_DESCRIPTION_FILTER", \.mangaDescriptionSourceLanguages, filterID: "translation.descriptionFilter")
+            targetRows("TRANSLATION_SOURCE_LABELS", \.translateSourceLabels, id: "translation.sourceLabels",
+                       filter: "TRANSLATION_SOURCE_LABEL_FILTER", \.sourceLabelSourceLanguages, filterID: "translation.sourceLabelFilter")
             Toggle(NSLocalizedString("TRANSLATION_LARGE_FILTER_OPTIONS"), isOn: persistedSettings.translateLargeFilterOptions)
                 .accessibilityIdentifier("translation.largeFilterOptions")
         } header: {
@@ -122,18 +103,10 @@ struct ReaderTranslationSettingsView: View {
 
     private var pageTranslationSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle(NSLocalizedString("TRANSLATION_AUTOMATIC"), isOn: persistedSettings.automaticallyTranslate)
-                    .accessibilityIdentifier("translation.automatic")
-                Text(NSLocalizedString("TRANSLATION_AUTOMATIC_HELP"))
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle(NSLocalizedString("TRANSLATION_BACKGROUND"), isOn: persistedSettings.translateInBackground)
-                    .accessibilityIdentifier("translation.background")
-                Text(NSLocalizedString("TRANSLATION_BACKGROUND_HELP"))
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
+            toggleWithHelp("TRANSLATION_AUTOMATIC", isOn: persistedSettings.automaticallyTranslate,
+                           id: "translation.automatic", help: "TRANSLATION_AUTOMATIC_HELP")
+            toggleWithHelp("TRANSLATION_BACKGROUND", isOn: persistedSettings.translateInBackground,
+                           id: "translation.background", help: "TRANSLATION_BACKGROUND_HELP")
             Picker(NSLocalizedString("TRANSLATION_PRETRANSLATION_LIMIT"), selection: persistedSettings.maximumPretranslatedPages) {
                 Text(NSLocalizedString("TRANSLATION_UNLIMITED")).tag(Optional<Int>.none)
                 Text(NSLocalizedString("TRANSLATION_VISIBLE_PAGES_ONLY")).tag(Optional(0))
@@ -189,19 +162,35 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    private func titleLanguageFilterLink(_ key: String, selection: Binding<[String]>, accessibilityPrefix: String) -> some View {
+    @ViewBuilder
+    private func targetRows(
+        _ key: String, _ isOn: WritableKeyPath<ReaderTranslationSettings, Bool>, id: String,
+        filter filterKey: String, _ languages: WritableKeyPath<ReaderTranslationSettings, [String]>, filterID: String
+    ) -> some View {
+        Toggle(NSLocalizedString(key), isOn: persistedSettings[dynamicMember: isOn]).accessibilityIdentifier(id)
+        let selection = persistedSettings[dynamicMember: languages]
         NavigationLink {
-            ReaderTranslationLanguageFilterView(selection: selection, title: NSLocalizedString(key),
-                help: NSLocalizedString("TRANSLATION_METADATA_FILTER_HELP"), accessibilityPrefix: accessibilityPrefix)
+            ReaderTranslationLanguageFilterView(selection: selection, title: NSLocalizedString(filterKey),
+                help: NSLocalizedString("TRANSLATION_METADATA_FILTER_HELP"), accessibilityPrefix: filterID)
         } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(NSLocalizedString(key))
-                Text(selection.wrappedValue.isEmpty ? NSLocalizedString("TRANSLATION_FILTER_ALL") :
-                        selection.wrappedValue.map(ReaderTranslationLanguageOptions.name).joined(separator: ", "))
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-            }
+            filterLabel(filterKey, selection.wrappedValue, allTitle: NSLocalizedString("TRANSLATION_FILTER_ALL"))
         }
-        .accessibilityIdentifier(accessibilityPrefix)
+        .accessibilityIdentifier(filterID)
+    }
+
+    private func filterLabel(_ key: String, _ codes: [String], allTitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(NSLocalizedString(key))
+            Text(codes.isEmpty ? allTitle : codes.map(ReaderTranslationLanguageOptions.name).joined(separator: ", "))
+                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+        }
+    }
+
+    private func toggleWithHelp(_ key: String, isOn: Binding<Bool>, id: String, help: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(NSLocalizedString(key), isOn: isOn).accessibilityIdentifier(id)
+            Text(NSLocalizedString(help)).font(.footnote).foregroundStyle(.secondary)
+        }
     }
 
     private var cacheSection: some View {

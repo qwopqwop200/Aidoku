@@ -308,16 +308,7 @@ extension MangaListCell {
 
         guard generation == imageGeneration, !Task.isCancelled else { return }
 
-        // Resolve source authentication/rewrites before consulting a cache key.
-        // A bare-URL hit must not bypass the modified request's identity.
-        let urlRequest: URLRequest
-        if let fileUrl = url.toAidokuFileUrl() {
-            urlRequest = URLRequest(url: fileUrl)
-        } else if let source {
-            urlRequest = await source.getModifiedImageRequest(url: url, context: nil)
-        } else {
-            urlRequest = URLRequest(url: url)
-        }
+        let urlRequest = await MangaGridCell.coverRequest(for: url, source: source)
 
         guard generation == imageGeneration, !Task.isCancelled else { return }
         self.url = (urlRequest.url ?? url).absoluteString

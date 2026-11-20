@@ -71,6 +71,10 @@ class LogViewController: UIViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         isViewing = false
+        stopObserving()
+    }
+
+    private func stopObserving() {
         logTask?.cancel()
         logTask = nil
         flushTask?.cancel()
@@ -140,12 +144,7 @@ class LogViewController: UIViewController {
     }
 
     @objc func clearLog() {
-        logTask?.cancel()
-        logTask = nil
-        flushTask?.cancel()
-        flushTask = nil
-        pendingEntries.removeAll()
-        needsReload = false
+        stopObserving()
         entries = []
         textView.attributedText = NSMutableAttributedString()
         let store = LogManager.logger.store

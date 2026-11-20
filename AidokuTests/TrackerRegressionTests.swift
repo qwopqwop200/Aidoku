@@ -186,10 +186,8 @@ private final class TrackerMutationReplay: URLProtocol {
         private var writes = 0
         private var refreshes = 0
         private var wrongAuthorization = 0
-        func reset(status: Int) { lock.lock(); defer { lock.unlock() }; self.status = status; writes = 0; refreshes = 0; wrongAuthorization = 0 }
-        func snapshot() -> (writes: Int, refreshes: Int, wrongAuthorization: Int) {
-            lock.lock(); defer { lock.unlock() }; return (writes, refreshes, wrongAuthorization)
-        }
+        func reset(status: Int) { lock.withLock { self.status = status; writes = 0; refreshes = 0; wrongAuthorization = 0 } }
+        func snapshot() -> (writes: Int, refreshes: Int, wrongAuthorization: Int) { lock.withLock { (writes, refreshes, wrongAuthorization) } }
         func respond(_ request: URLRequest) -> (Int, String) {
             lock.lock(); defer { lock.unlock() }
             if request.url?.path.contains("token") == true {

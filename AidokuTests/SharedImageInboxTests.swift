@@ -19,8 +19,7 @@ struct SharedImageInboxTests {
     }
 
     @Test func sharedImagesSurviveRelaunchInOrderAndBecomeReadableChapter() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let root = try temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         var urls: [URL] = []
         for (index, color) in [UIColor.red, .blue].enumerated() {

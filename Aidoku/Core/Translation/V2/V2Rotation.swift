@@ -2,11 +2,9 @@ import CoreGraphics
 import Foundation
 
 // Tilt of the source lettering (ported from the legacy NativeSourceTextRotation): each
-// four-point line polygon votes with the angle of its longer pair of opposite edges,
-// folded into +-45 degrees and kept when the pair agrees within 2 degrees and the angle
-// is within 30 degrees. The length-weighted median is the estimate when lines within 2
-// degrees of it carry >= 60% of the weight; their weighted mean is returned, and tilts
-// under 1.5 degrees (detector noise) count as upright.
+// four-point line votes with its longer pair of opposite edges; a length-weighted
+// consensus near the median gives the angle, and tilts under 1.5 degrees (detector
+// noise) count as upright.
 enum V2Rotation {
     static let agreement = CGFloat.pi / 90
     static let maximum = CGFloat.pi / 6

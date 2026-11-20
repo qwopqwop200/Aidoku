@@ -784,9 +784,7 @@ extension ReaderTextViewController: ReaderReaderDelegate {
         isSliding = true
 
         // Slider operates on the current chapter's section only
-        guard let layout = currentSectionLayout else { return }
-        let startY = layout.startY
-        let height = layout.height
+        guard case let (_, startY, height)? = currentSectionLayout else { return }
         let screenHeight = scrollView.frame.size.height
         guard height > screenHeight else { return }
 
@@ -800,9 +798,7 @@ extension ReaderTextViewController: ReaderReaderDelegate {
     func sliderStopped(value: CGFloat) {
         isSliding = false
 
-        guard let layout = currentSectionLayout else { return }
-        let startY = layout.startY
-        let height = layout.height
+        guard case let (_, startY, height)? = currentSectionLayout else { return }
         let screenHeight = scrollView.frame.size.height
         guard height > screenHeight else { return }
 
@@ -828,10 +824,8 @@ extension ReaderTextViewController: UIScrollViewDelegate {
         guard !isLoadingChapter, !isSliding, !pendingScrollRestore, !isReportingProgress else { return }
 
         // Detect if current chapter changed due to scrolling
-        guard let layout = currentSectionLayout else { return }
-        updateCurrentChapterFromScroll(at: layout.index)
-        let startY = layout.startY
-        let height = layout.height
+        guard case let (index, startY, height)? = currentSectionLayout else { return }
+        updateCurrentChapterFromScroll(at: index)
         let screenHeight = scrollView.frame.size.height
         guard height > 0, screenHeight > 0 else { return }
 

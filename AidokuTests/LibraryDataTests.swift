@@ -46,18 +46,7 @@ struct LibraryDataTests {
         let manager = CoreDataManager.shared
         let mangaId = MangaIdentifier(sourceKey: "audit12", mangaKey: "read-count")
         for (index, scanlator) in [nil, "Group A"].enumerated() {
-            let chapter = ChapterObject(context: context)
-            chapter.sourceId = mangaId.sourceKey
-            chapter.mangaId = mangaId.mangaKey
-            chapter.id = "chapter-\(index)"
-            chapter.lang = "en"
-            chapter.scanlator = scanlator
-            let history = HistoryObject(context: context)
-            history.sourceId = mangaId.sourceKey
-            history.mangaId = mangaId.mangaKey
-            history.chapterId = chapter.id
-            history.completed = true
-            chapter.history = history
+            store.addChapter(id: mangaId, index: index, language: "en", scanlator: scanlator, history: 2, locked: false)
         }
         try context.save()
 

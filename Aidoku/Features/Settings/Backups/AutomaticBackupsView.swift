@@ -73,11 +73,7 @@ struct AutomaticBackupsView: View {
                     }
                 }
             }
-            .onChange(of: interval) { _ in
-                Task {
-                    await BackupManager.shared.scheduleAutoBackup()
-                }
-            }
+            .onChange(of: interval) { _ in Task { await BackupManager.shared.scheduleAutoBackup() } }
             .onChange(of: enabled.value) { _ in
                 Task {
                     await BackupManager.shared.scheduleAutoBackup()

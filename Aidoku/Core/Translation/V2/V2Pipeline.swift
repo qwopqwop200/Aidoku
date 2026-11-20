@@ -259,13 +259,10 @@ enum V2Pipeline {
                                 models: V2Models, hooks: V2PipelineHooks) async -> Back {
         let start = DispatchTime.now().uptimeNanoseconds
         var back = Back()
-        do { try await hooks.acquireBack() } catch {
-            // Not admitted: the tail recomputes everything after S5.
-            back.stages[Stage.back] = milliseconds(since: start)
-            return back
-        }
-        guard !Task.isCancelled else {
-            hooks.releaseBack()
+        // Not admitted (the tail then recomputes everything after S5) or cancelled.
+        let admitted = (try? await hooks.acquireBack()) != nil
+        guard admitted, !Task.isCancelled else {
+            if admitted { hooks.releaseBack() }
             back.stages[Stage.back] = milliseconds(since: start)
             return back
         }
@@ -321,11 +318,10 @@ enum V2Pipeline {
         async let detected: (Result<[V2Line], Error>, Double) = {
             let start = DispatchTime.now().uptimeNanoseconds
             do {
-                let lines: [V2Line]
-                if let frame {
-                    lines = try await V2Detection.detect(frame: frame, models: models)
+                let lines = if let frame {
+                    try await V2Detection.detect(frame: frame, models: models)
                 } else {
-                    lines = try await V2Detection.detect(page, models: models)
+                    try await V2Detection.detect(page, models: models)
                 }
                 return (.success(lines), milliseconds(since: start))
             } catch { return (.failure(error), milliseconds(since: start)) }

@@ -3,6 +3,17 @@ import NaturalLanguage
 
 /// Apply the source-language policy after raw OCR caching, before requests or overlays.
 enum ReaderTranslationLanguageFilter {
+    private static func isKana(_ scalar: Unicode.Scalar) -> Bool {
+        (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value)
+    }
+
+    private static func isHangul(_ scalar: Unicode.Scalar) -> Bool {
+        (0xAC00...0xD7A3).contains(scalar.value) || (0x1100...0x11FF).contains(scalar.value) || (0x3130...0x318F).contains(scalar.value)
+    }
+
+    private static func isHan(_ scalar: Unicode.Scalar) -> Bool {
+        (0x3400...0x9FFF).contains(scalar.value) || (0x20000...0x323AF).contains(scalar.value)
+    }
 
     /// A Japanese sentence re-punctuated by the provider is not a Korean translation.
     /// Exact copies remain valid for explicit SFX/background preservation; short names
@@ -14,16 +25,10 @@ enum ReaderTranslationLanguageFilter {
                 translation.trimmingCharacters(in: .whitespacesAndNewlines))
         else { return false }
         if containsCopiedJapaneseClause(source: source, translation: translation) { return true }
-        func kana(_ scalar: Unicode.Scalar) -> Bool {
-            (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value)
-        }
         let letters = translation.unicodeScalars.filter { $0.properties.isAlphabetic }
-        guard letters.count >= 20, letters.filter(kana).count >= 2,
-              source.unicodeScalars.filter(kana).count >= 2 else { return false }
-        return !letters.contains {
-            (0xAC00...0xD7A3).contains($0.value) || (0x1100...0x11FF).contains($0.value) ||
-                (0x3130...0x318F).contains($0.value)
-        }
+        guard letters.count >= 20, letters.filter(isKana).count >= 2,
+              source.unicodeScalars.filter(isKana).count >= 2 else { return false }
+        return !letters.contains(where: isHangul)
     }
 
     /// A Korean fragment must not certify an otherwise copied Japanese clause.
@@ -82,25 +87,15 @@ enum ReaderTranslationLanguageFilter {
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
         guard !letters.isEmpty else { return false }
         let language = canonical(target)
-        let hangul: (Unicode.Scalar) -> Bool = {
-            (0xAC00...0xD7A3).contains($0.value) || (0x1100...0x11FF).contains($0.value) ||
-                (0x3130...0x318F).contains($0.value)
-        }
-        if language == "ko" { return letters.allSatisfy(hangul) }
-        if letters.contains(where: hangul) { return false }
-        let han: (Unicode.Scalar) -> Bool = {
-            (0x3400...0x9FFF).contains($0.value) || (0x20000...0x323AF).contains($0.value)
-        }
-        let kana: (Unicode.Scalar) -> Bool = {
-            (0x3040...0x30FF).contains($0.value) || (0xFF66...0xFF9D).contains($0.value)
-        }
+        if language == "ko" { return letters.allSatisfy(isHangul) }
+        if letters.contains(where: isHangul) { return false }
         if language == "ja" {
-            return letters.contains(where: kana) && letters.allSatisfy { kana($0) || han($0) }
+            return letters.contains(where: isKana) && letters.allSatisfy { isKana($0) || isHan($0) }
         }
         if language == "zh" || language == "zh-Hant" {
-            return letters.allSatisfy(han) && AutomaticSourceLanguageDetector.detect(text) == language
+            return letters.allSatisfy(isHan) && AutomaticSourceLanguageDetector.detect(text) == language
         }
-        guard letters.count >= 20, !letters.contains(where: han), !letters.contains(where: kana) else { return false }
+        guard letters.count >= 20, !letters.contains(where: isHan), !letters.contains(where: isKana) else { return false }
         let key = TargetLanguageKey(text: text, language: language)
         if case let .some(.some(cached)) = targetLanguageCache.value(for: key) { return cached }
         let result = isConfidentlyUnmixed(text, language: language)
@@ -169,15 +164,11 @@ enum ReaderTranslationLanguageFilter {
         // often unclassifiable. Retain scripts the recognizer can spell without
         // admitting others (Hangul, Cyrillic).
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
-        func cjk(_ scalar: Unicode.Scalar) -> Bool {
-            (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value) ||
-                (0x3400...0x9FFF).contains(scalar.value) || (0x20000...0x323AF).contains(scalar.value)
-        }
         func latin(_ scalar: Unicode.Scalar) -> Bool {
             (0x41...0x5A).contains(scalar.value) || (0x61...0x7A).contains(scalar.value) ||
                 (0xC0...0x24F).contains(scalar.value)
         }
-        return !letters.isEmpty && letters.allSatisfy { cjk($0) || latin($0) }
+        return !letters.isEmpty && letters.allSatisfy { isKana($0) || isHan($0) || latin($0) }
     }
 
     /// Punctuation and symbols have no source language to reject. They still
@@ -214,10 +205,7 @@ enum ReaderTranslationLanguageFilter {
     static func allowsV2Source(_ text: String, settings: ReaderTranslationSettings) -> Bool {
         if allowsSource(text, settings: settings) { return true }
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
-        let han: (Unicode.Scalar) -> Bool = {
-            (0x3400...0x9FFF).contains($0.value) || (0x20000...0x323AF).contains($0.value) || (0xF900...0xFAFF).contains($0.value)
-        }
-        guard !letters.isEmpty, letters.allSatisfy(han) else { return false }
+        guard !letters.isEmpty, letters.allSatisfy({ isHan($0) || (0xF900...0xFAFF).contains($0.value) }) else { return false }
         let source = canonical(settings.sourceLanguage)
         let allowed = source == "auto" ? normalized(settings.translationSourceLanguages) : [source]
         let hanLanguages: Set<String> = ["ja", "zh", "zh-Hant"]

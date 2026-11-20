@@ -212,9 +212,7 @@ enum TranslationHTTPCodec {
             if chatOptions.compactStructuredOutput {
                 root["structured_outputs"] = [
                     "regex": try compactOutputPattern(
-                        segmentIDs: request.segments.map(\.id),
-                        filtersSFX: filtersSFX,
-                        filtersBackground: filtersBackground
+                        segmentIDs: request.segments.map(\.id), filtersSFX: filtersSFX, filtersBackground: filtersBackground
                     ),
                 ]
             }
@@ -230,10 +228,7 @@ enum TranslationHTTPCodec {
                 "max_output_tokens": maxOutputTokens,
                 "seed": 0,
                 "instructions": instructions,
-                "input": [[
-                    "role": "user",
-                    "content": responsesContent,
-                ]],
+                "input": [["role": "user", "content": responsesContent]],
                 "text": [
                     "format": [
                         "type": "json_schema",
@@ -247,9 +242,7 @@ enum TranslationHTTPCodec {
             // vLLM rejects text.format together with structured_outputs.
             if chatOptions.compactStructuredOutput { responsesRoot.removeValue(forKey: "text") }
             if configuration.reasoningEffort != .modelDefault {
-                responsesRoot["reasoning"] = [
-                    "effort": configuration.reasoningEffort.rawValue,
-                ]
+                responsesRoot["reasoning"] = ["effort": configuration.reasoningEffort.rawValue]
             }
             root = responsesRoot
         case .chatCompletions:
@@ -257,14 +250,8 @@ enum TranslationHTTPCodec {
                 "model": configuration.model,
                 "store": false,
                 "messages": [
-                    [
-                        "role": "system",
-                        "content": instructions,
-                    ],
-                    [
-                        "role": "user",
-                        "content": request.imageJPEG == nil ? translationData as Any : chatContent as Any,
-                    ],
+                    ["role": "system", "content": instructions],
+                    ["role": "user", "content": request.imageJPEG == nil ? translationData as Any : chatContent as Any],
                 ],
                 "temperature": samplingTemperature,
                 "top_p": samplingTopP,
@@ -293,9 +280,7 @@ enum TranslationHTTPCodec {
         }
 
         guard JSONSerialization.isValidJSONObject(root) else {
-            throw RemoteTranslationError.invalidRequest(
-                "translation payload cannot be represented as JSON"
-            )
+            throw RemoteTranslationError.invalidRequest("translation payload cannot be represented as JSON")
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys, .withoutEscapingSlashes])
     }
@@ -343,23 +328,13 @@ enum TranslationHTTPCodec {
         do {
             object = try JSONSerialization.jsonObject(with: data)
         } catch {
-            throw RemoteTranslationError.invalidResponse(
-                "response body is not valid JSON"
-            )
+            throw RemoteTranslationError.invalidResponse("response body is not valid JSON")
         }
         guard let root = object as? [String: Any] else {
-            throw RemoteTranslationError.invalidResponse(
-                "response root must be a JSON object"
-            )
+            throw RemoteTranslationError.invalidResponse("response root must be a JSON object")
         }
 
-        let envelopeText: String
-        switch apiProtocol {
-        case .responses:
-            envelopeText = try responsesEnvelopeText(root)
-        case .chatCompletions:
-            envelopeText = try chatCompletionsEnvelopeText(root)
-        }
+        let envelopeText = try apiProtocol == .responses ? responsesEnvelopeText(root) : chatCompletionsEnvelopeText(root)
         return try parseTranslationEnvelope(
             envelopeText,
             expectedSegmentIDs: expectedSegmentIDs, sfxSourceTexts: sfxSourceTexts,
@@ -371,15 +346,11 @@ enum TranslationHTTPCodec {
     /// retain language codes. A fixed English locale avoids device-language drift
     /// and preserves script/region distinctions such as zh-Hant and pt-BR.
     static func languageName(_ identifier: String) -> String {
-        if identifier.caseInsensitiveCompare("auto") == .orderedSame {
-            return "Auto-detect from input"
-        }
+        if identifier.caseInsensitiveCompare("auto") == .orderedSame { return "Auto-detect from input" }
         return Locale(identifier: "en_US_POSIX").localizedString(forIdentifier: identifier) ?? identifier
     }
 
-    private static func encodedTranslationData(
-        _ request: RemoteTranslationRequest
-    ) throws -> String {
+    private static func encodedTranslationData(_ request: RemoteTranslationRequest) throws -> String {
         let root: [String: Any] = [
             "source_language": languageName(request.sourceLanguage),
             "target_language": languageName(request.targetLanguage),
@@ -393,15 +364,11 @@ enum TranslationHTTPCodec {
             },
         ]
         guard JSONSerialization.isValidJSONObject(root) else {
-            throw RemoteTranslationError.invalidRequest(
-                "translation data cannot be represented as JSON"
-            )
+            throw RemoteTranslationError.invalidRequest("translation data cannot be represented as JSON")
         }
         let data = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
         guard let value = String(data: data, encoding: .utf8) else {
-            throw RemoteTranslationError.invalidRequest(
-                "translation data has an invalid UTF-8 encoding"
-            )
+            throw RemoteTranslationError.invalidRequest("translation data has an invalid UTF-8 encoding")
         }
         return value
     }
@@ -439,90 +406,53 @@ enum TranslationHTTPCodec {
 
     private static func responsesEnvelopeText(_ root: [String: Any]) throws -> String {
         if let error = root["error"], !(error is NSNull) {
-            throw RemoteTranslationError.invalidResponse(
-                "the Responses API returned an error object"
-            )
+            throw RemoteTranslationError.invalidResponse("the Responses API returned an error object")
         }
-        let hasIncompleteDetails = root["incomplete_details"] != nil &&
-            !(root["incomplete_details"] is NSNull)
-        if let status = root["status"] as? String {
-            if status == "incomplete" || hasIncompleteDetails {
-                throw RemoteTranslationError.invalidResponse(
-                    "the Responses API response is incomplete"
-                )
-            }
-            if status != "completed" {
-                throw RemoteTranslationError.invalidResponse(
-                    "the Responses API did not complete successfully"
-                )
-            }
-        } else if hasIncompleteDetails {
-            throw RemoteTranslationError.invalidResponse(
-                "the Responses API response is incomplete"
-            )
+        let hasIncompleteDetails = root["incomplete_details"] != nil && !(root["incomplete_details"] is NSNull)
+        let status = root["status"] as? String
+        if status == "incomplete" || hasIncompleteDetails {
+            throw RemoteTranslationError.invalidResponse("the Responses API response is incomplete")
+        }
+        if let status, status != "completed" {
+            throw RemoteTranslationError.invalidResponse("the Responses API did not complete successfully")
         }
 
         guard let output = root["output"] as? [Any] else {
-            throw RemoteTranslationError.invalidResponse(
-                "missing Responses API output array"
-            )
+            throw RemoteTranslationError.invalidResponse("missing Responses API output array")
         }
         var outputTexts: [String] = []
         for outputItem in output {
             guard let item = outputItem as? [String: Any] else { continue }
-            if let itemStatus = item["status"] as? String,
-               itemStatus != "completed"
-            {
-                throw RemoteTranslationError.invalidResponse(
-                    "a Responses API output item did not complete"
-                )
+            if let itemStatus = item["status"] as? String, itemStatus != "completed" {
+                throw RemoteTranslationError.invalidResponse("a Responses API output item did not complete")
             }
             guard let content = item["content"] as? [Any] else { continue }
             for contentItem in content {
                 guard let part = contentItem as? [String: Any] else { continue }
-                if part["type"] as? String == "refusal" ||
-                    (part["refusal"] as? String)?.isEmpty == false
-                {
+                if part["type"] as? String == "refusal" || (part["refusal"] as? String)?.isEmpty == false {
                     throw RemoteTranslationError.refused
                 }
-                if part["type"] as? String == "output_text",
-                   let text = part["text"] as? String
-                {
+                if part["type"] as? String == "output_text", let text = part["text"] as? String {
                     outputTexts.append(text)
                 }
             }
         }
         guard outputTexts.count == 1, let text = outputTexts.first else {
-            throw RemoteTranslationError.invalidResponse(
-                "expected exactly one Responses API output_text item"
-            )
+            throw RemoteTranslationError.invalidResponse("expected exactly one Responses API output_text item")
         }
         return text
     }
 
-    private static func chatCompletionsEnvelopeText(
-        _ root: [String: Any]
-    ) throws -> String {
+    private static func chatCompletionsEnvelopeText(_ root: [String: Any]) throws -> String {
         guard let choices = root["choices"] as? [Any] else {
-            throw RemoteTranslationError.invalidResponse(
-                "missing chat completions choices array"
-            )
+            throw RemoteTranslationError.invalidResponse("missing chat completions choices array")
         }
-        let indexedChoices = choices.compactMap { choice -> [String: Any]? in
-            guard let choice = choice as? [String: Any],
-                  (choice["index"] as? NSNumber)?.intValue == 0
-            else {
-                return nil
-            }
-            return choice
+        let indexedChoices = choices.compactMap { $0 as? [String: Any] }.filter {
+            ($0["index"] as? NSNumber)?.intValue == 0
         }
-        guard indexedChoices.count == 1,
-              let choice = indexedChoices.first,
-              let message = choice["message"] as? [String: Any]
-        else {
-            throw RemoteTranslationError.invalidResponse(
-                "expected exactly one chat completion choice at index zero"
-            )
+        guard indexedChoices.count == 1, let choice = indexedChoices.first,
+              let message = choice["message"] as? [String: Any] else {
+            throw RemoteTranslationError.invalidResponse("expected exactly one chat completion choice at index zero")
         }
         try validateChatFinish(reason: choice["finish_reason"] as? String,
                                refused: (message["refusal"] as? String)?.isEmpty == false)
@@ -531,29 +461,19 @@ enum TranslationHTTPCodec {
         }
         if let parts = message["content"] as? [Any] {
             let texts = parts.compactMap { value -> String? in
-                guard let part = value as? [String: Any],
-                      part["type"] as? String == "text"
-                else {
-                    return nil
-                }
+                guard let part = value as? [String: Any], part["type"] as? String == "text" else { return nil }
                 return part["text"] as? String
             }
             guard texts.count == 1, let text = texts.first else {
-                throw RemoteTranslationError.invalidResponse(
-                    "expected exactly one text content part"
-                )
+                throw RemoteTranslationError.invalidResponse("expected exactly one text content part")
             }
             return text
         }
-        throw RemoteTranslationError.invalidResponse(
-            "missing chat completion message content"
-        )
+        throw RemoteTranslationError.invalidResponse("missing chat completion message content")
     }
 
     private static func validateChatFinish(reason: String?, refused: Bool) throws {
-        if refused || reason == "content_filter" {
-            throw RemoteTranslationError.refused
-        }
+        if refused || reason == "content_filter" { throw RemoteTranslationError.refused }
         if reason == "length" {
             throw RemoteTranslationError.invalidResponse("the chat completion was truncated")
         }
@@ -568,30 +488,18 @@ enum TranslationHTTPCodec {
         sfxSourceTexts: [String: String]? = nil,
         backgroundSourceTexts: [String: String]? = nil
     ) throws -> [RemoteTranslatedSegment] {
-        let maximumEnvelopeBytes = expectedSegmentIDs.count
-            .multipliedReportingOverflow(by: maximumTranslationBytes)
-        guard !maximumEnvelopeBytes.overflow,
-              value.utf8.count <= maximumEnvelopeBytes.partialValue + 16 * 1024,
-              let data = value.data(using: .utf8)
-        else {
-            throw RemoteTranslationError.responseTooLarge
-        }
+        let maximumEnvelopeBytes = expectedSegmentIDs.count.multipliedReportingOverflow(by: maximumTranslationBytes)
+        guard !maximumEnvelopeBytes.overflow, value.utf8.count <= maximumEnvelopeBytes.partialValue + 16 * 1024,
+              let data = value.data(using: .utf8) else { throw RemoteTranslationError.responseTooLarge }
         let object: Any
         do {
             object = try JSONSerialization.jsonObject(with: data)
         } catch {
-            throw RemoteTranslationError.invalidResponse(
-                "structured translation is not valid JSON"
-            )
+            throw RemoteTranslationError.invalidResponse("structured translation is not valid JSON")
         }
-        guard let root = object as? [String: Any],
-              Set(root.keys) == ["translations"],
-              let translations = root["translations"] as? [Any],
-              translations.count == expectedSegmentIDs.count
-        else {
-            throw RemoteTranslationError.invalidResponse(
-                "structured translation does not match the required schema"
-            )
+        guard let root = object as? [String: Any], Set(root.keys) == ["translations"],
+              let translations = root["translations"] as? [Any], translations.count == expectedSegmentIDs.count else {
+            throw RemoteTranslationError.invalidResponse("structured translation does not match the required schema")
         }
 
         let expectedIDs = Set(expectedSegmentIDs)
@@ -600,20 +508,14 @@ enum TranslationHTTPCodec {
             let segment = try validatedSegment(rawItem, expectedIDs: expectedIDs,
                                                sfxSourceTexts: sfxSourceTexts, backgroundSourceTexts: backgroundSourceTexts)
             guard accepted[segment.id] == nil else {
-                throw RemoteTranslationError.invalidResponse(
-                    "structured translation contains an invalid segment"
-                )
+                throw RemoteTranslationError.invalidResponse("structured translation contains an invalid segment")
             }
             accepted[segment.id] = segment
         }
         guard accepted.count == expectedSegmentIDs.count else {
-            throw RemoteTranslationError.invalidResponse(
-                "structured translation is missing one or more segment IDs"
-            )
+            throw RemoteTranslationError.invalidResponse("structured translation is missing one or more segment IDs")
         }
-        return expectedSegmentIDs.compactMap { id in
-            accepted[id]
-        }
+        return expectedSegmentIDs.compactMap { accepted[$0] }
     }
 
     /// Validates one `translations` item exactly as the complete envelope
@@ -626,22 +528,15 @@ enum TranslationHTTPCodec {
     ) throws -> RemoteTranslatedSegment {
         let classifiesRole = sfxSourceTexts != nil || backgroundSourceTexts != nil
         let expectedKeys = Set(["id", "text"] + (classifiesRole ? ["text_role"] : []))
-        guard let item = rawItem as? [String: Any],
-              Set(item.keys) == expectedKeys,
-              let id = item["id"] as? String,
-              expectedIDs.contains(id),
-              let text = item["text"] as? String,
-              text.utf8.count <= maximumTranslationBytes,
-              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        else {
-            throw RemoteTranslationError.invalidResponse(
-                "structured translation contains an invalid segment"
-            )
+        guard let item = rawItem as? [String: Any], Set(item.keys) == expectedKeys,
+              let id = item["id"] as? String, expectedIDs.contains(id),
+              let text = item["text"] as? String, text.utf8.count <= maximumTranslationBytes,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw RemoteTranslationError.invalidResponse("structured translation contains an invalid segment")
         }
         var textRole: RemoteTranslationTextRole?
         if classifiesRole {
-            guard let value = item["text_role"] as? String,
-                  let role = RemoteTranslationTextRole(rawValue: value) else {
+            guard let value = item["text_role"] as? String, let role = RemoteTranslationTextRole(rawValue: value) else {
                 throw RemoteTranslationError.invalidResponse("invalid text role")
             }
             textRole = role

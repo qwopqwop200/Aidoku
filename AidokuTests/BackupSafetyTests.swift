@@ -6,20 +6,6 @@ import Testing
 
 @MainActor
 struct BackupSafetyTests {
-    private func context() throws -> NSManagedObjectContext {
-        let files = TemporaryBackupStore()
-        try FileManager.default.createDirectory(at: files.directory, withIntermediateDirectories: true)
-        let model = CoreDataManager.shared.container.managedObjectModel
-        let coordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
-        // Derived attributes require SQLite. Keep a private store until context release.
-        try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil,
-                                           at: files.directory.appendingPathComponent("test.sqlite"))
-        let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
-        context.persistentStoreCoordinator = coordinator
-        context.userInfo["temporary-store"] = files
-        return context
-    }
-
     private func backup() -> Backup {
         Backup(date: Date(timeIntervalSince1970: 1_700_000_000))
     }
@@ -82,7 +68,9 @@ struct BackupSafetyTests {
     }
 
     @Test func restorePreservesLocalFilesAndUnselectedSections() throws {
-        let context = try context()
+        let store = try TemporaryCoreDataStore()
+        defer { store.close() }
+        let context = store.context
         let manga = MangaObject(context: context)
         manga.sourceId = "local"
         manga.id = "one"
@@ -118,7 +106,9 @@ struct BackupSafetyTests {
     }
 
     @Test func outOfRangeBackupIsRejectedBeforeChangingData() throws {
-        let context = try context()
+        let store = try TemporaryCoreDataStore()
+        defer { store.close() }
+        let context = store.context
         let history = HistoryObject(context: context)
         history.sourceId = "source"
         history.mangaId = "manga"

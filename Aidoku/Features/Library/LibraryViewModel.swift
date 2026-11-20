@@ -12,12 +12,8 @@ import UIKit
 @MainActor
 class LibraryViewModel {
     private(set) var displayRevision: UInt64 = 0
-    var manga: [MangaInfo] = [] {
-        didSet { displayRevision &+= 1 }
-    }
-    var pinnedManga: [MangaInfo] = [] {
-        didSet { displayRevision &+= 1 }
-    }
+    var manga: [MangaInfo] = [] { didSet { displayRevision &+= 1 } }
+    var pinnedManga: [MangaInfo] = [] { didSet { displayRevision &+= 1 } }
     var sourceKeys: [String] = []
 
     // temporary storage when searching
@@ -208,12 +204,8 @@ extension LibraryViewModel {
 
     func getBadgeType() -> BadgeType {
         var type: BadgeType = []
-        if AppSettings.library.unreadChapterBadges.get() {
-            type.insert(.unread)
-        }
-        if AppSettings.library.downloadedChapterBadges.get() {
-            type.insert(.downloaded)
-        }
+        if AppSettings.library.unreadChapterBadges.get() { type.insert(.unread) }
+        if AppSettings.library.downloadedChapterBadges.get() { type.insert(.downloaded) }
         return type
     }
 
@@ -767,11 +759,9 @@ extension LibraryViewModel {
                 if sortMethod == .lastOpened {
                     let manga = pinnedManga.remove(at: pinnedIndex)
                     if pinType.needsUpdateOnContentOpen {
-                        if sortAscending { self.manga.append(manga) }
-                        else { self.manga.insert(manga, at: 0) }
+                        self.manga.insert(manga, at: sortAscending ? self.manga.count : 0)
                     } else {
-                        if sortAscending { pinnedManga.append(manga) }
-                        else { pinnedManga.insert(manga, at: 0) }
+                        pinnedManga.insert(manga, at: sortAscending ? pinnedManga.count : 0)
                     }
                 } else {
                     libraryReloaded = true
@@ -817,16 +807,13 @@ extension LibraryViewModel {
             if let pinnedIndex = pinnedManga.firstIndex(where: { $0.id == mangaId }) {
                 let manga = pinnedManga.remove(at: pinnedIndex)
                 if pinType.needsUpdateOnContentOpen {
-                    if sortAscending { self.manga.append(manga) }
-                    else { self.manga.insert(manga, at: 0) }
+                    self.manga.insert(manga, at: sortAscending ? self.manga.count : 0)
                 } else {
-                    if sortAscending { pinnedManga.append(manga) }
-                    else { pinnedManga.insert(manga, at: 0) }
+                    pinnedManga.insert(manga, at: sortAscending ? pinnedManga.count : 0)
                 }
             } else if let index = manga.firstIndex(where: { $0.id == mangaId }) {
                 let manga = manga.remove(at: index)
-                if sortAscending { self.manga.append(manga) }
-                else { self.manga.insert(manga, at: 0) }
+                self.manga.insert(manga, at: sortAscending ? self.manga.count : 0)
             }
         }
         return true

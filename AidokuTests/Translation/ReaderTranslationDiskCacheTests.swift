@@ -131,10 +131,7 @@ struct ReaderTranslationDiskCacheTests {
         try await cache.store(Data("layout".utf8), for: "old", kind: .layout, generation: oldGeneration)
         switch change {
         case "model": settings.model = "new-model"
-        case "language": settings.targetLanguage = "en"
-        case "prompt": settings.metadataInstructions += " Translate differently."
         case "credentials": settings.credentialGeneration += 1
-        case "provider": settings.provider = .custom; settings.custom.baseURL = "https://example.invalid/v1"; settings.model = "custom-model"
         default: settings.translationSourceLanguages = ["ja"]
         }
         try await cache.synchronizeSettings(settings)

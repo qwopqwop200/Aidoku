@@ -70,13 +70,7 @@ struct SourceHomeContentView: View {
                         ErrorView(
                             error: error,
                             restart: { try await source.restart() },
-                            retry: {
-                                if listingModel.error != nil {
-                                    await listingModel.loadMore()
-                                } else {
-                                    await reload()
-                                }
-                            }
+                            retry: { listingModel.error != nil ? await listingModel.loadMore() : await reload() }
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .transition(.opacity)
@@ -275,9 +269,8 @@ extension SourceHomeContentView {
         homeGeneration += 1
         let requestGeneration = homeGeneration
         let source = source
-        let publisher = source.partialHomePublisher
         do {
-            let home = try await SourceHomeSubscription.load(publisher: publisher, receive: { @Sendable partialHome in
+            let home = try await SourceHomeSubscription.load(publisher: source.partialHomePublisher, receive: { @Sendable partialHome in
                 Task { @MainActor in
                     guard homeGeneration == requestGeneration else { return }
                     withAnimation {

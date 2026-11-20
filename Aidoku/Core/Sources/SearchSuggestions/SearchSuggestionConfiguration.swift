@@ -72,14 +72,13 @@ struct SearchSuggestionConfiguration: Decodable, Sendable {
         let requestTemplate = query.term.isEmpty && query.namespace != nil
             ? namespaceURLTemplate ?? urlTemplate.replacingOccurrences(of: "/{queryPath}", with: "")
             : urlTemplate
-        let address = requestTemplate
-            .replacingOccurrences(of: "{query}", with: encode(term))
-            .replacingOccurrences(of: "{queryPath}", with: path)
-            .replacingOccurrences(of: "{namespace}", with: encode(namespace))
-        let template = requestTemplate
-            .replacingOccurrences(of: "{query}", with: "placeholder")
-            .replacingOccurrences(of: "{queryPath}", with: "placeholder")
-            .replacingOccurrences(of: "{namespace}", with: "placeholder")
+        func fill(query: String, path: String, namespace: String) -> String {
+            requestTemplate.replacingOccurrences(of: "{query}", with: query)
+                .replacingOccurrences(of: "{queryPath}", with: path)
+                .replacingOccurrences(of: "{namespace}", with: namespace)
+        }
+        let address = fill(query: encode(term), path: path, namespace: encode(namespace))
+        let template = fill(query: "placeholder", path: "placeholder", namespace: "placeholder")
         guard let url = URL(string: address), let base = URL(string: template),
               url.scheme == "https", let host = url.host, !host.isEmpty,
               host == base.host, url.user == nil, url.password == nil,

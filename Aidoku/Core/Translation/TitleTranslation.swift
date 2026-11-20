@@ -158,12 +158,9 @@ struct TranslatedTitleText: View {
             .task(id: identity) {
                 let requestIdentity = identity
                 guard !source.isEmpty, original.contains(source) else { return }
-                let result: String
-                if kind == .description {
-                    result = await MangaDescriptionTranslation.translate(source, settings: ReaderTranslationSettings())
-                } else {
-                    result = await TitleTranslation.translate(source, kind: kind, settings: ReaderTranslationSettings())
-                }
+                let result = kind == .description
+                    ? await MangaDescriptionTranslation.translate(source, settings: ReaderTranslationSettings())
+                    : await TitleTranslation.translate(source, kind: kind, settings: ReaderTranslationSettings())
                 guard !Task.isCancelled else { return }
                 translated = original.replacingOccurrences(of: source, with: result)
                 translatedIdentity = requestIdentity

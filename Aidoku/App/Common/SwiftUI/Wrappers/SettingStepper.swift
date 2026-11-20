@@ -20,10 +20,9 @@ struct SettingStepper: UIViewRepresentable {
         var lease: SettingStepperLease? = SettingStepperLease()
         var binding: Binding<Double>?
         func control() -> UIStepper {
-            if let lease { return lease.control }
-            let next = SettingStepperLease()
-            lease = next
-            return next.control
+            let lease = lease ?? SettingStepperLease()
+            self.lease = lease
+            return lease.control
         }
         @objc func changed(_ sender: UIStepper) { binding?.wrappedValue = sender.value }
     }

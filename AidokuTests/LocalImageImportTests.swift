@@ -109,7 +109,7 @@ struct LocalImportSchedulingTests {
     private enum Failure: Error { case save }
 
     @Test func failedSecondChapterPreservesPreviouslyCommittedSeriesAndChapter() async throws {
-        let fixture = try ImportStore()
+        let fixture = try TemporaryCoreDataStore(configurations: ["Cloud", "Local"])
         defer { fixture.close() }
         let writer = LocalFileDataManager(context: fixture.newContext())
         try await commit(writer, fixture: fixture, chapter: "first")
@@ -125,7 +125,7 @@ struct LocalImportSchedulingTests {
         #expect(await reopened.fetchChapters(mangaId: "fixture").map(\.key) == ["first"])
     }
 
-    private func commit(_ writer: LocalFileDataManager, fixture: ImportStore, chapter: String) async throws {
+    private func commit(_ writer: LocalFileDataManager, fixture: TemporaryCoreDataStore, chapter: String) async throws {
         try await writer.commitImport(
             folder: fixture.directory, mangaId: "fixture", mangaTitle: "Fixture", cover: nil,
             description: nil, archive: fixture.directory.appendingPathComponent(chapter + ".cbz"),
@@ -134,25 +134,10 @@ struct LocalImportSchedulingTests {
     }
 }
 
-@MainActor private final class ImportStore {
-    let directory: URL
-    let coordinator: NSPersistentStoreCoordinator
-    init() throws {
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent("local-import-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        coordinator = NSPersistentStoreCoordinator(managedObjectModel: CoreDataManager.shared.container.managedObjectModel)
-        for configuration in ["Cloud", "Local"] {
-            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: configuration,
-                                              at: directory.appendingPathComponent(configuration + ".sqlite"))
-        }
-    }
+private extension TemporaryCoreDataStore {
     func newContext() -> NSManagedObjectContext {
         let context = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         context.persistentStoreCoordinator = coordinator
         return context
-    }
-    func close() {
-        for store in coordinator.persistentStores { try? coordinator.remove(store) }
-        try? FileManager.default.removeItem(at: directory)
     }
 }

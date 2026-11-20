@@ -130,6 +130,13 @@ enum V2RemovalMask {
                       max(4, roundEven(0.6 * thickness))]
         let blurHalf = max(3, roundEven(0.25 * thickness) | 1)
         let pad = roiRadius + max(scales[2], 2 * blurHalf, outputDilation) + 4
+        guard let frame = paddedFrame(polygons, pad: pad, width: width, height: height) else { return nil }
+        return Geometry(polygons: polygons, thickness: thickness, roiRadius: roiRadius, scales: scales,
+                        blurHalf: blurHalf, frame: frame)
+    }
+
+    /// Bounding box of `polygons` grown by `pad` (plus one on the far side), clipped to the page.
+    static func paddedFrame(_ polygons: [[CGPoint]], pad: Int, width: Int, height: Int) -> Frame? {
         var minX = CGFloat.infinity, minY = CGFloat.infinity, maxX = -CGFloat.infinity, maxY = -CGFloat.infinity
         for point in polygons.joined() {
             minX = min(minX, point.x); minY = min(minY, point.y); maxX = max(maxX, point.x); maxY = max(maxY, point.y)
@@ -137,8 +144,7 @@ enum V2RemovalMask {
         let x0 = max(0, Int(floor(minX)) - pad), y0 = max(0, Int(floor(minY)) - pad)
         let x1 = min(width, Int(ceil(maxX)) + pad + 1), y1 = min(height, Int(ceil(maxY)) + pad + 1)
         guard x1 > x0, y1 > y0 else { return nil }
-        return Geometry(polygons: polygons, thickness: thickness, roiRadius: roiRadius, scales: scales,
-                        blurHalf: blurHalf, frame: Frame(x: x0, y: y0, width: x1 - x0, height: y1 - y0))
+        return Frame(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
     }
 
     static func segment(_ geometry: Geometry, pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int) -> BlockMask? {
@@ -375,27 +381,20 @@ enum V2RemovalMask {
     /// Fallback for frames above `maximumBlockPixels`: the line polygons dilated by
     /// `outputDilation`, on a tight frame, using about 6 bytes per frame pixel.
     static func polygonMask(_ polygons: [[CGPoint]], width: Int, height: Int) -> BlockMask? {
-        let pad = outputDilation + 1
-        var minX = CGFloat.infinity, minY = CGFloat.infinity, maxX = -CGFloat.infinity, maxY = -CGFloat.infinity
-        for point in polygons.joined() {
-            minX = min(minX, point.x); minY = min(minY, point.y); maxX = max(maxX, point.x); maxY = max(maxY, point.y)
-        }
-        let x0 = max(0, Int(floor(minX)) - pad), y0 = max(0, Int(floor(minY)) - pad)
-        let x1 = min(width, Int(ceil(maxX)) + pad + 1), y1 = min(height, Int(ceil(maxY)) + pad + 1)
-        guard x1 > x0, y1 > y0 else { return nil }
-        let w = x1 - x0, h = y1 - y0, n = w * h
+        guard let frame = paddedFrame(polygons, pad: outputDilation + 1, width: width, height: height) else { return nil }
+        let w = frame.width, h = frame.height, n = frame.pixels
         let plane = UnsafeMutablePointer<Float>.allocate(capacity: n)
         defer { plane.deallocate() }
         plane.update(repeating: 0, count: n)
         for polygon in polygons {
-            fill(polygon.map { CGPoint(x: $0.x - CGFloat(x0), y: $0.y - CGFloat(y0)) }, into: plane, width: w, height: h)
+            fill(polygon.map { CGPoint(x: $0.x - CGFloat(frame.x), y: $0.y - CGFloat(frame.y)) }, into: plane, width: w, height: h)
         }
         var mask = [UInt8](unsafeUninitializedCapacity: n) { buffer, count in
             for i in 0..<n { buffer[i] = plane[i] > 0 ? 1 : 0 }
             count = n
         }
         dilate(&mask, width: w, height: h, radius: outputDilation)
-        return BlockMask(frame: Frame(x: x0, y: y0, width: w, height: h), mask: mask)
+        return BlockMask(frame: frame, mask: mask)
     }
 
     /// Square (2r+1) binary dilation of a 0/1 byte plane (samples outside the frame ignored).
@@ -601,20 +600,18 @@ enum V2RemovalMask {
             block = input
         }
         // layer = W[hidden x in] * X[in x count]; bias and ReLU per hidden row.
+        func biasReLU(_ layer: UnsafeMutablePointer<Float>, _ biases: [Float]) {
+            for j in 0..<hidden {
+                var bias = biases[j]
+                let row = layer + j * count
+                vDSP_vsadd(row, 1, &bias, row, 1, n)
+                vDSP_vthres(row, 1, &zero, row, 1, n)
+            }
+        }
         vDSP_mmul(net.w1, 1, block, 1, layer1, 1, vDSP_Length(hidden), n, vDSP_Length(features))
-        for j in 0..<hidden {
-            var bias = net.b1[j]
-            let row = layer1 + j * count
-            vDSP_vsadd(row, 1, &bias, row, 1, n)
-            vDSP_vthres(row, 1, &zero, row, 1, n)
-        }
+        biasReLU(layer1, net.b1)
         vDSP_mmul(net.w2, 1, layer1, 1, layer2, 1, vDSP_Length(hidden), n, vDSP_Length(hidden))
-        for j in 0..<hidden {
-            var bias = net.b2[j]
-            let row = layer2 + j * count
-            vDSP_vsadd(row, 1, &bias, row, 1, n)
-            vDSP_vthres(row, 1, &zero, row, 1, n)
-        }
+        biasReLU(layer2, net.b2)
         vDSP_mmul(net.w3, 1, layer2, 1, o, 1, 1, n, vDSP_Length(hidden))
         // sigmoid(z + b3) = 1 / (1 + exp(-(z + b3)))
         var negBias = -net.b3, minusOne: Float = -1, one: Float = 1

@@ -142,6 +142,11 @@ final class ReaderTranslationCoordinator {
         observers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
+    private func cancelSynchronization() {
+        synchronizationTask?.cancel()
+        synchronizationTask = nil
+    }
+
     private func cancelScrollVisibility() {
         scrollVisibilityTask?.cancel()
         scrollVisibilityTask = nil
@@ -229,9 +234,7 @@ final class ReaderTranslationCoordinator {
         button.accessibilityIdentifier = "reader.translation.toggle"
         button.tintColor = .secondaryLabel
         let items = (owner.navigationItem.rightBarButtonItems ?? []) + [button]
-        if #available(iOS 26.0, *) {
-            items.forEach { $0.sharesBackground = true }
-        }
+        if #available(iOS 26.0, *) { items.forEach { $0.sharesBackground = true } }
         owner.navigationItem.rightBarButtonItems = items
     }
 
@@ -261,8 +264,7 @@ final class ReaderTranslationCoordinator {
         dismissFailureNotice()
         isVisible = false
         updateMetadataActivity(active: false)
-        synchronizationTask?.cancel()
-        synchronizationTask = nil
+        cancelSynchronization()
         navigationDebounce.reset()
         navigationIdentity = nil
         initialSynchronizationPending = true
@@ -282,8 +284,7 @@ final class ReaderTranslationCoordinator {
     func close() {
         cancelScrollVisibility()
         dismissFailureNotice()
-        synchronizationTask?.cancel()
-        synchronizationTask = nil
+        cancelSynchronization()
         isVisible = false
         updateMetadataActivity(active: false)
         v2Pages.allObjects.forEach { $0.cancelV2Work() }
@@ -298,8 +299,7 @@ final class ReaderTranslationCoordinator {
         cancelScrollVisibility()
         isScrubbing = true
         navigationDebounce.reset()
-        synchronizationTask?.cancel()
-        synchronizationTask = nil
+        cancelSynchronization()
     }
 
     func sliderInteractionEnded() {
@@ -345,8 +345,7 @@ final class ReaderTranslationCoordinator {
                 delay = 80_000_000
                 if !visible.isEmpty { initialSynchronizationPending = false }
             }
-            synchronizationTask?.cancel()
-            synchronizationTask = nil
+            cancelSynchronization()
         }
         guard !isScrubbing, synchronizationTask == nil else { return }
         synchronizationTask = Task { [weak self] in
@@ -394,8 +393,7 @@ final class ReaderTranslationCoordinator {
             return nil
         }
         // The cached bitmap is the upright source; it must match the source size.
-        let upright = image.imageOrientation == .up || image.imageOrientation == .upMirrored ||
-            image.imageOrientation == .down || image.imageOrientation == .downMirrored
+        let upright = [.up, .upMirrored, .down, .downMirrored].contains(image.imageOrientation)
         let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
         let expected = upright ? pixelSize : CGSize(width: pixelSize.height, height: pixelSize.width)
         guard abs(CGFloat(cached.width) - expected.width) <= 1, abs(CGFloat(cached.height) - expected.height) <= 1 else {

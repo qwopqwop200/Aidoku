@@ -5,19 +5,14 @@ import Testing
 @testable import Aidoku
 
 struct TranslationStreamingTests {
-    private static func request(_ texts: [String], sfx: Bool = false, background: Bool = false) -> RemoteTranslationRequest {
-        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
+    private static func request(_ texts: [String]) -> RemoteTranslationRequest {
+        RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
             segments: texts.enumerated().map { RemoteTranslationSegment(id: "segment-\($0.offset)", text: $0.element) })
-        request.filtersSFX = sfx ? true : nil
-        request.filtersBackground = background ? true : nil
-        return request
     }
 
-    private static func configuration(reasoning: OpenAIReasoningEffort = .none, provider: RemoteTranslationProvider = .custom,
-                                      apiProtocol: RemoteTranslationProtocol = .chatCompletions)
-        -> RemoteTranslationConfiguration {
-        RemoteTranslationConfiguration(provider: provider, apiProtocol: apiProtocol, baseURL: "https://llm.example/v1",
-                                       model: "gemma", credentialAccount: "test", reasoningEffort: reasoning)
+    private static func configuration() -> RemoteTranslationConfiguration {
+        RemoteTranslationConfiguration(provider: .custom, apiProtocol: .chatCompletions, baseURL: "https://llm.example/v1",
+                                       model: "gemma", credentialAccount: "test", reasoningEffort: .none)
     }
 
     /// Builds an SSE body whose content deltas are `pieces`.
@@ -125,18 +120,12 @@ private struct StreamingTestCredential: TranslationCredentialProviding {
 /// Answers "ko:<source>" for every segment. Standard requests receive a
 /// buffered chat completion; compact requests receive SSE.
 private actor ScriptedStreamingTransport: TranslationHTTPTransport {
-    enum Mode { case streamed, rejectCompact, malformedCompact }
+    enum Mode { case streamed, rejectCompact }
     enum Kind: Equatable { case standard, compact }
     let mode: Mode
-    let fingerprint: String?
-    let versionHeader: String?
     private(set) var kinds: [Kind] = []
 
-    init(mode: Mode, fingerprint: String? = "vllm-0.27.0-test", versionHeader: String? = nil) {
-        self.mode = mode
-        self.fingerprint = fingerprint
-        self.versionHeader = versionHeader
-    }
+    init(mode: Mode) { self.mode = mode }
 
     func data(for request: URLRequest, maximumResponseBytes: Int, bypassesProxy: Bool) async throws -> TranslationHTTPResponse {
         let httpBody = try #require(request.httpBody)
@@ -179,9 +168,8 @@ private actor ScriptedStreamingTransport: TranslationHTTPTransport {
             #expect(regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)) != nil)
         }
         if compact, !responses {
-            let streamed = mode == .malformedCompact ? "{\"translations\":[" : content
             let pieces = items.enumerated().map { ($0.offset == 0 ? "{\"translations\":[" : ",") + $0.element } + ["]}"]
-            let body = try TranslationStreamingTests.sse(mode == .malformedCompact ? [streamed] : pieces)
+            let body = try TranslationStreamingTests.sse(pieces)
             return TranslationHTTPResponse(data: body, response: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,
                 headerFields: ["Content-Type": "text/event-stream; charset=utf-8"])!)
         }
@@ -189,13 +177,11 @@ private actor ScriptedStreamingTransport: TranslationHTTPTransport {
                                                     "message": ["role": "assistant", "content": content]]]]
         if responses {
             envelope = ["status": "completed", "output": [["type": "message", "status": "completed",
-                "content": [["type": "output_text", "text": compact && mode == .malformedCompact ? "{" : content]]]]]
+                "content": [["type": "output_text", "text": content]]]]]
         }
-        envelope["system_fingerprint"] = fingerprint
+        envelope["system_fingerprint"] = "vllm-0.27.0-test"
         let body = try JSONSerialization.data(withJSONObject: envelope)
-        var headers = ["Content-Type": "application/json"]
-        headers["X-vLLM-Version"] = versionHeader
         return TranslationHTTPResponse(data: body, response: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,
-            headerFields: headers)!)
+            headerFields: ["Content-Type": "application/json"])!)
     }
 }

@@ -19,28 +19,13 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
     ) throws -> [String: Self] {
         try request.validate()
         let endpoint = try configuration.validatedEndpoint()
-        let canonicalRequest =
-            request.canonicalizedForTranslationSemantics().request
         let cacheKey = TranslationCacheKey(
-            configuration: configuration,
-            endpoint: endpoint,
-            request: canonicalRequest
+            configuration: configuration, endpoint: endpoint,
+            request: request.canonicalizedForTranslationSemantics().request
         )
-        return Dictionary(
-            uniqueKeysWithValues: request.segments.enumerated().map {
-                index, segment in
-                (
-                    segment.id,
-                    Self(
-                        cacheKey: cacheKey,
-                        segmentID:
-                            RemoteTranslationRequest.batchLocalSegmentID(
-                                at: index
-                            )
-                    )
-                )
-            }
-        )
+        return Dictionary(uniqueKeysWithValues: request.segments.enumerated().map { index, segment in
+            (segment.id, Self(cacheKey: cacheKey, segmentID: RemoteTranslationRequest.batchLocalSegmentID(at: index)))
+        })
     }
 
     /// Keeps the last translation visible while only the ordered batch
@@ -48,9 +33,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
     /// weaker comparison is display-only and rejects provider, model,
     /// credential, language, prompt, reasoning, and the selected
     /// segment's own OCR-text changes.
-    func canRemainVisibleWhileRefreshing(
-        expected: NativeTranslationReuseIdentity
-    ) -> Bool {
+    func canRemainVisibleWhileRefreshing(expected: NativeTranslationReuseIdentity) -> Bool {
         guard let sourceSegment = cacheKey.segments.first(where: { $0.id == segmentID }),
               let expectedSegment = expected.cacheKey.segments.first(where: { $0.id == expected.segmentID }) else { return false }
         return sourceSegment.text == expectedSegment.text &&
@@ -62,9 +45,7 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
     /// identical set of OCR regions. The full cache identity deliberately
     /// changes in that case, but an already translated stable region can still
     /// move to its new coordinates without falling back to source text.
-    func hasSameTranslationConfiguration(
-        as expected: NativeTranslationReuseIdentity
-    ) -> Bool {
+    func hasSameTranslationConfiguration(as expected: NativeTranslationReuseIdentity) -> Bool {
         cacheKey.imageDigest == expected.cacheKey.imageDigest &&
             cacheKey.roleVerificationPolicy == expected.cacheKey.roleVerificationPolicy &&
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&

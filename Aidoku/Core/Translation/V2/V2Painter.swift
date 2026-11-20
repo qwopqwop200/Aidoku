@@ -103,12 +103,11 @@ enum V2Painter {
     static func legible(block: V2Block, fontPixels: CGFloat, background: V2RGB?) -> Paint {
         let (fill, stroke) = paints(for: block)
         let width = V2Layout.strokeWidth(for: block, fontPixels: fontPixels)
-        guard let background, let style = block.style else { return Paint(fill: fill, stroke: stroke, strokeWidth: width) }
-        let text = style.textColor
-        guard contrast(text, background) < minimumContrast else { return Paint(fill: fill, stroke: stroke, strokeWidth: width) }
-        if let outline = style.strokeColor, width > 0, contrast(outline, background) >= invisibleOutline,
+        let source = Paint(fill: fill, stroke: stroke, strokeWidth: width)
+        guard let background, let text = block.style?.textColor, contrast(text, background) < minimumContrast else { return source }
+        if let outline = block.style?.strokeColor, width > 0, contrast(outline, background) >= invisibleOutline,
            contrast(outline, text) >= minimumContrast {
-            return Paint(fill: fill, stroke: stroke, strokeWidth: width)
+            return source
         }
         let black = V2RGB(r: 0, g: 0, b: 0), white = V2RGB(r: 255, g: 255, b: 255)
         func score(_ edge: V2RGB) -> CGFloat { 0.85 * contrast(text, edge) + 0.15 * contrast(background, edge) }

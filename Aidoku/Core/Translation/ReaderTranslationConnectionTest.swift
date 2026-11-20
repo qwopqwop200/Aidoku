@@ -16,9 +16,7 @@ final class ReaderTranslationConnectionTest: ObservableObject {
     private var task: Task<Void, Never>?
     private var generation = UUID()
 
-    init(run: @escaping Runner = { settings, key in
-        try await ReaderTranslationConnectionTest.translate(settings: settings, apiKey: key)
-    }) {
+    init(run: @escaping Runner = { try await ReaderTranslationConnectionTest.translate(settings: $0, apiKey: $1) }) {
         self.run = run
     }
 
@@ -67,12 +65,11 @@ final class ReaderTranslationConnectionTest: ObservableObject {
 
     nonisolated static func probe(_ settings: ReaderTranslationSettings, client: any RemoteTranslating) async throws -> String {
         try settings.validate()
-        let sample: String
-        switch settings.sourceLanguage {
-        case "ko": sample = "연결 테스트"
-        case "ja": sample = "接続テスト"
-        case "zh-Hans", "zh-Hant": sample = "连接测试"
-        default: sample = "Hello, world!"
+        let sample = switch settings.sourceLanguage {
+        case "ko": "연결 테스트"
+        case "ja": "接続テスト"
+        case "zh-Hans", "zh-Hant": "连接测试"
+        default: "Hello, world!"
         }
         var request = RemoteTranslationRequest(
             sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,

@@ -26,58 +26,49 @@ private enum BlockingTaskPriority {
 
 /// Condition state distinguishes an unfinished operation from a completed optional nil.
 /// Every waiter observes the same completion, including repeated reads after a failure.
-final class BlockingTask<T>: @unchecked Sendable {
+private final class BlockingResult<Success, Failure: Error>: @unchecked Sendable {
     private let condition = NSCondition()
-    private var result: T?
-    private var completed = false
+    private var result: Result<Success, Failure>?
 
-    init(priority: TaskPriority? = nil, block: @escaping @Sendable () async -> T) {
-        Task.detached(priority: priority ?? BlockingTaskPriority.current()) {
-            self.finish(await block())
-        }
-    }
-
-    private func finish(_ value: T) {
-        condition.lock()
-        result = value
-        completed = true
-        condition.broadcast()
-        condition.unlock()
-    }
-
-    func get() -> T {
-        condition.lock()
-        defer { condition.unlock() }
-        while !completed { condition.wait() }
-        return result!
-    }
-}
-
-final class BlockingThrowingTask<T>: @unchecked Sendable {
-    private let condition = NSCondition()
-    private var result: Result<T, Error>?
-
-    init(block: @escaping @Sendable () async throws -> T) {
-        Task.detached(priority: BlockingTaskPriority.current()) {
-            do {
-                self.finish(.success(try await block()))
-            } catch {
-                self.finish(.failure(error))
-            }
-        }
-    }
-
-    private func finish(_ value: Result<T, Error>) {
+    func finish(_ value: Result<Success, Failure>) {
         condition.lock()
         result = value
         condition.broadcast()
         condition.unlock()
     }
 
-    func get() throws -> T {
+    func get() throws(Failure) -> Success {
         condition.lock()
         defer { condition.unlock() }
         while result == nil { condition.wait() }
         return try result!.get()
     }
+}
+
+final class BlockingTask<T>: @unchecked Sendable {
+    private let result = BlockingResult<T, Never>()
+
+    init(priority: TaskPriority? = nil, block: @escaping @Sendable () async -> T) {
+        Task.detached(priority: priority ?? BlockingTaskPriority.current()) {
+            self.result.finish(.success(await block()))
+        }
+    }
+
+    func get() -> T { result.get() }
+}
+
+final class BlockingThrowingTask<T>: @unchecked Sendable {
+    private let result = BlockingResult<T, Error>()
+
+    init(block: @escaping @Sendable () async throws -> T) {
+        Task.detached(priority: BlockingTaskPriority.current()) {
+            do {
+                self.result.finish(.success(try await block()))
+            } catch {
+                self.result.finish(.failure(error))
+            }
+        }
+    }
+
+    func get() throws -> T { try result.get() }
 }

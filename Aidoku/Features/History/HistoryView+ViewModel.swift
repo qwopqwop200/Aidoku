@@ -396,7 +396,7 @@ extension HistoryView.ViewModel {
     private nonisolated func processHistoryObjects(
         limit: Int,
         offset: Int,
-        refreshingDays: Set<Int> = [], chapterIds: [ChapterIdentifier]? = nil
+        chapterIds: [ChapterIdentifier]? = nil
     ) async -> (fetched: Int, inserted: Int)? {
         let snapshot = await historySnapshot()
         let batch: HistoryBatch
@@ -416,7 +416,7 @@ extension HistoryView.ViewModel {
         let historyObj = batch.history
         let metadata = batch.metadata
 
-        var modifiedDays = refreshingDays
+        var modifiedDays = Set<Int>()
         var newHistoryData = snapshot.data
         var missingChapters: [ChapterIdentifier] = []
         let endOfDay = Date.endOfDay()
@@ -488,10 +488,13 @@ extension HistoryView.ViewModel {
             })
             rows += (try? context.fetch(request)) ?? []
         }
+        return historyBatch(rows, context: context)
+    }
+
+    private nonisolated static func historyBatch(_ rows: [HistoryObject], context: NSManagedObjectContext) -> HistoryBatch {
         let history = rows.map { HistoryInfo(chapterId: .init(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.chapterId),
             dateRead: $0.dateRead, progress: $0.progress, total: $0.total, completed: $0.completed) }
-        return HistoryBatch(history: history,
-            metadata: HistoryMetadataBatch.load(chapterIds: history.map(\.chapterId), context: context))
+        return HistoryBatch(history: history, metadata: HistoryMetadataBatch.load(chapterIds: history.map(\.chapterId), context: context))
     }
 
     var loadedHistoryIdentifiers: [ChapterIdentifier] { historyData.values.flatMap { $0.map(\.chapterId) } }
@@ -499,17 +502,7 @@ extension HistoryView.ViewModel {
 
     private nonisolated static func readHistoryBatch(limit: Int, offset: Int) async -> HistoryBatch {
         await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
-            let history = CoreDataManager.shared.getRecentHistory(limit: limit, offset: offset, context: context)
-                .map {
-                    HistoryInfo(
-                        chapterId: .init(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.chapterId),
-                        dateRead: $0.dateRead,
-                        progress: $0.progress,
-                        total: $0.total,
-                        completed: $0.completed
-                    )
-                }
-            return HistoryBatch(history: history, metadata: HistoryMetadataBatch.load(chapterIds: history.map(\.chapterId), context: context))
+            historyBatch(CoreDataManager.shared.getRecentHistory(limit: limit, offset: offset, context: context), context: context)
         }
     }
 

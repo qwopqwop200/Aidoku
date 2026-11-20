@@ -233,11 +233,8 @@ extension DownloadCache {
         var safe = Set<ChapterIdentifier>()
         for chapter in chapters {
             let manga = chapter.mangaIdentifier
-            let mangaSafe = mangaVerdicts[manga] ?? {
-                let verdict = isSafe(manga: manga)
-                mangaVerdicts[manga] = verdict
-                return verdict
-            }()
+            let mangaSafe = mangaVerdicts[manga] ?? isSafe(manga: manga)
+            mangaVerdicts[manga] = mangaSafe
             if mangaSafe, Self.isSafeChapterPath(source: chapter.sourceKey, manga: chapter.mangaKey, chapter: chapter.chapterKey,
                                                  root: directoryURL, checkingStoredManga: false) {
                 safe.insert(chapter)

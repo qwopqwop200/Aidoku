@@ -592,14 +592,12 @@ enum V2Layout {
         loose.strict = false
         var active = text
         func fit(in box: CGRect) -> Fit? {
-            let strict = fit(in: box, text: text)
-            guard let strictSize = strict?.size, let relaxed = fit(in: box, text: loose) else {
-                active = strict?.condensed == true ? text.condensed(by: condenseScale) : text
-                return strict
+            var chosen = fit(in: box, text: text), base = text
+            if let strictSize = chosen?.size, let relaxed = fit(in: box, text: loose),
+               !(strictSize >= relaxed.size * strictRuleRatio) {
+                chosen = relaxed
+                base = loose
             }
-            let keep = strictSize >= relaxed.size * strictRuleRatio
-            let chosen = keep ? strict : relaxed
-            let base = keep ? text : loose
             active = chosen?.condensed == true ? base.condensed(by: condenseScale) : base
             return chosen
         }
@@ -798,12 +796,7 @@ enum V2Layout {
                 CGRect(x: frame.minX - size.width, y: result.minY, width: size.width, height: size.height),
                 CGRect(x: result.minX, y: frame.maxY, width: size.width, height: size.height),
                 CGRect(x: result.minX, y: frame.minY - size.height, width: size.width, height: size.height)
-            ].map { clamp($0, page: page) }.filter { candidate in
-                !frames.contains { other in
-                    let overlap = candidate.intersection(other)
-                    return !overlap.isNull && overlap.width > 0.5 && overlap.height > 0.5
-                }
-            }
+            ].map { clamp($0, page: page) }.filter { !intersectsAny($0, frames) }
             func distance(_ rect: CGRect) -> CGFloat { hypot(rect.midX - box.midX, rect.midY - box.midY) }
             if let nearest = beside.min(by: { distance($0) < distance($1) }) { result = nearest }
         }
@@ -817,7 +810,6 @@ enum V2Layout {
         }
     }
 
-    /// Centred text frame (including stroke) clamped inside the page.
     /// Text frame (including stroke) centred on `anchor` (default: the box centre), moved
     /// inside the box where it fits and clamped inside the page.
     static func frameFor(_ fit: Fit, in box: CGRect, stroke: CGFloat, page: CGRect, anchor: CGPoint? = nil) -> CGRect {

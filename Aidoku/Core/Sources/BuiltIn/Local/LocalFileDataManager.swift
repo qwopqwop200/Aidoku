@@ -190,6 +190,19 @@ extension LocalFileDataManager {
 
 // MARK: Removing
 extension LocalFileDataManager {
+    private static func isContainedLocalPath(_ path: String) -> Bool {
+        LocalFileManager.isContainedLocalURL(FileManager.default.documentDirectory.appendingPathComponent(path))
+    }
+
+    private func saveOrRollback(removing kind: String) -> Bool {
+        do { try context.save() } catch {
+            context.rollback()
+            LogManager.logger.error("Failed to remove local \(kind): \(error)")
+            return false
+        }
+        return true
+    }
+
     // remove a manga object (and all associated chapters) from the db
     func removeManga(with mangaId: String) -> String? {
         let request = MangaObject.fetchRequest()
@@ -205,15 +218,8 @@ extension LocalFileDataManager {
 
         // Validate every existing path before mutating any record. Invalid legacy
         // records stay intact for recovery; never convert them into delete targets.
-        for object in mangaObjects {
-            let paths = [object.fileInfo?.path] + ((object.chapters as? Set<ChapterObject>) ?? [])
-                .map { $0.fileInfo?.path }
-            for path in paths.compactMap({ $0 }) {
-                guard LocalFileManager.isContainedLocalURL(FileManager.default.documentDirectory.appendingPathComponent(path)) else {
-                    return nil
-                }
-            }
-        }
+        let paths = mangaObjects.flatMap { [$0.fileInfo?.path] + (($0.chapters as? Set<ChapterObject>) ?? []).map { $0.fileInfo?.path } }
+        guard paths.compactMap({ $0 }).allSatisfy(Self.isContainedLocalPath) else { return nil }
         var mangaPath: String?
 
         for mangaObject in mangaObjects {
@@ -244,12 +250,7 @@ extension LocalFileDataManager {
             // remove manga object
             context.delete(mangaObject)
 
-            do { try context.save() }
-            catch {
-                context.rollback()
-                LogManager.logger.error("Failed to remove local manga: \(error)")
-                return nil
-            }
+            guard saveOrRollback(removing: "manga") else { return nil }
         }
 
         return mangaPath
@@ -270,10 +271,7 @@ extension LocalFileDataManager {
         }
 
         let filePath = object.fileInfo?.path
-        if let filePath,
-           !LocalFileManager.isContainedLocalURL(FileManager.default.documentDirectory.appendingPathComponent(filePath)) {
-            return nil
-        }
+        if let filePath, !Self.isContainedLocalPath(filePath) { return nil }
 
         // remove file info
         if let fileInfo = object.fileInfo {
@@ -283,12 +281,7 @@ extension LocalFileDataManager {
         // remove chapter object
         context.delete(object)
 
-        do { try context.save() }
-        catch {
-            context.rollback()
-            LogManager.logger.error("Failed to remove local chapter: \(error)")
-            return nil
-        }
+        guard saveOrRollback(removing: "chapter") else { return nil }
 
         // only report the file for removal if no other chapters still reference it
         if let filePath {
@@ -488,7 +481,6 @@ extension LocalFileDataManager {
         chapterObject.sourceOrder = Int16(clamping: -((mangaObject.chapters?.count ?? 0) + 1))
 
         mangaObject.addToChapters(chapterObject)
-
     }
 }
 

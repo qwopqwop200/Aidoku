@@ -100,6 +100,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
                               keyPrefix + "filterBackgroundWithLLM"]
 
     init(defaults: UserDefaults = .standard) {
+        func languages(_ key: String) -> [String] {
+            ReaderTranslationLanguageFilter.normalized(defaults.stringArray(forKey: Self.keyPrefix + key) ?? [])
+                .filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        }
         // Keep the existing OpenAI preferences and Keychain account during migration.
         openAIModel = defaults.string(forKey: Self.keyPrefix + "model") ?? openAIModel
         provider = defaults.string(forKey: Self.keyPrefix + "provider").flatMap(RemoteTranslationProvider.init) ?? provider
@@ -113,35 +117,21 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
         translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
         translateAuthors = defaults.bool(forKey: Self.keyPrefix + "authors")
-        authorSourceLanguages = ReaderTranslationLanguageFilter.normalized(
-            defaults.stringArray(forKey: Self.keyPrefix + "authorSourceLanguages") ?? []
-        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        authorSourceLanguages = languages("authorSourceLanguages")
         translateLargeFilterOptions = defaults.bool(forKey: Self.keyPrefix + "largeFilterOptions")
         translateSourceLabels = defaults.bool(forKey: Self.keyPrefix + "sourceLabels")
-        sourceLabelSourceLanguages = ReaderTranslationLanguageFilter.normalized(
-            defaults.stringArray(forKey: Self.keyPrefix + "sourceLabelSourceLanguages") ?? []
-        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        sourceLabelSourceLanguages = languages("sourceLabelSourceLanguages")
         translateMangaTags = defaults.bool(forKey: Self.keyPrefix + "mangaTags")
-        mangaTagSourceLanguages = ReaderTranslationLanguageFilter.normalized(
-            defaults.stringArray(forKey: Self.keyPrefix + "mangaTagSourceLanguages") ?? []
-        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        mangaTagSourceLanguages = languages("mangaTagSourceLanguages")
         translateMangaDescriptions = defaults.bool(forKey: Self.keyPrefix + "mangaDescriptions")
-        mangaDescriptionSourceLanguages = ReaderTranslationLanguageFilter.normalized(
-            defaults.stringArray(forKey: Self.keyPrefix + "mangaDescriptionSourceLanguages") ?? []
-        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
-        mangaTitleSourceLanguages = ReaderTranslationLanguageFilter.normalized(
-            defaults.stringArray(forKey: Self.keyPrefix + "mangaTitleSourceLanguages") ?? []
-        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
-        chapterTitleSourceLanguages = ReaderTranslationLanguageFilter.normalized(
-            defaults.stringArray(forKey: Self.keyPrefix + "chapterTitleSourceLanguages") ?? []
-        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        mangaDescriptionSourceLanguages = languages("mangaDescriptionSourceLanguages")
+        mangaTitleSourceLanguages = languages("mangaTitleSourceLanguages")
+        chapterTitleSourceLanguages = languages("chapterTitleSourceLanguages")
         if let data = defaults.data(forKey: Self.keyPrefix + "custom"),
            let value = try? JSONDecoder().decode(ReaderCustomTranslationSettings.self, from: data) { custom = value }
         targetLanguage = defaults.string(forKey: Self.keyPrefix + "targetLanguage") ?? targetLanguage
         sourceLanguage = defaults.string(forKey: Self.keyPrefix + "sourceLanguage") ?? sourceLanguage
-        translationSourceLanguages = ReaderTranslationLanguageFilter.normalized(
-            defaults.stringArray(forKey: Self.keyPrefix + "translationSourceLanguages") ?? []
-        ).filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
+        translationSourceLanguages = languages("translationSourceLanguages")
         // The page pipeline has one fixed manga detector/recognizer; saved OCR
         // tier and threshold preferences (`ocr`, `modelTier`) no longer apply.
         if let data = defaults.data(forKey: Self.keyPrefix + "overlay"),
@@ -150,10 +140,14 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         openAIReasoningEffort = defaults.string(forKey: Self.keyPrefix + "reasoningEffort")
             .flatMap(OpenAIReasoningEffort.init(rawValue:)) ?? openAIReasoningEffort
         maximumConcurrentRequests = defaults.object(forKey: Self.keyPrefix + "concurrency") as? Int ?? maximumConcurrentRequests
-        credentialGeneration = UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))
+        credentialGeneration = Self.savedGeneration(defaults)
         if let value = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber,
            ReaderTranslationDiskCache.limitChoices.contains(value.int64Value) { cacheLimitBytes = value.int64Value }
         normalizeOCRSourceLanguages()
+    }
+
+    private static func savedGeneration(_ defaults: UserDefaults) -> UInt64 {
+        UInt64(max(0, defaults.integer(forKey: keyPrefix + "credentialGeneration")))
     }
 
     var configuration: RemoteTranslationConfiguration {
@@ -231,10 +225,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         let customData = try JSONEncoder().encode(custom)
         // Encode everything before mutating credentials or preferences.
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        var generation = max(credentialGeneration, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration"))))
+        var generation = max(credentialGeneration, Self.savedGeneration(defaults))
         if !key.isEmpty, (try? credentialStore.secret(for: selectedCredentialAccount)) != key {
             try credentialStore.save(key, for: selectedCredentialAccount)
-            generation = max(generation, UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))) &+ 1
+            generation = max(generation, Self.savedGeneration(defaults)) &+ 1
         }
         defaults.set(overlayData, forKey: Self.keyPrefix + "overlay")
         defaults.set(openAIReasoningEffort.rawValue, forKey: Self.keyPrefix + "reasoningEffort")
@@ -280,8 +274,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     ) throws {
         try credentialStore.deleteSecret(for: selectedCredentialAccount)
         // Publish immediately without committing unrelated edits in the settings form.
-        let savedGeneration = UInt64(max(0, defaults.integer(forKey: Self.keyPrefix + "credentialGeneration")))
-        credentialGeneration = max(credentialGeneration, savedGeneration) &+ 1
+        credentialGeneration = max(credentialGeneration, Self.savedGeneration(defaults)) &+ 1
         defaults.set(Int(clamping: credentialGeneration), forKey: Self.keyPrefix + "credentialGeneration")
         if defaults === UserDefaults.standard {
             Task { try? await ReaderTranslationDiskCache.shared.refreshSavedSettings() }

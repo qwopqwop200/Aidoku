@@ -17,19 +17,11 @@ struct NativeAdapterBoundarySafetyTests {
 
     /// A local root that cannot be listed must not be treated as "no files" and erase stored series.
     @Test func unreadableRootCannotEraseLocalMetadata() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("adapter-safety-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let coordinator = NSPersistentStoreCoordinator(managedObjectModel: CoreDataManager.shared.container.managedObjectModel)
-        for configuration in ["Cloud", "Local"] {
-            try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: configuration,
-                at: directory.appendingPathComponent(configuration + ".sqlite"))
-        }
-        defer {
-            for store in coordinator.persistentStores { try? coordinator.remove(store) }
-            try? FileManager.default.removeItem(at: directory)
-        }
+        let store = try TemporaryCoreDataStore(configurations: ["Cloud", "Local"])
+        defer { store.close() }
+        let directory = store.directory
         let context = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
-        context.persistentStoreCoordinator = coordinator
+        context.persistentStoreCoordinator = store.coordinator
         let writer = LocalFileDataManager(context: context)
         try await writer.commitImport(folder: directory, mangaId: "fixture", mangaTitle: "Fixture", cover: nil,
             description: nil, archive: directory.appendingPathComponent("chapter.cbz"), chapterId: "chapter",

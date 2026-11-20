@@ -22,15 +22,9 @@ struct NativeCoreMLDetectionCanvas: Equatable, Hashable, Sendable {
         sourceHeight: Int,
         maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide
     ) -> Self? {
-        guard let dimensions = NativeCoreMLDetectionPreprocessor
-            .resizeDimensions(
-                sourceWidth: sourceWidth,
-                sourceHeight: sourceHeight,
-                maximumSide: maximumSide
-            )
-        else {
-            return nil
-        }
+        guard let dimensions = NativeCoreMLDetectionPreprocessor.resizeDimensions(
+            sourceWidth: sourceWidth, sourceHeight: sourceHeight, maximumSide: maximumSide
+        ) else { return nil }
         return Self(width: dimensions.width, height: dimensions.height)
     }
 
@@ -48,27 +42,17 @@ enum NativeCoreMLDetectorError: Error, Equatable, LocalizedError {
     case modelInputCreationFailed
     case modelOutputMissing
     case modelOutputShape(expected: [Int], actual: [Int])
-    case unsupportedInputShape(
-        sourceWidth: Int,
-        sourceHeight: Int,
-        resizedWidth: Int,
-        resizedHeight: Int
-    )
+    case unsupportedInputShape(sourceWidth: Int, sourceHeight: Int, resizedWidth: Int, resizedHeight: Int)
     case unsupportedModelOutputType
     case predictionFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .modelResourceMissing:
-            NSLocalizedString("OCR_ERROR_MODEL_MISSING")
-        case .modelLoadFailed:
-            NSLocalizedString("OCR_ERROR_MODEL_LOAD")
-        case .imageConversionFailed, .modelInputCreationFailed, .unsupportedInputShape:
-            NSLocalizedString("OCR_ERROR_IMAGE")
-        case .modelOutputMissing, .modelOutputShape, .unsupportedModelOutputType:
-            NSLocalizedString("OCR_ERROR_OUTPUT")
-        case .predictionFailed:
-            NSLocalizedString("OCR_ERROR_PREDICTION")
+        case .modelResourceMissing: NSLocalizedString("OCR_ERROR_MODEL_MISSING")
+        case .modelLoadFailed: NSLocalizedString("OCR_ERROR_MODEL_LOAD")
+        case .imageConversionFailed, .modelInputCreationFailed, .unsupportedInputShape: NSLocalizedString("OCR_ERROR_IMAGE")
+        case .modelOutputMissing, .modelOutputShape, .unsupportedModelOutputType: NSLocalizedString("OCR_ERROR_OUTPUT")
+        case .predictionFailed: NSLocalizedString("OCR_ERROR_PREDICTION")
         }
     }
 }
@@ -80,9 +64,7 @@ private final class NativeCoreMLDetectorModelPredictor: Sendable {
         private let asset: MLModelAsset
         private var load: Task<ModelHandle, Error>?
 
-        init(asset: MLModelAsset) {
-            self.asset = asset
-        }
+        init(asset: MLModelAsset) { self.asset = asset }
 
         func model() async throws -> MLModel {
             if load == nil {
@@ -138,27 +120,17 @@ private final class NativeCoreMLDetectionGeneration: @unchecked Sendable {
     private var value: UInt64 = 0
 
     func begin() -> UInt64 {
-        lock.lock()
-        value &+= 1
-        let result = value
-        lock.unlock()
-        return result
+        lock.withLock {
+            value &+= 1
+            return value
+        }
     }
 
     func cancel(ifCurrent generation: UInt64) {
-        lock.lock()
-        if value == generation {
-            value &+= 1
-        }
-        lock.unlock()
+        lock.withLock { if value == generation { value &+= 1 } }
     }
 
-    func isCurrent(_ generation: UInt64) -> Bool {
-        lock.lock()
-        let result = value == generation
-        lock.unlock()
-        return result
-    }
+    func isCurrent(_ generation: UInt64) -> Bool { lock.withLock { value == generation } }
 }
 
 /// PP-OCRv6 Manga text detection using one bounded dynamic-spatial Core ML model.
@@ -174,9 +146,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
     private let bundle: Bundle
     private var predictor: NativeCoreMLDetectorModelPredictor?
 
-    init(bundle: Bundle = .main) {
-        self.bundle = bundle
-    }
+    init(bundle: Bundle = .main) { self.bundle = bundle }
 
     /// DB-decoded boxes (polygon and score) for one page.
     func detectGeometry(
@@ -250,8 +220,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
             try check()
             let boxes = try NativeCoreMLDBPostprocessor.decode(
                 map: map, sourceWidth: frame.width, sourceHeight: frame.height,
-                configuration: configuration, cancellationCheck: check
-            )
+                configuration: configuration, cancellationCheck: check)
             try check()
             return boxes
         } onCancel: { [generation] in
@@ -259,9 +228,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         }
     }
 
-    private func loadPredictor(
-        cancellationCheck: () throws -> Void
-    ) throws -> NativeCoreMLDetectorModelPredictor {
+    private func loadPredictor(cancellationCheck: () throws -> Void) throws -> NativeCoreMLDetectorModelPredictor {
         resourceLock.lock()
         defer { resourceLock.unlock() }
         try cancellationCheck()
@@ -280,23 +247,11 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         return loaded
     }
 
-    private static func findModelURL(
-        in bundle: Bundle,
-        resourceName: String
-    ) -> URL? {
-        if let exact = bundle.url(
-            forResource: resourceName,
-            withExtension: "mlmodelc"
-        ) {
-            return exact
-        }
+    private static func findModelURL(in bundle: Bundle, resourceName: String) -> URL? {
+        if let exact = bundle.url(forResource: resourceName, withExtension: "mlmodelc") { return exact }
         let expected = normalizedResourceName(resourceName)
-        return bundle.urls(
-            forResourcesWithExtension: "mlmodelc",
-            subdirectory: nil
-        )?.first {
-            normalizedResourceName($0.deletingPathExtension()
-                .lastPathComponent) == expected
+        return bundle.urls(forResourcesWithExtension: "mlmodelc", subdirectory: nil)?.first {
+            normalizedResourceName($0.deletingPathExtension().lastPathComponent) == expected
         }
     }
 
@@ -317,11 +272,7 @@ struct NativeCoreMLDetectionPreparedArray: @unchecked Sendable {
 enum NativeCoreMLDetectionPreprocessor {
     static let modelMaximumSide = 2_000
     private static let channelMean: [Float] = [0.485, 0.456, 0.406]
-    private static let channelStandardDeviation: [Float] = [
-        0.229,
-        0.224,
-        0.225,
-    ]
+    private static let channelStandardDeviation: [Float] = [0.229, 0.224, 0.225]
 
     private static func alignedMaximumSide(_ maximumSide: Int) -> Int {
         max(32, min(modelMaximumSide, maximumSide) / 32 * 32)
@@ -340,18 +291,9 @@ enum NativeCoreMLDetectionPreprocessor {
             : 1
         // Always pad upward to the detector stride. Rounding down would throw
         // away source detail solely to satisfy the model shape contract.
-        let width = max(
-            32,
-            Int(ceil(Double(sourceWidth) * scale / 32)) * 32
-        )
-        let height = max(
-            32,
-            Int(ceil(Double(sourceHeight) * scale / 32)) * 32
-        )
-        return (
-            min(alignedMaximumSide, width),
-            min(alignedMaximumSide, height)
-        )
+        let width = max(32, Int(ceil(Double(sourceWidth) * scale / 32)) * 32)
+        let height = max(32, Int(ceil(Double(sourceHeight) * scale / 32)) * 32)
+        return (min(alignedMaximumSide, width), min(alignedMaximumSide, height))
     }
 
     /// Separate source content from the stride-aligned model canvas: an axis
@@ -431,9 +373,7 @@ enum NativeCoreMLDetectionPreprocessor {
               sourceXs.count >= width, sourceYs.count >= height,
               frame.width > 0, frame.height > 0, frame.bytesPerRow >= frame.width * 4,
               frame.bytes.count >= (frame.height - 1) * frame.bytesPerRow + frame.width * 4
-        else {
-            throw NativeCoreMLDetectorError.modelInputCreationFailed
-        }
+        else { throw NativeCoreMLDetectorError.modelInputCreationFailed }
         for index in 0..<width {
             let (x0, x1, _) = sourceXs[index]
             guard x0 >= 0, x1 >= 0, x0 < frame.width, x1 < frame.width else {
@@ -449,8 +389,7 @@ enum NativeCoreMLDetectionPreprocessor {
         let plane = canvasWidth * canvasHeight
         let coversCanvas = width == canvasWidth && height == canvasHeight
         let mean0 = channelMean[0], mean1 = channelMean[1], mean2 = channelMean[2]
-        let deviation0 = channelStandardDeviation[0]
-        let deviation1 = channelStandardDeviation[1]
+        let deviation0 = channelStandardDeviation[0], deviation1 = channelStandardDeviation[1]
         let deviation2 = channelStandardDeviation[2]
         let bytesPerRow = frame.bytesPerRow
         let leftOffsets = sourceXs.prefix(width).map { $0.0 * 4 }
@@ -505,31 +444,17 @@ enum NativeCoreMLDetectionPreprocessor {
                                 let x0 = left[x]
                                 let x1 = right[x]
                                 let fx = weights[x]
+                                @inline(__always) func pixel(_ byte: Int) -> Float {
+                                    let a = Float(top[x0 + byte])
+                                    let b = Float(top[x1 + byte])
+                                    let c = Float(bottom[x0 + byte])
+                                    let d = Float(bottom[x1 + byte])
+                                    return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
+                                }
                                 // Detector uses BGR: channel c reads RGBA byte 2 - c.
-                                do {
-                                    let a = Float(top[x0 + 2])
-                                    let b = Float(top[x1 + 2])
-                                    let c = Float(bottom[x0 + 2])
-                                    let d = Float(bottom[x1 + 2])
-                                    let pixel = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
-                                    blue[x] = (pixel / 255 - mean0) / deviation0
-                                }
-                                do {
-                                    let a = Float(top[x0 + 1])
-                                    let b = Float(top[x1 + 1])
-                                    let c = Float(bottom[x0 + 1])
-                                    let d = Float(bottom[x1 + 1])
-                                    let pixel = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
-                                    green[x] = (pixel / 255 - mean1) / deviation1
-                                }
-                                do {
-                                    let a = Float(top[x0])
-                                    let b = Float(top[x1])
-                                    let c = Float(bottom[x0])
-                                    let d = Float(bottom[x1])
-                                    let pixel = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
-                                    red[x] = (pixel / 255 - mean2) / deviation2
-                                }
+                                blue[x] = (pixel(2) / 255 - mean0) / deviation0
+                                green[x] = (pixel(1) / 255 - mean1) / deviation1
+                                red[x] = (pixel(0) / 255 - mean2) / deviation2
                             }
                         }
                     }
@@ -562,8 +487,7 @@ enum NativeCoreMLDetectionPreprocessor {
         private var entries: [(key: ResizeCoordinateKey, value: [(Int, Int, Float)])] = []
 
         func value(for key: ResizeCoordinateKey) -> [(Int, Int, Float)]? {
-            lock.lock()
-            defer { lock.unlock() }
+            lock.lock(); defer { lock.unlock() }
             guard let index = entries.firstIndex(where: { $0.key == key }) else { return nil }
             let entry = entries.remove(at: index)
             entries.append(entry)
@@ -571,13 +495,10 @@ enum NativeCoreMLDetectionPreprocessor {
         }
 
         func store(_ value: [(Int, Int, Float)], for key: ResizeCoordinateKey, capacity: Int) {
-            lock.lock()
-            defer { lock.unlock() }
+            lock.lock(); defer { lock.unlock() }
             entries.removeAll { $0.key == key }
             entries.append((key, value))
-            if entries.count > capacity {
-                entries.removeFirst(entries.count - capacity)
-            }
+            if entries.count > capacity { entries.removeFirst(entries.count - capacity) }
         }
     }
 
@@ -595,9 +516,7 @@ enum NativeCoreMLDetectionPreprocessor {
                                       vertical: vertical, resizesOtherAxis: resizesOtherAxis)
         if let cached = resizeCoordinateCache.value(for: key) { return cached }
         let computed = await computeResizeCoordinates(
-            sourceLength: sourceLength, targetLength: targetLength,
-            vertical: vertical, resizesOtherAxis: resizesOtherAxis
-        )
+            sourceLength: sourceLength, targetLength: targetLength, vertical: vertical, resizesOtherAxis: resizesOtherAxis)
         resizeCoordinateCache.store(computed, for: key, capacity: resizeCoordinateCacheCapacity)
         return computed
     }
@@ -605,9 +524,7 @@ enum NativeCoreMLDetectionPreprocessor {
     private static func computeResizeCoordinates(
         sourceLength: Int, targetLength: Int, vertical: Bool, resizesOtherAxis: Bool
     ) async -> [(Int, Int, Float)] {
-        if sourceLength == targetLength {
-            return (0..<targetLength).map { ($0, $0, 0) }
-        }
+        if sourceLength == targetLength { return (0..<targetLength).map { ($0, $0, 0) } }
         let positions = (0..<sourceLength).map(Float.init)
         let parity = (0..<sourceLength).map { Float($0 % 2) }
         let scalars = vertical
@@ -634,71 +551,41 @@ enum NativeCoreMLDetectionPreprocessor {
 enum NativeCoreMLDetectionOutput {
     /// The top-left `width` x `height` window of the model's probability output.
     static func makeMap(
-        output: MLMultiArray,
-        width: Int,
-        height: Int,
-        expectedShape: [Int]
+        output: MLMultiArray, width: Int, height: Int, expectedShape: [Int]
     ) throws -> NativeCoreMLDetectionMap {
         let actualShape = output.shape.map(\.intValue)
-        guard actualShape == expectedShape,
-              output.strides.count == 4,
-              width > 0,
-              height > 0,
-              width <= expectedShape[3],
-              height <= expectedShape[2]
-        else {
-            throw NativeCoreMLDetectorError.modelOutputShape(
-                expected: expectedShape,
-                actual: actualShape
-            )
+        guard actualShape == expectedShape, output.strides.count == 4, width > 0, height > 0,
+              width <= expectedShape[3], height <= expectedShape[2] else {
+            throw NativeCoreMLDetectorError.modelOutputShape(expected: expectedShape, actual: actualShape)
         }
         let rowStride = output.strides[2].intValue
         let columnStride = output.strides[3].intValue
+        func map<Element: BinaryFloatingPoint>(_ type: Element.Type) -> NativeCoreMLDetectionMap {
+            makeMap(pointer: output.dataPointer.assumingMemoryBound(to: type),
+                    width: width, height: height, rowStride: rowStride, columnStride: columnStride)
+        }
         switch output.dataType {
-        case .float32:
-            return makeMap(
-                pointer: output.dataPointer.assumingMemoryBound(to: Float.self),
-                width: width, height: height, rowStride: rowStride, columnStride: columnStride
-            )
-        case .float16:
-            return makeMap(
-                pointer: output.dataPointer.assumingMemoryBound(to: Float16.self),
-                width: width, height: height, rowStride: rowStride, columnStride: columnStride
-            )
-        case .double:
-            return makeMap(
-                pointer: output.dataPointer.assumingMemoryBound(to: Double.self),
-                width: width, height: height, rowStride: rowStride, columnStride: columnStride
-            )
-        default:
-            throw NativeCoreMLDetectorError.unsupportedModelOutputType
+        case .float32: return map(Float.self)
+        case .float16: return map(Float16.self)
+        case .double: return map(Double.self)
+        default: throw NativeCoreMLDetectorError.unsupportedModelOutputType
         }
     }
 
     private static func makeMap<Element: BinaryFloatingPoint>(
-        pointer: UnsafePointer<Element>,
-        width: Int,
-        height: Int,
-        rowStride: Int,
-        columnStride: Int
+        pointer: UnsafePointer<Element>, width: Int, height: Int, rowStride: Int, columnStride: Int
     ) -> NativeCoreMLDetectionMap {
         let count = width * height
-        let values = [Float](unsafeUninitializedCapacity: count) {
-            buffer,
-            initializedCount in
+        let values = [Float](unsafeUninitializedCapacity: count) { buffer, initializedCount in
             guard let destination = buffer.baseAddress else { return }
             if Element.self == Float.self, columnStride == 1 {
                 // Same Float values, copied a row (or the whole map) at once.
-                let source = UnsafeRawPointer(pointer)
-                    .assumingMemoryBound(to: Float.self)
+                let source = UnsafeRawPointer(pointer).assumingMemoryBound(to: Float.self)
                 if rowStride == width {
                     destination.initialize(from: source, count: count)
                 } else {
                     for row in 0..<height {
-                        (destination + row * width).initialize(
-                            from: source + row * rowStride,
-                            count: width
-                        )
+                        (destination + row * width).initialize(from: source + row * rowStride, count: width)
                     }
                 }
             } else {
@@ -706,18 +593,12 @@ enum NativeCoreMLDetectionOutput {
                     let sourceRow = pointer + row * rowStride
                     let destinationRow = destination + row * width
                     for column in 0..<width {
-                        destinationRow[column] = Float(
-                            sourceRow[column * columnStride]
-                        )
+                        destinationRow[column] = Float(sourceRow[column * columnStride])
                     }
                 }
             }
             initializedCount = count
         }
-        return NativeCoreMLDetectionMap(
-            width: width,
-            height: height,
-            values: values
-        )
+        return NativeCoreMLDetectionMap(width: width, height: height, values: values)
     }
 }

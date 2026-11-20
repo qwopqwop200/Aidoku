@@ -333,13 +333,7 @@ extension ReaderPageView {
     }
 
     func setPageImage(url: URL, context: PageContext? = nil, sourceId: String? = nil, archiveRequest: ImageRequest? = nil) async -> Bool {
-        // remove text view if it exists
-        if let textView {
-            textView.willMove(toParent: nil)
-            textView.view.removeFromSuperview()
-            textView.removeFromParent()
-            self.textView = nil
-        }
+        removeTextView()
 
         let request = await Self.imageRequest(url: url, context: context, sourceKey: sourceId, archiveRequest: archiveRequest)
 
@@ -415,13 +409,7 @@ extension ReaderPageView {
     }
 
     func setPageImage(base64: String, key: Int) async -> Bool {
-        // remove text view if it exists
-        if let textView {
-            textView.willMove(toParent: nil)
-            textView.view.removeFromSuperview()
-            textView.removeFromParent()
-            self.textView = nil
-        }
+        removeTextView()
 
         let issued = imageLoadGeneration
         let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
@@ -513,13 +501,7 @@ extension ReaderPageView {
             return true
         }
 
-        // remove text view if it exists
-        if let textView {
-            textView.willMove(toParent: nil)
-            textView.view.removeFromSuperview()
-            textView.removeFromParent()
-            self.textView = nil
-        }
+        removeTextView()
 
         return await setPageImage(url: extractedURL)
     }
@@ -626,12 +608,7 @@ extension ReaderPageView {
 
     func setPageImage(_ image: UIImage?, gifData: Data? = nil, prepared: ReaderTranslationPreparedImage? = nil) {
         guard !Task.isCancelled else { return }
-        if let textView {
-            textView.willMove(toParent: nil)
-            textView.view.removeFromSuperview()
-            textView.removeFromParent()
-            self.textView = nil
-        }
+        removeTextView()
         if imageView.image !== image { translationPage.reset() }
         imageView.image = image
         fixImageSize()
@@ -649,6 +626,15 @@ extension ReaderPageView {
             startLiveTextAnalysis()
             scheduleDictionaryTextAnalysis()
         }
+    }
+
+    // remove text view if it exists
+    private func removeTextView() {
+        guard let textView else { return }
+        textView.willMove(toParent: nil)
+        textView.view.removeFromSuperview()
+        textView.removeFromParent()
+        self.textView = nil
     }
 
     func releasePageResources() {

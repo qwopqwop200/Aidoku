@@ -8,10 +8,7 @@ struct TranslationHTTPTransportMetrics: Equatable, Sendable {
     let totalMilliseconds: Double?
 
     static let unmeasured = Self(
-        responseHeadersMilliseconds: nil,
-        firstBodyByteMilliseconds: nil,
-        bodyMilliseconds: nil,
-        totalMilliseconds: nil
+        responseHeadersMilliseconds: nil, firstBodyByteMilliseconds: nil, bodyMilliseconds: nil, totalMilliseconds: nil
     )
 }
 
@@ -20,11 +17,7 @@ struct TranslationHTTPResponse: @unchecked Sendable {
     let response: HTTPURLResponse
     let metrics: TranslationHTTPTransportMetrics
 
-    init(
-        data: Data,
-        response: HTTPURLResponse,
-        metrics: TranslationHTTPTransportMetrics = .unmeasured
-    ) {
+    init(data: Data, response: HTTPURLResponse, metrics: TranslationHTTPTransportMetrics = .unmeasured) {
         self.data = data
         self.response = response
         self.metrics = metrics
@@ -32,18 +25,13 @@ struct TranslationHTTPResponse: @unchecked Sendable {
 }
 
 protocol TranslationHTTPTransport: Sendable {
-    func data(
-        for request: URLRequest,
-        maximumResponseBytes: Int,
-        bypassesProxy: Bool
-    ) async throws -> TranslationHTTPResponse
+    func data(for request: URLRequest, maximumResponseBytes: Int, bypassesProxy: Bool) async throws -> TranslationHTTPResponse
 }
 
 /// URLSession's convenience `data(for:)` buffers the complete response before
 /// callers can enforce a limit. This delegate-backed transport cancels a task
 /// as soon as its advertised or observed body size exceeds the configured cap.
-final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
-    @unchecked Sendable {
+final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unchecked Sendable {
     private struct RequestKey: Hashable {
         let session: ObjectIdentifier
         let taskIdentifier: Int
@@ -69,36 +57,22 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
             data.reserveCapacity(min(maximumResponseBytes, 64 * 1024))
         }
 
-        func completedResponse(
-            at completedAt: TimeInterval
-        ) -> TranslationHTTPResponse? {
+        func completedResponse(at completedAt: TimeInterval) -> TranslationHTTPResponse? {
             guard let response else { return nil }
             let bodyStartedAt = firstBodyByteAt ?? responseHeadersAt
             return TranslationHTTPResponse(
                 data: data,
                 response: response,
                 metrics: TranslationHTTPTransportMetrics(
-                    responseHeadersMilliseconds: responseHeadersAt.map {
-                        Self.elapsedMilliseconds(from: startedAt, to: $0)
-                    },
-                    firstBodyByteMilliseconds: firstBodyByteAt.map {
-                        Self.elapsedMilliseconds(from: startedAt, to: $0)
-                    },
-                    bodyMilliseconds: bodyStartedAt.map {
-                        Self.elapsedMilliseconds(from: $0, to: completedAt)
-                    },
-                    totalMilliseconds: Self.elapsedMilliseconds(
-                        from: startedAt,
-                        to: completedAt
-                    )
+                    responseHeadersMilliseconds: responseHeadersAt.map { Self.elapsedMilliseconds(from: startedAt, to: $0) },
+                    firstBodyByteMilliseconds: firstBodyByteAt.map { Self.elapsedMilliseconds(from: startedAt, to: $0) },
+                    bodyMilliseconds: bodyStartedAt.map { Self.elapsedMilliseconds(from: $0, to: completedAt) },
+                    totalMilliseconds: Self.elapsedMilliseconds(from: startedAt, to: completedAt)
                 )
             )
         }
 
-        private static func elapsedMilliseconds(
-            from start: TimeInterval,
-            to end: TimeInterval
-        ) -> Double {
+        private static func elapsedMilliseconds(from start: TimeInterval, to end: TimeInterval) -> Double {
             max(0, (end - start) * 1_000)
         }
     }
@@ -113,9 +87,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
             self.task = task
             let shouldCancel = cancellationRequested
             lock.unlock()
-            if shouldCancel {
-                task.cancel()
-            }
+            if shouldCancel { task.cancel() }
         }
 
         func cancel() {
@@ -153,32 +125,19 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
         directSession?.invalidateAndCancel()
     }
 
-    func data(
-        for request: URLRequest,
-        maximumResponseBytes: Int,
-        bypassesProxy: Bool
-    ) async throws -> TranslationHTTPResponse {
+    func data(for request: URLRequest, maximumResponseBytes: Int, bypassesProxy: Bool) async throws -> TranslationHTTPResponse {
         guard maximumResponseBytes > 0 else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "response size limit must be positive"
-            )
+            throw RemoteTranslationError.invalidConfiguration("response size limit must be positive")
         }
         try Task.checkCancellation()
 
         let taskBox = CancellableTaskBox()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                let session: URLSession =
-                    bypassesProxy ? directSession : standardSession
+                let session: URLSession = bypassesProxy ? directSession : standardSession
                 let task = session.dataTask(with: request)
-                let key = RequestKey(
-                    session: ObjectIdentifier(session),
-                    taskIdentifier: task.taskIdentifier
-                )
-                let state = RequestState(
-                    maximumResponseBytes: maximumResponseBytes,
-                    continuation: continuation
-                )
+                let key = requestKey(session: session, task: task)
+                let state = RequestState(maximumResponseBytes: maximumResponseBytes, continuation: continuation)
                 stateLock.lock()
                 states[key] = state
                 stateLock.unlock()
@@ -215,14 +174,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
         let key = requestKey(session: session, task: dataTask)
         guard let response = response as? HTTPURLResponse else {
             completionHandler(.cancel)
-            finish(
-                key: key,
-                result: .failure(
-                    RemoteTranslationError.invalidResponse(
-                        "the provider did not return an HTTP response"
-                    )
-                )
-            )
+            finish(key: key, result: .failure(RemoteTranslationError.invalidResponse("the provider did not return an HTTP response")))
             return
         }
 
@@ -248,11 +200,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
         }
     }
 
-    func urlSession(
-        _ session: URLSession,
-        dataTask: URLSessionDataTask,
-        didReceive data: Data
-    ) {
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         let key = requestKey(session: session, task: dataTask)
         var oversizedState: RequestState?
 
@@ -272,17 +220,11 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
 
         if let oversizedState {
             dataTask.cancel()
-            oversizedState.continuation.resume(
-                throwing: RemoteTranslationError.responseTooLarge
-            )
+            oversizedState.continuation.resume(throwing: RemoteTranslationError.responseTooLarge)
         }
     }
 
-    func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        didCompleteWithError error: Error?
-    ) {
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         let key = requestKey(session: session, task: task)
         stateLock.lock()
         let state = states.removeValue(forKey: key)
@@ -295,28 +237,16 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
         } else if let response = state.completedResponse(at: completedAt) {
             state.continuation.resume(returning: response)
         } else {
-            state.continuation.resume(
-                throwing: RemoteTranslationError.invalidResponse(
-                    "the provider response was incomplete"
-                )
-            )
+            state.continuation.resume(throwing: RemoteTranslationError.invalidResponse("the provider response was incomplete"))
         }
     }
 
     private func makeSession(bypassesProxy: Bool) -> URLSession {
-        let configuration = Self.sessionConfiguration(
-            bypassesProxy: bypassesProxy
-        )
-        return URLSession(
-            configuration: configuration,
-            delegate: delegateProxy,
-            delegateQueue: nil
-        )
+        URLSession(configuration: Self.sessionConfiguration(bypassesProxy: bypassesProxy),
+                   delegate: delegateProxy, delegateQueue: nil)
     }
 
-    static func sessionConfiguration(
-        bypassesProxy: Bool
-    ) -> URLSessionConfiguration {
+    static func sessionConfiguration(bypassesProxy: Bool) -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
@@ -329,48 +259,28 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport,
         configuration.waitsForConnectivity = false
         configuration.timeoutIntervalForRequest = RemoteTranslationConfiguration.maximumTimeout
         configuration.timeoutIntervalForResource = RemoteTranslationConfiguration.maximumTimeout
-        configuration.httpMaximumConnectionsPerHost =
-            BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests
-        if bypassesProxy {
-            configuration.connectionProxyDictionary = [:]
-        }
+        configuration.httpMaximumConnectionsPerHost = BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests
+        if bypassesProxy { configuration.connectionProxyDictionary = [:] }
         return configuration
     }
 
-    private func requestKey(
-        session: URLSession,
-        task: URLSessionTask
-    ) -> RequestKey {
-        RequestKey(
-            session: ObjectIdentifier(session),
-            taskIdentifier: task.taskIdentifier
-        )
+    private func requestKey(session: URLSession, task: URLSessionTask) -> RequestKey {
+        RequestKey(session: ObjectIdentifier(session), taskIdentifier: task.taskIdentifier)
     }
 
-    private func finish(
-        key: RequestKey,
-        result: Result<TranslationHTTPResponse, Error>
-    ) {
+    private func finish(key: RequestKey, result: Result<TranslationHTTPResponse, Error>) {
         stateLock.lock()
         let state = states.removeValue(forKey: key)
         stateLock.unlock()
-        guard let state else { return }
-
-        switch result {
-        case let .success(value):
-            state.continuation.resume(returning: value)
-        case let .failure(error):
-            state.continuation.resume(throwing: error)
-        }
+        state?.continuation.resume(with: result)
     }
 }
 
 /// URLSession strongly retains its delegate until invalidation. Keeping the
 /// forwarding owner weak lets the transport deinitialize normally while still
 /// preserving delegate-backed streaming response limits.
-private final class BoundedURLSessionDelegateProxy: NSObject,
-    URLSessionDataDelegate, URLSessionTaskDelegate, @unchecked Sendable
-{
+private final class BoundedURLSessionDelegateProxy: NSObject, URLSessionDataDelegate, URLSessionTaskDelegate,
+    @unchecked Sendable {
     weak var owner: BoundedURLSessionTransport?
 
     func urlSession(
@@ -385,13 +295,8 @@ private final class BoundedURLSessionDelegateProxy: NSObject,
             task.cancel()
             return
         }
-        owner.urlSession(
-            session,
-            task: task,
-            willPerformHTTPRedirection: response,
-            newRequest: request,
-            completionHandler: completionHandler
-        )
+        owner.urlSession(session, task: task, willPerformHTTPRedirection: response, newRequest: request,
+                         completionHandler: completionHandler)
     }
 
     func urlSession(
@@ -405,35 +310,14 @@ private final class BoundedURLSessionDelegateProxy: NSObject,
             dataTask.cancel()
             return
         }
-        owner.urlSession(
-            session,
-            dataTask: dataTask,
-            didReceive: response,
-            completionHandler: completionHandler
-        )
+        owner.urlSession(session, dataTask: dataTask, didReceive: response, completionHandler: completionHandler)
     }
 
-    func urlSession(
-        _ session: URLSession,
-        dataTask: URLSessionDataTask,
-        didReceive data: Data
-    ) {
-        owner?.urlSession(
-            session,
-            dataTask: dataTask,
-            didReceive: data
-        )
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        owner?.urlSession(session, dataTask: dataTask, didReceive: data)
     }
 
-    func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        didCompleteWithError error: Error?
-    ) {
-        owner?.urlSession(
-            session,
-            task: task,
-            didCompleteWithError: error
-        )
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        owner?.urlSession(session, task: task, didCompleteWithError: error)
     }
 }

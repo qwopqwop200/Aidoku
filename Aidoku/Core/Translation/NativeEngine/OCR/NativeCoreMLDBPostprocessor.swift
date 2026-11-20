@@ -22,21 +22,13 @@ struct NativeCoreMLDetectionMap: Equatable, Sendable {
 struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
     // Manga profile: user-selected binarization 0.85; upstream box score and unclip.
     static let manga = NativeCoreMLDBPostprocessConfiguration(
-        threshold: 0.85,
-        boxThreshold: 0.25,
-        unclipRatio: 1.4,
-        maximumCandidates: 3_000
+        threshold: 0.85, boxThreshold: 0.25, unclipRatio: 1.4, maximumCandidates: 3_000
     )
     let threshold: Double
     let boxThreshold: Double
     let unclipRatio: Double
     let maximumCandidates: Int
-    init(
-        threshold: Double,
-        boxThreshold: Double,
-        unclipRatio: Double,
-        maximumCandidates: Int
-    ) {
+    init(threshold: Double, boxThreshold: Double, unclipRatio: Double, maximumCandidates: Int) {
         precondition((0 ... 1).contains(threshold))
         precondition((0 ... 1).contains(boxThreshold))
         precondition(unclipRatio > 0 && unclipRatio.isFinite)
@@ -46,7 +38,6 @@ struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
         self.unclipRatio = unclipRatio
         self.maximumCandidates = maximumCandidates
     }
-
 }
 
 /// Native DBNet postprocessing for PP-OCR detector output.
@@ -63,11 +54,8 @@ enum NativeCoreMLDBPostprocessor {
     /// the cutoff is at least its successor, which exceeds `threshold` by
     /// construction. NaN thresholds stay NaN and therefore reject everything.
     static func foregroundCutoff(threshold: Double) -> Float {
-        var cutoff = Float(threshold)
-        if Double(cutoff) > threshold {
-            cutoff = cutoff.nextDown
-        }
-        return cutoff
+        let cutoff = Float(threshold)
+        return Double(cutoff) > threshold ? cutoff.nextDown : cutoff
     }
 
     /// 1 for finite values strictly above `threshold`, otherwise 0. Equivalent
@@ -96,18 +84,12 @@ enum NativeCoreMLDBPostprocessor {
     }
 
     static func decode(
-        map: NativeCoreMLDetectionMap,
-        sourceWidth: Int,
-        sourceHeight: Int,
-        configuration: NativeCoreMLDBPostprocessConfiguration,
-        cancellationCheck: () throws -> Void = {}
+        map: NativeCoreMLDetectionMap, sourceWidth: Int, sourceHeight: Int,
+        configuration: NativeCoreMLDBPostprocessConfiguration, cancellationCheck: () throws -> Void = {}
     ) throws -> [NativeCoreMLDetectionBox] {
         guard sourceWidth > 0, sourceHeight > 0 else { return [] }
         // 0 = background, 1 = unvisited foreground, 2 = visited foreground.
-        var state = foregroundState(
-            values: map.values,
-            threshold: configuration.threshold
-        )
+        var state = foregroundState(values: map.values, threshold: configuration.threshold)
 
         // Queue horizontal runs rather than every foreground pixel. Dense text
         // components commonly collapse from thousands of queue entries to a
@@ -142,20 +124,13 @@ enum NativeCoreMLDBPostprocessor {
                 guard let offset else { break }
                 let x = offset - row
                 nextSeedX = x + 1
-                if candidateComponents >= configuration.maximumCandidates {
-                    break scan
-                }
+                if candidateComponents >= configuration.maximumCandidates { break scan }
                 candidateComponents += 1
                 queue.removeAll(keepingCapacity: true)
                 touchedRows.removeAll(keepingCapacity: true)
                 let firstSpan = consumeForegroundSpan(
-                    startingAtX: x,
-                    y: y,
-                    width: map.width,
-                    state: &state,
-                    rowMinimumX: &rowMinimumX,
-                    rowMaximumX: &rowMaximumX,
-                    touchedRows: &touchedRows
+                    startingAtX: x, y: y, width: map.width, state: &state,
+                    rowMinimumX: &rowMinimumX, rowMaximumX: &rowMaximumX, touchedRows: &touchedRows
                 )
                 queue.append(firstSpan)
                 var cursor = 0
@@ -177,13 +152,8 @@ enum NativeCoreMLDBPostprocessor {
                                 continue
                             }
                             let nextSpan = consumeForegroundSpan(
-                                startingAtX: nextX,
-                                y: nextY,
-                                width: map.width,
-                                state: &state,
-                                rowMinimumX: &rowMinimumX,
-                                rowMaximumX: &rowMaximumX,
-                                touchedRows: &touchedRows
+                                startingAtX: nextX, y: nextY, width: map.width, state: &state,
+                                rowMinimumX: &rowMinimumX, rowMaximumX: &rowMaximumX, touchedRows: &touchedRows
                             )
                             queue.append(nextSpan)
                             componentPixelCount += nextSpan.pixelCount
@@ -197,12 +167,7 @@ enum NativeCoreMLDBPostprocessor {
                 // OpenCV's CHAIN_APPROX_SIMPLE contours with fewer than four
                 // points are discarded by PaddleOCR.js.
                 guard componentPixelCount >= 4 else {
-                    resetRowExtrema(
-                        touchedRows,
-                        minimumX: &rowMinimumX,
-                        maximumX: &rowMaximumX,
-                        emptyMinimum: map.width
-                    )
+                    resetRowExtrema(touchedRows, minimumX: &rowMinimumX, maximumX: &rowMaximumX, emptyMinimum: map.width)
                     continue
                 }
                 hullCandidates.removeAll(keepingCapacity: true)
@@ -214,40 +179,22 @@ enum NativeCoreMLDBPostprocessor {
                         hullCandidates.append(CGPoint(x: maximumX, y: row))
                     }
                 }
-                resetRowExtrema(
-                    touchedRows,
-                    minimumX: &rowMinimumX,
-                    maximumX: &rowMaximumX,
-                    emptyMinimum: map.width
-                )
+                resetRowExtrema(touchedRows, minimumX: &rowMinimumX, maximumX: &rowMaximumX, emptyMinimum: map.width)
                 guard let minimum = minimumRectangle(points: hullCandidates) else { continue }
                 guard minimum.minimumSide >= minimumBoxSide else { continue }
                 let score = try boxScore(map: map, polygon: minimum.orderedBox, cancellationCheck: cancellationCheck)
                 guard score >= configuration.boxThreshold,
                       boxes.count < configuration.maximumCandidates else { continue }
                 try cancellationCheck()
-                guard let expanded = minimum.expanded(
-                    unclipRatio: configuration.unclipRatio
-                ), expanded.minimumSide >= minimumBoxSide + 2
-                else {
-                    continue
-                }
+                guard let expanded = minimum.expanded(unclipRatio: configuration.unclipRatio),
+                      expanded.minimumSide >= minimumBoxSide + 2 else { continue }
                 let polygon = expanded.orderedBox.map { point in
                     CGPoint(
-                        x: clampedRounded(
-                            Double(point.x) * Double(sourceWidth) / Double(map.width),
-                            maximum: sourceWidth
-                        ),
-                        y: clampedRounded(
-                            Double(point.y) * Double(sourceHeight) / Double(map.height),
-                            maximum: sourceHeight
-                        )
+                        x: clampedRounded(Double(point.x) * Double(sourceWidth) / Double(map.width), maximum: sourceWidth),
+                        y: clampedRounded(Double(point.y) * Double(sourceHeight) / Double(map.height), maximum: sourceHeight)
                     )
                 }
-                boxes.append(NativeCoreMLDetectionBox(
-                    polygon: polygon,
-                    score: score
-                ))
+                boxes.append(NativeCoreMLDetectionBox(polygon: polygon, score: score))
             }
         }
         sortReadingOrder(&boxes)
@@ -265,16 +212,10 @@ enum NativeCoreMLDBPostprocessor {
     ) -> ForegroundSpan {
         let rowOffset = y * width
         var left = startX
-        while left > 0, state[rowOffset + left - 1] == 1 {
-            left -= 1
-        }
+        while left > 0, state[rowOffset + left - 1] == 1 { left -= 1 }
         var right = startX
-        while right + 1 < width, state[rowOffset + right + 1] == 1 {
-            right += 1
-        }
-        for x in left...right {
-            state[rowOffset + x] = 2
-        }
+        while right + 1 < width, state[rowOffset + right + 1] == 1 { right += 1 }
+        for x in left...right { state[rowOffset + x] = 2 }
         if rowMaximumX[y] < 0 {
             touchedRows.append(y)
             rowMinimumX[y] = left
@@ -286,12 +227,7 @@ enum NativeCoreMLDBPostprocessor {
         return ForegroundSpan(y: y, left: left, right: right)
     }
 
-    private static func resetRowExtrema(
-        _ rows: [Int],
-        minimumX: inout [Int],
-        maximumX: inout [Int],
-        emptyMinimum: Int
-    ) {
+    private static func resetRowExtrema(_ rows: [Int], minimumX: inout [Int], maximumX: inout [Int], emptyMinimum: Int) {
         for row in rows {
             minimumX[row] = emptyMinimum
             maximumX[row] = -1
@@ -313,17 +249,12 @@ enum NativeCoreMLDBPostprocessor {
             guard area > 0, perimeter > 0 else { return nil }
             let distance = area * unclipRatio / perimeter
             return NativeCoreMLDBPostprocessor.makeRectangle(
-                center: center,
-                width: width + 2 * distance,
-                height: height + 2 * distance,
-                angle: angle
+                center: center, width: width + 2 * distance, height: height + 2 * distance, angle: angle
             )
         }
     }
 
-    private static func minimumRectangle(
-        points: [CGPoint]
-    ) -> MinimumRectangle? {
+    private static func minimumRectangle(points: [CGPoint]) -> MinimumRectangle? {
         let hull = convexHull(points)
         guard hull.count >= 3 else { return nil }
         var best: MinimumRectangle?
@@ -360,171 +291,94 @@ enum NativeCoreMLDBPostprocessor {
                     x: rotatedCenterX * cosine - rotatedCenterY * sine,
                     y: rotatedCenterX * sine + rotatedCenterY * cosine
                 )
-                best = makeRectangle(
-                    center: center,
-                    width: width,
-                    height: height,
-                    angle: angle
-                )
+                best = makeRectangle(center: center, width: width, height: height, angle: angle)
                 bestArea = area
             }
         }
         return best
     }
 
-    private static func makeRectangle(
-        center: CGPoint,
-        width: Double,
-        height: Double,
-        angle: Double
-    ) -> MinimumRectangle {
+    private static func makeRectangle(center: CGPoint, width: Double, height: Double, angle: Double) -> MinimumRectangle {
         let cosine = cos(angle)
         let sine = sin(angle)
         let halfWidth = width * 0.5
         let halfHeight = height * 0.5
-        let localCorners = [
-            (-halfWidth, -halfHeight),
-            (halfWidth, -halfHeight),
-            (halfWidth, halfHeight),
-            (-halfWidth, halfHeight),
-        ]
+        let localCorners = [(-halfWidth, -halfHeight), (halfWidth, -halfHeight), (halfWidth, halfHeight), (-halfWidth, halfHeight)]
         let corners = localCorners.map { localX, localY in
             CGPoint(
                 x: Double(center.x) + localX * cosine - localY * sine,
                 y: Double(center.y) + localX * sine + localY * cosine
             )
         }
-        return MinimumRectangle(
-            center: center,
-            width: width,
-            height: height,
-            angle: angle,
-            orderedBox: orderQuad(corners)
-        )
+        return MinimumRectangle(center: center, width: width, height: height, angle: angle, orderedBox: orderQuad(corners))
     }
 
     private static func convexHull(_ points: [CGPoint]) -> [CGPoint] {
-        let sorted = points.sorted {
-            if abs($0.x - $1.x) > 0.000_001 { return $0.x < $1.x }
-            return $0.y < $1.y
-        }
+        let sorted = sortedByXThenY(points)
         var unique: [CGPoint] = []
         unique.reserveCapacity(sorted.count)
         for point in sorted {
-            if let last = unique.last,
-               abs(last.x - point.x) <= 0.000_001,
-               abs(last.y - point.y) <= 0.000_001 {
+            if let last = unique.last, abs(last.x - point.x) <= 0.000_001, abs(last.y - point.y) <= 0.000_001 {
                 continue
             }
             unique.append(point)
         }
         guard unique.count > 2 else { return unique }
-        var lower: [CGPoint] = []
-        for point in unique {
-            while lower.count >= 2,
-                  cross(
-                    lower[lower.count - 2],
-                    lower[lower.count - 1],
-                    point
-                  ) <= 0 {
-                lower.removeLast()
+        // Monotone chain: each half drops its final point, the other half's first.
+        func chain<Points: Sequence>(_ points: Points) -> [CGPoint] where Points.Element == CGPoint {
+            var hull: [CGPoint] = []
+            for point in points {
+                while hull.count >= 2, cross(hull[hull.count - 2], hull[hull.count - 1], point) <= 0 {
+                    hull.removeLast()
+                }
+                hull.append(point)
             }
-            lower.append(point)
+            hull.removeLast()
+            return hull
         }
-        var upper: [CGPoint] = []
-        for point in unique.reversed() {
-            while upper.count >= 2,
-                  cross(
-                    upper[upper.count - 2],
-                    upper[upper.count - 1],
-                    point
-                  ) <= 0 {
-                upper.removeLast()
-            }
-            upper.append(point)
-        }
-        lower.removeLast()
-        upper.removeLast()
-        return lower + upper
+        return chain(unique) + chain(unique.reversed())
     }
 
-    private static func cross(
-        _ origin: CGPoint,
-        _ left: CGPoint,
-        _ right: CGPoint
-    ) -> Double {
+    private static func sortedByXThenY(_ points: [CGPoint]) -> [CGPoint] {
+        points.sorted {
+            if abs($0.x - $1.x) > 0.000_001 { return $0.x < $1.x }
+            return $0.y < $1.y
+        }
+    }
+
+    private static func cross(_ origin: CGPoint, _ left: CGPoint, _ right: CGPoint) -> Double {
         Double(left.x - origin.x) * Double(right.y - origin.y)
             - Double(left.y - origin.y) * Double(right.x - origin.x)
     }
 
     private static func orderQuad(_ points: [CGPoint]) -> [CGPoint] {
         precondition(points.count == 4)
-        let sorted = points.sorted {
-            if abs($0.x - $1.x) > 0.000_001 { return $0.x < $1.x }
-            return $0.y < $1.y
-        }
-        let topLeft: CGPoint
-        let bottomLeft: CGPoint
-        if sorted[1].y > sorted[0].y {
-            topLeft = sorted[0]
-            bottomLeft = sorted[1]
-        } else {
-            topLeft = sorted[1]
-            bottomLeft = sorted[0]
-        }
-        let topRight: CGPoint
-        let bottomRight: CGPoint
-        if sorted[3].y > sorted[2].y {
-            topRight = sorted[2]
-            bottomRight = sorted[3]
-        } else {
-            topRight = sorted[3]
-            bottomRight = sorted[2]
-        }
+        let sorted = sortedByXThenY(points)
+        let (topLeft, bottomLeft) = sorted[1].y > sorted[0].y ? (sorted[0], sorted[1]) : (sorted[1], sorted[0])
+        let (topRight, bottomRight) = sorted[3].y > sorted[2].y ? (sorted[2], sorted[3]) : (sorted[3], sorted[2])
         return [topLeft, topRight, bottomRight, bottomLeft]
     }
 
     private static func boxScore(
-        map: NativeCoreMLDetectionMap,
-        polygon: [CGPoint],
-        cancellationCheck: () throws -> Void = {}
+        map: NativeCoreMLDetectionMap, polygon: [CGPoint], cancellationCheck: () throws -> Void = {}
     ) throws -> Double {
-        let minimumX = max(
-            0,
-            min(map.width - 1, Int(floor(polygon.map(\.x).min() ?? 0)))
-        )
-        let maximumX = max(
-            0,
-            min(map.width - 1, Int(ceil(polygon.map(\.x).max() ?? 0)))
-        )
-        let minimumY = max(
-            0,
-            min(map.height - 1, Int(floor(polygon.map(\.y).min() ?? 0)))
-        )
-        let maximumY = max(
-            0,
-            min(map.height - 1, Int(ceil(polygon.map(\.y).max() ?? 0)))
-        )
+        let minimumX = max(0, min(map.width - 1, Int(floor(polygon.map(\.x).min() ?? 0))))
+        let maximumX = max(0, min(map.width - 1, Int(ceil(polygon.map(\.x).max() ?? 0))))
+        let minimumY = max(0, min(map.height - 1, Int(floor(polygon.map(\.y).min() ?? 0))))
+        let maximumY = max(0, min(map.height - 1, Int(ceil(polygon.map(\.y).max() ?? 0))))
         // Preserve the legacy fast-score contract: polygon vertices are
         // truncated to integer coordinates before rasterization. The polygon
         // is a convex minimum-area rectangle, so each scan row has one
         // inclusive span. Computing the two edge intersections once per row
         // replaces four edge tests (and divisions) for every map pixel.
-        let rasterPolygon = polygon.map {
-            CGPoint(x: Int($0.x), y: Int($0.y))
-        }
+        let rasterPolygon = polygon.map { CGPoint(x: Int($0.x), y: Int($0.y)) }
         var sum = 0.0
         var count = 0
         for y in minimumY...maximumY {
             if (y - minimumY) & 31 == 0 { try cancellationCheck() }
             guard let span = inclusiveHorizontalSpan(
-                y: y,
-                polygon: rasterPolygon,
-                minimumX: minimumX,
-                maximumX: maximumX
-            ) else {
-                continue
-            }
+                y: y, polygon: rasterPolygon, minimumX: minimumX, maximumX: maximumX
+            ) else { continue }
             for x in span {
                 let value = map.values[y * map.width + x]
                 if value.isFinite {
@@ -537,10 +391,7 @@ enum NativeCoreMLDBPostprocessor {
     }
 
     private static func inclusiveHorizontalSpan(
-        y: Int,
-        polygon: [CGPoint],
-        minimumX: Int,
-        maximumX: Int
+        y: Int, polygon: [CGPoint], minimumX: Int, maximumX: Int
     ) -> ClosedRange<Int>? {
         let scanY = Double(y)
         var left = Double.infinity
@@ -559,8 +410,7 @@ enum NativeCoreMLDBPostprocessor {
                 continue
             }
             let interpolation = (scanY - firstY) / (secondY - firstY)
-            let intersectionX = Double(first.x)
-                + interpolation * Double(second.x - first.x)
+            let intersectionX = Double(first.x) + interpolation * Double(second.x - first.x)
             left = min(left, intersectionX)
             right = max(right, intersectionX)
         }
@@ -571,37 +421,23 @@ enum NativeCoreMLDBPostprocessor {
         return firstX...lastX
     }
 
-    private static func clampedRounded(
-        _ value: Double,
-        maximum: Int
-    ) -> CGFloat {
+    private static func clampedRounded(_ value: Double, maximum: Int) -> CGFloat {
         CGFloat(min(max(Int(value.rounded()), 0), maximum))
     }
 
-    private static func sortReadingOrder(
-        _ boxes: inout [NativeCoreMLDetectionBox]
-    ) {
+    private static func sortReadingOrder(_ boxes: inout [NativeCoreMLDetectionBox]) {
         boxes.sort {
             let left = $0.polygon.first ?? .zero
             let right = $1.polygon.first ?? .zero
-            if abs(left.y - right.y) > 0.000_001 {
-                return left.y < right.y
-            }
-            return left.x < right.x
+            return abs(left.y - right.y) > 0.000_001 ? left.y < right.y : left.x < right.x
         }
         guard boxes.count > 1 else { return }
         for index in 0..<(boxes.count - 1) {
             var cursor = index
             while cursor >= 0 {
-                let current = boxes[cursor]
-                let next = boxes[cursor + 1]
-                let currentStart = current.polygon.first ?? .zero
-                let nextStart = next.polygon.first ?? .zero
-                guard abs(nextStart.y - currentStart.y) < 10,
-                      nextStart.x < currentStart.x
-                else {
-                    break
-                }
+                let currentStart = boxes[cursor].polygon.first ?? .zero
+                let nextStart = boxes[cursor + 1].polygon.first ?? .zero
+                guard abs(nextStart.y - currentStart.y) < 10, nextStart.x < currentStart.x else { break }
                 boxes.swapAt(cursor, cursor + 1)
                 cursor -= 1
             }

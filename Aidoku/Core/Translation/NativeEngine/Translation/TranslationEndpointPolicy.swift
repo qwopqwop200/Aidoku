@@ -6,42 +6,25 @@ enum TranslationEndpointPolicy {
 
     static func endpoint(for configuration: RemoteTranslationConfiguration) throws -> URL {
         let rawValue = configuration.baseURL
-        guard !rawValue.isEmpty,
-              rawValue.utf8.count <= maximumURLBytes,
-              !rawValue.contains(where: { $0.isWhitespace }),
-              !rawValue.contains("\\")
-        else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider URL is blank, too long, or contains whitespace"
-            )
+        guard !rawValue.isEmpty, rawValue.utf8.count <= maximumURLBytes,
+              !rawValue.contains(where: { $0.isWhitespace }), !rawValue.contains("\\") else {
+            throw RemoteTranslationError.invalidConfiguration("provider URL is blank, too long, or contains whitespace")
         }
 
-        guard var components = URLComponents(string: rawValue),
-              let rawScheme = components.scheme,
-              let rawHost = components.host,
-              !rawHost.isEmpty
-        else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider URL requires a scheme and host"
-            )
+        guard var components = URLComponents(string: rawValue), let rawScheme = components.scheme,
+              let rawHost = components.host, !rawHost.isEmpty else {
+            throw RemoteTranslationError.invalidConfiguration("provider URL requires a scheme and host")
         }
-        guard components.user == nil,
-              components.password == nil,
-              components.query == nil,
-              components.fragment == nil
-        else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider URL cannot contain credentials, a query, or a fragment"
-            )
+        guard components.user == nil, components.password == nil, components.query == nil,
+              components.fragment == nil else {
+            throw RemoteTranslationError.invalidConfiguration("provider URL cannot contain credentials, a query, or a fragment")
         }
 
         let scheme = rawScheme.lowercased()
         let host = rawHost.lowercased()
         components.scheme = scheme
         components.host = host
-        if components.port == 443, scheme == "https" {
-            components.port = nil
-        } else if components.port == 80, scheme == "http" {
+        if (components.port == 443 && scheme == "https") || (components.port == 80 && scheme == "http") {
             components.port = nil
         }
 
@@ -50,93 +33,58 @@ enum TranslationEndpointPolicy {
             break
         case "http":
             let rawLoopbackHost = rawAuthorityHost(rawValue)?.lowercased()
-            guard configuration.provider == .custom,
-                  configuration.allowsInsecureLocalhostForDevelopment,
-                  rawLoopbackHost == "localhost" ||
-                    rawLoopbackHost == "127.0.0.1" ||
-                    rawLoopbackHost == "[::1]",
-                  isCanonicalLoopbackHost(host)
-            else {
+            guard configuration.provider == .custom, configuration.allowsInsecureLocalhostForDevelopment,
+                  ["localhost", "127.0.0.1", "[::1]"].contains(rawLoopbackHost), isCanonicalLoopbackHost(host) else {
                 throw RemoteTranslationError.insecureEndpoint
             }
         default:
             throw RemoteTranslationError.insecureEndpoint
         }
 
-        let decodedSegments = components.path
-            .split(separator: "/", omittingEmptySubsequences: true)
-            .map(String.init)
+        let decodedSegments = components.path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
         guard !decodedSegments.contains(where: { $0 == "." || $0 == ".." }) else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider URL path cannot contain traversal segments"
-            )
+            throw RemoteTranslationError.invalidConfiguration("provider URL path cannot contain traversal segments")
         }
         let encodedPath = components.percentEncodedPath.lowercased()
-        guard !encodedPath.contains("%2f"),
-              !encodedPath.contains("%5c"),
-              !encodedPath.contains("%00")
-        else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider URL path contains an unsafe encoded separator"
-            )
+        guard !encodedPath.contains("%2f"), !encodedPath.contains("%5c"), !encodedPath.contains("%00") else {
+            throw RemoteTranslationError.invalidConfiguration("provider URL path contains an unsafe encoded separator")
         }
 
-        let expectedSuffix: [String]
-        let oppositeSuffix: [String]
-        switch configuration.apiProtocol {
-        case .responses:
-            expectedSuffix = ["responses"]
-            oppositeSuffix = ["chat", "completions"]
-        case .chatCompletions:
-            expectedSuffix = ["chat", "completions"]
-            oppositeSuffix = ["responses"]
-        }
+        let (expectedSuffix, oppositeSuffix) = configuration.apiProtocol == .responses
+            ? (["responses"], ["chat", "completions"])
+            : (["chat", "completions"], ["responses"])
 
         if hasSuffix(decodedSegments, oppositeSuffix) {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider URL endpoint does not match the selected protocol"
-            )
+            throw RemoteTranslationError.invalidConfiguration("provider URL endpoint does not match the selected protocol")
         }
 
         var resultSegments = decodedSegments
         if !hasSuffix(resultSegments, expectedSuffix) {
-            if resultSegments.isEmpty {
-                resultSegments.append("v1")
-            }
+            if resultSegments.isEmpty { resultSegments.append("v1") }
             resultSegments.append(contentsOf: expectedSuffix)
         }
         components.path = "/" + resultSegments.joined(separator: "/")
         components.percentEncodedQuery = nil
 
-        guard let endpoint = components.url,
-              endpoint.host != nil
-        else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider endpoint could not be constructed"
-            )
+        guard let endpoint = components.url, endpoint.host != nil else {
+            throw RemoteTranslationError.invalidConfiguration("provider endpoint could not be constructed")
         }
         return endpoint
     }
 
     private static func hasSuffix(_ value: [String], _ suffix: [String]) -> Bool {
         guard value.count >= suffix.count else { return false }
-        return value.suffix(suffix.count).elementsEqual(
-            suffix,
-            by: { $0.caseInsensitiveCompare($1) == .orderedSame }
-        )
+        return value.suffix(suffix.count).elementsEqual(suffix) { $0.caseInsensitiveCompare($1) == .orderedSame }
     }
 
     private static func isCanonicalLoopbackHost(_ host: String) -> Bool {
-        host == "localhost" || host == "127.0.0.1" ||
-            host == "::1" || host == "[::1]"
+        ["localhost", "127.0.0.1", "::1", "[::1]"].contains(host)
     }
 
     private static func rawAuthorityHost(_ value: String) -> String? {
         guard let schemeRange = value.range(of: "://") else { return nil }
         let remainder = value[schemeRange.upperBound...]
-        let authorityEnd = remainder.firstIndex {
-            $0 == "/" || $0 == "?" || $0 == "#"
-        } ?? remainder.endIndex
+        let authorityEnd = remainder.firstIndex { $0 == "/" || $0 == "?" || $0 == "#" } ?? remainder.endIndex
         let authority = remainder[..<authorityEnd]
         guard !authority.isEmpty, !authority.contains("@") else { return nil }
         if authority.first == "[" {

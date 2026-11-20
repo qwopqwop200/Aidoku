@@ -697,9 +697,7 @@ extension AppDelegate {
                 guard !batches.isEmpty else { return }
                 if !AppSettings.reader.saveSharedImages.get() {
                     var readable = batches
-                    var info = await LocalFileManager.shared.prepareImageImport(
-                        from: readable.flatMap(\.images), name: readable[0].title
-                    )
+                    var info = await LocalFileManager.shared.prepareImageImport(from: batches.flatMap(\.images), name: batches[0].title)
                     if info == nil {
                         // Find the bad batches so they cannot keep every other share from opening.
                         readable = []
@@ -711,18 +709,16 @@ extension AppDelegate {
                             }
                         }
                         if let first = readable.first {
-                            info = await LocalFileManager.shared.prepareImageImport(
-                                from: readable.flatMap(\.images), name: first.title
-                            )
+                            info = await LocalFileManager.shared.prepareImageImport(from: readable.flatMap(\.images), name: first.title)
                         }
                     }
                     guard let info else { throw LocalFileManagerError.invalidFileType }
                     let temporary = try TemporarySharedImageSession(fileInfo: info)
                     for batch in readable { try? inbox.remove(batch) }
-                    presentSharedImageReader(ReaderViewController(
+                    Self.presentSharedImageController(ReaderNavigationController(readerViewController: ReaderViewController(
                         source: temporary.source, manga: temporary.manga, chapter: temporary.chapter,
                         startPage: 1, temporaryImageSession: temporary
-                    ), from: presenter)
+                    )), from: presenter)
                     return
                 }
                 guard await SourceManager.shared.ensureLocalSourceForImport() else { return }
@@ -764,7 +760,8 @@ extension AppDelegate {
                    let source = await SourceManager.shared.source(for: LocalSourceRunner.sourceKey) {
                     manga.chapters = await LocalFileDataManager.shared.fetchChapters(mangaId: lastMangaID)
                     if let chapter = manga.chapters?.first {
-                        presentSharedImageReader(ReaderViewController(source: source, manga: manga, chapter: chapter, startPage: 1), from: presenter)
+                        let reader = ReaderViewController(source: source, manga: manga, chapter: chapter, startPage: 1)
+                        Self.presentSharedImageController(ReaderNavigationController(readerViewController: reader), from: presenter)
                     }
                 }
                 if failedBatches > 0 {
@@ -790,11 +787,6 @@ extension AppDelegate {
             $0.viewIfLoaded?.window === window
         }) else { return nil }
         return root
-    }
-
-    private func presentSharedImageReader(_ reader: ReaderViewController, from presenter: UIViewController) {
-        let controller = ReaderNavigationController(readerViewController: reader)
-        Self.presentSharedImageController(controller, from: presenter)
     }
 
     static func presentSharedImageController(_ controller: UIViewController, from presenter: UIViewController) {

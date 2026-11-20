@@ -184,12 +184,8 @@ extension OAuthClient {
     }
 
     func loadTokens() {
-        let loaded: OAuthResponse
-        if let data = UserDefaults.standard.data(forKey: "Tracker.\(id).oauth") {
-            loaded = (try? JSONDecoder().decode(OAuthResponse.self, from: data)) ?? OAuthResponse()
-        } else {
-            loaded = OAuthResponse()
-        }
+        let loaded = UserDefaults.standard.data(forKey: "Tracker.\(id).oauth")
+            .flatMap { try? JSONDecoder().decode(OAuthResponse.self, from: $0) } ?? OAuthResponse()
         if tokens?.accessToken != loaded.accessToken || tokens?.refreshToken != loaded.refreshToken {
             beginAuthentication()
         }
@@ -206,7 +202,6 @@ extension OAuthClient {
         if response == nil {
             UserDefaults.standard.removeObject(forKey: "Tracker.\(id).oauth")
             UserDefaults.standard.removeObject(forKey: "Tracker.\(id).token")
-            UserDefaults.standard.removeObject(forKey: "Tracker.\(id).user_id")
         } else {
             saveTokens()
         }

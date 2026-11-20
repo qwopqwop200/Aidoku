@@ -25,10 +25,7 @@ struct TranslationEndpointPolicyTests {
 
     @Test func plaintextRequiresAnExplicitCanonicalLoopbackOptIn() throws {
         for host in ["localhost", "127.0.0.1", "[::1]"] {
-            let endpoint = try customConfiguration(
-                baseURL: "http://\(host):8080/v1",
-                allowsDevelopmentHTTP: true
-            ).validatedEndpoint()
+            let endpoint = try customConfiguration(baseURL: "http://\(host):8080/v1", allowsDevelopmentHTTP: true).validatedEndpoint()
             #expect(endpoint.scheme == "http")
         }
 
@@ -41,9 +38,7 @@ struct TranslationEndpointPolicyTests {
             do {
                 _ = try rejected.validatedEndpoint()
                 #expect(Bool(false), "unsafe plaintext endpoint was accepted")
-            } catch RemoteTranslationError.insecureEndpoint {
-                // Expected.
-            }
+            } catch RemoteTranslationError.insecureEndpoint {}
         }
     }
 
@@ -63,18 +58,9 @@ struct TranslationEndpointPolicyTests {
         }
     }
 
-    private func customConfiguration(
-        baseURL: String,
-        apiProtocol: RemoteTranslationProtocol = .responses,
-        allowsDevelopmentHTTP: Bool = false
-    ) -> RemoteTranslationConfiguration {
-        RemoteTranslationConfiguration(
-            provider: .custom,
-            apiProtocol: apiProtocol,
-            baseURL: baseURL,
-            model: "custom-model",
-            credentialAccount: "custom",
-            allowsInsecureLocalhostForDevelopment: allowsDevelopmentHTTP
-        )
+    private func customConfiguration(baseURL: String, apiProtocol: RemoteTranslationProtocol = .responses,
+                                     allowsDevelopmentHTTP: Bool = false) -> RemoteTranslationConfiguration {
+        RemoteTranslationConfiguration(provider: .custom, apiProtocol: apiProtocol, baseURL: baseURL, model: "custom-model",
+                                       credentialAccount: "custom", allowsInsecureLocalhostForDevelopment: allowsDevelopmentHTTP)
     }
 }

@@ -5,12 +5,9 @@ import Foundation
 // RF-DETR finds no balloon for most vertical source columns, and its balloon boxes
 // often span several balloons or cut past rounded outlines, so S9 would either wrap
 // the translation inside the tight column box or paint outside the balloon.
-// Starting from the block's own bounds, the sides grow one raster cell at a time
-// while the added strip holds only paper-coloured cells (the block's own lines count
-// as paper: S6 erases them). Growth stops at other text, balloon outlines, art and
-// tone, so the result is a rectangle inscribed in the clean area, kept one cell
-// inside where it stopped and bounded by a detected balloon and a reach of a few
-// line thicknesses. It becomes `V2Block.balloon`, the box S9 fits into; blocks on
+// The block's bounds grow one raster cell per side while the added strip is paper
+// (its own lines count as paper: S6 erases them), stopping at text, outlines, art and
+// tone. The result becomes `V2Block.balloon`, the box S9 fits into; blocks on
 // mid-gray paper (tone) keep their detected balloon, if any.
 enum V2Interior {
     typealias Box = (x0: Int, y0: Int, x1: Int, y1: Int)
@@ -142,22 +139,17 @@ enum V2Interior {
             guard abs(Int(raster.pixels[y * width + x]) - paper) > inkDistance else { return false }
             return !own.contains { x >= $0.x0 && x < $0.x1 && y >= $0.y0 && y < $0.y1 }
         }
-        func clean(column x: Int, _ r: Box) -> Bool {
+        // A strip is clean while at most 1% of its cells are dirty.
+        func cleanRun(_ range: Range<Int>, _ isDirty: (Int) -> Bool) -> Bool {
             var count = 0
-            for y in r.y0..<r.y1 where dirty(x, y) {
+            for i in range where isDirty(i) {
                 count += 1
-                if count * 100 > r.y1 - r.y0 { return false }
+                if count * 100 > range.upperBound - range.lowerBound { return false }
             }
             return true
         }
-        func clean(row y: Int, _ r: Box) -> Bool {
-            var count = 0
-            for x in r.x0..<r.x1 where dirty(x, y) {
-                count += 1
-                if count * 100 > r.x1 - r.x0 { return false }
-            }
-            return true
-        }
+        func clean(column x: Int, _ r: Box) -> Bool { cleanRun(r.y0..<r.y1) { dirty(x, $0) } }
+        func clean(row y: Int, _ r: Box) -> Bool { cleanRun(r.x0..<r.x1) { dirty($0, y) } }
         /// Grows the sides of each phase (0 left, 1 right, 2 top, 3 bottom) round-robin
         /// until all of them stop, then steps one cell back from every grown edge.
         func grown(_ phases: [[Int]]) -> Box {

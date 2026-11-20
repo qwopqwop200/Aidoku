@@ -32,13 +32,9 @@ final class ReaderTranslationPage {
     private var v2Failed = false
     private(set) var isPresentingV2 = false
 
-    init(imageView: UIImageView) {
-        self.imageView = imageView
-    }
+    init(imageView: UIImageView) { self.imageView = imageView }
 
-    deinit {
-        v2Task?.cancel()
-    }
+    deinit { v2Task?.cancel() }
 
     func reset() {
         cancel()
@@ -61,9 +57,7 @@ final class ReaderTranslationPage {
     }
 
     /// Only a presented V2 page bitmap can be saved; it is the finished page.
-    var canExportTranslation: Bool {
-        isPresentingV2 && cachedOverlay?.snapshotImage != nil
-    }
+    var canExportTranslation: Bool { isPresentingV2 && cachedOverlay?.snapshotImage != nil }
 
     func exportTranslatedImage() throws -> UIImage {
         guard isPresentingV2, let snapshot = cachedOverlay?.snapshotImage else {
@@ -115,10 +109,7 @@ extension ReaderTranslationPage {
             if isPresentingV2 { cachedOverlay?.setPresentationHidden(!settings.overlay.visible) }
             return
         }
-        reset()
-        v2Identity = key
-        v2Source = image
-        v2Failed = false
+        begin(key: key, source: image)
         let issued = generation
         v2Task = Task { [weak self] in
             do {
@@ -179,11 +170,15 @@ extension ReaderTranslationPage {
             cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
             return
         }
+        begin(key: key, source: source)
+        displayV2(output, source: source, settings: settings)
+    }
+
+    private func begin(key: String, source: UIImage) {
         reset()
         v2Identity = key
         v2Source = source
         v2Failed = false
-        displayV2(output, source: source, settings: settings)
     }
 
     private func displayV2(_ output: UIImage, source: UIImage, settings: ReaderTranslationSettings) {

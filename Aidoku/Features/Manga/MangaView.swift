@@ -461,14 +461,7 @@ extension MangaView {
 
         if hasDownloadButton, #available(iOS 18.0, *) {
             Button {
-                let wifiOnly = AppSettings.downloads.downloadOnlyOnWifi.get()
-                if !wifiOnly || Reachability.getConnectionType() == .wifi {
-                    Task {
-                        await DownloadManager.shared.download(manga: viewModel.manga, chapters: [chapter], translatesImages: true)
-                    }
-                } else {
-                    showConnectionAlert = true
-                }
+                startDownload([chapter], translatesImages: true)
             } label: {
                 Label(NSLocalizedString("DOWNLOAD_TRANSLATED"), systemImage: "character.bubble")
             }
@@ -776,35 +769,23 @@ extension MangaView {
     }
 
     func downloadSelectedChapters(translatesImages: Bool = false) {
-        let downloadChapters = (viewModel.manga.chapters ?? viewModel.chapters)
-            .filter { chapter in
-                let isSelected = selectedChapters.contains(chapter.key)
-                guard isSelected else { return false }
-                let isDownloaded = viewModel.downloadStatus[chapter.key] == .finished
-                let isDownloading = viewModel.downloadStatus[chapter.key] == .downloading
-                let isQueued = viewModel.downloadStatus[chapter.key] == .queued
-                guard !isDownloaded, !isDownloading, !isQueued else { return false }
-                return true
-            }
-            .reversed()
+        let downloadChapters = (viewModel.manga.chapters ?? viewModel.chapters).filter {
+            selectedChapters.contains($0.key) && ![.finished, .downloading, .queued].contains(viewModel.downloadStatus[$0.key])
+        }
+        startDownload(downloadChapters.reversed(), translatesImages: translatesImages)
+        withAnimation {
+            editMode = .inactive
+        }
+    }
 
-        let downloadOnlyOnWifi = AppSettings.downloads.downloadOnlyOnWifi.get()
-        if
-            downloadOnlyOnWifi && Reachability.getConnectionType() == .wifi
-                || !downloadOnlyOnWifi
-        {
+    private func startDownload(_ chapters: [AidokuRunner.Chapter], translatesImages: Bool) {
+        let wifiOnly = AppSettings.downloads.downloadOnlyOnWifi.get()
+        if !wifiOnly || Reachability.getConnectionType() == .wifi {
             Task {
-                await DownloadManager.shared.download(
-                    manga: viewModel.manga,
-                    chapters: Array(downloadChapters),
-                    translatesImages: translatesImages
-                )
+                await DownloadManager.shared.download(manga: viewModel.manga, chapters: chapters, translatesImages: translatesImages)
             }
         } else {
             showConnectionAlert = true
-        }
-        withAnimation {
-            editMode = .inactive
         }
     }
 }
@@ -836,13 +817,9 @@ extension MangaView {
             let root = FileManager.default.temporaryDirectory.standardizedFileURL.path + "/"
             return url.isFileURL && url.standardizedFileURL.path.hasPrefix(root) ? url : nil
         }
-        activityViewController.completionWithItemsHandler = { _, _, _, _ in
-            if let temporaryURL { try? FileManager.default.removeItem(at: temporaryURL) }
-        }
-        guard let sourceView = path.rootViewController?.view else {
-            if let temporaryURL { try? FileManager.default.removeItem(at: temporaryURL) }
-            return
-        }
+        let removeTemporaryFile: () -> Void = { if let temporaryURL { try? FileManager.default.removeItem(at: temporaryURL) } }
+        activityViewController.completionWithItemsHandler = { _, _, _, _ in removeTemporaryFile() }
+        guard let sourceView = path.rootViewController?.view else { removeTemporaryFile(); return }
         activityViewController.popoverPresentationController?.sourceView = sourceView
         // manually positioned in top right of screen, near the right navigation bar button
         activityViewController.popoverPresentationController?.sourceRect = CGRect(

@@ -607,51 +607,28 @@ extension DictionaryManager {
         }
     }
 
-    func deleteDictionary(path: URL, type: DictionaryType) {
-        let dictionaries = switch type {
-            case .term: termDictionaries
-            case .frequency: frequencyDictionaries
-            case .pitch: pitchDictionaries
-            case .kanji: kanjiDictionaries
+    private func dictionaries(_ type: DictionaryType) -> ReferenceWritableKeyPath<DictionaryManager, [DictionaryInfo]> {
+        switch type {
+            case .term: \.termDictionaries
+            case .frequency: \.frequencyDictionaries
+            case .pitch: \.pitchDictionaries
+            case .kanji: \.kanjiDictionaries
         }
-        guard let index = dictionaries.firstIndex(where: { $0.path == path }) else { return }
+    }
+
+    func deleteDictionary(path: URL, type: DictionaryType) {
+        guard let index = self[keyPath: dictionaries(type)].firstIndex(where: { $0.path == path }) else { return }
         deleteDictionary(indexSet: IndexSet(integer: index), type: type)
     }
 
     func deleteDictionary(indexSet: IndexSet, type: DictionaryType) {
-        switch type {
-            case .term:
-                for index in indexSet.reversed() {
-                    guard termDictionaries.indices.contains(index) else { continue }
-                    let dictionary = termDictionaries[index]
-                    guard removeDictionaryFiles(at: dictionary.path) else { continue }
-                    termDictionaries.remove(at: index)
-                    updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
-                }
-            case .frequency:
-                for index in indexSet.reversed() {
-                    guard frequencyDictionaries.indices.contains(index) else { continue }
-                    let dictionary = frequencyDictionaries[index]
-                    guard removeDictionaryFiles(at: dictionary.path) else { continue }
-                    frequencyDictionaries.remove(at: index)
-                    updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
-                }
-            case .pitch:
-                for index in indexSet.reversed() {
-                    guard pitchDictionaries.indices.contains(index) else { continue }
-                    let dictionary = pitchDictionaries[index]
-                    guard removeDictionaryFiles(at: dictionary.path) else { continue }
-                    pitchDictionaries.remove(at: index)
-                    updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
-                }
-            case .kanji:
-                for index in indexSet.reversed() {
-                    guard kanjiDictionaries.indices.contains(index) else { continue }
-                    let dictionary = kanjiDictionaries[index]
-                    guard removeDictionaryFiles(at: dictionary.path) else { continue }
-                    kanjiDictionaries.remove(at: index)
-                    updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
-                }
+        let list = dictionaries(type)
+        for index in indexSet.reversed() {
+            guard self[keyPath: list].indices.contains(index) else { continue }
+            let dictionary = self[keyPath: list][index]
+            guard removeDictionaryFiles(at: dictionary.path) else { continue }
+            self[keyPath: list].remove(at: index)
+            updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
         }
         updateOrder(type: type)
         saveDictionaryConfig()

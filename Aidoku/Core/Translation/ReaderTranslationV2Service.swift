@@ -423,10 +423,8 @@ actor ReaderTranslationV2Service {
     }
 }
 
-/// Bounded LRU of finished V2 page bitmaps. The normal budget is at least
-/// 32 MB, otherwise a quarter of
-/// the headroom above the image-work reserve, at most 192 MB
-/// (`V2PerformanceProfile` relaxes it in developer builds).
+/// Bounded LRU of finished V2 page bitmaps. The normal budget is at least 32 MB, otherwise a quarter
+/// of the headroom above the image-work reserve, at most 192 MB (`V2PerformanceProfile` relaxes it in developer builds).
 struct V2PageMemoryCache {
     static let minimumBytes = 32 * 1_024 * 1_024
     static let maximumBytes = 192 * 1_024 * 1_024
@@ -561,20 +559,15 @@ final class V2SlotHold: @unchecked Sendable {
         lock.withLock { holdsBack = true }
     }
 
-    func releaseFront() {
-        let release = lock.withLock { () -> Bool in
-            defer { holdsFront = false }
-            return holdsFront
-        }
-        if release { front.release() }
-    }
+    func releaseFront() { release(\.holdsFront, front) }
+    func releaseBack() { release(\.holdsBack, back) }
 
-    func releaseBack() {
+    private func release(_ held: ReferenceWritableKeyPath<V2SlotHold, Bool>, _ slots: V2ComputeSlots) {
         let release = lock.withLock { () -> Bool in
-            defer { holdsBack = false }
-            return holdsBack
+            defer { self[keyPath: held] = false }
+            return self[keyPath: held]
         }
-        if release { back.release() }
+        if release { slots.release() }
     }
 
     func releaseAll() {
@@ -736,8 +729,6 @@ final class V2OrphanCounter: @unchecked Sendable {
         }
         return true
     }
-
-    var current: Int { lock.lock(); defer { lock.unlock() }; return count }
 
     private func release() { lock.lock(); count -= 1; lock.unlock() }
 }

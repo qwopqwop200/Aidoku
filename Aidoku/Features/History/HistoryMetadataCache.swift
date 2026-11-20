@@ -13,6 +13,11 @@ final class HistoryMetadataCache: @unchecked Sendable {
         let chapter: AidokuRunner.Chapter
         let storedAt: Date
         var accessedAt: Date
+
+        // AidokuRunner deliberately excludes sourceKey from Codable.
+        var restoredManga: AidokuRunner.Manga {
+            AidokuRunner.Manga(sourceKey: id.sourceKey, key: id.mangaKey, title: "").copy(from: manga)
+        }
     }
     private struct Archive: Codable {
         let version: Int
@@ -43,10 +48,7 @@ final class HistoryMetadataCache: @unchecked Sendable {
             var touched = false
             for index in entries.indices where requested.contains(entries[index].id) {
                 let entry = entries[index]
-                // AidokuRunner deliberately excludes sourceKey from Codable.
-                let manga = AidokuRunner.Manga(sourceKey: entry.id.sourceKey, key: entry.id.mangaKey, title: "")
-                    .copy(from: entry.manga)
-                result.manga[entry.id.mangaIdentifier] = manga
+                result.manga[entry.id.mangaIdentifier] = entry.restoredManga
                 result.chapters[entry.id] = entry.chapter
                 if now.timeIntervalSince(entry.accessedAt) >= 60 {
                     entries[index].accessedAt = now
@@ -74,8 +76,7 @@ final class HistoryMetadataCache: @unchecked Sendable {
                 let entry = Entry(id: id, manga: compact, chapter: chapter, storedAt: now, accessedAt: now)
                 guard let data = try? encoder.encode(entry), data.count <= min(maxBytes, 32 * 1024) else { continue }
                 if let old = entries.first(where: { $0.id == id }),
-                   AidokuRunner.Manga(sourceKey: old.id.sourceKey, key: old.id.mangaKey, title: "")
-                    .copy(from: old.manga) == compact, old.chapter == chapter, now.timeIntervalSince(old.storedAt) < 60 { continue }
+                   old.restoredManga == compact, old.chapter == chapter, now.timeIntervalSince(old.storedAt) < 60 { continue }
                 entries.removeAll { $0.id == id }
                 entries.append(entry)
                 changed = true

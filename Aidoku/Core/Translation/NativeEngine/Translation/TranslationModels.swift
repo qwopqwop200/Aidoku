@@ -4,10 +4,8 @@ import CryptoKit
 
 private func isASCIIAlphaNumeric(_ scalar: Unicode.Scalar) -> Bool {
     switch scalar.value {
-    case 48...57, 65...90, 97...122:
-        return true
-    default:
-        return false
+    case 48...57, 65...90, 97...122: true
+    default: false
     }
 }
 
@@ -35,33 +33,20 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
     var errorDescription: String? {
         // Keep diagnostic payloads in the error for logging; user-facing text is localized.
         switch self {
-        case .invalidConfiguration:
-            return NSLocalizedString("TRANSLATION_ERROR_CONFIGURATION")
-        case .invalidRequest:
-            return NSLocalizedString("TRANSLATION_ERROR_REQUEST")
-        case .invalidResponse:
-            return NSLocalizedString("TRANSLATION_ERROR_RESPONSE")
-        case .missingCredential:
-            return NSLocalizedString("TRANSLATION_ERROR_KEY_REQUIRED")
-        case .credentialAccessFailed:
-            return NSLocalizedString("TRANSLATION_ERROR_KEY_ACCESS")
-        case .insecureEndpoint:
-            return NSLocalizedString("TRANSLATION_ERROR_ENDPOINT")
-        case .redirectRejected:
-            return NSLocalizedString("TRANSLATION_ERROR_REDIRECT")
-        case .responseTooLarge:
-            return NSLocalizedString("TRANSLATION_ERROR_RESPONSE_SIZE")
-        case let .httpStatus(status, requestID):
-            if let requestID {
-                return String(format: NSLocalizedString("TRANSLATION_ERROR_HTTP_REQUEST"), status, requestID)
-            }
-            return String(format: NSLocalizedString("TRANSLATION_ERROR_HTTP"), status)
-        case let .transport(code):
-            return String(format: NSLocalizedString("TRANSLATION_ERROR_NETWORK_CODE"), code.rawValue)
-        case .privateTailnetUnavailable:
-            return NSLocalizedString("TRANSLATION_ERROR_CONNECTION")
-        case .refused:
-            return NSLocalizedString("TRANSLATION_ERROR_REFUSED")
+        case .invalidConfiguration: NSLocalizedString("TRANSLATION_ERROR_CONFIGURATION")
+        case .invalidRequest: NSLocalizedString("TRANSLATION_ERROR_REQUEST")
+        case .invalidResponse: NSLocalizedString("TRANSLATION_ERROR_RESPONSE")
+        case .missingCredential: NSLocalizedString("TRANSLATION_ERROR_KEY_REQUIRED")
+        case .credentialAccessFailed: NSLocalizedString("TRANSLATION_ERROR_KEY_ACCESS")
+        case .insecureEndpoint: NSLocalizedString("TRANSLATION_ERROR_ENDPOINT")
+        case .redirectRejected: NSLocalizedString("TRANSLATION_ERROR_REDIRECT")
+        case .responseTooLarge: NSLocalizedString("TRANSLATION_ERROR_RESPONSE_SIZE")
+        case let .httpStatus(status, requestID?):
+            String(format: NSLocalizedString("TRANSLATION_ERROR_HTTP_REQUEST"), status, requestID)
+        case let .httpStatus(status, nil): String(format: NSLocalizedString("TRANSLATION_ERROR_HTTP"), status)
+        case let .transport(code): String(format: NSLocalizedString("TRANSLATION_ERROR_NETWORK_CODE"), code.rawValue)
+        case .privateTailnetUnavailable: NSLocalizedString("TRANSLATION_ERROR_CONNECTION")
+        case .refused: NSLocalizedString("TRANSLATION_ERROR_REFUSED")
         }
     }
 }
@@ -76,17 +61,8 @@ enum RemoteTranslationProvider: String, Codable, Hashable, Sendable {
     case custom
 }
 
-enum OpenAIReasoningEffort:
-    String, Codable, CaseIterable, Hashable, Sendable
-{
-    case modelDefault
-    case none
-    case minimal
-    case low
-    case medium
-    case high
-    case xhigh
-    case max
+enum OpenAIReasoningEffort: String, Codable, CaseIterable, Hashable, Sendable {
+    case modelDefault, none, minimal, low, medium, high, xhigh, max
 }
 
 struct RemoteTranslationSegment: Codable, Hashable, Sendable {
@@ -117,8 +93,7 @@ private final class TranslationImageDigestMemo: @unchecked Sendable {
     private var value: String?
 
     func digest(of data: Data) -> String {
-        lock.lock()
-        defer { lock.unlock() }
+        lock.lock(); defer { lock.unlock() }
         if let value { return value }
         let digest = Self.compute(data)
         value = digest
@@ -177,28 +152,15 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     let targetLanguage: String
     let segments: [RemoteTranslationSegment]
 
-    init(
-        sourceLanguage: String,
-        targetLanguage: String,
-        segments: [RemoteTranslationSegment]
-    ) {
+    init(sourceLanguage: String, targetLanguage: String, segments: [RemoteTranslationSegment]) {
         self.sourceLanguage = sourceLanguage
         self.targetLanguage = targetLanguage
         self.segments = segments
     }
 
-    init(
-        sourceLanguage: String,
-        targetLanguage: String,
-        sourceText: String
-    ) {
-        self.init(
-            sourceLanguage: sourceLanguage,
-            targetLanguage: targetLanguage,
-            segments: [
-                RemoteTranslationSegment(id: Self.singleSegmentID, text: sourceText),
-            ]
-        )
+    init(sourceLanguage: String, targetLanguage: String, sourceText: String) {
+        self.init(sourceLanguage: sourceLanguage, targetLanguage: targetLanguage,
+                  segments: [RemoteTranslationSegment(id: Self.singleSegmentID, text: sourceText)])
     }
 
     func validate() throws {
@@ -209,9 +171,7 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
         try validateLanguage(targetLanguage, field: "target language", permitsAuto: false)
 
         guard !segments.isEmpty, segments.count <= Self.maximumSegments else {
-            throw RemoteTranslationError.invalidRequest(
-                "translation batch must contain 1...\(Self.maximumSegments) segments"
-            )
+            throw RemoteTranslationError.invalidRequest("translation batch must contain 1...\(Self.maximumSegments) segments")
         }
         var segmentIDs = Set<String>()
         var sourceBytes = 0
@@ -221,92 +181,54 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
                     throw RemoteTranslationError.invalidRequest("invalid segment bounds")
                 }
             }
-            guard Self.hasValidIdentifier(segment),
-                  segmentIDs.insert(segment.id).inserted
-            else {
-                throw RemoteTranslationError.invalidRequest(
-                    "segment IDs must be unique, stable, and URL-safe"
-                )
+            guard Self.hasValidIdentifier(segment), segmentIDs.insert(segment.id).inserted else {
+                throw RemoteTranslationError.invalidRequest("segment IDs must be unique, stable, and URL-safe")
             }
-            guard Self.hasNonBlankSourceText(segment)
-            else {
-                throw RemoteTranslationError.invalidRequest(
-                    "translation segments cannot be blank"
-                )
+            guard Self.hasNonBlankSourceText(segment) else {
+                throw RemoteTranslationError.invalidRequest("translation segments cannot be blank")
             }
             guard Self.hasSafeSourceTextSize(segment) else {
-                throw RemoteTranslationError.invalidRequest(
-                    "source segments exceed their safe size limit"
-                )
+                throw RemoteTranslationError.invalidRequest("source segments exceed their safe size limit")
             }
             sourceBytes = sourceBytes.saturatingAdding(segment.text.utf8.count)
         }
         guard sourceBytes <= Self.maximumSourceBytes else {
-            throw RemoteTranslationError.invalidRequest(
-                "source segments exceed their safe size limit"
-            )
+            throw RemoteTranslationError.invalidRequest("source segments exceed their safe size limit")
         }
-
     }
 
     /// Returns the individually safe, unambiguous candidates. OCR can
     /// occasionally emit a whitespace-only or pathological line; that line
     /// stays visible as source text but must not poison every valid neighbor
     /// in the provider batch.
-    static func admissibleSegmentIndices(
-        in segments: [RemoteTranslationSegment]
-    ) -> [Int] {
-        let identifierCounts = segments.reduce(
-            into: [String: Int](),
-            { counts, segment in
-                counts[segment.id, default: 0] += 1
-            }
-        )
+    static func admissibleSegmentIndices(in segments: [RemoteTranslationSegment]) -> [Int] {
+        let identifierCounts = segments.reduce(into: [String: Int]()) { $0[$1.id, default: 0] += 1 }
         return segments.indices.filter { index in
             let segment = segments[index]
-            return hasValidIdentifier(segment) &&
-                hasNonBlankSourceText(segment) &&
-                hasSafeSourceTextSize(segment) &&
-                identifierCounts[segment.id] == 1
+            return hasValidIdentifier(segment) && hasNonBlankSourceText(segment) &&
+                hasSafeSourceTextSize(segment) && identifierCounts[segment.id] == 1
         }
     }
 
-    private static func hasValidIdentifier(
-        _ segment: RemoteTranslationSegment
-    ) -> Bool {
-        !segment.id.isEmpty &&
-            segment.id.utf8.count <= maximumSegmentIDBytes &&
+    private static func hasValidIdentifier(_ segment: RemoteTranslationSegment) -> Bool {
+        !segment.id.isEmpty && segment.id.utf8.count <= maximumSegmentIDBytes &&
             segment.id.unicodeScalars.allSatisfy {
-                isASCIIAlphaNumeric($0) ||
-                    $0 == "-" || $0 == "_" || $0 == "." || $0 == ":"
+                isASCIIAlphaNumeric($0) || $0 == "-" || $0 == "_" || $0 == "." || $0 == ":"
             }
     }
 
-    private static func hasNonBlankSourceText(
-        _ segment: RemoteTranslationSegment
-    ) -> Bool {
-        !segment.text.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        ).isEmpty
+    private static func hasNonBlankSourceText(_ segment: RemoteTranslationSegment) -> Bool {
+        !segment.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private static func hasSafeSourceTextSize(
-        _ segment: RemoteTranslationSegment
-    ) -> Bool {
+    private static func hasSafeSourceTextSize(_ segment: RemoteTranslationSegment) -> Bool {
         segment.text.utf8.count <= maximumSegmentTextBytes
     }
 
-    private func validateLanguage(
-        _ value: String,
-        field: String,
-        permitsAuto: Bool
-    ) throws {
+    private func validateLanguage(_ value: String, field: String, permitsAuto: Bool) throws {
         guard value == value.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.isEmpty,
-              value.utf8.count <= 35,
-              value.unicodeScalars.allSatisfy({
-                  isASCIIAlphaNumeric($0) || $0 == "-"
-              }),
+              !value.isEmpty, value.utf8.count <= 35,
+              value.unicodeScalars.allSatisfy({ isASCIIAlphaNumeric($0) || $0 == "-" }),
               permitsAuto || value.caseInsensitiveCompare("auto") != .orderedSame
         else {
             throw RemoteTranslationError.invalidRequest("\(field) is invalid")
@@ -315,8 +237,7 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
 }
 
 struct RemoteTranslationConfiguration: Hashable, Sendable {
-    static let defaultInstructions =
-        "Preserve tone, emphasis and vocal expression naturally."
+    static let defaultInstructions = "Preserve tone, emphasis and vocal expression naturally."
 
     static let maximumModelBytes = 256
     static let maximumInstructionsBytes = 32 * 1024
@@ -362,8 +283,7 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
         self.reasoningEffort = reasoningEffort
         self.timeout = timeout
         self.maximumResponseBytes = maximumResponseBytes
-        self.allowsInsecureLocalhostForDevelopment =
-            allowsInsecureLocalhostForDevelopment
+        self.allowsInsecureLocalhostForDevelopment = allowsInsecureLocalhostForDevelopment
     }
 
     static func openAI(
@@ -388,63 +308,37 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
     }
 
     func validatedEndpoint() throws -> URL {
-        guard model == model.trimmingCharacters(in: .whitespacesAndNewlines),
-              !model.isEmpty,
-              model.utf8.count <= Self.maximumModelBytes,
-              !model.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
-        else {
+        func isTrimmedPlainText(_ value: String, maximumBytes: Int) -> Bool {
+            value == value.trimmingCharacters(in: .whitespacesAndNewlines) && !value.isEmpty &&
+                value.utf8.count <= maximumBytes &&
+                !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+        }
+        guard isTrimmedPlainText(model, maximumBytes: Self.maximumModelBytes) else {
             throw RemoteTranslationError.invalidConfiguration("model is invalid")
         }
-        guard credentialAccount ==
-                credentialAccount.trimmingCharacters(in: .whitespacesAndNewlines),
-              !credentialAccount.isEmpty,
-              credentialAccount.utf8.count <= 256,
-              !credentialAccount.unicodeScalars.contains(
-                  where: CharacterSet.controlCharacters.contains
-              )
-        else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "credential account is invalid"
-            )
+        guard isTrimmedPlainText(credentialAccount, maximumBytes: 256) else {
+            throw RemoteTranslationError.invalidConfiguration("credential account is invalid")
         }
         guard !instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              instructions.utf8.count <= Self.maximumInstructionsBytes
-        else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "instructions exceed their safe size limit or are blank"
-            )
+              instructions.utf8.count <= Self.maximumInstructionsBytes else {
+            throw RemoteTranslationError.invalidConfiguration("instructions exceed their safe size limit or are blank")
         }
         guard (1...Self.maximumTimeout).contains(timeout) else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "timeout must be between 1 and 600 seconds"
-            )
+            throw RemoteTranslationError.invalidConfiguration("timeout must be between 1 and 600 seconds")
         }
-        guard (4 * 1024...Self.maximumResponseBytesLimit).contains(maximumResponseBytes)
-        else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "response limit is outside the supported range"
-            )
+        guard (4 * 1024...Self.maximumResponseBytesLimit).contains(maximumResponseBytes) else {
+            throw RemoteTranslationError.invalidConfiguration("response limit is outside the supported range")
         }
         guard provider != .openAI || apiProtocol == .responses else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "the OpenAI provider requires the Responses API"
-            )
+            throw RemoteTranslationError.invalidConfiguration("the OpenAI provider requires the Responses API")
         }
         guard provider == .custom || !allowsInsecureLocalhostForDevelopment else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "the OpenAI provider cannot enable insecure development transport"
-            )
+            throw RemoteTranslationError.invalidConfiguration("the OpenAI provider cannot enable insecure development transport")
         }
 
         let endpoint = try TranslationEndpointPolicy.endpoint(for: self)
-        if provider == .openAI {
-            guard endpoint.scheme == "https",
-                  endpoint.host?.lowercased() == "api.openai.com"
-            else {
-                throw RemoteTranslationError.invalidConfiguration(
-                    "the OpenAI provider endpoint is fixed to api.openai.com"
-                )
-            }
+        guard provider != .openAI || (endpoint.scheme == "https" && endpoint.host?.lowercased() == "api.openai.com") else {
+            throw RemoteTranslationError.invalidConfiguration("the OpenAI provider endpoint is fixed to api.openai.com")
         }
         return endpoint
     }
@@ -479,13 +373,8 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
     let samplingRepetitionPenalty: Double?
     let maxOutputTokens: Int
 
-    init(
-        configuration: RemoteTranslationConfiguration,
-        endpoint: URL,
-        request: RemoteTranslationRequest
-    ) {
-        let canonicalRequest =
-            request.canonicalizedForTranslationSemantics().request
+    init(configuration: RemoteTranslationConfiguration, endpoint: URL, request: RemoteTranslationRequest) {
+        let canonicalRequest = request.canonicalizedForTranslationSemantics().request
         backgroundPolicy = request.filtersBackground == true
             ? (request.imageJPEG == nil ? TranslationHTTPCodec.textOnlyBackgroundPolicy : TranslationHTTPCodec.backgroundPolicy)
             : nil
@@ -554,45 +443,32 @@ struct CanonicalRemoteTranslationRequest: Sendable {
     ) throws -> RemoteTranslationBatchResult {
         let expectedCanonicalIDs = request.segments.map(\.id)
         guard expectedCanonicalIDs.count == callerSegmentIDs.count,
-              result.translations.count == expectedCanonicalIDs.count
-        else {
-            throw RemoteTranslationError.invalidResponse(
-                "canonical translation result count does not match the caller request"
-            )
+              result.translations.count == expectedCanonicalIDs.count else {
+            throw RemoteTranslationError.invalidResponse("canonical translation result count does not match the caller request")
         }
 
         var translationsByCanonicalID: [String: RemoteTranslatedSegment] = [:]
         for translation in result.translations {
-            guard expectedCanonicalIDs.contains(translation.id),
-                  translationsByCanonicalID[translation.id] == nil
-            else {
-                throw RemoteTranslationError.invalidResponse(
-                    "canonical translation result contains an unexpected segment"
-                )
+            guard expectedCanonicalIDs.contains(translation.id), translationsByCanonicalID[translation.id] == nil else {
+                throw RemoteTranslationError.invalidResponse("canonical translation result contains an unexpected segment")
             }
             translationsByCanonicalID[translation.id] = translation
         }
 
-        let restored = try expectedCanonicalIDs.enumerated().map {
-            index, canonicalID in
+        let restored = try expectedCanonicalIDs.enumerated().map { index, canonicalID in
             guard let translation = translationsByCanonicalID[canonicalID] else {
-                throw RemoteTranslationError.invalidResponse(
-                    "canonical translation result omitted a segment"
-                )
+                throw RemoteTranslationError.invalidResponse("canonical translation result omitted a segment")
             }
             let text = repairedText(translation.text, at: index)
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw RemoteTranslationError.invalidResponse("restored translation text is blank")
             }
             return RemoteTranslatedSegment(
-                id: callerSegmentIDs[index],
-                text: text, isSFX: translation.isSFX, textRole: translation.textRole
+                id: callerSegmentIDs[index], text: text, isSFX: translation.isSFX, textRole: translation.textRole
             )
         }
         return RemoteTranslationBatchResult(
-            translations: restored,
-            source: result.source,
-            providerRequestID: result.providerRequestID
+            translations: restored, source: result.source, providerRequestID: result.providerRequestID
         )
     }
 }
@@ -603,14 +479,9 @@ extension RemoteTranslationRequest {
         return "segment-\(index)"
     }
 
-    func canonicalizedForTranslationSemantics()
-        -> CanonicalRemoteTranslationRequest
-    {
+    func canonicalizedForTranslationSemantics() -> CanonicalRemoteTranslationRequest {
         let canonical = replacingSegments(segments.enumerated().map { index, segment in
-            RemoteTranslationSegment(
-                id: Self.batchLocalSegmentID(at: index),
-                text: segment.text, bounds: segment.bounds
-            )
+            RemoteTranslationSegment(id: Self.batchLocalSegmentID(at: index), text: segment.text, bounds: segment.bounds)
         })
         return CanonicalRemoteTranslationRequest(request: canonical, callerSegmentIDs: segments.map(\.id))
     }
@@ -631,9 +502,6 @@ extension Collection where Element == RemoteTranslationBatchResult {
     /// A mixed cache/network frame must never be presented as a cache-only hit.
     var combinedTranslationSource: TranslationResultSource? {
         guard !isEmpty else { return nil }
-        if contains(where: { $0.source == .network }) {
-            return .network
-        }
-        return .memoryCache
+        return contains(where: { $0.source == .network }) ? .network : .memoryCache
     }
 }

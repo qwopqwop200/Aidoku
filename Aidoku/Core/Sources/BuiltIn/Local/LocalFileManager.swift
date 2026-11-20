@@ -59,12 +59,13 @@ actor LocalFileManager {
 }
 
 extension LocalFileManager {
+    private static func isHiddenPath(_ path: String) -> Bool {
+        path.lastPathComponent().hasPrefix(".")
+            || path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) })
+    }
+
     private static func isImportPage(_ entry: Entry) -> Bool {
-        guard entry.type == .file,
-              !entry.path.lastPathComponent().hasPrefix("."),
-              !entry.path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else {
-            return false
-        }
+        guard entry.type == .file, !isHiddenPath(entry.path) else { return false }
         let ext = entry.path.pathExtension().lowercased()
         return allowedPageExtensions.contains(ext) && !(ext == "txt" && entry.path.hasSuffix("desc.txt"))
     }
@@ -290,12 +291,10 @@ extension LocalFileManager {
         var paths = archive.compactMap { entry -> String? in
             guard entry.type == .file else { return nil }
             let path = entry.path
-            let name = path.lastPathComponent()
-            guard !name.hasPrefix("."),
-                  !path.split(separator: "/").contains(where: { $0 == "__MACOSX" || ($0 != "." && $0.hasPrefix(".")) }) else { return nil }
+            guard !Self.isHiddenPath(path) else { return nil }
             let ext = path.pathExtension().lowercased()
             if ext == "txt", path.hasSuffix("desc.txt") {
-                if let number = name.split(separator: ".", maxSplits: 1).first.flatMap({ Int($0) }), number > 0 {
+                if let number = path.lastPathComponent().split(separator: ".", maxSplits: 1).first.flatMap({ Int($0) }), number > 0 {
                     descriptionFiles.append((entry, number - 1))
                 }
                 return nil
@@ -722,40 +721,27 @@ extension LocalFileManager {
         for (folder, cbzFiles) in folderChapters {
             try Task.checkCancellation()
             let mangaId = folder.lastPathComponent.normalized
+            let isNew = toAdd.contains(mangaId)
 
-            // add manga to db that exist on disk but not in db yet
-            if toAdd.contains(mangaId) {
-                // add cbz files as chapters
-                for cbzFile in cbzFiles {
-                    do {
-                        try await uploadFile(from: cbzFile, skipUpload: true, mangaId: mangaId, scanOwned: true)
-                    } catch {
-                        LogManager.logger.error("Failed to process file \(cbzFile.lastPathComponent) for new manga \(mangaId): \(error)")
-                        if case LocalFileManagerError.databaseWriteFailed = error { throw error }
-                    }
-                }
-            } else {
-                // add missing chapters
-                let cbzFileNames = Set(cbzFiles.map { $0.lastPathComponent })
-
+            // new manga get every cbz file as a chapter; existing manga only get missing ones
+            var chaptersToAdd = cbzFiles
+            if !isNew {
                 let dbChapterFileNames = try await dataManager.removeMissingChapters(
                     mangaId: mangaId,
-                    availableChapters: cbzFileNames
+                    availableChapters: Set(cbzFiles.map { $0.lastPathComponent })
                 )
-
-                // add chapters for new cbz files
-                let chaptersToAdd = cbzFiles.filter { !dbChapterFileNames.contains($0.lastPathComponent) }
-                for cbzFile in chaptersToAdd {
-                    do {
-                        try await uploadFile(from: cbzFile, skipUpload: true, mangaId: mangaId, scanOwned: true)
-                    } catch {
-                        LogManager.logger.error("Failed to process file \(cbzFile.lastPathComponent) for manga \(mangaId): \(error)")
-                        if case LocalFileManagerError.databaseWriteFailed = error { throw error }
-                    }
+                chaptersToAdd = cbzFiles.filter { !dbChapterFileNames.contains($0.lastPathComponent) }
+            }
+            for cbzFile in chaptersToAdd {
+                do {
+                    try await uploadFile(from: cbzFile, skipUpload: true, mangaId: mangaId, scanOwned: true)
+                } catch {
+                    let kind = isNew ? "new manga" : "manga"
+                    LogManager.logger.error("Failed to process file \(cbzFile.lastPathComponent) for \(kind) \(mangaId): \(error)")
+                    if case LocalFileManagerError.databaseWriteFailed = error { throw error }
                 }
             }
         }
-
     }
 }
 

@@ -55,13 +55,7 @@ final class SettingStepperLease {
     private static var idleControls: [UIStepper] = []
     let control: UIStepper
 
-    init() {
-        if let idle = Self.idleControls.popLast() {
-            control = idle
-        } else {
-            control = UIStepper()
-        }
-    }
+    init() { control = Self.idleControls.popLast() ?? UIStepper() }
 
     deinit {
         let control = control

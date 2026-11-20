@@ -124,8 +124,7 @@ actor DownloadQueue {
     func applicationDidBecomeActive() async {
         guard suspendedForBackground else { return }
         suspendedForBackground = false
-        guard !paused else { return }
-        guard canUseNetwork else { return }
+        guard !paused, canUseNetwork else { return }
         // Foreground recovery must not wait for another background task grant.
         await initAndResumeTasks()
         NotificationCenter.default.post(name: .downloadsResumed, object: nil)

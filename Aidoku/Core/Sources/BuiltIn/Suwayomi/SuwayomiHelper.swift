@@ -96,11 +96,7 @@ struct SuwayomiHelper: Sendable {
         let request = Self.simpleLoginRequest(url: loginUrl, username: username, password: password)
 
         guard let config = try? await SourceNetwork.shared.configuration(.ephemeral) else { return false }
-        let session = URLSession(
-                configuration: config,
-                delegate: NoRedirectDelegate(),
-                delegateQueue: nil
-            )
+        let session = URLSession(configuration: config, delegate: NoRedirectDelegate(), delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         guard
             let (_, response) = try? await NativeSourceNetwork.limitedData(for: request, session: session),

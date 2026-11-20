@@ -10,13 +10,8 @@ enum ReaderLocalPageIdentity {
             guard page.imageContentIdentity == nil,
                   let address = page.zipURL ?? page.imageURL,
                   let url = URL(string: address), url.isFileURL else { return page }
-            let revision: String
-            if let cached = revisions[url] {
-                revision = cached
-            } else {
-                revision = fileRevision(url)
-                revisions[url] = revision
-            }
+            let revision = revisions[url] ?? fileRevision(url)
+            revisions[url] = revision
             var prepared = page
             // Archive entry names remain distinct even when every page shares
             // the same archive inode, timestamps and length.

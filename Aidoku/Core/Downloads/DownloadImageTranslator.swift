@@ -84,7 +84,6 @@ enum DownloadImageTranslator {
         try await TranslationImageWorkBudget.shared.withPermit(priority: .prefetch, decodedBytes: bytes) {}
         try Task.checkCancellation()
         return autoreleasepool {
-            guard decoded.imageOrientation != .up else { return decoded }
             let format = UIGraphicsImageRendererFormat()
             format.scale = decoded.scale
             format.preferredRange = .standard

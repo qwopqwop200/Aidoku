@@ -154,20 +154,10 @@ actor CustomProtocolPreferenceRegistry {
 
     private var entries: [Key: Entry] = [:]
 
-    func begin(
-        key: Key,
-        configured: RemoteTranslationProtocol
-    ) -> Selection {
+    func begin(key: Key, configured: RemoteTranslationProtocol) -> Selection {
         var entry = entries[key] ?? Entry()
-        if let successfulPreference = entry.successfulPreference {
-            return .preferred(successfulPreference)
-        }
-        if let probeToken = entry.probeToken {
-            return .probeFollower(
-                token: probeToken,
-                configured: configured
-            )
-        }
+        if let successfulPreference = entry.successfulPreference { return .preferred(successfulPreference) }
+        if let probeToken = entry.probeToken { return .probeFollower(token: probeToken, configured: configured) }
         let token = UUID()
         entry.probeToken = token
         entry.candidateProtocol = nil
@@ -175,14 +165,9 @@ actor CustomProtocolPreferenceRegistry {
         return .probeLeader(token: token, configured: configured)
     }
 
-    func resolvedProtocol(
-        key: Key,
-        probeToken: UUID
-    ) -> RemoteTranslationProtocol? {
+    func resolvedProtocol(key: Key, probeToken: UUID) -> RemoteTranslationProtocol? {
         guard let entry = entries[key] else { return nil }
-        if let successfulPreference = entry.successfulPreference {
-            return successfulPreference
-        }
+        if let successfulPreference = entry.successfulPreference { return successfulPreference }
         guard entry.probeToken == probeToken else { return nil }
         return entry.candidateProtocol
     }
@@ -193,32 +178,17 @@ actor CustomProtocolPreferenceRegistry {
         alternateProtocol: RemoteTranslationProtocol
     ) {
         var entry = entries[key] ?? Entry()
-        if entry.successfulPreference == failedProtocol {
-            entry.successfulPreference = nil
-        }
+        if entry.successfulPreference == failedProtocol { entry.successfulPreference = nil }
         entry.candidateProtocol = alternateProtocol
         entries[key] = entry
     }
 
-    func reportSuccess(
-        key: Key,
-        apiProtocol: RemoteTranslationProtocol
-    ) {
-        entries[key] = Entry(
-            successfulPreference: apiProtocol,
-            probeToken: nil,
-            candidateProtocol: nil
-        )
+    func reportSuccess(key: Key, apiProtocol: RemoteTranslationProtocol) {
+        entries[key] = Entry(successfulPreference: apiProtocol, probeToken: nil, candidateProtocol: nil)
     }
 
     func finishProbeFailure(key: Key, token: UUID?) {
-        guard let token,
-              var entry = entries[key],
-              entry.probeToken == token,
-              entry.successfulPreference == nil
-        else {
-            return
-        }
+        guard let token, var entry = entries[key], entry.probeToken == token, entry.successfulPreference == nil else { return }
         entry.probeToken = nil
         entry.candidateProtocol = nil
         entries[key] = entry
@@ -241,8 +211,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     private struct UnsupportedImageInput: Error {}
 
     init(
-        credentialStore: TranslationCredentialProviding =
-            KeychainTranslationCredentialStore(),
+        credentialStore: TranslationCredentialProviding = KeychainTranslationCredentialStore(),
         transport: TranslationHTTPTransport = BoundedURLSessionTransport(),
         imageSupport: TranslationImageSupport = .shared,
         rechecksImageSupport: Bool = false
@@ -267,7 +236,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         defer { compactOutput.finishMetadataProbe(endpoint: compactKey, account: configuration.credentialAccount) }
         do {
             let secret = try credentialStore.secret(for: configuration.credentialAccount)
-            guard Self.isUsableSecret(secret) else { return }
+            guard KeychainTranslationCredentialStore.isStorableSecret(secret) else { return }
             var base = endpoint.deletingLastPathComponent()
             if configuration.apiProtocol == .chatCompletions { base.deleteLastPathComponent() }
             var request = URLRequest(url: base.appendingPathComponent("models"),
@@ -336,17 +305,11 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
         guard configuration.provider == .custom else {
-            return try await translateOnce(
-                request,
-                configuration: configuration
-            )
+            return try await translateOnce(request, configuration: configuration)
         }
 
         let key = try Self.protocolPreferenceKey(for: configuration)
-        let selection = await protocolPreferences.begin(
-            key: key,
-            configured: configuration.apiProtocol
-        )
+        let selection = await protocolPreferences.begin(key: key, configured: configuration.apiProtocol)
         let preferredProtocol: RemoteTranslationProtocol
         let probeToken = selection.failureOwnershipToken
         switch selection {
@@ -355,13 +318,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         case let .probeLeader(_, configured):
             preferredProtocol = configured
         case let .probeFollower(token, configured):
-            try await Task.sleep(
-                nanoseconds: Self.protocolProbeGraceNanoseconds
-            )
-            preferredProtocol = await protocolPreferences.resolvedProtocol(
-                key: key,
-                probeToken: token
-            ) ?? configured
+            try await Task.sleep(nanoseconds: Self.protocolProbeGraceNanoseconds)
+            preferredProtocol = await protocolPreferences.resolvedProtocol(key: key, probeToken: token) ?? configured
         }
 
         struct UnsupportedEndpoint: Error {}
@@ -386,25 +344,14 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             }
         }
 
-        let preferredConfiguration = try Self.configuration(
-            configuration,
-            replacingAPIProtocol: preferredProtocol
-        )
+        let preferredConfiguration = try Self.configuration(configuration, replacingAPIProtocol: preferredProtocol)
         do {
             return try await attempt(preferredProtocol, configuration: preferredConfiguration, allowsFallback: true)
         } catch is UnsupportedEndpoint {
-            let alternateProtocol: RemoteTranslationProtocol =
-                preferredProtocol == .responses
-                    ? .chatCompletions
-                    : .responses
-            let alternateConfiguration = try Self.configuration(
-                configuration,
-                replacingAPIProtocol: alternateProtocol
-            )
+            let alternateProtocol: RemoteTranslationProtocol = preferredProtocol == .responses ? .chatCompletions : .responses
+            let alternateConfiguration = try Self.configuration(configuration, replacingAPIProtocol: alternateProtocol)
             await protocolPreferences.reportUnsupported(
-                key: key,
-                failedProtocol: preferredProtocol,
-                alternateProtocol: alternateProtocol
+                key: key, failedProtocol: preferredProtocol, alternateProtocol: alternateProtocol
             )
             return try await attempt(alternateProtocol, configuration: alternateConfiguration, allowsFallback: false)
         }
@@ -417,12 +364,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         let segmentCount = request.segments.count
         let endpointStartedAt = ProcessInfo.processInfo.systemUptime
         let endpoint = try configuration.validatedEndpoint()
-        TranslationPerformanceDiagnostics.clientPhaseCompleted(
-            phase: "endpoint",
-            segmentCount: segmentCount,
-            elapsedMilliseconds: TranslationPerformanceDiagnostics
-                .elapsedMilliseconds(since: endpointStartedAt)
-        )
+        Self.recordPhase("endpoint", segmentCount: segmentCount, since: endpointStartedAt)
 
         let keychainStartedAt = ProcessInfo.processInfo.systemUptime
         let apiKey: String
@@ -433,15 +375,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         } catch {
             throw RemoteTranslationError.credentialAccessFailed
         }
-        guard Self.isUsableSecret(apiKey) else {
-            throw RemoteTranslationError.credentialAccessFailed
-        }
-        TranslationPerformanceDiagnostics.clientPhaseCompleted(
-            phase: "keychain",
-            segmentCount: segmentCount,
-            elapsedMilliseconds: TranslationPerformanceDiagnostics
-                .elapsedMilliseconds(since: keychainStartedAt)
-        )
+        guard KeychainTranslationCredentialStore.isStorableSecret(apiKey) else { throw RemoteTranslationError.credentialAccessFailed }
+        Self.recordPhase("keychain", segmentCount: segmentCount, since: keychainStartedAt)
 
         if request.translatesPageLettering == true {
             // Compact-output negotiation may retry after a rejected grammar.
@@ -490,13 +425,10 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         request: RemoteTranslationRequest,
         state: CompactChatOutputRegistry.State
     ) -> Bool {
-        guard configuration.provider == .custom,
-              state == .eligible || state == .verified else { return false }
-        // Responses grammar support is verified only for direct answers;
-        // reasoning plus grammar may be incompatible on custom endpoints.
-        if configuration.apiProtocol == .responses, configuration.reasoningEffort != .none {
-            return false
-        }
+        guard configuration.provider == .custom, state == .eligible || state == .verified,
+              // Responses grammar support is verified only for direct answers;
+              // reasoning plus grammar may be incompatible on custom endpoints.
+              configuration.apiProtocol != .responses || configuration.reasoningEffort == .none else { return false }
         return TranslationHTTPCodec.supportsCompactOutput(segmentIDs: request.segments.map(\.id))
     }
 
@@ -504,14 +436,9 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         configuration: RemoteTranslationConfiguration,
         request: RemoteTranslationRequest
     ) -> TranslationHTTPCodec.ChatWireOptions {
-        if configuration.apiProtocol == .responses {
-            return .init(compactStructuredOutput: true)
-        }
-        return TranslationHTTPCodec.ChatWireOptions(
-            compactStructuredOutput: true,
-            stream: true,
-            maximumOutputTokens: nil
-        )
+        configuration.apiProtocol == .responses
+            ? TranslationHTTPCodec.ChatWireOptions(compactStructuredOutput: true)
+            : TranslationHTTPCodec.ChatWireOptions(compactStructuredOutput: true, stream: true, maximumOutputTokens: nil)
     }
 
     private struct ExchangeResult {
@@ -528,11 +455,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     ) async throws -> ExchangeResult {
         let segmentCount = request.segments.count
         let encodeStartedAt = ProcessInfo.processInfo.systemUptime
-        var urlRequest = URLRequest(
-            url: endpoint,
-            cachePolicy: .reloadIgnoringLocalCacheData,
-            timeoutInterval: configuration.timeout
-        )
+        var urlRequest = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData,
+                                    timeoutInterval: configuration.timeout)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue(chatOptions.stream ? "text/event-stream, application/json" : "application/json",
                             forHTTPHeaderField: "Accept")
@@ -540,16 +464,9 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("Aidoku-iOS/1", forHTTPHeaderField: "User-Agent")
         urlRequest.httpBody = try TranslationHTTPCodec.requestBody(
-            configuration: configuration,
-            request: request,
-            chatOptions: chatOptions
+            configuration: configuration, request: request, chatOptions: chatOptions
         )
-        TranslationPerformanceDiagnostics.clientPhaseCompleted(
-            phase: "encode",
-            segmentCount: segmentCount,
-            elapsedMilliseconds: TranslationPerformanceDiagnostics
-                .elapsedMilliseconds(since: encodeStartedAt)
-        )
+        Self.recordPhase("encode", segmentCount: segmentCount, since: encodeStartedAt)
 
         // SSE framing repeats per-chunk metadata around each token; the
         // assembled content is still bounded by the envelope parser.
@@ -559,21 +476,15 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         let transportResponse: TranslationHTTPResponse
         do {
             transportResponse = try await transport.data(
-                for: urlRequest,
-                maximumResponseBytes: maximumBodyBytes,
-                bypassesProxy: endpoint.scheme == "http"
+                for: urlRequest, maximumResponseBytes: maximumBodyBytes, bypassesProxy: endpoint.scheme == "http"
             )
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as RemoteTranslationError {
             throw error
         } catch let error as URLError {
-            if error.code == .cancelled, Task.isCancelled {
-                throw CancellationError()
-            }
-            if Self.isPrivateTailnetEndpoint(endpoint),
-               Self.isConnectivityFailure(error.code)
-            {
+            if error.code == .cancelled, Task.isCancelled { throw CancellationError() }
+            if Self.isPrivateTailnetEndpoint(endpoint), Self.isConnectivityFailure(error.code) {
                 throw RemoteTranslationError.privateTailnetUnavailable
             }
             throw RemoteTranslationError.transport(error.code)
@@ -583,25 +494,18 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         let body = transportResponse.data
         let response = transportResponse.response
         TranslationPerformanceDiagnostics.transportCompleted(
-            segmentCount: segmentCount,
-            responseBytes: body.count,
-            statusCode: response.statusCode,
-            metrics: transportResponse.metrics
+            segmentCount: segmentCount, responseBytes: body.count,
+            statusCode: response.statusCode, metrics: transportResponse.metrics
         )
 
         try Task.checkCancellation()
-        let requestID = sanitizedRequestID(
-            response.value(forHTTPHeaderField: "x-request-id")
-        )
+        let requestID = sanitizedRequestID(response.value(forHTTPHeaderField: "x-request-id"))
         guard (200...299).contains(response.statusCode) else {
             if request.imageJPEG != nil,
                TranslationImageSupport.isUnsupportedResponse(status: response.statusCode, body: body) {
                 throw UnsupportedImageInput()
             }
-            throw RemoteTranslationError.httpStatus(
-                response.statusCode,
-                requestID: requestID
-            )
+            throw RemoteTranslationError.httpStatus(response.statusCode, requestID: requestID)
         }
         let isEventStream = chatOptions.stream && (response.value(forHTTPHeaderField: "Content-Type") ?? "")
             .lowercased().contains("text/event-stream")
@@ -610,36 +514,20 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         }
         let parseStartedAt = ProcessInfo.processInfo.systemUptime
         let sources = Dictionary(uniqueKeysWithValues: request.segments.map { ($0.id, $0.text) })
-        let translations: [RemoteTranslatedSegment]
-        if isEventStream {
-            translations = try TranslationHTTPCodec.streamedChatTranslations(
-                from: body,
-                expectedSegmentIDs: request.segments.map(\.id),
-                sfxSourceTexts: request.filtersSFX == true ? sources : nil,
-                backgroundSourceTexts: request.filtersBackground == true ? sources : nil
-            )
-        } else {
-            translations = try TranslationHTTPCodec.responseTranslations(
-                from: body,
-                protocol: configuration.apiProtocol,
-                expectedSegmentIDs: request.segments.map(\.id),
-                sfxSourceTexts: request.filtersSFX == true ? sources : nil,
-                backgroundSourceTexts: request.filtersBackground == true ? sources : nil
-            )
-        }
-        TranslationPerformanceDiagnostics.clientPhaseCompleted(
-            phase: "parse",
-            segmentCount: segmentCount,
-            elapsedMilliseconds: TranslationPerformanceDiagnostics
-                .elapsedMilliseconds(since: parseStartedAt)
-        )
+        let expectedIDs = request.segments.map(\.id)
+        let sfxSources = request.filtersSFX == true ? sources : nil
+        let backgroundSources = request.filtersBackground == true ? sources : nil
+        let translations = try isEventStream
+            ? TranslationHTTPCodec.streamedChatTranslations(
+                from: body, expectedSegmentIDs: expectedIDs,
+                sfxSourceTexts: sfxSources, backgroundSourceTexts: backgroundSources)
+            : TranslationHTTPCodec.responseTranslations(
+                from: body, protocol: configuration.apiProtocol, expectedSegmentIDs: expectedIDs,
+                sfxSourceTexts: sfxSources, backgroundSourceTexts: backgroundSources)
+        Self.recordPhase("parse", segmentCount: segmentCount, since: parseStartedAt)
         try Task.checkCancellation()
         return ExchangeResult(
-            batch: RemoteTranslationBatchResult(
-                translations: translations,
-                source: .network,
-                providerRequestID: requestID
-            ),
+            batch: RemoteTranslationBatchResult(translations: translations, source: .network, providerRequestID: requestID),
             // Only custom, non-page requests consume this capability hint.
             // Avoid decoding the response envelope again for every reader page.
             identifiesStructuredOutputServer: configuration.provider == .custom && request.translatesPageLettering != true &&
@@ -651,32 +539,27 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         )
     }
 
-    /// The key is sent verbatim in an HTTP header.
-    private static func isUsableSecret(_ secret: String) -> Bool {
-        !secret.isEmpty && secret.utf8.count <= KeychainTranslationCredentialStore.maximumSecretBytes &&
-            !secret.contains("\r") && !secret.contains("\n") && !secret.contains("\0")
+    private static func recordPhase(_ phase: String, segmentCount: Int, since startedAt: TimeInterval) {
+        TranslationPerformanceDiagnostics.clientPhaseCompleted(
+            phase: phase, segmentCount: segmentCount,
+            elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt)
+        )
     }
 
-    private static func isUnsupportedEndpoint(
-        _ error: RemoteTranslationError
-    ) -> Bool {
+    private static func isUnsupportedEndpoint(_ error: RemoteTranslationError) -> Bool {
         guard case let .httpStatus(status, _) = error else { return false }
         return status == 404 || status == 405 || status == 501
     }
 
     private static func isPrivateTailnetEndpoint(_ endpoint: URL) -> Bool {
-        guard let host = endpoint.host?.lowercased() else { return false }
-        return host.hasSuffix(".ts.net")
+        endpoint.host?.lowercased().hasSuffix(".ts.net") ?? false
     }
 
     private static func isConnectivityFailure(_ code: URLError.Code) -> Bool {
         switch code {
-        case .timedOut, .cannotFindHost, .cannotConnectToHost,
-             .dnsLookupFailed, .networkConnectionLost,
-             .notConnectedToInternet, .secureConnectionFailed:
-            return true
-        default:
-            return false
+        case .timedOut, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed, .networkConnectionLost,
+             .notConnectedToInternet, .secureConnectionFailed: true
+        default: false
         }
     }
 
@@ -693,10 +576,9 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     private static func protocolPreferenceKey(
         for configuration: RemoteTranslationConfiguration
     ) throws -> CustomProtocolPreferenceRegistry.Key {
-        let namespace = try protocolEndpointNamespace(for: configuration)
-        return CustomProtocolPreferenceRegistry.Key(
+        CustomProtocolPreferenceRegistry.Key(
             provider: configuration.provider,
-            endpointNamespace: namespace.absoluteString,
+            endpointNamespace: try protocolEndpointNamespace(for: configuration).absoluteString,
             configuredProtocol: configuration.apiProtocol,
             model: configuration.model,
             credentialAccount: configuration.credentialAccount,
@@ -712,9 +594,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         _ configuration: RemoteTranslationConfiguration,
         replacingAPIProtocol apiProtocol: RemoteTranslationProtocol
     ) throws -> RemoteTranslationConfiguration {
-        guard apiProtocol != configuration.apiProtocol else {
-            return configuration
-        }
+        guard apiProtocol != configuration.apiProtocol else { return configuration }
         let namespace = try protocolEndpointNamespace(for: configuration)
         return RemoteTranslationConfiguration(
             provider: configuration.provider,
@@ -727,27 +607,18 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             reasoningEffort: configuration.reasoningEffort,
             timeout: configuration.timeout,
             maximumResponseBytes: configuration.maximumResponseBytes,
-            allowsInsecureLocalhostForDevelopment:
-                configuration.allowsInsecureLocalhostForDevelopment
+            allowsInsecureLocalhostForDevelopment: configuration.allowsInsecureLocalhostForDevelopment
         )
     }
 
     private static func protocolEndpointNamespace(
         for configuration: RemoteTranslationConfiguration
     ) throws -> URL {
-        let endpoint = try configuration.validatedEndpoint()
-        guard var components = URLComponents(
-            url: endpoint,
-            resolvingAgainstBaseURL: false
-        ) else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider endpoint could not be normalized"
-            )
+        let normalizationError = RemoteTranslationError.invalidConfiguration("provider endpoint could not be normalized")
+        guard var components = URLComponents(url: try configuration.validatedEndpoint(), resolvingAgainstBaseURL: false) else {
+            throw normalizationError
         }
-        var segments = components.path.split(
-            separator: "/",
-            omittingEmptySubsequences: true
-        ).map(String.init)
+        var segments = components.path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
         switch configuration.apiProtocol {
         case .responses:
             if segments.last?.caseInsensitiveCompare("responses") == .orderedSame {
@@ -755,38 +626,22 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             }
         case .chatCompletions:
             if segments.count >= 2,
-               segments[segments.count - 2].caseInsensitiveCompare("chat") ==
-                .orderedSame,
-               segments.last?.caseInsensitiveCompare("completions") ==
-                .orderedSame
-            {
+               segments[segments.count - 2].caseInsensitiveCompare("chat") == .orderedSame,
+               segments.last?.caseInsensitiveCompare("completions") == .orderedSame {
                 segments.removeLast(2)
             }
         }
-        components.path = segments.isEmpty
-            ? "/"
-            : "/" + segments.joined(separator: "/")
+        components.path = segments.isEmpty ? "/" : "/" + segments.joined(separator: "/")
         components.query = nil
         components.fragment = nil
-        guard let namespace = components.url else {
-            throw RemoteTranslationError.invalidConfiguration(
-                "provider endpoint could not be normalized"
-            )
-        }
+        guard let namespace = components.url else { throw normalizationError }
         return namespace
     }
 
     private func sanitizedRequestID(_ value: String?) -> String? {
-        guard let value,
-              !value.isEmpty,
-              value.utf8.count <= 128,
-              value.unicodeScalars.allSatisfy({
-                  CharacterSet.alphanumerics.contains($0) ||
-                      $0 == "-" || $0 == "_"
-              })
-        else {
-            return nil
-        }
+        guard let value, !value.isEmpty, value.utf8.count <= 128,
+              value.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_" })
+        else { return nil }
         return value
     }
 }

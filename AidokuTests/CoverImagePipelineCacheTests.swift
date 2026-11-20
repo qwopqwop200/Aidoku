@@ -58,7 +58,7 @@ private final class CoverCacheFixtureLoader: DataLoading, @unchecked Sendable {
     private let lock = NSLock()
     private var requests = 0
     let data: Data
-    var count: Int { lock.lock(); defer { lock.unlock() }; return requests }
+    var count: Int { lock.withLock { requests } }
     init(data: Data) { self.data = data }
     func loadData(with request: URLRequest,
                   didReceiveData: @escaping @Sendable (Data, URLResponse) -> Void,

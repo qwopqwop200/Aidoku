@@ -18,10 +18,7 @@ enum NativeTranslationBatchPlanner {
         sourceLanguage: String,
         targetLanguage: String
     ) -> [NativeTranslationBatchPlan] {
-        let admissible = RemoteTranslationRequest
-            .admissibleSegmentIndices(
-                in: candidates.map(\.segment)
-            )
+        let admissible = RemoteTranslationRequest.admissibleSegmentIndices(in: candidates.map(\.segment))
             .map { candidates[$0] }
         var batches: [NativeTranslationBatchPlan] = []
         var cursor = 0
@@ -29,15 +26,10 @@ enum NativeTranslationBatchPlanner {
         while cursor < admissible.count {
             var selection: [NativeTranslationBatchCandidate] = []
             var sourceBytes = 0
-            while cursor < admissible.count,
-                  selection.count < RemoteTranslationRequest.maximumSegments
-            {
+            while cursor < admissible.count, selection.count < RemoteTranslationRequest.maximumSegments {
                 let candidate = admissible[cursor]
-                let nextBytes =
-                    sourceBytes + candidate.segment.text.utf8.count
-                if nextBytes > RemoteTranslationRequest.maximumSourceBytes {
-                    break
-                }
+                let nextBytes = sourceBytes + candidate.segment.text.utf8.count
+                if nextBytes > RemoteTranslationRequest.maximumSourceBytes { break }
                 selection.append(candidate)
                 sourceBytes = nextBytes
                 cursor += 1
@@ -51,19 +43,11 @@ enum NativeTranslationBatchPlanner {
             }
 
             batches.append(NativeTranslationBatchPlan(
-                request: RemoteTranslationRequest(
-                    sourceLanguage: sourceLanguage,
-                    targetLanguage: targetLanguage,
-                    segments: selection.map(\.segment)
-                ),
-                inputIndicesBySegmentID: Dictionary(
-                    uniqueKeysWithValues: selection.map {
-                        ($0.segment.id, $0.inputIndex)
-                    }
-                )
+                request: RemoteTranslationRequest(sourceLanguage: sourceLanguage, targetLanguage: targetLanguage,
+                                                  segments: selection.map(\.segment)),
+                inputIndicesBySegmentID: Dictionary(uniqueKeysWithValues: selection.map { ($0.segment.id, $0.inputIndex) })
             ))
         }
         return batches
     }
-
 }

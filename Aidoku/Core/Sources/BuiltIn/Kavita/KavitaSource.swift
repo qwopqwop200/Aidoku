@@ -667,7 +667,6 @@ extension KavitaSourceRunner {
         }
 
         let response = await Self.getLoginResponse(server: server, cookies: [httpCookie])
-        // Network helpers may finish after cancellation; credentials belong to the active login attempt.
         try Task.checkCancellation()
 
         guard
