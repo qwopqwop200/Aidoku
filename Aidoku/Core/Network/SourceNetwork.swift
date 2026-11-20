@@ -8,8 +8,6 @@ import WebKit
 actor SourceNetwork {
     static let shared = SourceNetwork()
     static let enabledKey = "Network.httpsBypass"
-    private let bypassEnabled: @Sendable () -> Bool
-    private let directSession: URLSession
     private let proxy = HTTPSBypassProxy()
     private var startup: Task<NWEndpoint, Error>?
     private var proxiedSession: URLSession?
@@ -19,11 +17,6 @@ actor SourceNetwork {
         config.urlCache = nil
         return DataLoader(configuration: config)
     }()
-
-    init(enabled: @escaping @Sendable () -> Bool = { SourceNetwork.isEnabled }, directSession: URLSession = .shared) {
-        bypassEnabled = enabled
-        self.directSession = directSession
-    }
 
     deinit { proxy.stop(); proxiedSession?.invalidateAndCancel() }
 
@@ -49,14 +42,14 @@ actor SourceNetwork {
 
     func configuration(_ base: URLSessionConfiguration = .default, bypass: Bool? = nil) async throws -> URLSessionConfiguration {
         guard let config = base.copy() as? URLSessionConfiguration else { throw URLError(.unknown) }
-        if #available(iOS 17.0, *), bypass ?? bypassEnabled() {
+        if #available(iOS 17.0, *), bypass ?? Self.isEnabled {
             config.proxyConfigurations = [try await proxyConfiguration()]
         }
         return config
     }
 
     func session() async throws -> URLSession {
-        guard bypassEnabled() else { return directSession }
+        guard Self.isEnabled else { return .shared }
         if let proxiedSession { return proxiedSession }
         let config = try await configuration(bypass: true)
         if let proxiedSession { return proxiedSession }
@@ -66,7 +59,7 @@ actor SourceNetwork {
     }
 
     func imageLoader() async throws -> DataLoader {
-        guard bypassEnabled() else { return directLoader }
+        guard Self.isEnabled else { return directLoader }
         if let proxiedLoader { return proxiedLoader }
         let config = try await configuration(bypass: true)
         if let proxiedLoader { return proxiedLoader }
@@ -130,8 +123,7 @@ actor SourceNetwork {
 
 /// Keeps Nuke's streaming, cancellation, cookie and image-cache behavior intact.
 final class SourceImageDataLoader: DataLoading, @unchecked Sendable {
-    private let network: SourceNetwork
-    init(network: SourceNetwork = .shared) { self.network = network }
+    private let network = SourceNetwork.shared
     func loadData(with request: URLRequest, didReceiveData: @escaping @Sendable (Data, URLResponse) -> Void,
                   completion: @escaping @Sendable (Error?) -> Void) -> any Cancellable {
         let operation = Operation()

@@ -591,10 +591,6 @@ extension LocalFileManager {
         let filePath = await dataManager.removeManga(with: mangaId)
         guard let filePath else { return }
 
-        // disable file listener while we make changes to the disk
-        beginFileMutation()
-        defer { endFileMutation() }
-
         let documentsDir = FileManager.default.documentDirectory
         let fileURL = documentsDir.appendingPathComponent(filePath)
         if Self.isContainedLocalURL(fileURL, root: localDirectory), fileURL.exists {
@@ -612,10 +608,6 @@ extension LocalFileManager {
         let filePath = await dataManager.removeChapter(mangaId: mangaId, chapterId: chapterId)
 
         if let filePath {
-            // disable file listener while we make changes to the disk
-            beginFileMutation()
-            defer { endFileMutation() }
-
             let documentsDir = FileManager.default.documentDirectory
             let fileURL = documentsDir.append(path: filePath)
             if Self.isContainedLocalURL(fileURL, root: localDirectory), fileURL.exists {

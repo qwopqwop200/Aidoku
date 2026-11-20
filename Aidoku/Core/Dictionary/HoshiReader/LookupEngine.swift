@@ -62,6 +62,11 @@ class LookupEngine {
         errorAlert = alert
         controller.present(alert, animated: true)
     }
+
+    private func reportsFailure(_ failed: Bool) -> Bool {
+        if failed { reportLookupError() }
+        return failed
+    }
     private var buildTask: Task<Void, Never>?
 
     var isReady: Bool {
@@ -88,30 +93,18 @@ class LookupEngine {
 
     func lookup(_ str: String, maxResults: Int = 16, scanLength: Int = 16) -> [LookupResult] {
         guard let bundle else { return [] }
-        guard !bundle.loadFailed else {
-            reportLookupError()
-            return []
-        }
+        guard !reportsFailure(bundle.loadFailed) else { return [] }
         guard maxResults > 0, scanLength > 0 else { return [] }
         let results = bundle.lookup.lookup(std.string(str), Int32(clamping: maxResults), scanLength, LookupOptions())
-        guard !bundle.dictQuery.has_error() else {
-            reportLookupError()
-            return []
-        }
+        guard !reportsFailure(bundle.dictQuery.has_error()) else { return [] }
         return Array(results)
     }
 
     func queryKanji(_ kanji: String) -> [String: Any]? {
         guard let bundle else { return nil }
-        guard !bundle.loadFailed else {
-            reportLookupError()
-            return nil
-        }
+        guard !reportsFailure(bundle.loadFailed) else { return nil }
         let result = bundle.dictQuery.query_kanji(std.string(kanji))
-        guard !bundle.dictQuery.has_error() else {
-            reportLookupError()
-            return nil
-        }
+        guard !reportsFailure(bundle.dictQuery.has_error()) else { return nil }
         var entries: [[String: Any]] = []
         for entry in result.entries {
             var meanings: [String] = []
@@ -135,20 +128,14 @@ class LookupEngine {
     func getStyles() -> [DictionaryStyle] {
         guard let bundle else { return [] }
         let styles = bundle.dictQuery.get_styles()
-        guard !bundle.dictQuery.has_error() else {
-            reportLookupError()
-            return []
-        }
+        guard !reportsFailure(bundle.dictQuery.has_error()) else { return [] }
         return Array(styles)
     }
 
     func withMediaFile<T>(dictName: String, mediaPath: String, _ body: (Data) -> T) -> T {
         guard let bundle else { return body(Data()) }
         let view = bundle.dictQuery.get_media_file_view(std.string(dictName), std.string(mediaPath))
-        guard !bundle.dictQuery.has_error() else {
-            reportLookupError()
-            return body(Data())
-        }
+        guard !reportsFailure(bundle.dictQuery.has_error()) else { return body(Data()) }
         let size = Int(view.size)
         guard size > 0, let ptr = UnsafeMutableRawPointer(mutating: view.data) else {
             return body(Data())

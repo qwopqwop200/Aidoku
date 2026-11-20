@@ -7,9 +7,7 @@ struct HistoryMetadataBatch {
     var manga: [MangaIdentifier: AidokuRunner.Manga] = [:]
     var chapters: [ChapterIdentifier: AidokuRunner.Chapter] = [:]
 
-    static func load(
-        chapterIds: [ChapterIdentifier], context: NSManagedObjectContext, cache: HistoryMetadataCache? = nil
-    ) -> Self {
+    static func load(chapterIds: [ChapterIdentifier], context: NSManagedObjectContext) -> Self {
         var result = Self()
         let ids = Array(Set(chapterIds))
         // Notifications can contain more than the normal 100-row history page.
@@ -37,10 +35,9 @@ struct HistoryMetadataBatch {
                 result.chapters[object.identifier] = object.toNewChapter()
             }
         }
-        if let cached = cache?.load(chapterIds: chapterIds) {
-            result.manga.merge(cached.manga) { stored, _ in stored }
-            result.chapters.merge(cached.chapters) { stored, _ in stored }
-        }
+        let cached = HistoryMetadataCache.shared.load(chapterIds: chapterIds)
+        result.manga.merge(cached.manga) { stored, _ in stored }
+        result.chapters.merge(cached.chapters) { stored, _ in stored }
         return result
     }
 }

@@ -5,7 +5,6 @@ final class SourceResponseBody: NSObject, URLSessionDataDelegate, @unchecked Sen
     enum Policy {
         case headersOnly
         case limited(Int)
-        case unrestricted
     }
 
     struct TooLarge: Error { let response: URLResponse }
@@ -62,8 +61,6 @@ final class SourceResponseBody: NSObject, URLSessionDataDelegate, @unchecked Sen
                 limit = maximum
                 completionHandler(.allow)
             }
-        case .unrestricted:
-            completionHandler(.allow)
         }
     }
 

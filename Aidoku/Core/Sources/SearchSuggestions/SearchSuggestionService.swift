@@ -2,7 +2,6 @@ import Foundation
 
 actor SearchSuggestionService {
     static let maximumResponseBytes = 1_048_576
-    typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     private struct CachedResult {
         let entries: [SearchSuggestion]
@@ -16,13 +15,11 @@ actor SearchSuggestionService {
     }
 
     private let configuration: SearchSuggestionConfiguration
-    private let transport: Transport
+    private let client = SearchSuggestionHTTPClient()
     private var cache: [CacheKey: CachedResult] = [:]
 
     init(configuration: SearchSuggestionConfiguration) {
         self.configuration = configuration
-        let client = SearchSuggestionHTTPClient()
-        self.transport = { try await client.data(for: $0) }
     }
 
     func suggestions(for query: SearchSuggestionQuery) async throws -> [SearchSuggestion] {
@@ -33,7 +30,7 @@ actor SearchSuggestionService {
         try await SearchSuggestionRequestThrottle.shared.wait(
             for: url, milliseconds: configuration.minimumRequestIntervalMilliseconds ?? 0
         )
-        let (data, response) = try await transport(request)
+        let (data, response) = try await client.data(for: request)
         try Task.checkCancellation()
         guard let response = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
         if response.statusCode == 404 { return [] }

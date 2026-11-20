@@ -8,32 +8,16 @@
 import Foundation
 
 extension Sequence where Self: Sendable, Element: Sendable {
-    /// Structured children inherit cancellation; only a bounded window is issued.
-    /// Results retain input order even when requests finish out of order.
     func concurrentMap<T: Sendable>(
-        maximumConcurrentTasks: Int = 4,
         _ transform: @Sendable @escaping (Element) async throws -> T
-    ) async throws -> [T] {
-        try await withThrowingTaskGroup(of: (Int, T).self) { group in
-            var iterator = enumerated().makeIterator()
-            func enqueue() throws -> Bool {
-                try Task.checkCancellation()
-                guard let (index, element) = iterator.next() else { return false }
-                group.addTask {
-                    try Task.checkCancellation()
-                    return (index, try await transform(element))
-                }
-                return true
+    ) async rethrows -> [T] {
+        let tasks = map { element in
+            Task {
+                try await transform(element)
             }
-            for _ in 0..<Swift.max(1, maximumConcurrentTasks) {
-                if try !enqueue() { break }
-            }
-            var results: [(Int, T)] = []
-            while let result = try await group.next() {
-                results.append(result)
-                _ = try enqueue()
-            }
-            return results.sorted { $0.0 < $1.0 }.map { $0.1 }
+        }
+        return try await tasks.asyncMap { task in
+            try await task.value
         }
     }
 

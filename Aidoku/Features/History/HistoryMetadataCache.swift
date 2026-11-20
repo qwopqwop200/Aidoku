@@ -21,22 +21,21 @@ final class HistoryMetadataCache: @unchecked Sendable {
 
     private let queue = DispatchQueue(label: "app.aidoku.history-metadata", qos: .utility)
     private let file: URL
-    private let maxEntries: Int
+    private let maxEntries = 256
     private let maxBytes: Int
-    private let maxAge: TimeInterval
+    private let maxAge: TimeInterval = 24 * 60 * 60
     private var revision: UInt64 = 0
 
-    init(directory: URL, maxEntries: Int = 256, maxBytes: Int = 2 * 1024 * 1024, maxAge: TimeInterval = 24 * 60 * 60) {
+    init(directory: URL, maxBytes: Int = 2 * 1024 * 1024) {
         file = directory.appendingPathComponent("metadata.json")
-        self.maxEntries = max(0, maxEntries)
         self.maxBytes = max(0, maxBytes)
-        self.maxAge = maxAge
     }
 
     var generation: UInt64 { queue.sync { revision } }
 
-    func load(chapterIds: [ChapterIdentifier], now: Date = Date()) -> HistoryMetadataBatch {
-        queue.sync {
+    func load(chapterIds: [ChapterIdentifier]) -> HistoryMetadataBatch {
+        let now = Date()
+        return queue.sync {
             let requested = Set(chapterIds)
             guard !requested.isEmpty else { return HistoryMetadataBatch() }
             var entries = read(now: now)
@@ -61,9 +60,10 @@ final class HistoryMetadataCache: @unchecked Sendable {
 
     /// A deletion invalidates all in-flight recovery requests, preventing late
     /// network responses from recreating metadata after history was cleared.
-    func store(manga: AidokuRunner.Manga, chapters: [AidokuRunner.Chapter], generation: UInt64, now: Date = Date()) {
+    func store(manga: AidokuRunner.Manga, chapters: [AidokuRunner.Chapter], generation: UInt64) {
+        let now = Date()
         queue.sync {
-            guard generation == revision, maxEntries > 0, maxBytes > 0, !chapters.isEmpty else { return }
+            guard generation == revision, maxBytes > 0, !chapters.isEmpty else { return }
             var compact = manga
             compact.chapters = nil
             var entries = read(now: now)

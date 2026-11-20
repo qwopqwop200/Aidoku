@@ -33,16 +33,17 @@ class ReaderPagedViewController: BaseObservingViewController {
             pageViewControllers.firstIndex(of: controller).map { ($0, controller) }
         }.sorted { $0.0 < $1.0 }
     }
+    private func appendSplitPageControllers(_ pages: [Page]) {
+        for splitPage in pages {
+            pageViewControllers.appendDeferred { [unowned self] in makePageController(preloadPage: splitPage, skipProcessing: true) }
+        }
+    }
     private func trackPageResources(_ page: ReaderPageViewController) {
         page.onPageResourcesChanged = { [weak self, weak page] active in
             guard let self, let page else { return }
             activePageControllers[ObjectIdentifier(page)] = active ? page : nil
         }
         if page.page != nil { activePageControllers[ObjectIdentifier(page)] = page }
-    }
-    // Eager inspection API for tests; navigation uses lazy slots.
-    var allPageViewControllers: [ReaderPageViewController] {
-        pageViewControllers.indices.map { pageViewControllers[$0] }
     }
     var currentPage = 0
 
@@ -321,11 +322,7 @@ extension ReaderPagedViewController {
 
         if let firstPageController {
             if let splitPageArray = splitPages[1] {
-                for splitPage in splitPageArray {
-                    pageViewControllers.appendDeferred { [unowned self] in
-                        makePageController(preloadPage: splitPage, skipProcessing: true)
-                    }
-                }
+                appendSplitPageControllers(splitPageArray)
             } else {
                 pageViewControllers.append(firstPageController)
             }
@@ -334,11 +331,7 @@ extension ReaderPagedViewController {
         for i in startPos..<endPos {
             let originalPageIndex = i + 1
             if let splitPageArray = splitPages[originalPageIndex] {
-                for splitPage in splitPageArray {
-                    pageViewControllers.appendDeferred { [unowned self] in
-                        makePageController(preloadPage: splitPage, skipProcessing: true)
-                    }
-                }
+                appendSplitPageControllers(splitPageArray)
             } else {
                 pageViewControllers.appendDeferred { [unowned self] in makePageController(hasImageCallbacks: true) }
             }
@@ -346,11 +339,7 @@ extension ReaderPagedViewController {
 
         if let lastPageController {
             if let splitPageArray = splitPages[viewModel.pages.count] {
-                for splitPage in splitPageArray {
-                    pageViewControllers.appendDeferred { [unowned self] in
-                        makePageController(preloadPage: splitPage, skipProcessing: true)
-                    }
-                }
+                appendSplitPageControllers(splitPageArray)
             } else {
                 pageViewControllers.append(lastPageController)
             }

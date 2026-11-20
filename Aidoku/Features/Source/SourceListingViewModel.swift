@@ -9,7 +9,6 @@ final class SourceListingViewModel: ObservableObject {
     @Published private(set) var home: Home?
     @Published private(set) var error: Error?
     @Published private(set) var loadingInitial = false
-    @Published private(set) var loadingMore = false
     private(set) var hasMore = false
     private(set) var nextPage = 1
 
@@ -36,7 +35,6 @@ final class SourceListingViewModel: ObservableObject {
         task = nil
         error = nil
         loadingInitial = false
-        loadingMore = false
         hasMore = false
     }
 
@@ -65,13 +63,11 @@ final class SourceListingViewModel: ObservableObject {
         let requestGeneration = generation
         error = nil
         loadingInitial = initial
-        loadingMore = !initial
         let request = Task { @MainActor in
             defer {
                 if generation == requestGeneration {
                     task = nil
                     loadingInitial = false
-                    loadingMore = false
                 }
             }
             do {

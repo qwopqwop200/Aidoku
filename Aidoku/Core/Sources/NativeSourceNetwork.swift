@@ -1,13 +1,11 @@
 import AidokuRunner
 import Foundation
 
-/// Shared production transport for native source ports, including source cookies,
-/// user-agent selection and interactive verification when the server requires it.
+/// Shared source transport: source cookies, user-agent selection and interactive verification.
 enum NativeSourceNetwork {
     typealias Fetch = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-    /// Native ports fetch HTML, JSON and short image probes. A hostile or misconfigured
-    /// server must not make one request buffer an unbounded body in memory.
+    /// A hostile or misconfigured server must not make one request buffer an unbounded body in memory.
     static let maximumBodyBytes = 64 * 1024 * 1024
 
     static func fetch(sourceKey: String) -> Fetch {
@@ -23,8 +21,7 @@ enum NativeSourceNetwork {
                 do {
                     return try await CloudflareHandler.shared.handle(request: request, fetch: { try await limitedData(for: $0) })
                 } catch let error as CloudflareHandler.HandleError {
-                    // Keep the blocked HTTP response available to the adapter, as
-                    // the source transport did before the native migration.
+                    // Keep the blocked HTTP response available to the source.
                     LogManager.logger.error("Verification failed for native source \(sourceKey): \(error)")
                     try Task.checkCancellation()
                     return (data, response)

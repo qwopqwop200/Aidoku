@@ -581,7 +581,6 @@
 // Source-language filtering
 "TRANSLATION_SOURCE_FILTER" = "번역 대상 원문 언어";
 "TRANSLATION_FILTER_ALL" = "모든 감지 언어";
-"TRANSLATION_FILTER_HELP" = "번역할 원문 언어를 선택하세요. 선택하지 않았거나 판별이 불확실한 텍스트는 원본을 유지합니다. 필터를 해제하려면 모든 감지 언어를 선택하세요.";
 "TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "선택한 원문 언어로 판별된 텍스트만 번역합니다. 기기에서 언어를 판별할 수 없는 언어에는 필터를 적용하지 않습니다.";
 "HTTPS_BYPASS" = "HTTPS 차단 우회";
 "HTTPS_BYPASS_HELP" = "소스 요청·이미지·다운로드·소스 웹뷰에 TLS 분할과 암호화 DNS(Cloudflare)를 사용합니다. 새 연결부터 적용됩니다. IP 차단이나 사이트 자체의 접속 제한은 우회하지 못합니다.";

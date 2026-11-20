@@ -5,42 +5,22 @@ import Foundation
 actor BulkDownloadAdmission {
     static let shared = BulkDownloadAdmission()
 
-    struct Snapshot: Sendable {
-        let activeDownloads: Int
-        let queuedDownloads: Int
-        let readerDemands: Int
-        let eligibleReaderDemands: Int
-        let pendingReaderDemands: Int
-        let limit: Int
-    }
     private struct Waiter {
         let id: UUID
         let continuation: CheckedContinuation<Void, Error>
     }
-    private let idleLimit: Int
-    private let readerLimit: Int
-    private let demandGraceNanoseconds: UInt64
+    private let idleLimit = 5
+    private let readerLimit = 2
+    private let demandGraceNanoseconds: UInt64 = 300_000_000
     private var readers = Set<UUID>()
     private var eligibleReaders = Set<UUID>()
     private var pendingReaders: [UUID: Task<Void, Never>] = [:]
     private var activeDownloads = 0
     private var waiters: [Waiter] = []
 
-    init(idleLimit: Int = 5, readerLimit: Int = 2, demandGraceNanoseconds: UInt64 = 300_000_000) {
-        precondition(idleLimit > 0 && readerLimit > 0 && readerLimit <= idleLimit)
-        self.idleLimit = idleLimit
-        self.readerLimit = readerLimit
-        self.demandGraceNanoseconds = demandGraceNanoseconds
-    }
-
     deinit { pendingReaders.values.forEach { $0.cancel() } }
 
     private var limit: Int { eligibleReaders.isEmpty ? idleLimit : readerLimit }
-    var snapshot: Snapshot {
-        Snapshot(activeDownloads: activeDownloads, queuedDownloads: waiters.count,
-                 readerDemands: readers.count, eligibleReaderDemands: eligibleReaders.count,
-                 pendingReaderDemands: pendingReaders.count, limit: limit)
-    }
 
     /// Caller owns this lease until completion, cancellation, or loss of visible
     /// priority. No suspension occurs between cancellation checking and issuance.
@@ -48,17 +28,13 @@ actor BulkDownloadAdmission {
         try Task.checkCancellation()
         let id = UUID()
         readers.insert(id)
-        if demandGraceNanoseconds == 0 {
-            eligibleReaders.insert(id)
-        } else {
-            // Issuance never waits for grace: the reader starts immediately.
-            // Brief loads/scroll churn do not repeatedly throttle bulk transfers.
-            let grace = demandGraceNanoseconds
-            pendingReaders[id] = Task.detached(priority: .utility) { [weak self] in
-                do { try await Task.sleep(nanoseconds: grace) } catch { return }
-                guard !Task.isCancelled else { return }
-                await self?.activateReaderDemand(id)
-            }
+        // Issuance never waits for grace: the reader starts immediately.
+        // Brief loads/scroll churn do not repeatedly throttle bulk transfers.
+        let grace = demandGraceNanoseconds
+        pendingReaders[id] = Task.detached(priority: .utility) { [weak self] in
+            do { try await Task.sleep(nanoseconds: grace) } catch { return }
+            guard !Task.isCancelled else { return }
+            await self?.activateReaderDemand(id)
         }
         return id
     }

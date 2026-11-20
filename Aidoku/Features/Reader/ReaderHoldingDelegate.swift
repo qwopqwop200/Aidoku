@@ -31,15 +31,3 @@ protocol ReaderHoldingDelegate: AnyObject {
     @MainActor
     func prepareCachedTranslationForDisplay(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage?
 }
-
-extension ReaderHoldingDelegate {
-    func updateTextScrollPosition(_ position: Double, onPage page: Int) {
-        setCurrentPage(page, position: position)
-    }
-
-    func translationVisibilityDidChange() {}
-    @MainActor
-    func prepareCachedTranslationForDisplay(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage? { nil }
-    func getNextChapter(after chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter? { nil }
-    func getPreviousChapter(before chapter: AidokuRunner.Chapter) -> AidokuRunner.Chapter? { nil }
-}

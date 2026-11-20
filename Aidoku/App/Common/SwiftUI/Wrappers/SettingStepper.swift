@@ -16,17 +16,6 @@ struct SettingStepper: UIViewRepresentable {
         label = accessibilityLabel
     }
 
-    init(value: Binding<Int>, in bounds: ClosedRange<Int>, step: Int = 1, accessibilityLabel: String) {
-        _value = Binding(get: { Double(value.wrappedValue) }, set: { next in
-            guard next.isFinite else { return }
-            value.wrappedValue = next >= Double(Int.max) ? Int.max
-                : next <= Double(Int.min) ? Int.min : Int(next)
-        })
-        self.bounds = Double(bounds.lowerBound)...Double(bounds.upperBound)
-        self.step = Double(step)
-        label = accessibilityLabel
-    }
-
     @MainActor final class Coordinator: NSObject {
         var lease: SettingStepperLease? = SettingStepperLease()
         var binding: Binding<Double>?

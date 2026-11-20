@@ -130,11 +130,7 @@ extension ShikimoriApi {
         else {
             return TrackState()
         }
-        return makeState(from: rate)
-    }
-
-    func makeState(from rate: ShikimoriUserRate) -> TrackState {
-        TrackState(
+        return TrackState(
             score: rate.score,
             status: getStatusFromString(status: rate.status),
             lastReadChapter: Float(rate.chapters),
@@ -219,8 +215,7 @@ private extension ShikimoriApi {
     }
 
     @discardableResult
-    // Internal to allow the original-request account fence to be exercised directly.
-    internal func requestData(urlRequest: URLRequest) async throws -> Data {
+    func requestData(urlRequest: URLRequest) async throws -> Data {
         let currentGeneration = await oauth.accountGeneration
         let issued = OAuthClient.generation(for: urlRequest) ?? currentGeneration
         guard currentGeneration == issued else { throw CancellationError() }

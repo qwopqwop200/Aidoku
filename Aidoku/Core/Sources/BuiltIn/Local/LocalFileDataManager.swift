@@ -357,7 +357,6 @@ extension LocalFileDataManager {
 
     /// No suspension between existence checks, inserts and commit. The caller may
     /// acknowledge/remove its inbox only after this durable transaction succeeds.
-    // One transaction accepts the existing file and metadata fields together.
     // swiftlint:disable:next function_parameter_count
     func commitImport(
         folder: URL, mangaId: String, mangaTitle: String, cover: String?, description: String?,

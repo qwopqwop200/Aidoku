@@ -927,7 +927,6 @@
 // Source-language filtering
 "TRANSLATION_SOURCE_FILTER" = "Translation Source Language Filter";
 "TRANSLATION_FILTER_ALL" = "All Detected Languages";
-"TRANSLATION_FILTER_HELP" = "Select the original languages to translate. Unselected or uncertain text stays unchanged. Choose All Detected Languages to remove the filter.";
 "TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Only text identified as the selected original language is translated. Languages without on-device detection remain unfiltered.";
 "HTTPS_BYPASS" = "HTTPS Blocking Bypass";
 "HTTPS_BYPASS_HELP" = "Use TLS fragmentation and encrypted DNS (Cloudflare) for source requests, images, downloads and source web views. Applies to new connections. IP blocks and restrictions imposed by the website are not bypassed.";

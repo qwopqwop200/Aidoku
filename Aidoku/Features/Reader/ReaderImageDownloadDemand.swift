@@ -5,16 +5,12 @@ import Nuke
 /// This lease follows image demand, not the lifetime of its reader/controller.
 @MainActor
 final class ReaderImageDownloadDemand {
-    private let admission: BulkDownloadAdmission
+    private let admission = BulkDownloadAdmission.shared
     private var generation = UUID()
     private var isCold = false
     private var isVisible = false
     private var token: UUID?
     private var acquisition: Task<Void, Never>?
-
-    init(admission: BulkDownloadAdmission = .shared) {
-        self.admission = admission
-    }
 
     deinit {
         acquisition?.cancel()

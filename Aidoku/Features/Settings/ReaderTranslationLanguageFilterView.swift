@@ -13,7 +13,7 @@ enum ReaderTranslationLanguageOptions {
 struct ReaderTranslationLanguageFilterView: View {
     @Binding var selection: [String]
     var title = NSLocalizedString("TRANSLATION_SOURCE_FILTER")
-    var help = NSLocalizedString("TRANSLATION_FILTER_HELP")
+    var help: String
     var allowedCodes = AutomaticSourceLanguageDetector.supportedLanguageCodes
     var allTitle = NSLocalizedString("TRANSLATION_FILTER_ALL")
     var accessibilityPrefix = "translation.sourceFilter"

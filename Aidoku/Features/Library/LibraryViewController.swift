@@ -724,8 +724,7 @@ extension LibraryViewController {
                     style: .destructive
                 ) { _ in
                     Task {
-                        let identifiers = selectedItems
-                        if let category { await self.removeFromCategory(mangaInfo: identifiers, category: category).value }
+                        if let category { await self.removeFromCategory(mangaInfo: selectedItems, category: category).value }
                         self.updateNavbarItems()
                         self.updateToolbar()
                     }
@@ -735,8 +734,7 @@ extension LibraryViewController {
             sourceItem: toolbarItems?.first
         ) {
             Task {
-                let identifiers = selectedItems
-                await self.removeFromLibrary(mangaInfo: identifiers)?.value
+                await self.removeFromLibrary(mangaInfo: selectedItems)?.value
                 self.updateNavbarItems()
                 self.updateToolbar()
             }
@@ -765,12 +763,10 @@ extension LibraryViewController {
         dataSource.apply(snapshot)
     }
 
-    @discardableResult
-    func updateDataSource() -> Bool {
+    func updateDataSource() {
         let canShowRows = !viewModel.locked && viewModel.hasCurrentCategorySnapshot
         let rows: DisplayedRows = canShowRows ? .library(viewModel.displayRevision) : .hidden
-        let shouldApply = rows != appliedRows
-        if shouldApply {
+        if rows != appliedRows {
             var snapshot = NSDiffableDataSourceSnapshot<Section, MangaInfo>()
             if canShowRows {
                 if !viewModel.pinnedManga.isEmpty {
@@ -791,7 +787,6 @@ extension LibraryViewController {
         }
         collectionView.isScrollEnabled = canShowRows && emptyStackView.isHidden && lockedStackView.isHidden
         collectionView.refreshControl = collectionView.isScrollEnabled ? refreshControl : nil
-        return shouldApply
     }
 
     private func updateVisibleItemAppearance() {
@@ -815,11 +810,19 @@ extension LibraryViewController {
         updateLockState()
     }
 
-    func attemptUnlock(authenticate: () async throws -> Bool = {
-        try await LAContext().evaluatePolicy(.defaultPolicy, localizedReason: NSLocalizedString("AUTH_FOR_LIBRARY"))
-    }) async {
+    func attemptUnlock() async {
         let revision = viewModel.categoryRevision
-        guard (try? await authenticate()) == true, revision == viewModel.categoryRevision else { return }
+        do {
+            let success = try await LAContext().evaluatePolicy(
+                .defaultPolicy,
+                localizedReason: NSLocalizedString("AUTH_FOR_LIBRARY")
+            )
+            guard success, revision == viewModel.categoryRevision else { return }
+        } catch {
+            // The error is displayed to users, so we can ignore it.
+            return
+        }
+
         unlock()
     }
 

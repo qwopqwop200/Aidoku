@@ -604,10 +604,7 @@ extension LibraryViewModel {
         }
     }
 
-    func fetchDownloadCounts(
-        for identifier: MangaIdentifier?,
-        count: @MainActor (MangaIdentifier) async -> Int = { await DownloadManager.shared.downloadsCount(for: $0) }
-    ) async {
+    func fetchDownloadCounts(for identifier: MangaIdentifier?) async {
         // A deletion of all downloads or a membership change can affect rows outside the displayed set.
         guard let identifier, libraryLoadTask == nil, !activeFilters.contains(where: { $0.type == .downloaded }) else {
             await loadLibrary()
@@ -615,19 +612,15 @@ extension LibraryViewModel {
         }
         let request = UUID()
         downloadCountRequests[identifier] = request
-        let downloads = await count(identifier)
+        let downloads = await DownloadManager.shared.downloadsCount(for: identifier)
         guard downloadCountRequests[identifier] == request else { return }
         downloadCountRequests[identifier] = nil
-        applyDownloadCounts([identifier: downloads])
-    }
-
-    func applyDownloadCounts(_ counts: [MangaIdentifier: Int]) {
         mutateLibrary {
-            for index in pinnedManga.indices {
-                if let count = counts[pinnedManga[index].id] { pinnedManga[index].downloads = count }
+            for index in pinnedManga.indices where pinnedManga[index].id == identifier {
+                pinnedManga[index].downloads = downloads
             }
-            for index in manga.indices {
-                if let count = counts[manga[index].id] { manga[index].downloads = count }
+            for index in manga.indices where manga[index].id == identifier {
+                manga[index].downloads = downloads
             }
         }
     }
@@ -754,7 +747,6 @@ extension LibraryViewModel {
         }
 
         let query = query.lowercased()
-        // Pinned rows use the same title/author matching as regular rows.
         let matches: (MangaInfo) -> Bool = {
             $0.title?.lowercased().fuzzyMatch(query) ?? false || $0.author?.lowercased().fuzzyMatch(query) ?? false
         }

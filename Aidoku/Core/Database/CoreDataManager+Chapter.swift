@@ -84,7 +84,6 @@ extension CoreDataManager {
     ) -> [ChapterObject] {
         guard let manga = getManga(mangaId: mangaId, context: context) else { return [] }
 
-        // Index once: repeated first/removeAll scans made large catalog refreshes quadratic.
         let incoming = Dictionary(chapters.indices.lazy.map { (chapters[$0].key, $0) }, uniquingKeysWith: { first, _ in first })
         var existing: [String: ChapterObject] = [:]
         var newChaptersCreated: [ChapterObject] = []

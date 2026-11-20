@@ -25,14 +25,9 @@ actor HTTPSDNSResolver {
         let task: Task<Void, Never>
         var waiters: [UUID: CheckedContinuation<[String], Error>]
     }
-    typealias Query = @Sendable (String, String) async throws -> Response
-    private let query: Query
+    private let session: URLSession
     private var entries: [String: Entry] = [:]
     private var pending: [String: Pending] = [:]
-    init(session: URLSession) {
-        query = { try await Self.query(host: $0, type: $1, session: session) }
-    }
-
     private init() {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 5
@@ -41,7 +36,7 @@ actor HTTPSDNSResolver {
         config.httpShouldSetCookies = false
         config.httpCookieStorage = nil
         config.urlCache = nil
-        self.init(session: URLSession(configuration: config))
+        session = URLSession(configuration: config)
     }
 
     func addresses(for host: String) async throws -> [String] {
@@ -77,8 +72,8 @@ actor HTTPSDNSResolver {
 
     private func resolve(host: String, id: UUID) async {
         guard !Task.isCancelled else { return }
-        async let ipv4 = try? query(host, "A")
-        async let ipv6 = try? query(host, "AAAA")
+        async let ipv4 = try? Self.query(host: host, type: "A", session: session)
+        async let ipv6 = try? Self.query(host: host, type: "AAAA", session: session)
         let answers = await [ipv4, ipv6].compactMap { $0 }.flatMap { $0.Answer ?? [] }
         // A disconnected tunnel can be replaced while its transport is unwinding.
         guard pending[host]?.id == id, let lookup = pending.removeValue(forKey: host) else { return }

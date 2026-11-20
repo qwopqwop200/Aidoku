@@ -51,9 +51,7 @@ class SourceSearchViewModel: ObservableObject {
         loadManga(searchText: searchText, filters: filters)
     }
 
-    @discardableResult
-    func cancelPendingRequests() -> Task<Void, Never>? {
-        let pending = loadMoreTask ?? searchTask
+    func cancelPendingRequests() {
         generation += 1
         searchTask?.cancel()
         loadMoreTask?.cancel()
@@ -68,7 +66,6 @@ class SourceSearchViewModel: ObservableObject {
             hasAppeared = false
             currentSearch = nil
         }
-        return pending
     }
 
     func waitForSearch() async {

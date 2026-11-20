@@ -75,14 +75,10 @@ class ReaderPageView: UIView {
     var isTranslationPreload = false
     private var currentImageRequest: ImageRequest?
 
-    init(
-        temporaryPageStore: ReaderTemporaryPageStore,
-        imagePipeline: ImagePipeline = .shared,
-        downloadAdmission: BulkDownloadAdmission = .shared
-    ) {
+    init(temporaryPageStore: ReaderTemporaryPageStore, imagePipeline: ImagePipeline = .shared) {
         self.temporaryPageStore = temporaryPageStore
         self.imagePipeline = imagePipeline
-        self.imageDownloadDemand = ReaderImageDownloadDemand(admission: downloadAdmission)
+        self.imageDownloadDemand = ReaderImageDownloadDemand()
         super.init(frame: .zero)
         configure()
         constrain()

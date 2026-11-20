@@ -88,16 +88,14 @@ class TextRecognizer {
                                 indexByObservation: staging.clusterIndexByObservation)
     }
 
-    @discardableResult
-    func commitAnalysis(_ prepared: PreparedAnalysis, generation: UInt64) -> Bool {
+    func commitAnalysis(_ prepared: PreparedAnalysis, generation: UInt64) {
         stateLock.lock()
         defer { stateLock.unlock() }
-        guard generation == stateGeneration, !Task.isCancelled else { return false }
+        guard generation == stateGeneration, !Task.isCancelled else { return }
         observations = prepared.observations
         cachedClusters = prepared.clusters
         cachedOrderedClusters = prepared.orderedClusters
         clusterIndexByObservation = prepared.indexByObservation
-        return true
     }
 
     var observations: [OCRObservation] = []

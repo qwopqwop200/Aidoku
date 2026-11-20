@@ -76,7 +76,7 @@ extension CoreDataManager {
     }
 
     // Count reading days, pages, series, and hours from the same session rows.
-    func getBasicStats(context: NSManagedObjectContext, now: Date = .now) -> BasicStats {
+    func getBasicStats(context: NSManagedObjectContext) -> BasicStats {
         let fetchRequest = NSFetchRequest<NSDictionary>(entityName: "ReadingSession")
         fetchRequest.resultType = .dictionaryResultType
         fetchRequest.propertiesToFetch = [
@@ -90,6 +90,7 @@ extension CoreDataManager {
         }
 
         let calendar = Calendar.current
+        let now = Date()
         let today = calendar.startOfDay(for: now)
         let currentPeriod = calendar.dateComponents([.year, .month], from: today)
         var periodsByDay: [Date: DateComponents] = [:]

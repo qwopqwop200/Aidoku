@@ -93,9 +93,10 @@ actor BackupManager {
         return await operation()
     }
 
-    func importBackup(from url: URL, into directory: URL = BackupManager.directory) -> Bool {
+    func importBackup(from url: URL) -> Bool {
         let fileManager = FileManager.default
-        var targetLocation = directory.appendingPathComponent(url.lastPathComponent)
+        let directory = Self.directory
+        var targetLocation = Self.directory.appendingPathComponent(url.lastPathComponent)
         while targetLocation.exists {
             targetLocation = targetLocation.deletingLastPathComponent().appendingPathComponent(
                 targetLocation.deletingPathExtension().lastPathComponent.appending("_1")
@@ -229,9 +230,7 @@ actor BackupManager {
         }
     }
 
-    /// Large libraries can hold hundreds of thousands of chapter rows. Converting a
-    /// fully materialized fetch kept every managed object and its row snapshot alive
-    /// alongside the encoded backup. Fault each converted batch back out instead.
+    /// Faults each converted batch back out so large fetches don't stay materialized.
     nonisolated static func mapInBatches<T: NSManagedObject, R>(
         _ request: NSFetchRequest<T>,
         context: NSManagedObjectContext,

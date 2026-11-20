@@ -12,22 +12,11 @@ class LogViewController: UIViewController {
     private var entries: [LogEntry] = []
 
     private var logTask: Task<Void, Never>?
-    private(set) var clearTask: Task<Void, Never>?
+    private var clearTask: Task<Void, Never>?
     private var isViewing = false
     private var flushTask: Task<Void, Never>?
     private var pendingEntries: [LogEntry] = []
     private var needsReload = false
-    private let store: LogStore
-
-    init(store: LogStore = LogManager.logger.store) {
-        self.store = store
-        super.init(nibName: nil, bundle: nil)
-    }
-
-    required init?(coder: NSCoder) {
-        self.store = LogManager.logger.store
-        super.init(coder: coder)
-    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -63,7 +52,7 @@ class LogViewController: UIViewController {
 
     private func startObserving() {
         guard logTask == nil else { return }
-        let store = store
+        let store = LogManager.logger.store
         let pendingClear = clearTask
         logTask = Task { [weak self] in
             await pendingClear?.value
@@ -100,10 +89,6 @@ class LogViewController: UIViewController {
     }
 
     @MainActor
-    func logEntry(entry: LogEntry) {
-        textView.textStorage.append(formatted([entry]))
-    }
-
     private func formatted(_ entries: [LogEntry]) -> NSAttributedString {
         let string = NSMutableAttributedString()
         for entry in entries {
@@ -163,7 +148,7 @@ class LogViewController: UIViewController {
         needsReload = false
         entries = []
         textView.attributedText = NSMutableAttributedString()
-        let store = store
+        let store = LogManager.logger.store
         let previousClear = clearTask
         clearTask = Task {
             await previousClear?.value

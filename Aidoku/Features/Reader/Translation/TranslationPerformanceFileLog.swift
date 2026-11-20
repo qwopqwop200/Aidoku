@@ -54,11 +54,11 @@ final class TranslationPerformanceFileWriter: @unchecked Sendable {
         let outcome: Int
     }
     private let directory: URL
-    private let maximumBytes: Int
-    private let maximumPending: Int
+    private let maximumBytes = 524_288
+    private let maximumPending = 256
     private let filename: String
     private let samplesMemory: Bool
-    private let flushInterval: TimeInterval
+    private let flushInterval: TimeInterval = 0.25
     private let queue = DispatchQueue(label: "app.aidoku.translation-diagnostics", qos: .utility)
     private let lock = NSLock()
     private var pending: [Entry] = []
@@ -68,14 +68,10 @@ final class TranslationPerformanceFileWriter: @unchecked Sendable {
     private var writeFailures = 0 // Writer queue only.
     private var memorySample: (uptime: TimeInterval, footprint: Int64, available: UInt64) = (-1, -1, 0)
 
-    init(directory: URL, maximumBytes: Int = 524_288, maximumPending: Int = 256,
-         filename: String = "translation-performance", samplesMemory: Bool = false, flushInterval: TimeInterval = 0.25) {
+    init(directory: URL, filename: String = "translation-performance", samplesMemory: Bool = false) {
         self.directory = directory
-        self.maximumBytes = max(1, maximumBytes)
-        self.maximumPending = max(1, maximumPending)
         self.filename = filename
         self.samplesMemory = samplesMemory
-        self.flushInterval = flushInterval
     }
 
     func record(_ event: TranslationPerformanceFileLog.Event, fields: [TranslationPerformanceFileLog.Field: Double]) {

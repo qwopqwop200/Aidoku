@@ -22,17 +22,15 @@ enum DownloadImageTranslator {
 
     /// Waiting downloads own file identities only. Reading/mapping compressed
     /// bytes begins after the same two-pipeline admission used by raw inputs.
-    static func withAdmittedFile<Value: Sendable>(
+    private static func withAdmittedFile<Value: Sendable>(
         at url: URL,
-        limiter: TranslationProviderRequestLimiter = pipelineGate,
-        load: @escaping @Sendable (URL) throws -> Data = { try Data(contentsOf: $0, options: .mappedIfSafe) },
         operation: @escaping @MainActor (Data) async throws -> Value
     ) async throws -> Value {
-        try await limiter.withPermit(priority: .prefetch) {
+        try await pipelineGate.withPermit(priority: .prefetch) {
             try Task.checkCancellation()
             let reading = Task.detached(priority: .utility) {
                 try Task.checkCancellation()
-                let data = try load(url)
+                let data = try Data(contentsOf: url, options: .mappedIfSafe)
                 try Task.checkCancellation()
                 return data
             }
@@ -56,9 +54,9 @@ enum DownloadImageTranslator {
         return png
     }
 
-    nonisolated static func fileExtension(for data: Data, fallback: String = "png") -> String {
+    nonisolated static func fileExtension(for data: Data) -> String {
         guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
-              let type = CGImageSourceGetType(source), let ext = UTType(type as String)?.preferredFilenameExtension else { return fallback }
+              let type = CGImageSourceGetType(source), let ext = UTType(type as String)?.preferredFilenameExtension else { return "png" }
         return ext
     }
 

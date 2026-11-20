@@ -34,7 +34,7 @@ extension HistoryView {
         private let historyIdentityLoader: (@Sendable ([ChapterIdentifier]) async -> HistoryBatch)?
         private let historyPageLoader: (@Sendable (Int, Int) async -> HistoryBatch)?
 
-        private(set) var searchQuery: String = ""
+        private var searchQuery: String = ""
         private var searchTask: Task<Void, Never>?
 
         private var missingMangaQueue: [MangaIdentifier: Set<String>] = [:]  // [mangaKey: Set<chapterId>]
@@ -124,14 +124,10 @@ extension HistoryView.ViewModel {
 
 // MARK: Loading
 extension HistoryView.ViewModel {
+    // fetch the changed history entries (that will be appended to the top)
     func receiveHistoryChange(chapterIds: [ChapterIdentifier]) async {
         let ids = Array(Set(chapterIds))
         guard !ids.isEmpty else { return }
-        await fetchNew(count: ids.count, changedChapterIds: ids)
-    }
-
-    // fetch a specified number of new history entries (that will be appended to the top)
-    func fetchNew(count: Int, refreshingDays: Set<Int> = [], changedChapterIds: [ChapterIdentifier]? = nil) async {
         let generation = historyReloadGeneration
         // Several mutation notifications can await the same predecessor. Recheck
         // ownership after every suspension so only one successor reads/merges.
@@ -146,25 +142,8 @@ extension HistoryView.ViewModel {
         loadTaskID = issued
         let task = Task.detached {
             while !Task.isCancelled, await self.isCurrentHistoryGeneration(generation) {
-                // offset needs to be the number of items before today, in case of entries in the future
-                let now = Date()
-                let offset = await self.historyData.reduce(into: 0) { offset, section in
-                    switch section.key {
-                        case ..<0: // future
-                            offset += section.value.count
-                        case 0: // today
-                            offset += section.value.prefix(while: { $0.date >= now }).count
-                        default: // past
-                            break
-                    }
-                }
-                let newObjectCount = await self.processHistoryObjects(
-                    limit: count,
-                    offset: offset,
-                    refreshingDays: refreshingDays, chapterIds: changedChapterIds
-                )
-                if let newObjectCount {
-                    await self.increaseOffset(by: changedChapterIds == nil ? newObjectCount.fetched : newObjectCount.inserted, generation: generation)
+                if let newObjectCount = await self.processHistoryObjects(limit: ids.count, offset: 0, chapterIds: ids) {
+                    await self.increaseOffset(by: newObjectCount.inserted, generation: generation)
                     break
                 }
                 // A removal changed the content snapshot while I/O was suspended.
@@ -272,7 +251,7 @@ extension HistoryView.ViewModel {
 
     // remove a cached history entry for a chapter
     @discardableResult
-    func removeStoredHistory(chapterId: ChapterIdentifier, updateFilteredHistory: Bool = true) -> Int? {
+    private func removeStoredHistory(chapterId: ChapterIdentifier, updateFilteredHistory: Bool = true) -> Int? {
         historyContentRevision += 1
         for section in historyData {
             for (index, entry) in section.value.enumerated() where entry.chapterId == chapterId {
@@ -512,7 +491,7 @@ extension HistoryView.ViewModel {
         let history = rows.map { HistoryInfo(chapterId: .init(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.chapterId),
             dateRead: $0.dateRead, progress: $0.progress, total: $0.total, completed: $0.completed) }
         return HistoryBatch(history: history,
-            metadata: HistoryMetadataBatch.load(chapterIds: history.map(\.chapterId), context: context, cache: .shared))
+            metadata: HistoryMetadataBatch.load(chapterIds: history.map(\.chapterId), context: context))
     }
 
     var loadedHistoryIdentifiers: [ChapterIdentifier] { historyData.values.flatMap { $0.map(\.chapterId) } }
@@ -530,7 +509,7 @@ extension HistoryView.ViewModel {
                         completed: $0.completed
                     )
                 }
-            return HistoryBatch(history: history, metadata: HistoryMetadataBatch.load(chapterIds: history.map(\.chapterId), context: context, cache: .shared))
+            return HistoryBatch(history: history, metadata: HistoryMetadataBatch.load(chapterIds: history.map(\.chapterId), context: context))
         }
     }
 

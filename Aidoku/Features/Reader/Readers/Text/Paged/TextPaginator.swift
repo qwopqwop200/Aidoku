@@ -404,9 +404,6 @@ class TextPaginator {
             // Move to next page
             currentLocation = adjustedRange.location + adjustedRange.length
             pageIndex += 1
-
-            // A positive character range advances toward fullLength. An arbitrary
-            // page-count cap would silently discard the end of long books.
         }
 
         // Ensure we have at least one page

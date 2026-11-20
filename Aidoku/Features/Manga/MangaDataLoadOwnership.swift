@@ -15,11 +15,9 @@ final class MangaDataLoadOwnership {
 
     func isCurrent(_ id: UUID) -> Bool { requestID == id }
 
-    @discardableResult
-    func performPartial(expectedID: UUID, _ effect: () -> Void) -> Bool {
-        guard isCurrent(expectedID), acceptsPartialResults else { return false }
+    func performPartial(expectedID: UUID, _ effect: () -> Void) {
+        guard isCurrent(expectedID), acceptsPartialResults else { return }
         effect()
-        return true
     }
 
     func closePartialResults(expectedID: UUID) {

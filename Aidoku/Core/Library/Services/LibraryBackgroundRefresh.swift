@@ -10,16 +10,13 @@ final class LibraryBackgroundRefresh: @unchecked Sendable {
         self.completion = completion
     }
 
-    @discardableResult
-    func start(_ refresh: @escaping @Sendable () async -> Bool) -> Task<Void, Never>? {
+    func start(_ refresh: @escaping @Sendable () async -> Bool) {
         lock.withLock {
-            guard completion != nil, worker == nil else { return nil }
-            let task = Task {
+            guard completion != nil, worker == nil else { return }
+            worker = Task {
                 let success = await refresh()
                 finish(success: success)
             }
-            worker = task
-            return task
         }
     }
 

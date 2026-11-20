@@ -54,7 +54,6 @@ class MangaGridCell: UICollectionViewCell {
     private var imageTask: ImageTask?
     private var imageGeneration = 0
     private(set) var preparationTask: Task<Void, Never>?
-    var resolveImageSource: (String) async -> AidokuRunner.Source? = { await SourceManager.shared.source(for: $0) }
     var isEditing = false
 
     // shadow shown when in selection mode
@@ -274,7 +273,7 @@ extension MangaGridCell {
         self.imageView.prepareForReuse()
 
         let source: AidokuRunner.Source? = if let sourceKey = identifier?.sourceKey {
-            await resolveImageSource(sourceKey)
+            await SourceManager.shared.source(for: sourceKey)
         } else {
             nil
         }

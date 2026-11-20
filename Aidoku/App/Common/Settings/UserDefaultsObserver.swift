@@ -15,24 +15,24 @@ class UserDefaultsObserver: ObservableObject {
     private var cancellable: AnyCancellable?
     private var hasPendingChange = false
 
-    init(keys: [String], defaults: UserDefaults = .standard, notificationCenter: NotificationCenter = .default) {
+    init(keys: [String]) {
         let keys = Set(keys.filter { !$0.isEmpty })
         guard !keys.isEmpty else { return }
         var observedValues: [String: Any?] = [:]
         for key in keys {
-            let value = defaults.object(forKey: key)
+            let value = UserDefaults.standard.object(forKey: key)
             observedValues[key] = value
         }
         self.observedValues = observedValues
 
-        cancellable = notificationCenter.publisher(for: UserDefaults.didChangeNotification)
+        cancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .throttle(for: .milliseconds(16), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] _ in
                 guard let self else { return }
                 var updated = self.observedValues
                 var changed = false
                 for key in keys {
-                    let newValue = defaults.object(forKey: key)
+                    let newValue = UserDefaults.standard.object(forKey: key)
                     if !Self.isEqual(updated[key, default: nil], newValue) {
                         updated[key] = newValue
                         changed = true
@@ -67,28 +67,23 @@ class UserDefaultsObserver: ObservableObject {
 class UserDefaultsBool: ObservableObject {
     @Published var value: Bool {
         didSet {
-            if !isReconciling, oldValue != value { defaults.set(value, forKey: key) }
+            if !isReconciling, oldValue != value { UserDefaults.standard.set(value, forKey: key) }
         }
     }
 
     private let key: String
-    private let defaults: UserDefaults
     private var isReconciling = false
     private var cancellable: AnyCancellable?
 
-    init(
-        key: String, defaultValue: Bool = false,
-        defaults: UserDefaults = .standard, notificationCenter: NotificationCenter = .default
-    ) {
-        self.defaults = defaults
+    init(key: String, defaultValue: Bool = false) {
         self.key = key
-        self.value = defaults.object(forKey: key) == nil ? defaultValue : defaults.bool(forKey: key)
+        self.value = UserDefaults.standard.object(forKey: key) == nil ? defaultValue : UserDefaults.standard.bool(forKey: key)
 
-        cancellable = notificationCenter.publisher(for: UserDefaults.didChangeNotification)
+        cancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .throttle(for: .milliseconds(16), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] _ in
                 guard let self else { return }
-                let newValue = defaults.object(forKey: self.key) == nil ? defaultValue : defaults.bool(forKey: self.key)
+                let newValue = UserDefaults.standard.object(forKey: self.key) == nil ? defaultValue : UserDefaults.standard.bool(forKey: self.key)
                 if self.value != newValue {
                     self.isReconciling = true
                     self.value = newValue

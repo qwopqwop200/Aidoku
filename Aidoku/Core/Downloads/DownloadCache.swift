@@ -192,19 +192,22 @@ extension DownloadCache {
     /// Keep the existing sanitized names, but never accept navigation names or
     /// filesystem aliases that redirect a download outside its own hierarchy.
     nonisolated static func isSafeDownloadPath(components: [String], root: URL = DownloadManager.directory) -> Bool {
-        guard root.isFileURL, !components.isEmpty else { return false }
+        !components.isEmpty && safeDirectory(components: components, root: root) != nil
+    }
+
+    private nonisolated static func safeDirectory(components: [String], root: URL) -> URL? {
+        guard root.isFileURL else { return nil }
         let expectedRoot = root.deletingLastPathComponent().standardizedFileURL
             .resolvingSymlinksInPath().appendingPathComponent(root.lastPathComponent).standardizedFileURL
         var directory = root.standardizedFileURL.resolvingSymlinksInPath()
-        guard directory.path == expectedRoot.path else { return false }
-        for rawComponent in components {
-            let component = rawComponent.directoryName
-            guard !component.isEmpty, component != ".", component != ".." else { return false }
-            let next = directory.appendingPathComponent(component).standardizedFileURL
-            guard next.resolvingSymlinksInPath().path == next.path else { return false }
+        guard directory.path == expectedRoot.path else { return nil }
+        for component in components {
+            guard hasValidDownloadNames([component]) else { return nil }
+            let next = directory.appendingPathComponent(component.directoryName).standardizedFileURL
+            guard next.resolvingSymlinksInPath().path == next.path else { return nil }
             directory = next
         }
-        return true
+        return directory
     }
 
     nonisolated static func hasValidDownloadNames(_ components: [String]) -> Bool {
@@ -246,21 +249,10 @@ extension DownloadCache {
     nonisolated static func isSafeChapterPath(source: String, manga: String, chapter: String,
                                              root: URL = DownloadManager.directory,
                                              checkingStoredManga: Bool = true) -> Bool {
-        guard root.isFileURL else { return false }
-        let expectedRoot = root.deletingLastPathComponent().standardizedFileURL
-            .resolvingSymlinksInPath().appendingPathComponent(root.lastPathComponent).standardizedFileURL
-        var directory = root.standardizedFileURL.resolvingSymlinksInPath()
-        guard directory.path == expectedRoot.path else { return false }
         // Resolve each ancestor once, then check distinct final/staging targets.
-        for rawComponent in [source, manga] {
-            let component = rawComponent.directoryName
-            guard !component.isEmpty, component != ".", component != ".." else { return false }
-            let next = directory.appendingPathComponent(component).standardizedFileURL
-            guard next.resolvingSymlinksInPath().path == next.path else { return false }
-            directory = next
-        }
+        guard let directory = safeDirectory(components: [source, manga], root: root),
+              hasValidDownloadNames([chapter]) else { return false }
         let name = chapter.directoryName
-        guard !name.isEmpty, name != ".", name != ".." else { return false }
         guard !checkingStoredManga || matchesStoredManga(in: directory, source: source, manga: manga) else { return false }
         return [name, name + ".cbz", Self.tmpDirectoryPrefix + name, Self.tmpDirectoryPrefix + name + ".cbz"]
             .allSatisfy {

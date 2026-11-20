@@ -454,6 +454,8 @@ extension DownloadManager {
                 let totalSize = await calculateDirectorySize(mangaDirectory, includingHidden: true)
                 let chapterCount = chapterDirectories.count
                 let pageCount = chapterDirectories.reduce(0) { $0 + DownloadedChapterFile.pageCount(in: $1) }
+                let coverFile = mangaDirectory.appendingPathComponent("cover.png")
+                let localCoverUrl = coverFile.exists ? coverFile.absoluteString : nil
 
                 // Try to load metadata from the manga directory first
                 let firstComicInfo = findComicInfo(in: mangaDirectory)
@@ -463,8 +465,7 @@ extension DownloadManager {
                 let mangaMetadata = if let firstComicInfo {
                     (
                         title: firstComicInfo.series,
-                        coverUrl: mangaDirectory.appendingPathComponent("cover.png").exists
-                            ? mangaDirectory.appendingPathComponent("cover.png").absoluteString : nil,
+                        coverUrl: localCoverUrl,
                         isInLibrary: await withCheckedContinuation { continuation in
                             CoreDataManager.shared.container.performBackgroundTask { context in
                                 let isInLibrary = CoreDataManager.shared.hasLibraryManga(
@@ -523,8 +524,7 @@ extension DownloadManager {
                     mangaId: mangaMetadata.actualMangaId, // Use the actual manga ID, not directory name
                     directoryMangaId: mangaId, // Keep directory name for file access
                     title: mangaMetadata.title,
-                    coverUrl: mangaDirectory.appendingPathComponent("cover.png").exists
-                        ? mangaDirectory.appendingPathComponent("cover.png").absoluteString : mangaMetadata.coverUrl,
+                    coverUrl: localCoverUrl ?? mangaMetadata.coverUrl,
                     totalSize: totalSize,
                     chapterCount: chapterCount,
                     pageCount: pageCount,

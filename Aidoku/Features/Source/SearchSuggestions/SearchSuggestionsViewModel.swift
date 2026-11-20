@@ -8,7 +8,6 @@ final class SearchSuggestionsViewModel: ObservableObject {
 
     private let configuration: SearchSuggestionConfiguration
     private let service: SearchSuggestionService
-    private let delay: UInt64 = 250_000_000
     private var task: Task<Void, Never>?
     private var generation = 0
 
@@ -23,10 +22,9 @@ final class SearchSuggestionsViewModel: ObservableObject {
         self.query = query
         let generation = generation
         let service = service
-        let delay = delay
         task = Task { [weak self] in
             do {
-                try await Task.sleep(nanoseconds: delay)
+                try await Task.sleep(nanoseconds: 250_000_000)
                 let suggestions = try await service.suggestions(for: query)
                 guard !Task.isCancelled, let self, self.generation == generation else { return }
                 self.suggestions = suggestions

@@ -15,9 +15,6 @@ final class ReaderPageControllerStore {
     private var slots: [Slot] = []
     private var indicesByIdentity: [ObjectIdentifier: Int] = [:]
 
-    init(_ controllers: [ReaderPageViewController] = []) {
-        for controller in controllers { append(controller) }
-    }
     var count: Int { slots.count }
     var indices: Range<Int> { slots.indices }
     var first: ReaderPageViewController? { slots.isEmpty ? nil : self[0] }

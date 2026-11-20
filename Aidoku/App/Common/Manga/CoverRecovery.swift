@@ -49,18 +49,12 @@ actor CoverRecoveryCoordinator {
     private var pending: [Key: Task<URL?, Never>] = [:]
     private var completed: [MangaIdentifier: Entry] = [:]
     private var serial: UInt64 = 0
-    private let capacity: Int
-    private let now: @Sendable () -> Date
-
-    init(capacity: Int = 128, now: @escaping @Sendable () -> Date = { Date() }) {
-        self.capacity = max(1, capacity)
-        self.now = now
-    }
+    private let capacity = 128
 
     func recover(identifier: MangaIdentifier, failedURL: URL?, operation: @escaping @Sendable () async -> URL?) async -> URL? {
         guard !Task.isCancelled else { return nil }
         let key = Key(identifier: identifier, failedURL: failedURL)
-        if let entry = completed[identifier], entry.expires > now() {
+        if let entry = completed[identifier], entry.expires > Date() {
             // If the recovered URL itself failed, stop instead of creating a
             // cache-hit retry loop. Later demand can retry after the cooldown.
             if failedURL != nil, entry.value == failedURL { return nil }
@@ -75,7 +69,7 @@ actor CoverRecoveryCoordinator {
         let value = await task.value
         pending[key] = nil
         serial &+= 1
-        completed[identifier] = Entry(failedURL: failedURL, value: value, expires: now().addingTimeInterval(value == nil ? 5 : 30), serial: serial)
+        completed[identifier] = Entry(failedURL: failedURL, value: value, expires: Date().addingTimeInterval(value == nil ? 5 : 30), serial: serial)
         while completed.count > capacity, let oldest = completed.min(by: { $0.value.serial < $1.value.serial })?.key {
             completed.removeValue(forKey: oldest)
         }

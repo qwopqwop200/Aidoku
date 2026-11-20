@@ -12,13 +12,13 @@ enum ReaderTranslationDiagnostics {
     private static let identityLock = NSLock()
     private static var nextIdentity: UInt64 = 0
 
-    static func makeContext(pageKey: String, page: Int = -1) -> Context {
+    static func makeContext(pageKey: String) -> Context {
         let token = UInt64(pageKey.prefix(16), radix: 16) ?? 0
         if let context, context.pageToken == token, token != 0 {
-            return Context(trace: context.trace, pageToken: token, page: page >= 0 ? page : context.page)
+            return Context(trace: context.trace, pageToken: token, page: context.page)
         }
         let identity = identityLock.withLock { nextIdentity &+= 1; return nextIdentity }
-        return Context(trace: identity, pageToken: token, page: page)
+        return Context(trace: identity, pageToken: token, page: -1)
     }
 
     private static let sink: TranslationPerformanceFileWriter? = {
@@ -31,32 +31,21 @@ enum ReaderTranslationDiagnostics {
                            elapsedMilliseconds: elapsedMilliseconds, outcome: outcome)
     }
 
-    struct Span: Sendable {
-        let event: String
-        let context: Context?
-        private let started: TimeInterval
-        init(_ event: String, context: Context? = ReaderTranslationDiagnostics.context, count: Int = 0) {
-            self.event = event
-            self.context = context
-            started = ProcessInfo.processInfo.systemUptime
-            ReaderTranslationDiagnostics.record(event + "_begin", count: count, context: context)
-        }
-        func finish(count: Int = 0, error: Error? = nil) {
-            ReaderTranslationDiagnostics.record(event + "_end", count: count, code: error.map { ($0 as NSError).code } ?? 0,
-                context: context, elapsedMilliseconds: max(0, (ProcessInfo.processInfo.systemUptime - started) * 1000),
-                outcome: error == nil ? 0 : (error is CancellationError ? 1 : 2))
-        }
-    }
-
     static func measure<T>(_ event: String, context: Context? = ReaderTranslationDiagnostics.context, operation: () async throws -> T) async rethrows -> T {
         try await $context.withValue(context) {
-            let span = Span(event)
+            let started = ProcessInfo.processInfo.systemUptime
+            record(event + "_begin", context: context)
+            func finish(error: Error? = nil) {
+                record(event + "_end", code: error.map { ($0 as NSError).code } ?? 0,
+                    context: context, elapsedMilliseconds: max(0, (ProcessInfo.processInfo.systemUptime - started) * 1000),
+                    outcome: error == nil ? 0 : (error is CancellationError ? 1 : 2))
+            }
             do {
                 let result = try await operation()
-                span.finish()
+                finish()
                 return result
             } catch {
-                span.finish(error: error)
+                finish(error: error)
                 throw error
             }
         }

@@ -412,7 +412,7 @@ class DictionaryManager {
         }
     }
 
-    func downloadDictionary(indexUrl: String, type: DictionaryType, session: URLSession = .shared) async -> Bool {
+    func downloadDictionary(indexUrl: String, type: DictionaryType) async -> Bool {
         guard !isImporting, !isUpdating else { return false }
         isImporting = true
 
@@ -421,7 +421,7 @@ class DictionaryManager {
             var installed = false
 
             do {
-                installed = try await self.importRemoteDictionary(indexUrl: indexUrl, type: type, session: session) != nil
+                installed = try await self.importRemoteDictionary(indexUrl: indexUrl, type: type) != nil
             } catch is CancellationError {
                 // No error alert for an explicit cancellation.
             } catch {
@@ -624,12 +624,7 @@ extension DictionaryManager {
                 for index in indexSet.reversed() {
                     guard termDictionaries.indices.contains(index) else { continue }
                     let dictionary = termDictionaries[index]
-                    do {
-                        try FileManager.default.removeItem(at: dictionary.path)
-                    } catch {
-                        showError(error.localizedDescription)
-                        continue
-                    }
+                    guard removeDictionaryFiles(at: dictionary.path) else { continue }
                     termDictionaries.remove(at: index)
                     updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
                 }
@@ -637,12 +632,7 @@ extension DictionaryManager {
                 for index in indexSet.reversed() {
                     guard frequencyDictionaries.indices.contains(index) else { continue }
                     let dictionary = frequencyDictionaries[index]
-                    do {
-                        try FileManager.default.removeItem(at: dictionary.path)
-                    } catch {
-                        showError(error.localizedDescription)
-                        continue
-                    }
+                    guard removeDictionaryFiles(at: dictionary.path) else { continue }
                     frequencyDictionaries.remove(at: index)
                     updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
                 }
@@ -650,12 +640,7 @@ extension DictionaryManager {
                 for index in indexSet.reversed() {
                     guard pitchDictionaries.indices.contains(index) else { continue }
                     let dictionary = pitchDictionaries[index]
-                    do {
-                        try FileManager.default.removeItem(at: dictionary.path)
-                    } catch {
-                        showError(error.localizedDescription)
-                        continue
-                    }
+                    guard removeDictionaryFiles(at: dictionary.path) else { continue }
                     pitchDictionaries.remove(at: index)
                     updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
                 }
@@ -663,12 +648,7 @@ extension DictionaryManager {
                 for index in indexSet.reversed() {
                     guard kanjiDictionaries.indices.contains(index) else { continue }
                     let dictionary = kanjiDictionaries[index]
-                    do {
-                        try FileManager.default.removeItem(at: dictionary.path)
-                    } catch {
-                        showError(error.localizedDescription)
-                        continue
-                    }
+                    guard removeDictionaryFiles(at: dictionary.path) else { continue }
                     kanjiDictionaries.remove(at: index)
                     updatableDictionaries.removeAll { $0.0.path == dictionary.path && $0.1 == type }
                 }
@@ -729,6 +709,16 @@ extension DictionaryManager {
 
     private static func getDictionariesDirectory() throws -> URL {
         FileManager.default.documentDirectory.appendingPathComponent("Dictionaries")
+    }
+
+    private func removeDictionaryFiles(at path: URL) -> Bool {
+        do {
+            try FileManager.default.removeItem(at: path)
+            return true
+        } catch {
+            showError(error.localizedDescription)
+            return false
+        }
     }
 
     private func showError(_ message: String) {

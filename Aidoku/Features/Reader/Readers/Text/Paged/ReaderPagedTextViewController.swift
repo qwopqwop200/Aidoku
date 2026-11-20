@@ -40,7 +40,7 @@ class ReaderPagedTextViewController: BaseObservingViewController {
     private var currentPageIndex = 0
     private var currentCharacterOffset = 0  // Character offset for position restoration after repagination
     private var chapterGeneration = UUID()
-    private var isLoadingChapter = false
+    private var isLoadingChapter = false  // Prevent race conditions
     private var lastPaginationSize: CGSize = .zero  // Track size to avoid repagination loops
 
     /// Fixed text insets used by child page view controllers.

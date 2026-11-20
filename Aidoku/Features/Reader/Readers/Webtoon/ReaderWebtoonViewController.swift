@@ -766,10 +766,11 @@ extension ReaderWebtoonViewController {
         guard let prevChapter = delegate?.getPreviousChapter() else { return }
         guard !chapters.contains(prevChapter) else { return }
         let issued = chapterGeneration
-        let loaded = await viewModel.preload(chapter: prevChapter)
+        // hold our own reference
+        let preloadedPages = await viewModel.preload(chapter: prevChapter)
 
         // check if pages failed to load
-        if loaded.isEmpty || issued != chapterGeneration || Task.isCancelled {
+        if preloadedPages.isEmpty || issued != chapterGeneration || Task.isCancelled {
             return
         }
 
@@ -782,7 +783,7 @@ extension ReaderWebtoonViewController {
             sourceId: viewModel.source?.key ?? viewModel.manga.sourceKey,
             chapterId: prevChapter.key,
             index: -1
-        )] + loaded
+        )] + preloadedPages
         // A trimmed chapter may have owned the separator before the retained neighbor.
         if pages.first?.first?.type == .imagePage {
             chapterPages.append(Page(
@@ -829,10 +830,10 @@ extension ReaderWebtoonViewController {
         guard let nextChapter = delegate?.getNextChapter() else { return }
         guard !chapters.contains(nextChapter) else { return }
         let issued = chapterGeneration
-        let loaded = await viewModel.preload(chapter: nextChapter)
+        let preloadedPages = await viewModel.preload(chapter: nextChapter)
 
         // check if pages failed to load
-        if loaded.isEmpty || issued != chapterGeneration || Task.isCancelled {
+        if preloadedPages.isEmpty || issued != chapterGeneration || Task.isCancelled {
             return
         }
 
@@ -850,7 +851,7 @@ extension ReaderWebtoonViewController {
             .min { $0.frame.minY < $1.frame.minY }
             .map { (path: $0.indexPath, offset: collectionNode.contentOffset.y - $0.frame.minY) }
         let horizontalOffset = collectionNode.contentOffset.x
-        var chapterPages = loaded + [Page(
+        var chapterPages = preloadedPages + [Page(
             type: .nextInfoPage,
             sourceId: viewModel.source?.key ?? viewModel.manga.sourceKey,
             chapterId: nextChapter.id,
@@ -894,7 +895,6 @@ extension ReaderWebtoonViewController {
             scrollView.contentOffset = collectionNode.contentOffset
         }
 
-        // trim the oldest section once the window is full
         if !loadingPrevious, issued == chapterGeneration, canTrimSection(at: 0) {
             // preserve the visible cell as its section index changes
             let layout = collectionNode.collectionViewLayout as? VerticalContentOffsetPreservingLayout
@@ -973,13 +973,7 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
                 collectionNode.contentOffset.y - collectionNode.bounds.height * 2/3
             )
         )
-        let animated = UserDefaults.standard.bool(forKey: "Reader.animatePageTransitions")
-        isAnimatingScroll = animated && offset != scrollView.contentOffset
-        scrollView.setContentOffset(offset, animated: animated)
-        if !isAnimatingScroll {
-            settleChapterInsertion()
-            if infinite { checkInfiniteLoad() }
-        }
+        setPageTurnOffset(offset)
     }
 
     func moveRight() {
@@ -990,6 +984,10 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
                 collectionNode.contentOffset.y + collectionNode.bounds.height * 2/3
             )
         )
+        setPageTurnOffset(offset)
+    }
+
+    private func setPageTurnOffset(_ offset: CGPoint) {
         let animated = UserDefaults.standard.bool(forKey: "Reader.animatePageTransitions")
         isAnimatingScroll = animated && offset != scrollView.contentOffset
         scrollView.setContentOffset(offset, animated: animated)

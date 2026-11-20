@@ -1554,7 +1554,6 @@ final class SettingChangeScheduler {
     private var generation = UUID()
 
     func schedule(
-        delayNanoseconds: UInt64 = 500_000_000,
         operation: @escaping @MainActor () async -> Void,
         commit: @escaping @MainActor () -> Void
     ) {
@@ -1562,7 +1561,7 @@ final class SettingChangeScheduler {
         let current = UUID()
         generation = current
         task = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
             await operation()
             guard !Task.isCancelled, self?.generation == current else { return }
@@ -1608,30 +1607,17 @@ final class SettingsLoginAttempt: ObservableObject {
         commit: @escaping @MainActor () -> Void,
         failed: @escaping @MainActor () -> Void
     ) {
-        guard isCurrent(attempt) else { return }
-        task?.cancel()
-        task = Task { [weak self] in
-            do {
-                let success = try await operation()
-                guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
-                self.task = nil
-                if success { commit() } else { failed() }
-                self.finish(attempt)
-            } catch {
-                guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
-                self.task = nil
-                failed()
-                self.finish(attempt)
-            }
+        run(attempt: attempt, operation: operation) { success in
+            if success == true { commit() } else { failed() }
         }
     }
 
     func exchange(
-        _ request: URLRequest, attempt: UUID, session: URLSession = .shared,
+        _ request: URLRequest, attempt: UUID,
         commit: @escaping @MainActor (String) -> Void,
         failed: @escaping @MainActor () -> Void
     ) {
-        exchange(attempt: attempt, operation: { try await session.data(for: request) }, commit: commit, failed: failed)
+        exchange(attempt: attempt, operation: { try await URLSession.shared.data(for: request) }, commit: commit, failed: failed)
     }
 
     func exchange(
@@ -1639,28 +1625,29 @@ final class SettingsLoginAttempt: ObservableObject {
         commit: @escaping @MainActor (String) -> Void,
         failed: @escaping @MainActor () -> Void
     ) {
+        run(attempt: attempt, operation: operation) { result in
+            guard let result, let response = result.1 as? HTTPURLResponse,
+                  (200..<300).contains(response.statusCode), !result.0.isEmpty else {
+                failed()
+                return
+            }
+            commit(String(decoding: result.0, as: UTF8.self))
+        }
+    }
+
+    /// Thrown errors are reported as `nil`; superseded or cancelled attempts report nothing.
+    private func run<Value>(
+        attempt: UUID, operation: @escaping @MainActor () async throws -> Value,
+        completion: @escaping @MainActor (Value?) -> Void
+    ) {
         guard isCurrent(attempt) else { return }
         task?.cancel()
         task = Task { [weak self] in
-            do {
-                let (data, response) = try await operation()
-                guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
-                guard let response = response as? HTTPURLResponse,
-                      (200..<300).contains(response.statusCode), !data.isEmpty else {
-                    self.task = nil
-                    failed()
-                    self.finish(attempt)
-                    return
-                }
-                self.task = nil
-                commit(String(decoding: data, as: UTF8.self))
-                self.finish(attempt)
-            } catch {
-                guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
-                self.task = nil
-                failed()
-                self.finish(attempt)
-            }
+            let value = try? await operation()
+            guard !Task.isCancelled, let self, self.isCurrent(attempt) else { return }
+            self.task = nil
+            completion(value)
+            self.finish(attempt)
         }
     }
 

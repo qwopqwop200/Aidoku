@@ -479,13 +479,10 @@ extension MangaView.ViewModel {
         initialDataLoaded = true
     }
 
-    func fetchDownloadedChapters(
-        expectedRequestID: UUID? = nil,
-        load: @MainActor (MangaIdentifier) async -> [DownloadedChapterInfo] = { await DownloadManager.shared.getDownloadedChapters(for: $0) }
-    ) async {
+    func fetchDownloadedChapters(expectedRequestID: UUID? = nil) async {
         let mangaId = manga.identifier
         let revision = downloadRemovalRevision
-        let downloaded = await load(mangaId)
+        let downloaded = await DownloadManager.shared.getDownloadedChapters(for: mangaId)
         guard !Task.isCancelled, revision == downloadRemovalRevision, manga.identifier == mangaId else { return }
         if let expectedRequestID, !dataLoadOwnership.isCurrent(expectedRequestID) { return }
         let listedDirectoryNames = downloaded.isEmpty ? [] : Set((manga.chapters ?? chapters).lazy.map { $0.key.directoryName })
@@ -833,7 +830,7 @@ extension MangaView.ViewModel {
         if progressChanged { downloadProgress = progressByChapter }
     }
 
-    func removeDownloads(_ notification: Notification) {
+    private func removeDownloads(_ notification: Notification) {
         if let chapters = notification.object as? [ChapterIdentifier] {
             let mangaId = manga.identifier
             let keys = chapters.compactMap { $0.mangaIdentifier == mangaId ? $0.chapterKey : nil }

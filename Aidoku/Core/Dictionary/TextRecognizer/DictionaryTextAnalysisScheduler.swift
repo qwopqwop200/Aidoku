@@ -8,7 +8,7 @@
 import UIKit
 
 @available(iOS 18.0, *)
-actor DictionaryTextAnalysisQueue {
+private actor DictionaryTextAnalysisQueue {
     static let shared = DictionaryTextAnalysisQueue()
 
     private var isRunning = false

@@ -7,15 +7,9 @@ import UIKit
 /// stay outside MainActor. URL requests retain the normal reader's auth/context.
 actor ReaderTranslationImageLoader {
     private let temporaryStore: ReaderTemporaryPageStore
-    private let ownsTemporaryStore: Bool
-    private let pipeline: ImagePipeline
-    init(pipeline: ImagePipeline = .shared, temporaryStore: ReaderTemporaryPageStore? = nil) {
-        self.pipeline = pipeline
-        self.temporaryStore = temporaryStore ?? ReaderTemporaryPageStore()
-        ownsTemporaryStore = temporaryStore == nil
-    }
-    deinit {
-        if ownsTemporaryStore { Task { [temporaryStore] in await temporaryStore.removeAll() } }
+    private let pipeline = ImagePipeline.shared
+    init(temporaryStore: ReaderTemporaryPageStore) {
+        self.temporaryStore = temporaryStore
     }
 
     func load(_ page: Page) async throws -> UIImage {

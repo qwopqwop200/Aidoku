@@ -22,36 +22,27 @@ actor NotificationManager {
     static let mangaIdInfoKey = "mangaId"
     static let batchNotificationThreshold = 3
 
-    struct Client: Sendable {
-        var canDeliver: @MainActor @Sendable () -> Bool = {
-            AppSettings.library.notifyNewChapters.get() && UIApplication.shared.applicationState == .background
-        }
-        var authorization: @Sendable () async -> UNAuthorizationStatus = {
-            await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        }
-        var requestPermission: @Sendable () async throws -> Bool = {
-            try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-        }
-        var submit: @Sendable (UNNotificationRequest) async throws -> Void = {
-            try await UNUserNotificationCenter.current().add($0)
-        }
-    }
-
-    private let client: Client
     private var authorizationRequest: Task<Bool, Never>?
 
-    init(client: Client = .init()) {
-        self.client = client
+    nonisolated func isEnabled() -> Bool {
+        AppSettings.library.notifyNewChapters.get()
+    }
+
+    private func canDeliver() async -> Bool {
+        guard isEnabled() else { return false }
+        return await UIApplication.shared.applicationState == .background
     }
 
     func requestAuthorization() async -> Bool {
         if let authorizationRequest { return await authorizationRequest.value }
         let request = Task {
-            switch await client.authorization() {
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            switch settings.authorizationStatus {
                 case .authorized, .provisional:
                     return true
                 case .notDetermined:
-                    return (try? await client.requestPermission()) ?? false
+                    return (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
                 default:
                     return false
             }
@@ -63,15 +54,18 @@ actor NotificationManager {
     }
 
     func notifyNewChapters(_ summaries: [NewChaptersSummary]) async {
-        guard !summaries.isEmpty, await client.canDeliver() else { return }
+        guard !summaries.isEmpty, await canDeliver() else { return }
         // The chapter writes are already committed. Finish this handoff even if the fetch loop was cancelled.
         await Task { await deliver(summaries) }.value
     }
 
     private func deliver(_ summaries: [NewChaptersSummary]) async {
-        let status = await client.authorization()
-        guard status == .authorized || status == .provisional else { return }
-        guard await client.canDeliver() else { return }
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized
+            || settings.authorizationStatus == .provisional
+        else { return }
+        guard await canDeliver() else { return }
 
         if summaries.count > Self.batchNotificationThreshold {
             await sendNotification(
@@ -113,7 +107,7 @@ actor NotificationManager {
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         do {
-            try await client.submit(request)
+            try await UNUserNotificationCenter.current().add(request)
         } catch {
             LogManager.logger.error("Could not submit new chapter notification: \(error.localizedDescription)")
         }

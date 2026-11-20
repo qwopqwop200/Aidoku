@@ -574,7 +574,7 @@ extension AppDelegate {
             } else {
                 Task {
                     await sourceStartup.value
-                    await handleSourceURL(url) { await SourceManager.shared.source(for: $0) }
+                    await handleSourceURL(url)
                 }
             }
         } else if url.pathExtension == "aix" {
@@ -641,8 +641,8 @@ extension AppDelegate {
         }
     }
 
-    func handleSourceURL(_ url: URL, lookup: (String) async -> AidokuRunner.Source?) async {
-        if let host = url.host, let source = await lookup(host) {
+    func handleSourceURL(_ url: URL) async {
+        if let host = url.host, let source = await SourceManager.shared.source(for: host) {
             // support percent encoding characters like "/" for manga and chapter keys
             let pathComponents = url.percentEncodedPath
                 .split(separator: "/")

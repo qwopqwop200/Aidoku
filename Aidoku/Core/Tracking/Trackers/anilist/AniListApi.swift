@@ -10,18 +10,14 @@ import UIKit
 actor AniListApi {
     private let encoder = JSONEncoder()
 
-    nonisolated let oauth: OAuthClient
-    private let session: URLSession
-    private var scoreType: (generation: UUID, value: String)?
+    // Registered under Skitty's AniList account
+    nonisolated let oauth = OAuthClient(
+        id: "anilist",
+        clientId: "8912",
+        baseUrl: "https://anilist.co/api/v2/oauth"
+    )
 
-    init(
-        // Registered under Skitty's AniList account
-        oauth: OAuthClient = OAuthClient(id: "anilist", clientId: "8912", baseUrl: "https://anilist.co/api/v2/oauth"),
-        session: URLSession = .shared
-    ) {
-        self.oauth = oauth
-        self.session = session
-    }
+    private var scoreType: (generation: UUID, value: String)?
 }
 
 // MARK: - Data
@@ -86,7 +82,7 @@ extension AniListApi {
         guard let issued = OAuthClient.generation(for: request), await oauth.accountGeneration == issued else {
             throw CancellationError()
         }
-        let response: GraphQLResponse<T> = try await session.object(from: request)
+        let response: GraphQLResponse<T> = try await URLSession.shared.object(from: request)
         guard !Task.isCancelled, await oauth.accountGeneration == issued else { throw CancellationError() }
         // check if token is invalid
         if response.errors?.contains(where: { $0.status == 400 }) ?? false {

@@ -25,8 +25,6 @@ final class ReaderTranslationPage {
     var diagnosticContext: ReaderTranslationDiagnostics.Context?
     private var generation = UUID()
     private var cachedOverlay: ReaderTranslationCachedPageView?
-    var isUsingCachedRendering: Bool { cachedOverlay != nil }
-    private(set) var hasLoadedCachedPresentation = false
     // One fully rendered V2 page bitmap per source image.
     private var v2Task: Task<Void, Never>?
     private var v2Identity: String?
@@ -53,7 +51,6 @@ final class ReaderTranslationPage {
     }
 
     func releaseOverlay() {
-        hasLoadedCachedPresentation = false
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
         isPresentingV2 = false
@@ -109,7 +106,7 @@ extension ReaderTranslationPage {
     /// complete page bitmap presented through the cached-page canvas. Repeated calls for the same source
     /// and identity are free, and a failure is not retried until `retryV2()`.
     func processV2(settings: ReaderTranslationSettings, persistsCache: Bool,
-                   onPresented: @escaping @MainActor () -> Void = {},
+                   onPresented: @escaping @MainActor () -> Void,
                    onFailure: @escaping @MainActor (Error) -> Void) {
         guard #available(iOS 18.0, *), let imageView, let image = imageView.image, let sourcePage else { return }
         let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
@@ -187,7 +184,6 @@ extension ReaderTranslationPage {
         v2Source = source
         v2Failed = false
         displayV2(output, source: source, settings: settings)
-        hasLoadedCachedPresentation = true
     }
 
     private func displayV2(_ output: UIImage, source: UIImage, settings: ReaderTranslationSettings) {

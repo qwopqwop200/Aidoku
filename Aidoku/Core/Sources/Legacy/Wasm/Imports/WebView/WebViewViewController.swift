@@ -1,13 +1,18 @@
+//
+//  WebViewViewController.swift
+//  Aidoku (iOS)
+//
+//  Created by Skitty on 2/12/23.
+//
+
 import UIKit
 import WebKit
 
-/// Browser UI for server-required verification, independent of the source interpreter.
-@MainActor
-final class CloudflareBrowserViewController: BaseViewController, WKNavigationDelegate {
-    private let request: URLRequest
-    private var handler: PopupWebViewHandler?
+class WebViewViewController: BaseViewController, WKNavigationDelegate {
+    let request: URLRequest
+    var handler: PopupWebViewHandler?
 
-    init(request: URLRequest, handler: PopupWebViewHandler) {
+    init(request: URLRequest, handler: PopupWebViewHandler? = nil) {
         self.request = request
         self.handler = handler
         super.init()
@@ -23,8 +28,7 @@ final class CloudflareBrowserViewController: BaseViewController, WKNavigationDel
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        let handler = handler
-        self.handler = nil
         handler?.canceled(request: request)
+        handler = nil
     }
 }

@@ -52,7 +52,7 @@ actor CloudflareHandler: NSObject {
     private var hiddenConstraints: [NSLayoutConstraint] = []
 
     @MainActor
-    private var popupController: CloudflareBrowserViewController?
+    private var popupController: WebViewViewController?
 
     @MainActor
     private var popupShown: Bool {
@@ -131,7 +131,7 @@ extension CloudflareHandler {
                     guard self.isCurrentChallenge(id) else { return }
                     await self.loadBrowser(for: request, challengeID: id)
                 }
-                // Timeout only hidden verification, never an interactive captcha.
+                // timeout after 12s if bypass doesn't work
                 timeoutTask = Task {
                     try? await Task.sleep(nanoseconds: 12_000_000_000)
                     guard !Task.isCancelled else { return }
@@ -187,7 +187,9 @@ extension CloudflareHandler {
 
     private func proxy(for request: URLRequest, expectedID: UUID?) async -> Proxy? {
         guard let expectedID, activeChallengeID == expectedID else { return nil }
-        if let proxy { return proxy }
+        if let proxy {
+            return proxy
+        }
         let proxy = await Proxy(request: request, handler: self, challengeID: expectedID)
         // Proxy construction hops to MainActor; cancellation may replace the generation.
         guard activeChallengeID == expectedID else { return nil }
@@ -358,10 +360,11 @@ extension CloudflareHandler {
         await MainActor.run {
             self.browserOwnership.perform(expectedID: challengeID) {
                 guard self.webView === webView, self.popupController == nil else { return }
-                // Delayed checks are generation-bound and popup reservation coalesces them.
+                // delay captcha check by 3s (so it loads in)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                     self?.checkForCaptcha(for: request, challengeID: challengeID)
                 }
+                // try again in 5s if the first check didn't catch the captcha (dumb hack)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
                     self?.checkForCaptcha(for: request, challengeID: challengeID)
                 }
@@ -423,7 +426,7 @@ extension CloudflareHandler {
         }
         guard let handlerProxy = await proxy(for: request, expectedID: challengeID) else { return }
         browserOwnership.perform(expectedID: challengeID) {
-            let popup = CloudflareBrowserViewController(request: request, handler: handlerProxy)
+            let popup = WebViewViewController(request: request, handler: handlerProxy)
             popupController = popup
 
             NSLayoutConstraint.deactivate(hiddenConstraints)

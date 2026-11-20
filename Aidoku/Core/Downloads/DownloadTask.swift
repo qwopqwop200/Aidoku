@@ -26,9 +26,7 @@ actor DownloadTask: Identifiable {
     let id: String
 
     private let cache: DownloadCache
-    private let network: SourceNetwork
     private let bulkAdmission = BulkDownloadAdmission.shared
-    private let sourceLookup: @Sendable (String) async -> AidokuRunner.Source? = { await SourceManager.shared.source(for: $0) }
     private var downloads: [Download]
     private weak var delegate: DownloadTaskDelegate?
 
@@ -58,10 +56,8 @@ actor DownloadTask: Identifiable {
         case pageProcessorFailed
     }
 
-    init(id: String, cache: DownloadCache, downloads: [Download], network: SourceNetwork = .shared,
-         delegate: DownloadTaskDelegate? = nil) {
+    init(id: String, cache: DownloadCache, downloads: [Download], delegate: DownloadTaskDelegate?) {
         self.id = id
-        self.network = network
         self.cache = cache
         self.downloads = downloads
         self.delegate = delegate
@@ -211,7 +207,7 @@ extension DownloadTask {
         // attempt to download first chapter in the queue
         if
             let download = downloads.first,
-            let source = await sourceLookup(download.chapterIdentifier.sourceKey)
+            let source = await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey)
         {
             guard running, !Task.isCancelled else { return false }
             // if chapter already downloaded, skip
@@ -240,7 +236,7 @@ extension DownloadTask {
         }
     }
 
-    private struct NetworkPage {
+    struct NetworkPage {
         let url: URL
         let context: PageContext?
         let targetPath: URL
@@ -252,7 +248,7 @@ extension DownloadTask {
     ///
     /// A concurrent download hands results back in whatever order they finish, so a failure has to
     /// name its page rather than be inferred from how many have completed.
-    private struct PageDownloadResult {
+    struct PageDownloadResult {
         let pageNumber: Int
         let file: (staging: URL, destination: URL)?
     }
@@ -398,7 +394,7 @@ extension DownloadTask {
             guard !Task.isCancelled, running, downloads.first == download else { return false }
             if let data = description?.data(using: .utf8) {
                 do {
-                    try Self.writePageDescription(data, to: target.appendingPathExtension("desc.txt"))
+                    try data.write(to: target.appendingPathExtension("desc.txt"))
                 } catch {
                     descriptionWriteFailed = true
                     // Present metadata must not be silently dropped by a successful
@@ -417,18 +413,12 @@ extension DownloadTask {
         return false
     }
 
-    nonisolated static func writePageDescription(_ data: Data, to destination: URL) throws {
-        try data.write(to: destination)
-    }
-
     // Every producer returns a file, including sources that transform images.
     // This bounds queued decoded output even when translation is much slower.
     private func downloadPage(_ page: NetworkPage, source: AidokuRunner.Source, tmpDirectory: URL,
                               translationSettings: ReaderTranslationSettings?) async -> PageDownloadResult {
         let request = await source.getModifiedImageRequest(url: page.url, context: page.context)
-        let network = self.network
-        let fetched = await fetchPageResource(for: request, tmpDirectory: tmpDirectory,
-            fetch: { try await network.download(for: request) }, cleanup: { $0.removeItem() })
+        let fetched = await fetchPageData(for: request, tmpDirectory: tmpDirectory)
         guard fetched != nil || source.features.processesPages else { return .init(pageNumber: page.pageNumber, file: nil) }
         defer { fetched?.0.removeItem() }
         let staged = tmpDirectory.appendingPathComponent(".incoming-\(page.pageNumber)-\(UUID().uuidString)")
@@ -481,23 +471,19 @@ extension DownloadTask {
         return try await DownloadImageTranslator.translate(data, settings: settings)
     }
 
-    // Retry policy is identical for file-backed and data-backed responses.
-    func fetchPageResource<Payload: Sendable>(
-        for urlRequest: URLRequest, tmpDirectory: URL,
-        fetch: @escaping @Sendable () async throws -> (Payload, URLResponse),
-        cleanup: @Sendable (Payload) -> Void
-    ) async -> (Payload, URLResponse)? {
+    // fetch page data, retrying on any non-2xx HTTP response or network error
+    private func fetchPageData(for urlRequest: URLRequest, tmpDirectory: URL) async -> (URL, URLResponse)? {
         var attempt = 0
         while !Task.isCancelled {
             // Release the shared transport slot before decoding, provider waits,
             // or retry backoff; queued cancellation never starts a request.
-            let result = try? await bulkAdmission.withPermit(fetch)
+            let result = try? await bulkAdmission.withPermit { try await SourceNetwork.shared.download(for: urlRequest) }
 
             // response was okay, bail out
             if let result, self.isSuccessResponse(result.1), !Task.isCancelled {
                 return result
             }
-            if let result { cleanup(result.0) }
+            if let result { result.0.removeItem() }
             guard !Task.isCancelled else { return nil }
 
             let statusCode = (result?.1 as? HTTPURLResponse)?.statusCode
@@ -563,11 +549,10 @@ extension DownloadTask {
 
     // Source lookup crosses an actor boundary. Queue membership and the control
     // generation must be checked afterward, before indexing or starting prefetch.
-    func warmNextChapter(after download: Download,
-                         sourceLookup: @Sendable () async -> AidokuRunner.Source?) async {
+    private func warmNextChapter(after download: Download) async {
         guard downloads.count > 1, warmedPages == nil else { return }
         let generation = controlGeneration
-        guard let source = await sourceLookup(),
+        guard let source = await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey),
               !Task.isCancelled, generation == controlGeneration,
               downloads.first == download, downloads.count > 1, warmedPages == nil,
               (source.config?.maximumParallelRequests ?? Self.maxConcurrentPageTasks) > 1 else { return }
@@ -579,9 +564,7 @@ extension DownloadTask {
         let tmpDirectory = cache.tmpDirectory(for: download.chapterIdentifier)
         // Overlap only lightweight next-chapter metadata with finalization.
         // Pixel downloads wait for the existing bounded queue to own the chapter.
-        await warmNextChapter(after: download) {
-            await SourceManager.shared.source(for: download.chapterIdentifier.sourceKey)
-        }
+        await warmNextChapter(after: download)
         guard !Task.isCancelled, running, downloads.first == download else { return false }
 
         if pages.isEmpty || (failedPages == pages.count && download.translatesImages != true && !descriptionWriteFailed) {

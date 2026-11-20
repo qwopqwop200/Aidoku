@@ -659,7 +659,10 @@ extension MangaManager {
 
                 guard !Task.isCancelled else { return results }
                 if updateMetadata {
-                    results[manga.identifier] = Self.compactRefreshMetadata(newManga)
+                    // final metadata publication needs no chapter arrays
+                    var metadata = newManga
+                    metadata.chapters = nil
+                    results[manga.identifier] = metadata
                 }
 
                 let mangaId = manga.identifier
@@ -748,14 +751,6 @@ extension MangaManager {
         if category == nil {
             AppSettings.library.lastUpdated.set(Date.now)
         }
-    }
-
-    /// Final metadata publication needs no source chapter arrays. The current
-    /// response remains available to its DB transaction, then can be released.
-    nonisolated static func compactRefreshMetadata(_ manga: AidokuRunner.Manga) -> AidokuRunner.Manga {
-        var compact = manga
-        compact.chapters = nil
-        return compact
     }
 
     private func updateLibraryRefreshProgress(_ progress: Progress) {

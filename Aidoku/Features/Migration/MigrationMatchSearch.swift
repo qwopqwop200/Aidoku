@@ -4,7 +4,7 @@ import Foundation
 /// Sequential source fallback preserves first-match order and silent ordinary
 /// failures, but cancelled read-only matching must not visit further sources.
 enum MigrationMatchSearch {
-    static func firstMatch(for manga: AidokuRunner.Manga, sources: [AidokuRunner.Source], isNeeded: @escaping @Sendable () -> Bool = { true }) async -> AidokuRunner.Manga? {
+    static func firstMatch(for manga: AidokuRunner.Manga, sources: [AidokuRunner.Source], isNeeded: @escaping @Sendable () -> Bool) async -> AidokuRunner.Manga? {
         for source in sources {
             guard !Task.isCancelled, isNeeded() else { return nil }
             do {

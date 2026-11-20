@@ -88,8 +88,6 @@ final class ReaderTranslationCoordinator {
     /// the result, re-ran the whole pipeline and provider requests).
     private var v2LookaheadFinished: Set<String> = []
     private let v2Loader: ReaderTranslationImageLoader
-    private let readSettings: () -> ReaderTranslationSettings
-    private let setEnabled: (Bool) -> Void
 
     private struct ScrollVisibility: Equatable {
         struct PageState: Equatable {
@@ -110,16 +108,9 @@ final class ReaderTranslationCoordinator {
         let previews: [PageState]
     }
 
-    init(
-        owner: any ReaderTranslationOwner,
-        temporaryPageStore: ReaderTemporaryPageStore? = nil,
-        readSettings: @escaping () -> ReaderTranslationSettings = { ReaderTranslationSettings() },
-        setEnabled: @escaping (Bool) -> Void = { ReaderTranslationSettings.setAutomaticTranslation($0) }
-    ) {
+    init(owner: any ReaderTranslationOwner, temporaryPageStore: ReaderTemporaryPageStore) {
         self.v2Loader = ReaderTranslationImageLoader(temporaryStore: temporaryPageStore)
         self.owner = owner
-        self.readSettings = readSettings
-        self.setEnabled = setEnabled
         for name in [ReaderTranslationPage.sourceImageReady, ReaderTranslationSettings.changed,
                      ReaderTranslationPage.imageChanged, UIApplication.didBecomeActiveNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
@@ -259,7 +250,7 @@ final class ReaderTranslationCoordinator {
         dismissFailureNotice()
         button.accessibilityHint = nil
         // The settings notification resynchronizes (or hides) visible pages.
-        setEnabled(!readSettings().automaticallyTranslate)
+        ReaderTranslationSettings.setAutomaticTranslation(!ReaderTranslationSettings().automaticallyTranslate)
         visiblePagesDidChange()
     }
 
@@ -326,14 +317,14 @@ final class ReaderTranslationCoordinator {
 
     /// Settings for reader pages: the saved preferences plus this reader's direction.
     private func pageSettings() -> ReaderTranslationSettings {
-        var settings = readSettings()
+        var settings = ReaderTranslationSettings()
         if let owner { settings.readingDirection = owner.translationReadingDirection }
         return settings
     }
 
     func visiblePagesDidChange() {
         guard isVisible, let owner else { return }
-        let settings = readSettings()
+        let settings = ReaderTranslationSettings()
         applyButtonState(enabled: settings.automaticallyTranslate)
         updateMetadataActivity(active: settings.shouldProcessReaderPages)
         let visible = owner.translationVisiblePages

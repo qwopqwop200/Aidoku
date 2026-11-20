@@ -37,9 +37,6 @@ class ReaderViewController: BaseObservingViewController {
     private var chaptersToMark: [AidokuRunner.Chapter] = []
     private var completedChapterKeys: Set<String> = []
     private var completingChapterKeys: Set<String> = []
-    // Injectable persistence boundary; nil uses the real history store.
-    var historyCompletionWriter: (([AidokuRunner.Chapter]) async -> Bool)?
-    var completedDownloadRemover: (([ChapterIdentifier]) async -> Void)?
     private var historyCompletionTasks: [UUID: Task<Void, Never>] = [:]
     private var removingDownloadKeys: Set<String> = []
     private var chaptersToRemoveDownload: [AidokuRunner.Chapter] = [] {
@@ -546,22 +543,22 @@ extension ReaderViewController {
         )
     }
 
-    func beginReadingSession(including page: Int?, uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+    func beginReadingSession(including page: Int?) {
         guard !isTemporaryImageSession, !AppSettings.general.incognitoMode.get(), sessionStartUptime == nil else { return }
-        sessionStartUptime = uptime
+        sessionStartUptime = ProcessInfo.processInfo.systemUptime
         sessionReadPages = []
         if let page, page >= 1 { sessionReadPages.insert(page) }
         sessionHasInteraction = false
     }
 
-    @discardableResult
-    func endReadingSession(now: Date = .now, uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) -> Task<Void, Never>? {
-        guard let start = sessionStartUptime else { return nil }
+    func endReadingSession() {
+        guard let start = sessionStartUptime else { return }
         sessionStartUptime = nil
+        let now = Date.now, uptime = ProcessInfo.processInfo.systemUptime
         let session: HistoryManager.ReadingSessionData? = if sessionHasInteraction && !sessionReadPages.isEmpty {
             .init(startDate: now.addingTimeInterval(-max(0, uptime - start)), endDate: now, pagesRead: sessionReadPages.count)
         } else { nil }
-        return queueReadPosition(dateRead: now, session: session)
+        _ = queueReadPosition(dateRead: now, session: session)
     }
 
     // Capture the chapter and position at the event, before waiting for earlier saves.
@@ -1318,11 +1315,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
             let identifiers = chapters.map {
                 ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: $0.key)
             }
-            if let completedDownloadRemover {
-                await completedDownloadRemover(identifiers)
-            } else {
-                await DownloadManager.shared.delete(chapters: identifiers)
-            }
+            await DownloadManager.shared.delete(chapters: identifiers)
             chaptersToRemoveDownload.removeAll { keys.contains($0.key) }
             removingDownloadKeys.subtract(keys)
         }
@@ -1341,16 +1334,11 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
         let taskID = UUID()
         historyCompletionTasks[taskID] = Task { [chaptersToMark] in
             defer { historyCompletionTasks[taskID] = nil }
-            let saved: Bool
-            if let historyCompletionWriter {
-                saved = await historyCompletionWriter(chaptersToMark)
-            } else {
-                saved = await HistoryManager.shared.addHistory(
-                    mangaId: manga.identifier,
-                    chapters: chaptersToMark,
-                    manga: manga
-                )
-            }
+            let saved = await HistoryManager.shared.addHistory(
+                mangaId: manga.identifier,
+                chapters: chaptersToMark,
+                manga: manga
+            )
             completingChapterKeys.subtract(chapterKeys)
             if saved {
                 completedChapterKeys.formUnion(chapterKeys)

@@ -121,7 +121,7 @@ extension DownloadedMangaView.ViewModel {
     }
 
     /// Update only changed chapters to preserve scroll position
-    func updateChaptersSelectively(newChapters: [DownloadedChapterInfo]) {
+    private func updateChaptersSelectively(newChapters: [DownloadedChapterInfo]) {
         let oldChapters = chapters
 
         // Quick equality check
@@ -194,7 +194,7 @@ extension DownloadedMangaView.ViewModel {
     }
 
     /// Update manga library status without recreating the object
-    func updateMangaLibraryStatus(to newStatus: Bool) {
+    private func updateMangaLibraryStatus(to newStatus: Bool) {
         manga = DownloadedMangaInfo(
             sourceId: manga.sourceId,
             mangaId: manga.mangaId,

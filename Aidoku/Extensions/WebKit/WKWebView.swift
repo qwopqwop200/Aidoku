@@ -42,9 +42,7 @@ extension WKWebView {
                 var cookieDict = [String: String]()
                 for cookie in cookies {
                     if let domain {
-                        let host = domain.lowercased()
-                        let cookieDomain = cookie.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
-                        if host == cookieDomain || host.hasSuffix("." + cookieDomain) {
+                        if cookie.domain.contains(domain) {
                             cookieDict[cookie.name] = cookie.value
                         }
                     } else {

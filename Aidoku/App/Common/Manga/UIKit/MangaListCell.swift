@@ -16,7 +16,6 @@ class MangaListCell: UICollectionViewCell {
     private var imageTask: ImageTask?
     private var imageGeneration = 0
     private(set) var preparationTask: Task<Void, Never>?
-    var resolveImageSource: (String) async -> AidokuRunner.Source? = { await SourceManager.shared.source(for: $0) }
 
     private var isEditing = false
 
@@ -302,7 +301,7 @@ extension MangaListCell {
         self.coverImageView.prepareForReuse()
 
         let source: AidokuRunner.Source? = if let sourceKey = identifier?.sourceKey {
-            await resolveImageSource(sourceKey)
+            await SourceManager.shared.source(for: sourceKey)
         } else {
             nil
         }
