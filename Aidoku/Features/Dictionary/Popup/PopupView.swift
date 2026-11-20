@@ -145,6 +145,8 @@ struct PopupView: View {
     private var userConfig: UserConfig
 //    @Binding var isVisible: Bool
     let selectionData: SelectionData?
+    let lookupResults: [LookupResult]
+    let dictionaryStyles: [String: String]
     let availableFrame: CGRect
     let isVertical: Bool
     let isFullWidth: Bool
@@ -156,9 +158,12 @@ struct PopupView: View {
     var onTextSelected: ((SelectionData) -> Int?)?
     var onTapOutside: (() -> Void)?
     var onSwipeDismiss: (() -> Void)?
+    var onPause: (() -> Void)?
 //    var sasayakiCue: SasayakiMatch?
 //    var sasayakiPlayer: SasayakiPlayer?
+    var wasPaused = false
 
+    @State private var content: String = ""
     @State private var lookupEntries: [[String: Any]] = []
     @State private var controlsHeight: CGFloat = 0
     @State private var backCount: Int = 0
@@ -171,6 +176,7 @@ struct PopupView: View {
 //        isVisible: Binding<Bool>,
         selectionData: SelectionData?,
         lookupResults: [LookupResult],
+        dictionaryStyles: [String: String],
         availableFrame: CGRect,
         isVertical: Bool,
         isFullWidth: Bool,
@@ -181,13 +187,17 @@ struct PopupView: View {
         clearSelection: Bool,
         onTextSelected: ((SelectionData) -> Int?)? = nil,
         onTapOutside: (() -> Void)? = nil,
-        onSwipeDismiss: (() -> Void)? = nil
+        onSwipeDismiss: (() -> Void)? = nil,
+        onPause: (() -> Void)? = nil,
 //        sasayakiCue: SasayakiMatch? = nil,
 //        sasayakiPlayer: SasayakiPlayer? = nil,
+        wasPaused: Bool = false
     ) {
         self.userConfig = userConfig
 //        _isVisible = isVisible
         self.selectionData = selectionData
+        self.lookupResults = lookupResults
+        self.dictionaryStyles = dictionaryStyles
         self.availableFrame = availableFrame
         self.isVertical = isVertical
         self.isFullWidth = isFullWidth
@@ -199,10 +209,14 @@ struct PopupView: View {
         self.onTextSelected = onTextSelected
         self.onTapOutside = onTapOutside
         self.onSwipeDismiss = onSwipeDismiss
+        self.onPause = onPause
 //        self.sasayakiCue = sasayakiCue
 //        self.sasayakiPlayer = sasayakiPlayer
+        self.wasPaused = wasPaused
 
-        _lookupEntries = State(initialValue: Self.buildLookupEntries(lookupResults: lookupResults))
+        let cache = Self.buildContent(lookupResults: lookupResults, userConfig: userConfig)
+        _content = State(initialValue: cache.content)
+        _lookupEntries = State(initialValue: cache.lookupEntries)
     }
 
     private var layout: PopupLayout? {
@@ -328,13 +342,13 @@ struct PopupView: View {
                 controlsHeight = $0
             }
 
-            NativeDictionaryPopupView(
+            PopupWebView(
+                content: content,
                 position: CGPoint(x: layout.position.x - layout.width / 2, y: layout.position.y - layout.height / 2 + controlsHeight),
                 scale: CGFloat(userConfig.popupScale),
-                contentWidth: layout.width - 24,
                 clearSelection: clearSelection,
+                dictionaryStyles: dictionaryStyles,
                 lookupEntries: lookupEntries,
-                allowsMining: userConfig.allowsMining,
                 scanNonJapaneseText: userConfig.scanNonJapaneseText,
                 scanLength: userConfig.scanLength,
                 backTrigger: backTrigger,
@@ -350,6 +364,7 @@ struct PopupView: View {
                 },
                 onTextSelected: onTextSelected,
                 onTapOutside: onTapOutside,
+                onSwipeDismiss: onSwipeDismiss,
                 onRedirect: { query in
                     let results = LookupEngine.shared.lookup(
                         query,
@@ -380,7 +395,7 @@ struct PopupView: View {
         ZStack(alignment: .topLeading) {
             if #available(iOS 26.0, *), !userConfig.popupDisableTransparency {
                 GlassEffectContainer {
-                    if let selectionData, let layout, !lookupEntries.isEmpty {
+                    if let selectionData, let layout, !content.isEmpty {
                         popupContent(selectionData: selectionData, layout: layout)
                             .glassEffect(.regular, in: .rect(cornerRadius: 8))
                             .position(layout.position)
@@ -388,7 +403,7 @@ struct PopupView: View {
                 }
             } else {
                 Group {
-                    if let selectionData, let layout, !lookupEntries.isEmpty {
+                    if let selectionData, let layout, !content.isEmpty {
                         popupContent(selectionData: selectionData, layout: layout)
                             .background(
                                 userConfig.popupDisableTransparency ? AnyShapeStyle(Color(.systemBackground)) : AnyShapeStyle(.ultraThinMaterial),
@@ -432,7 +447,7 @@ struct PopupView: View {
         )
     }
 
-    static func buildLookupEntries(lookupResults: [LookupResult]) -> [[String: Any]] {
+    private static func buildLookupEntries(lookupResults: [LookupResult]) -> [[String: Any]] {
         var entries: [[String: Any]] = []
         for result in lookupResults {
             let expression = String(result.term.expression)

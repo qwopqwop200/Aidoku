@@ -16,7 +16,7 @@ A free and open source manga reading application for iOS, iPadOS, and macOS.
 - WASM external source system
 - Downloads
 - Tracker integration (AniList, MyAnimeList, etc.)
-- On-device OCR and native dictionary lookup
+- OCR dictionary lookup
 - On-device page translation (V2 pipeline: Core ML layout/OCR, OpenAI / Custom OpenAI translation, AOT text removal and Core Text rendering) with translated downloads ([pipeline](Docs/translation-v2.md))
 
 ## Installation

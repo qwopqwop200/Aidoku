@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Aidoku is an iOS/iPadOS/macOS manga reader (UIKit + SwiftUI, Core Data). This fork adds on-device PP-OCRv6 (Core ML) OCR and OpenAI / custom OpenAI-compatible page translation with native UIKit/Core Graphics/Core Text overlays and native dictionary popups.
+Aidoku is an iOS/iPadOS/macOS manga reader (UIKit + SwiftUI, Core Data). This fork adds on-device PP-OCRv6 (Core ML) OCR and OpenAI / custom OpenAI-compatible page translation with native UIKit/Core Graphics/Core Text overlays.
 
 ## Build & test
 
@@ -107,7 +107,7 @@ Other test suites, each run from the repository root:
 - `ReaderTranslationV2Service` runs pages and translated downloads through `V2Pipeline`: S1 RF-DETR layout || S2 PP-OCRv6 manga detection, S3 recognition, S4 grouping/roles, S5 one provider request per page, S6 removal mask, S7 AOT inpainting, S8 style, S9 layout, S10 Core Text paint. Models load lazily and are released on memory warnings; results are cached under `v2-` keys in `ReaderTranslationDiskCache`.
 - `NativeEngine/OCR` supplies the Core ML detector and the recognition helpers (preprocessing, CTC decoding, n-gram) V2 reuses; models and dictionaries are in `Aidoku/Resources/Translation`.
 - `NativeEngine/Translation` handles remote OpenAI-compatible clients, batching, endpoint policy and Keychain-stored credentials; `ReaderTranslationService.translateV2` applies the mandatory page settings and shared provider limit. Metadata (title/description/menu) translation uses the same client.
-- `NativeDictionaryPopupView` renders dictionary content with UIKit (independent of page translation).
+- The dictionary popup is upstream's web popup (`PopupWebView`, independent of page translation).
 
 **Share extension.** `AidokuShare` hands images to the app through an app group and URL scheme defined in `Aidoku/Aidoku.xcconfig`. The xcconfig also sets bundle IDs and the `CANONICAL_BUILD` Swift flag.
 

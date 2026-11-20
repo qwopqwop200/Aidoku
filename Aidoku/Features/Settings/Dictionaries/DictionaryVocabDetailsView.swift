@@ -14,10 +14,11 @@ struct DictionaryVocabDetailsView: View {
     @State var entry: VocabEntry
 
     private let userConfig = UserConfig(allowsMining: false)
+    private let dictionaryStyles: [String: String]
 
+    @State private var definitionContent: String = ""
     @State private var lookupEntries: [[String: Any]] = []
     @State private var popupHeight: CGFloat = 300
-    @State private var definitionWidth: CGFloat = 260
 
     @State private var sourceManga: AidokuRunner.Manga?
     @State private var sourceChapter: AidokuRunner.Chapter?
@@ -36,6 +37,11 @@ struct DictionaryVocabDetailsView: View {
 
     init(entry: VocabEntry) {
         self._entry = State(initialValue: entry)
+        var dictionaryStyles: [String: String] = [:]
+        for style in LookupEngine.shared.getStyles() {
+            dictionaryStyles[String(style.dict_name)] = String(style.styles)
+        }
+        self.dictionaryStyles = dictionaryStyles
     }
 
     var body: some View {
@@ -43,11 +49,12 @@ struct DictionaryVocabDetailsView: View {
             List {
                 if !isEditing {
                     Section(NSLocalizedString("DEFINITION")) {
-                        NativeDictionaryPopupView(
+                        PopupWebView(
+                            content: definitionContent,
                             position: .zero,
                             scale: CGFloat(userConfig.popupScale),
-                            contentWidth: definitionWidth,
                             clearSelection: false,
+                            dictionaryStyles: dictionaryStyles,
                             lookupEntries: lookupEntries,
                             isScrollEnabled: false,
                             onContentHeightChanged: { height in
@@ -55,15 +62,6 @@ struct DictionaryVocabDetailsView: View {
                             }
                         )
                         .frame(height: popupHeight)
-                        .background {
-                            GeometryReader { geometry in
-                                Color.clear
-                                    .onAppear { definitionWidth = max(1, geometry.size.width - 24) }
-                                    .onChange(of: geometry.size.width) { _, width in
-                                        definitionWidth = max(1, width - 24)
-                                    }
-                            }
-                        }
                     }
                 }
 
@@ -204,7 +202,7 @@ struct DictionaryVocabDetailsView: View {
 
     private func lookup() {
         let results = LookupEngine.shared.lookup(entry.word, maxResults: 1, scanLength: entry.word.utf8.count)
-        lookupEntries = PopupView.buildLookupEntries(lookupResults: results)
+        (definitionContent, lookupEntries) = PopupView.buildContent(lookupResults: results, userConfig: userConfig)
     }
 
     private func loadSource() async {

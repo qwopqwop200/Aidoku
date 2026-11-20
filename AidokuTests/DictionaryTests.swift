@@ -96,42 +96,6 @@ struct DictionaryTests {
         }
     }
 
-    // MARK: Untrusted content
-
-    @Test func htmlGlossaryStripsScriptsAndLinksCannotInvokeBrowserActions() throws {
-        let html = "<script>window.__auditMarker = 71;</script><iframe>unsafe embedded document</iframe>"
-            + "<p><b>definition</b> <a href='javascript:window.__auditMarker=71'>script link</a>"
-            + " <a href='data:text/html,unsafe'>data link</a> <a href='file:///private/fixture'>file link</a></p>"
-        let value = NativeDictionaryContent.glossary(html, dictionary: "security", scale: 1)
-        #expect(!value.string.contains("__auditMarker") && !value.string.contains("unsafe embedded document"))
-        #expect(value.string.contains("definition"))
-        var redirects: [String] = []
-        var kanjiRedirects: [String] = []
-        let popup = NativeDictionaryPopupView(position: .zero, clearSelection: false, allowsMining: false,
-            onRedirect: { redirects.append($0); return [] },
-            onKanjiRedirect: { kanjiRedirects.append($0); return nil })
-        let coordinator = popup.makeCoordinator()
-        defer { NativeDictionaryPopupView.dismantleUIView(UIScrollView(), coordinator: coordinator) }
-        let view = UITextView()
-        view.attributedText = value
-        for label in ["script link", "data link", "file link"] {
-            let range = (value.string as NSString).range(of: label)
-            try #require(range.location != NSNotFound)
-            let link = try #require(value.attribute(.link, at: range.location, effectiveRange: nil) as? URL)
-            #expect(!coordinator.textView(view, shouldInteractWith: link, in: range, interaction: .invokeDefaultAction))
-        }
-        #expect(redirects.isEmpty && kanjiRedirects.isEmpty)
-        #expect(coordinator.history.isEmpty)
-    }
-
-    @Test func mediaRenderScaleCapsTallBitmaps() {
-        #expect(NativeDictionaryImageAttachment.renderScale(for: CGSize(width: 100, height: 100), screenScale: 3) == 3)
-        let tall = CGSize(width: 390, height: 4096)
-        let scale = NativeDictionaryImageAttachment.renderScale(for: tall, screenScale: 3)
-        #expect(scale < 3)
-        #expect(tall.width * tall.height * scale * scale <= NativeDictionaryImageAttachment.maximumRenderPixels + 1)
-    }
-
     private func observation(_ text: String, x: CGFloat, y: CGFloat) -> TextRecognizer.OCRObservation {
         let box = CGRect(x: x, y: y, width: 0.1, height: 0.1)
         return .init(text: text, boundingRect: box, direction: .leftToRight, confidence: 1,

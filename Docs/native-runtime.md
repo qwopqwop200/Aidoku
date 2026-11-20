@@ -1,8 +1,8 @@
 # Native runtime map
 
-The reader's translation display, final image export and dictionary popup use
-native code. Installed source packages run their WASM as upstream Aidoku does.
-Browser-dependent login and interactive challenges
+The reader's translation display and final image export use native code.
+Installed source packages run their WASM and the dictionary popup is a web view,
+as upstream Aidoku does. Browser-dependent login and interactive challenges
 still use WebKit. The app as a whole therefore still has a browser component.
 
 | Area | Current execution | Main entry points |
@@ -11,7 +11,7 @@ still use WebKit. The app as a whole therefore still has a browser component.
 | OCR models | Core ML PP-OCRv6 manga detector and recognizer, run by V2 | `NativeCoreMLDetector`, `V2Recognition` |
 | Translation requests | Swift URLSession transport, parsing and bounded batching | `RemoteTranslationClient`, `ReaderTranslationService` |
 | Reader display and export | The finished V2 page bitmap is attached above the source image and saved as is | `ReaderTranslationPage`, `ReaderTranslationImageExporter` |
-| Dictionary popup | UIKit text, links and view layout | `NativeDictionaryPopupView` |
+| Dictionary popup | Upstream web popup (`popup.js`) in a WKWebView | `PopupView`, `PopupWebView` |
 | Installed sources | `main.wasm` on the AidokuRunner interpreter, or the legacy runtime for 0.6-API packages | `SourceManager`, `Core/Sources/Legacy`, AidokuRunner package (fork) |
 | Web login, challenge solving and user agent | WebKit for browser-dependent flows | `WebView`, `CloudflareHandler`, `UserAgentProvider` |
 | Image translation CLI | Native production algorithms with an AppKit/Core Graphics host adapter | `Scripts/image-translation.swift` |
