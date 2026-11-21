@@ -24,6 +24,8 @@ enum V2ParagraphGrouping {
         let polygon: [CGPoint]
         let vertical: Bool
         let singleVerticalColumn: Bool
+        /// Ruby lines erased with the group but not part of its text.
+        var readings: [Int] = []
     }
     private struct Atom {
         let input: Input
@@ -138,13 +140,20 @@ enum V2ParagraphGrouping {
         let x = extents(a.input.polygon, along: direction, cross: cross)
         let y = extents(b.input.polygon, along: direction, cross: cross)
         let ga = x.high-x.low, gb = y.high-y.low, glyph = min(ga, gb)
-        guard glyph > 0, max(ga, gb) <= glyph*2 else { return nil }
+        guard glyph > 0 else { return nil }
+        let fits = max(ga, gb) <= glyph*2
+        let sharedText = a.text.map { x in b.text.map { !x.isDisjoint(with: $0) } ?? false } ?? false
         let ag = max(x.start, y.start)-min(x.end, y.end), cg = max(x.low, y.low)-min(x.high, y.high)
-        let sameLimit = glyph*1.25, parallelLimit = glyph
+        // Same-column continuation (legacy G:152-179): a 2 glyph gap, 4 below an unclosed quote; a shared RF text
+        // scope lifts the width-fit limit.
+        // Inside one RF balloon the column/row gutter may be wider (legacy P:1733, 1746: 3 glyph in a verified balloon).
+        let sameBalloon = a.balloon != nil && a.balloon?.owner == b.balloon?.owner
+        let sameLimit = glyph*(hasOpenQuote((x.start <= y.start ? a : b).input.source) ? 4 : 2)
+        let parallelLimit = glyph*(sameBalloon ? 1.25 : 1)
         let epsilon = max(max(x.maxULP, y.maxULP), max(max(glyph.ulp, sameLimit.ulp), max(ag.ulp, cg.ulp)))*4
-        let same = max(0, -cg) >= glyph/2 && ag >= -glyph/4 && ag <= sameLimit+epsilon
+        let same = (fits || sharedText) && max(0, -cg) >= glyph/2 && ag >= -glyph/4 && ag <= sameLimit+epsilon
         let shorter = min(x.end-x.start, y.end-y.start)
-        let parallel = cg >= -glyph/4 && cg <= parallelLimit+epsilon
+        let parallel = fits && cg >= -glyph/4 && cg <= parallelLimit+epsilon
             && max(0, -ag) >= shorter/2 && shorter >= glyph*1.5
             && (vertical || min(abs(x.start-y.start), abs(x.end-y.end)) <= glyph*1.5)
         return same || parallel ? (max(0, same ? ag : cg)/glyph, !same) : nil
@@ -213,14 +222,54 @@ enum V2ParagraphGrouping {
         return [members]
     }
 
+    // Legacy utterance boundaries (NativeParagraphFragmentGrouping+Pipeline 128-257, 1874, 2757).
+    private static func opens(_ text: String) -> Bool { text.first { !$0.isWhitespace }.map { "「『“\"".contains($0) } ?? false }
+    private static func closes(_ text: String) -> Bool {
+        text.last { !$0.isWhitespace && $0 != "♡" && $0 != "♥" }.map { "。.!?！？…」』".contains($0) } ?? false
+    }
+    private static func hasOpenQuote(_ text: String) -> Bool {
+        let pairs: [Character: Character] = ["「": "」", "『": "』", "（": "）", "(": ")", "“": "”"]
+        var stack: [Character] = []
+        for c in text {
+            if let closing = pairs[c] { stack.append(closing) } else if stack.last == c { stack.removeLast() }
+        }
+        return !stack.isEmpty
+    }
+    /// Two components that must stay separate paragraphs.
+    private static func utteranceBoundary(_ x: [Int], _ y: [Int], atoms: [Atom], sharedText: Bool) -> Bool {
+        let vertical = atoms[x[0]].input.vertical
+        func text(_ ids: [Int]) -> String {
+            ids.sorted {
+                let a = atoms[$0].box, b = atoms[$1].box
+                return vertical ? (a.midX, b.minY) > (b.midX, a.minY) : (a.midY, a.minX) < (b.midY, b.minX)
+            }.map { atoms[$0].input.source }.joined()
+        }
+        func box(_ ids: [Int]) -> CGRect { ids.reduce(CGRect.null) { $0.union(atoms[$1].box) } }
+        func thickness(_ i: Int) -> CGFloat { vertical ? atoms[i].box.width : atoms[i].box.height }
+        let a = text(x), b = text(y), p = box(x), q = box(y)
+        if opens(a) && closes(a) && opens(b) && closes(b) { return true }
+        // Along = y for columns, x for rows; cross the other axis.
+        let along = vertical ? (min(p.maxY, q.maxY) - max(p.minY, q.minY)) : (min(p.maxX, q.maxX) - max(p.minX, q.minX))
+        let cross = vertical ? (min(p.maxX, q.maxX) - max(p.minX, q.minX)) : (min(p.maxY, q.maxY) - max(p.minY, q.minY))
+        if opens(a) && opens(b) {
+            let glyph = min(x.map(thickness).min()!, y.map(thickness).min()!)
+            let leading = (vertical ? p.minY <= q.minY : p.minX <= q.minX) ? a : b
+            return !(hasOpenQuote(leading) && cross >= glyph*0.75 && -along <= glyph*2)
+        }
+        guard vertical, closes(a) || closes(b), !sharedText else { return false }
+        let widths = (x+y).map(thickness).sorted(), glyph = widths[widths.count/2]
+        return -cross > glyph*0.75 && along >= min(p.height, q.height)*0.25
+    }
+
     /// Nil means invalid geometry, not an empty or filtered page.
-    static func group(_ inputs: [Input], textScopes: [Scope], balloons: [Scope]) -> [Group]? {
+    static func group(_ inputs: [Input], textScopes: [Scope], balloons: [Scope],
+                      joins: ((Int, Int) -> CGFloat?)? = nil) -> [Group]? {
         guard inputs.allSatisfy({ $0.polygon.count >= 3 && $0.polygon.allSatisfy { $0.x.isFinite && $0.y.isFinite } }),
               (textScopes+balloons).allSatisfy({
                   !$0.box.isNull && [$0.box.minX, $0.box.minY, $0.box.maxX, $0.box.maxY].allSatisfy(\.isFinite)
                       && $0.confidence.isFinite
               }) else { return nil }
-        let atoms = inputs.map { input -> Atom in
+        var atoms = inputs.map { input -> Atom in
             let box = bounds(input.polygon)
             let owners = balloons.filter { $0.confidence >= 0.5 && V2LineAssembly.coverage(box, $0.box) >= 0.9 }
             let text = Set(textScopes.filter { $0.confidence >= 0.25 && V2LineAssembly.coverage(box, $0.box) >= 0.8 }.map(\.owner))
@@ -228,21 +277,31 @@ enum V2ParagraphGrouping {
                          text: text.isEmpty ? nil : text)
         }
         var parent = Array(atoms.indices)
-        var owners = atoms.map { $0.balloon?.owner }, texts = atoms.map(\.text)
+        var owners = atoms.map { $0.balloon?.owner }, texts = atoms.map(\.text), members = atoms.indices.map { [$0] }
         func find(_ index: Int) -> Int {
             var i = index
             while parent[i] != i { parent[i] = parent[parent[i]]; i = parent[i] }
             return i
         }
+        // A one-glyph line's direction is a guess: it may join a column or a row (legacy P:4447-4460).
+        func guessed(_ atom: Atom) -> Bool { atom.input.source.filter { !$0.isWhitespace }.count == 1 }
+        func flipped(_ atom: Atom) -> Atom {
+            let input = Input(polygon: atom.input.polygon, vertical: !atom.input.vertical, confidence: atom.input.confidence,
+                              source: atom.input.source)
+            return .init(input: input, box: atom.box, along: axis(input), balloon: atom.balloon, text: atom.text)
+        }
+        let rails = rubyRails(atoms)
         var edges: [Edge] = []
-        for i in atoms.indices { for j in (i+1)..<atoms.count {
-            let a = atoms[i], b = atoms[j]
-            guard a.input.vertical == b.input.vertical else { continue }
+        for i in atoms.indices where rails[i] == nil { for j in (i+1)..<atoms.count where rails[j] == nil {
+            var a = atoms[i], b = atoms[j]
+            if a.input.vertical != b.input.vertical {
+                if guessed(b) { b = flipped(b) } else if guessed(a) { a = flipped(a) } else { continue }
+            }
             if let x = a.balloon, let y = b.balloon, x.owner != y.owner { continue }
             if let known = a.balloon {
                 if V2LineAssembly.coverage(b.box, known.box) < balloonEdgeCoverage { continue }
             } else if let known = b.balloon, V2LineAssembly.coverage(a.box, known.box) < balloonEdgeCoverage { continue }
-            guard let relation = distance(a, b) else { continue }
+            guard let relation = distance(a, b) ?? joins?(i, j).map({ ($0, false) }) else { continue }
             // Keep weak unsupported parallel atoms separate; do not drop their source.
             let ca = a.input.confidence, cb = b.input.confidence
             if relation.isParallel, ca.isFinite, cb.isFinite,
@@ -266,8 +325,14 @@ enum V2ParagraphGrouping {
             guard a != b else { continue }
             if let x = owners[a], let y = owners[b], x != y { continue }
             if let x = texts[a], let y = texts[b], x.isDisjoint(with: y) { continue }
-            let text = texts[a].flatMap { x in texts[b].map { x.intersection($0) } } ?? texts[a] ?? texts[b]
-            parent[b] = a; owners[a] = owners[a] ?? owners[b]; texts[a] = text
+            let shared = texts[a].flatMap { x in texts[b].map { x.intersection($0) } }
+            if utteranceBoundary(members[a], members[b], atoms: atoms, sharedText: shared != nil) { continue }
+            if atoms[a].input.vertical != atoms[b].input.vertical {
+                guard let side = [b, a].first(where: { members[$0].allSatisfy { guessed(atoms[$0]) } }) else { continue }
+                for k in members[side] { atoms[k] = flipped(atoms[k]) }
+            }
+            let text = shared ?? texts[a] ?? texts[b]
+            parent[b] = a; owners[a] = owners[a] ?? owners[b]; texts[a] = text; members[a] += members[b]
             if !atoms[edge.first].input.vertical { horizontalForest.append(edge) }
         }
         var components: [[Int]] = [], rootIndex: [Int: Int] = [:]
@@ -281,7 +346,7 @@ enum V2ParagraphGrouping {
             guard let links = horizontalLinks[find(members[0])] else { return [members] }
             return splitHorizontalRows(members, links: links, atoms: atoms)
         }.sorted { $0[0] < $1[0] }
-        return finalized.map { members in
+        let groups = finalized.filter { rails[$0[0]] == nil }.map { members -> Group in
             let vertical = atoms[members[0]].input.vertical
             // Opposed or non-finite axes (overflowing polygon coordinates) can sum to no direction.
             let direction = unit(members.reduce(CGPoint.zero) { .init(x: $0.x+atoms[$1].along.x, y: $0.y+atoms[$1].along.y) })
@@ -319,5 +384,42 @@ enum V2ParagraphGrouping {
             return .init(members: members, representative: legacyOrder[0], readingOrder: readingOrder, polygon: polygon,
                 vertical: vertical, singleVerticalColumn: single)
         }
+        return groups.map { group in
+            var group = group
+            group.readings = rails.keys.sorted().filter { group.members.contains(rails[$0]!) }
+            return group
+        }
+    }
+
+    /// Legacy intercolumn ruby (NativeParagraphFragmentGrouping 66-134): a kana-only singleton
+    /// column at most 1/1.5 as wide, just right of ONE kanji column and within its extent, is
+    /// erased with that host and never translated, unless it continues another column end to end.
+    private static func rubyRails(_ atoms: [Atom]) -> [Int: Int] {
+        func kana(_ s: Unicode.Scalar) -> Bool {
+            (0x3041...0x3096).contains(s.value) || (0x30A1...0x30FA).contains(s.value) || [0x3099, 0x309A, 0x30FC].contains(s.value)
+        }
+        func kanji(_ s: Unicode.Scalar) -> Bool { (0x3400...0x9FFF).contains(s.value) || (0xF900...0xFAFF).contains(s.value) }
+        var rails: [Int: Int] = [:]
+        for (i, rail) in atoms.enumerated() where rail.input.vertical {
+            let c = rail.box, text = rail.input.source.unicodeScalars
+            guard c.height > c.width, !text.isEmpty, text.allSatisfy(kana) else { continue }
+            let hosts = atoms.indices.filter { j in
+                let h = atoms[j].box, size = h.width, gap = c.minX - h.maxX
+                return j != i && atoms[j].input.vertical && h.height > size && c.width*1.5 <= size
+                    && atoms[j].input.source.unicodeScalars.contains(where: kanji)
+                    && gap >= -size/4 && gap <= size/2 && c.midX > h.maxX - size/4
+                    && c.minY >= h.minY - size/4 && c.maxY <= h.maxY + size/4
+            }
+            guard hosts.count == 1, let host = hosts.first else { continue }
+            let continues = atoms.indices.contains { j in
+                let p = atoms[j].box, glyph = min(c.width, p.width)
+                let gap = max(c.minY, p.minY) - min(c.maxY, p.maxY)
+                return j != i && j != host && atoms[j].input.vertical && max(c.width, p.width) >= atoms[host].box.width*0.75
+                    && max(c.width, p.width) <= glyph*1.8 && abs(c.midX - p.midX) <= glyph/2
+                    && gap >= -min(c.height, p.height)/4 && gap <= glyph*0.75
+            }
+            if !continues { rails[i] = host }
+        }
+        return rails
     }
 }

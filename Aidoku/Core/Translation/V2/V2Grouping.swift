@@ -98,8 +98,9 @@ enum V2Grouping {
             V2ParagraphGrouping.Input(polygon: line.polygon, vertical: line.vertical,
                 confidence: Double(line.confidence), source: line.text)
         }
+        let units = V2BalloonUnits(lines: usable, raster: raster, pageSize: pageSize)
         let groups = V2ParagraphGrouping.group(inputs, textScopes: scopes(textScopeKind),
-                                               balloons: scopes(balloonScopeKind))
+                                               balloons: scopes(balloonScopeKind), joins: units.gap)
             // Invalid scope geometry: keep every line as its own block.
             ?? usable.indices.map { index in
                 V2ParagraphGrouping.Group(members: [index], representative: index, readingOrder: [index],
@@ -110,7 +111,8 @@ enum V2Grouping {
         var blocks = groups.map { group -> V2Block in
             let members = group.readingOrder.map { usable[$0] }
             let bounds = members.reduce(CGRect.null) { $0.union(polygonBounds($1.polygon)) }
-            return V2Block(id: 0, lines: members, bounds: bounds, polygon: group.polygon,
+            // Ruby readings are erased with the block (S6 uses its lines) but are not part of its text or bounds.
+            return V2Block(id: 0, lines: members + group.readings.map { usable[$0] }, bounds: bounds, polygon: group.polygon,
                 vertical: group.vertical, readingOrder: 0,
                 sourceText: joinedText(members.map(\.text)), balloon: enclosingBalloon(bounds, balloons))
         }

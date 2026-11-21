@@ -60,17 +60,24 @@ enum V2Translation {
             }
             for try await result in group { for segment in result { texts[segment.id] = segment } }
         }
-        return apply(blocks) { block in texts[segmentID(block)] }
+        return apply(blocks, targetLanguage: targetLanguage) { block in texts[segmentID(block)] }
     }
 
-    static func apply(_ blocks: [V2Block], lookup: (V2Block) -> RemoteTranslatedSegment?) -> [V2Block] {
+    static func apply(_ blocks: [V2Block], targetLanguage: String = "ko",
+                      lookup: (V2Block) -> RemoteTranslatedSegment?) -> [V2Block] {
         blocks.map { block in
             var output = block
             guard let segment = lookup(block) else { return output }
+            // Legacy reply repair: JSON escapes leaked as literal text (backslash-n, backslash-u + hex) are decoded.
+            let text = TranslationHTTPCodec.decodingLeakedEscapes(in: segment.text, source: block.sourceText)
             // A reply that only repeats lettered source text (an untranslated line, a sign kept
-            // as is) keeps the source pixels instead of erasing and repainting the same text.
-            guard !V2TranslationLengthCap.copiesSource(segment.text, block.sourceText) else { return output }
-            output.translation = V2TranslationLengthCap.capped(segment.text, sourceText: block.sourceText)
+            // as is), or is still Japanese prose with no Hangul at all (legacy wrong-language rule;
+            // any Korean counts as translated), keeps the source pixels instead of repainting it.
+            guard !V2TranslationLengthCap.copiesSource(text, block.sourceText), segment.isSFX == true
+                    || text.unicodeScalars.contains(where: V2ReplyText.isHangul)
+                    || !V2ReplyText.isUntranslatedJapaneseReply(
+                        source: block.sourceText, translation: text, target: targetLanguage) else { return output }
+            output.translation = V2TranslationLengthCap.capped(text, sourceText: block.sourceText)
             if segment.isSFX == true || segment.textRole == .sfx { output.role = .sfx }
             if segment.textRole == .narration || segment.textRole == .storyText { output.role = .narration }
             // A provider "error" (not text: misread art, noise) keeps its source pixels, as
@@ -78,6 +85,67 @@ enum V2Translation {
             if segment.textRole == .background || segment.textRole == .error { output.role = .background }
             return output
         }
+    }
+}
+
+/// Legacy provider-reply text rules (ReaderTranslationLanguageFilter), for target "ko".
+enum V2ReplyText {
+    static func isKana(_ scalar: Unicode.Scalar) -> Bool {
+        (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value)
+    }
+
+    static func isHangul(_ scalar: Unicode.Scalar) -> Bool {
+        (0xAC00...0xD7A3).contains(scalar.value) || (0x1100...0x11FF).contains(scalar.value) || (0x3130...0x318F).contains(scalar.value)
+    }
+
+    /// A Japanese sentence re-punctuated by the provider is not a Korean translation.
+    /// Exact copies remain valid for explicit SFX/background preservation; short names
+    /// and quoted terms remain outside this narrow rejection.
+    static func isUntranslatedJapaneseReply(source: String, translation: String, target: String,
+                                           preservesExactSource: Bool = true) -> Bool {
+        guard target == "ko",
+              (!preservesExactSource || source.trimmingCharacters(in: .whitespacesAndNewlines) !=
+                translation.trimmingCharacters(in: .whitespacesAndNewlines))
+        else { return false }
+        if containsCopiedJapaneseClause(source: source, translation: translation) { return true }
+        let letters = translation.unicodeScalars.filter { $0.properties.isAlphabetic }
+        guard letters.count >= 20, letters.filter(isKana).count >= 2,
+              source.unicodeScalars.filter(isKana).count >= 2 else { return false }
+        return !letters.contains(where: isHangul)
+    }
+
+    /// A Korean fragment must not certify an otherwise copied Japanese clause.
+    /// Require a long source-matching run with substantial hiragana grammar; names,
+    /// short interjections and explicitly quoted terms are not enough evidence.
+    private static func containsCopiedJapaneseClause(source: String, translation: String) -> Bool {
+        func japanese(_ scalar: Unicode.Scalar) -> Bool {
+            (0x3040...0x30FF).contains(scalar.value) || (0x3400...0x9FFF).contains(scalar.value) ||
+                (0xFF66...0xFF9D).contains(scalar.value)
+        }
+        func normalized(_ text: String) -> String {
+            String(String.UnicodeScalarView(text.unicodeScalars.filter(japanese)))
+        }
+        let sourceLetters = normalized(source)
+        func copiedClause(_ run: String) -> Bool {
+            let text = run.trimmingCharacters(in: .whitespacesAndNewlines)
+            for (opening, closing) in [("「", "」"), ("『", "』"), ("\"", "\""), ("“", "”")] {
+                if text.hasPrefix(opening), text.hasSuffix(closing) { return false }
+            }
+            let letters = normalized(text)
+            let hiragana = letters.unicodeScalars.filter { (0x3041...0x3096).contains($0.value) }.count
+            return letters.count >= 10 && hiragana >= 5 && sourceLetters.contains(letters)
+        }
+        var run = ""
+        for scalar in translation.unicodeScalars {
+            if japanese(scalar) || CharacterSet.whitespacesAndNewlines.contains(scalar) ||
+                CharacterSet.punctuationCharacters.contains(scalar) {
+                run.unicodeScalars.append(scalar)
+            } else {
+                if copiedClause(run) { return true }
+                run = ""
+            }
+        }
+        return copiedClause(run)
     }
 }
 

@@ -20,8 +20,9 @@ enum V2Layout {
     /// Smallest size the fit search may choose before the box is allowed to grow.
     static let floorPixels: CGFloat = 10
     // Tunables (selected on dev; see the out-of-repo research scripts (scripts-layout)).
-    /// Upper bound of the fit search relative to the measured source lettering size.
-    static let capRatio: CGFloat = 1.2
+    /// Upper bound of the fit search relative to the measured source lettering size: the
+    /// legacy source-size hold (1.05x in a balloon, the source size outside).
+    static func capRatio(_ block: V2Block) -> CGFloat { block.balloon != nil ? 1.05 : 1 }
     /// Margin added around block bounds, relative to source px (clamped 4...24 px).
     static let marginRatio: CGFloat = 0.2
     /// Line advance in em; matches the legacy renderer's Korean line height (1.18 em).
@@ -70,31 +71,109 @@ enum V2Layout {
             placed.append(result)
             frames.append(result.bounds)
         }
-        // Cohorts: members shrink toward a common size (never grow past pass 1, so the
-        // smaller frames cannot collide); kept only when the page gets more consistent.
-        for cohort in plan.cohorts {
-            guard let targets = V2Cohort.targets(fits: cohort.map { placed[$0].fontPixels }, floor: floorPixels) else {
-                continue
-            }
-            var trial = placed
-            for (member, index) in cohort.enumerated() where targets[member] < placed[index].fontPixels - 0.01 {
-                let others = frames.enumerated().compactMap { $0.offset != index ? $0.element : nil }
-                let result = placeBlock(paintable[index], page: page, obstacles: obstacles(index, others),
-                                        placedFrames: others, source: plan.sources[index], cap: targets[member])
-                if result.fontPixels <= placed[index].fontPixels, !intersectsAny(result.bounds, others) {
-                    trial[index] = result
-                }
-            }
-            let before = V2Cohort.inconsistency(sizes: placed.map(\.fontPixels), plan: plan)
-            let after = V2Cohort.inconsistency(sizes: trial.map(\.fontPixels), plan: plan)
-            let spreadBefore = V2Cohort.spread(cohort.map { placed[$0].fontPixels })
-            let spreadAfter = V2Cohort.spread(cohort.map { trial[$0].fontPixels })
-            if after <= before, spreadAfter <= spreadBefore - V2Cohort.minimumGain {
-                placed = trial
-                frames = placed.map(\.bounds)
+        // Families: every member is re-fitted at the family size (only ever smaller), as in the first
+        // pass (earlier frames only), else around every other frame; kept when no larger and clear.
+        let firstFits = placed.map(\.fontPixels)
+        var sizes = plan.cohorts.map { V2Cohort.familySize(cap: plan.caps[$0[0]], fits: $0.map { placed[$0].fontPixels }) }
+        // One page scale: every family takes the smallest family step.
+        if let scale = zip(plan.cohorts, sizes).compactMap({ group, size in size.map { $0 / plan.caps[group[0]] } }).min() {
+            sizes = zip(plan.cohorts, sizes).map { group, size in
+                size.map { _ in max(min(plan.caps[group[0]], V2Cohort.minimumPixels), (plan.caps[group[0]] * scale * 4).rounded(.down) / 4) }
             }
         }
+        for (cohort, family) in zip(plan.cohorts, sizes) {
+            guard var size = family else { continue }
+            // A re-fit can land below the family size (whole words are preferred at a smaller size); the family
+            // then follows its smallest member that reached the last step, for up to three more rounds.
+            for round in 0..<4 {
+                if round > 0 {
+                    let reached = cohort.filter {
+                        firstFits[$0] >= ((plan.caps[$0] * V2Cohort.steps.last!) * 4).rounded(.down) / 4 - 0.01
+                    }.map { placed[$0].fontPixels }
+                    guard let low = reached.min(), low < size - 0.01 else { break }
+                    size = (low * 4).rounded(.down) / 4
+                }
+                for index in cohort where placed[index].fontPixels > size + 0.01 {
+                    let others = frames.enumerated().compactMap { $0.offset != index ? $0.element : nil }
+                    for context in [Array(frames[..<index]), others] {
+                        let result = placeBlock(paintable[index], page: page, obstacles: obstacles(index, context),
+                                                placedFrames: context, source: plan.sources[index], cap: size)
+                        if result.fontPixels <= placed[index].fontPixels, !intersectsAny(result.bounds, others) {
+                            placed[index] = result
+                            frames[index] = result.bounds
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        alignStarts(&placed, paintable, sources: plan.sources, page: page)
+        // Legacy NativeTextAlignmentPolicy: one paragraph alignment per cohort, the majority of its horizontal
+        // members (narration left, else centre; ties centre).
+        for cohort in plan.cohorts {
+            let members = cohort.filter { !placed[$0].vertical }
+            guard members.count > 1 else { continue }
+            let left = members.filter { paintable[$0].role == .narration }.count
+            let selected = left > members.count - left
+            for index in members where (paintable[index].role == .narration) != selected { placed[index].leading = selected }
+        }
         return placed
+    }
+
+    /// Shared start lines (legacy NativeSourceClusterAlignment): upright blocks of one orientation
+    /// and panel whose source tops lie within 0.75 em (smaller source em) and whose boxes are under
+    /// 5 em apart, chained, share one line on the axis their starts spread least (tops when the
+    /// lefts spread at least as much). The line is the median centred start (all-narration groups
+    /// outside balloons keep the source start), clamped to the page and to every member's balloon
+    /// (else panel); a member that collides on it keeps its frame and the rest retry.
+    static func alignStarts(_ placed: inout [V2PlacedText], _ blocks: [V2Block], sources: [CGFloat], page: CGRect) {
+        var parent = Array(blocks.indices)
+        func root(_ index: Int) -> Int { parent[index] == index ? index : root(parent[index]) }
+        for a in blocks.indices {
+            for b in blocks.indices where b > a && blocks[a].vertical == blocks[b].vertical && blocks[a].panel == blocks[b].panel {
+                let one = blocks[a].bounds, two = blocks[b].bounds, em = min(sources[a], sources[b])
+                if abs(one.minY - two.minY) <= 0.75 * em, max(one.minX, two.minX) - min(one.maxX, two.maxX) < 5 * em {
+                    parent[root(b)] = root(a)
+                }
+            }
+        }
+        for group in Dictionary(grouping: blocks.indices, by: root).values.sorted(by: { $0[0] < $1[0] })
+        where group.allSatisfy({ placed[$0].angle == nil }) {
+            let lefts = group.map { blocks[$0].bounds.minX }, tops = group.map { blocks[$0].bounds.minY }
+            let top = lefts.max()! - lefts.min()! >= tops.max()! - tops.min()!
+            func start(_ rect: CGRect) -> CGFloat { top ? rect.minY : rect.minX }
+            func length(_ rect: CGRect) -> CGFloat { top ? rect.height : rect.width }
+            let sourceStart = group.allSatisfy { blocks[$0].role == .narration && blocks[$0].balloon == nil }
+            var members = group
+            while members.count >= 2 {
+                let anchor = V2Cohort.median(members.map { index in
+                    let source = blocks[index].bounds
+                    return start(source) + (sourceStart ? 0 : (length(source) - length(placed[index].frame)) / 2)
+                })
+                var low = start(page), high = start(page) + length(page)
+                for index in members {
+                    let box = (blocks[index].balloon?.insetBy(dx: -1, dy: -1) ?? blocks[index].panel ?? page).intersection(page)
+                    low = max(low, start(box))
+                    high = min(high, start(box) + length(box) - length(placed[index].frame))
+                }
+                guard low <= high else { break }
+                var trial = placed
+                for index in members {
+                    if top { trial[index].frame.origin.y = min(high, max(low, anchor)) } else {
+                        trial[index].frame.origin.x = min(high, max(low, anchor))
+                    }
+                }
+                let colliding = members.filter { index in
+                    trial.indices.contains { other in
+                        let overlap = trial[index].bounds.intersection(trial[other].bounds)
+                        return other != index && !overlap.isNull && overlap.width > 0.5 && overlap.height > 0.5
+                    }
+                }
+                guard let far = colliding.max(by: { abs(start(placed[$0].frame) - anchor) < abs(start(placed[$1].frame) - anchor) })
+                else { placed = trial; break }
+                members.removeAll { $0 == far }
+            }
+        }
     }
 
     static func isPaintable(_ block: V2Block) -> Bool {
@@ -143,12 +222,10 @@ enum V2Layout {
 
     static let referenceSize: CGFloat = 100
 
-    /// The bundled serif in the source weight (Regular unless S8 found bold lettering),
-    /// otherwise the system Korean face of that weight.
+    /// The overlay face of the legacy renderer: Apple SD Gothic Neo Medium, Bold for bold
+    /// lettering (system fonts on iOS and macOS).
     static func font(size: CGFloat, bold: Bool = false) -> CTFont {
-        let name = bold ? boldFontName : fontName
-        let face = available(name) ? name : (bold ? "AppleSDGothicNeo-Bold" : "AppleSDGothicNeo-Regular")
-        return CTFontCreateWithName(face as CFString, size, nil)
+        CTFontCreateWithName((bold ? "AppleSDGothicNeo-Bold" : "AppleSDGothicNeo-Medium") as CFString, size, nil)
     }
 
     static func isBold(_ block: V2Block) -> Bool { block.style?.bold ?? false }
@@ -603,7 +680,12 @@ enum V2Layout {
         }
         func fit(in box: CGRect, text: MeasuredText) -> Fit? {
             let inset = strokeInset(cap)
-            let inner = CGSize(width: max(1, box.width - 2 * inset), height: max(1, box.height - 2 * inset))
+            var inner = CGSize(width: max(1, box.width - 2 * inset), height: max(1, box.height - 2 * inset))
+            // Legacy: a tall paragraph (h >= 1.4 w) in a balloon is not flattened; its lines stay
+            // within 1.35x the source width (at least 3.5 em and the widest word).
+            if block.balloon != nil, block.bounds.height >= block.bounds.width * 1.4 {
+                inner.width = min(inner.width, max(block.bounds.width * 1.35, cap * 3.5, text.widestWord * cap / referenceSize))
+            }
             guard var horizontal = largestFit(text, box: inner, vertical: false, minimum: floorPixels, maximum: cap) else {
                 return verticalOption(in: inner, horizontal: nil, text: text)
             }

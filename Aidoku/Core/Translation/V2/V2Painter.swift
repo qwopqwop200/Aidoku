@@ -291,7 +291,7 @@ enum V2Painter {
         let stroke = V2Layout.strokeWidth(for: job.block, fontPixels: item.fontPixels)
         let outline = job.paint.strokeWidth
         let runs = runs(for: item, stroke: stroke, pitch: V2Layout.lineHeightEm, metrics: metrics, font: font, color: fill,
-                        leading: job.block.role == .narration)
+                        leading: item.leading ?? (job.block.role == .narration))
         context.saveGState()
         // Never paint outside the page (layout already clamps frames to it).
         context.clip(to: job.clip)

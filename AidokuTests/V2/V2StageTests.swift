@@ -66,6 +66,25 @@ struct V2StageTests {
         #expect(blocks.map(\.readingOrder) == [0, 1])
     }
 
+    /// Legacy paragraph rules: complete quoted units stay apart; a one-glyph line may join a column.
+    @Test func groupingKeepsQuotesApartAndJoinsOneGlyphLines() {
+        let size = CGSize(width: 1000, height: 1400)
+        let quoted = [column(470, 100, 200, "「はい」"), column(420, 100, 200, "「いいえ」")]
+        #expect(V2Grouping.group(quoted, layout: [], pageSize: size).count == 2)
+        let glyph = V2Line(polygon: rect(470, 310, 40, 40), bounds: CGRect(x: 470, y: 310, width: 40, height: 40),
+                           vertical: false, detectionScore: 0.9, text: "！", confidence: 0.95)
+        #expect(V2Grouping.group([column(470, 100, 200, "あいうえ"), glyph], layout: [], pageSize: size).count == 1)
+    }
+
+    /// Legacy intercolumn ruby: a narrow kana rail just right of one kanji column is erased with it, never translated.
+    @Test func groupingErasesRubyWithItsHostColumn() {
+        let ruby = V2Line(polygon: rect(442, 120, 20, 120), bounds: CGRect(x: 442, y: 120, width: 20, height: 120),
+                          vertical: true, detectionScore: 0.9, text: "かんじ", confidence: 0.95)
+        let blocks = V2Grouping.group([column(400, 100, 200, "漢字です"), ruby], layout: [], pageSize: CGSize(width: 1000, height: 1400))
+        #expect(blocks.count == 1)
+        #expect(blocks.first?.sourceText == "漢字です" && blocks.first?.lines.count == 2)
+    }
+
     /// Finite but overflowing coordinates give a NaN axis; grouping must fall back, not trap.
     @Test func overflowingPolygonDoesNotTrapGrouping() {
         let huge = CGFloat.greatestFiniteMagnitude
@@ -214,7 +233,7 @@ struct V2StageTests {
         let placed = V2Layout.place([placedBlock(0, CGRect(x: 100, y: 100, width: 400, height: 300), "안녕 하세요")],
                                     pageSize: CGSize(width: 1000, height: 1400))
         #expect(placed.count == 1)
-        #expect(placed[0].fontPixels == 40 * V2Layout.capRatio)
+        #expect(placed[0].fontPixels == 40)  // outside a balloon the cap is the source size
         #expect(CGRect(x: 80, y: 80, width: 440, height: 340).contains(placed[0].frame))
         #expect(placed[0].lines.joined(separator: " ") == "안녕 하세요")
         let page = CGSize(width: 300, height: 300)
@@ -274,9 +293,11 @@ struct V2StageTests {
         #expect(V2Layout.displayText("plain text") == "plain text")
     }
 
-    @Test func interiorGrowsInsideCleanPaperAndStopsAtOutlines() {
+    @Test func interiorGrowsByLegacyReachAndSkipsBackground() {
         // 300x300 gray raster (page 1200x1200): white page, a black 4-cell outline box
         // around x 100...200, y 60...240, a striped text column at x 140...160 inside it.
+        // Legacy exterior growth ignores pixels: only other text, balloons, frames and the
+        // 8 x 4 line reach bound it.
         let size = 300
         var pixels = [UInt8](repeating: 255, count: size * size)
         func fill(_ x0: Int, _ y0: Int, _ x1: Int, _ y1: Int, _ value: UInt8) {
@@ -291,13 +312,25 @@ struct V2StageTests {
                             sourceText: "あいうえお")
         let interior = V2Interior.apply([block], raster: raster, pageSize: CGSize(width: 1200, height: 1200))[0].balloon
         #expect(interior.map { $0.width > bounds.width * 1.5 } == true)
-        #expect(interior.map { CGRect(x: 400, y: 240, width: 400, height: 720).contains($0) } == true)
-        // Tone (mid-gray paper) gets no interior; background blocks are skipped.
+        #expect(interior.map { CGRect(x: 0, y: 80, width: 1200, height: 1040).contains($0) } == true)
+        // Tone (mid-gray paper) still grows but gets no row spans; background blocks are skipped.
         let gray = V2GrayRaster(pixels: [UInt8](repeating: 128, count: size * size), width: size, height: size)
-        #expect(V2Interior.apply([block], raster: gray, pageSize: CGSize(width: 1200, height: 1200))[0].balloon == nil)
+        let toned = V2Interior.apply([block], raster: gray, pageSize: CGSize(width: 1200, height: 1200))[0]
+        #expect(toned.balloon != nil && toned.rows == nil)
         var background = block
         background.role = .background
         #expect(V2Interior.apply([background], raster: raster, pageSize: CGSize(width: 1200, height: 1200))[0].balloon == nil)
+    }
+
+    @Test func balloonLobeLeavesTheTailOut() {
+        // Paper: a disc of radius 30 about (50, 50) with a 4-cell tail to x 110; the rest is ink.
+        func dirty(_ x: Int, _ y: Int) -> Bool {
+            !((x - 50) * (x - 50) + (y - 50) * (y - 50) <= 900 || (x >= 50 && x < 110 && y >= 48 && y < 52))
+        }
+        let lobe = V2Interior.lobeRect((0, 0, 130, 100), source: (40, 40, 60, 60), dirty: dirty)
+        #expect(lobe.map { $0.x0 >= 19 && $0.x1 <= 81 && $0.y0 >= 19 && $0.y1 <= 81 && $0.x1 - $0.x0 >= 30 } == true)
+        // Paper reaching the growth limit is open lettering space, not a balloon.
+        #expect(V2Interior.lobeRect((30, 30, 70, 70), source: (40, 40, 60, 60), dirty: dirty) == nil)
     }
 
     private func styled(_ px: CGFloat, fill: V2RGB = V2RGB(r: 0, g: 0, b: 0), stroke: V2RGB? = V2RGB(r: 255, g: 255, b: 255),
@@ -308,19 +341,31 @@ struct V2StageTests {
     @Test func cohortsSnapSourcesAndShareOneSize() {
         func block(_ id: Int, _ px: CGFloat) -> V2Block {
             var block = placedBlock(id, CGRect(x: CGFloat(id) * 200, y: 0, width: 100, height: 100), "가")
-            block.style = styled(px)
+            // Colour is not part of the key (legacy families mix colours).
+            block.style = styled(px, fill: id == 1 ? V2RGB(r: 220, g: 30, b: 30) : V2RGB(r: 0, g: 0, b: 0))
             return block
         }
         let blocks = [block(0, 40), block(1, 41), block(2, 47), block(3, 80)]
-        let plan = V2Cohort.plan(blocks, sources: [40, 41, 47, 80], capRatio: 1.2, floor: 10)
+        let plan = V2Cohort.plan(blocks, sources: [40, 41, 47, 80], capRatio: { _ in 1.2 }, floor: 10)
         #expect(plan.sources[0] == plan.sources[1])          // snapped within 1.08x
         #expect(plan.cohorts == [[0, 1, 2]])                 // 80 px is its own size
-        #expect(plan.caps[0] == plan.caps[1] && plan.caps[0] >= 40.5 * 1.2 - 0.01)  // the cohort size
-        // Members shrink toward a common size (never below 0.8x their own fit).
-        let targets = V2Cohort.targets(fits: [48, 40, 39], floor: 10)
-        #expect(targets.map { V2Cohort.spread($0) < 1.1 } == true)
-        #expect(targets.map { $0[0] >= 48 * 0.8 - 0.25 } == true)
-        #expect(V2Cohort.targets(fits: [40, 41], floor: 10) == nil)
+        #expect(plan.caps[0] == plan.caps[1] && plan.caps[0] == plan.caps[2])  // one family cap
+        // The family takes the largest cap step every member reached (members below 0.65 keep theirs).
+        #expect(V2Cohort.familySize(cap: 50, fits: [50, 46, 20]) == 45)
+        #expect(V2Cohort.familySize(cap: 50, fits: [20, 21]) == nil)
+    }
+
+    @Test func alignedStartsShareTheMedianCentredTop() {
+        let sources = [CGRect(x: 0, y: 100, width: 100, height: 200), CGRect(x: 150, y: 110, width: 100, height: 100),
+                       CGRect(x: 300, y: 105, width: 100, height: 300), CGRect(x: 900, y: 100, width: 100, height: 100)]
+        var placed = sources.enumerated().map { index, rect in
+            V2PlacedText(blockID: index, frame: CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * 7, width: 100, height: 60),
+                         fontPixels: 40, vertical: false, lines: ["가"])
+        }
+        V2Layout.alignStarts(&placed, sources.enumerated().map { placedBlock($0.offset, $0.element, "가") },
+                             sources: [40, 40, 40, 40], page: CGRect(x: 0, y: 0, width: 1000, height: 1000))
+        // Median of the centred tops 170, 130 and 225; the block 12.5 em away keeps its frame.
+        #expect(placed.map(\.frame.minY) == [170, 170, 170, 121])
     }
 
     @Test func rotationFollowsTiltedLineQuads() {
@@ -409,6 +454,20 @@ struct V2StageTests {
         marks.sourceText = "……!"
         #expect(V2Translation.apply([marks]) { _ in RemoteTranslatedSegment(id: "x", text: "……!") }[0].translation == "……!")
         #expect(V2Layout.displayText("아ー 좋아") == "아~ 좋아")
+    }
+
+    @Test func legacyReplyRepairsApply() {
+        var block = V2Block(id: 4, lines: [], bounds: .zero, polygon: [], vertical: true, readingOrder: 0,
+            sourceText: "このびちゃびちゃの下着は貰うぞ、絶対にね")
+        func reply(_ text: String) -> String? {
+            V2Translation.apply([block]) { _ in RemoteTranslatedSegment(id: "x", text: text) }[0].translation
+        }
+        #expect(reply("このびちゃびちゃの下着は貰うぞ！絶対にね！") == nil)
+        #expect(reply("좋아, このびちゃびちゃの下着は貰うぞ") == "좋아, このびちゃびちゃの下着は貰うぞ")
+        #expect(reply("코드\\n입니다 \\uae68") == "코드\n입니다 깨")
+        #expect(reply("서울 漢字 공부를 했어!") == "서울 漢字 공부를 했어!")
+        block.sourceText = "原文"
+        #expect(reply("오늘은 漢字") == "오늘은 漢字")
     }
 
     @Test func narrationRoleIsKeptAndPainted() {

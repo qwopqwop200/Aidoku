@@ -15,54 +15,11 @@ enum ReaderTranslationLanguageFilter {
         (0x3400...0x9FFF).contains(scalar.value) || (0x20000...0x323AF).contains(scalar.value)
     }
 
-    /// A Japanese sentence re-punctuated by the provider is not a Korean translation.
-    /// Exact copies remain valid for explicit SFX/background preservation; short names
-    /// and quoted terms remain outside this narrow rejection.
+    /// A Japanese sentence re-punctuated by the provider is not a Korean translation (`V2ReplyText`).
     static func isUntranslatedJapaneseReply(source: String, translation: String, target: String,
                                            preservesExactSource: Bool = true) -> Bool {
-        guard canonical(target) == "ko",
-              (!preservesExactSource || source.trimmingCharacters(in: .whitespacesAndNewlines) !=
-                translation.trimmingCharacters(in: .whitespacesAndNewlines))
-        else { return false }
-        if containsCopiedJapaneseClause(source: source, translation: translation) { return true }
-        let letters = translation.unicodeScalars.filter { $0.properties.isAlphabetic }
-        guard letters.count >= 20, letters.filter(isKana).count >= 2,
-              source.unicodeScalars.filter(isKana).count >= 2 else { return false }
-        return !letters.contains(where: isHangul)
-    }
-
-    /// A Korean fragment must not certify an otherwise copied Japanese clause.
-    /// Require a long source-matching run with substantial hiragana grammar; names,
-    /// short interjections and explicitly quoted terms are not enough evidence.
-    private static func containsCopiedJapaneseClause(source: String, translation: String) -> Bool {
-        func japanese(_ scalar: Unicode.Scalar) -> Bool {
-            (0x3040...0x30FF).contains(scalar.value) || (0x3400...0x9FFF).contains(scalar.value) ||
-                (0xFF66...0xFF9D).contains(scalar.value)
-        }
-        func normalized(_ text: String) -> String {
-            String(String.UnicodeScalarView(text.unicodeScalars.filter(japanese)))
-        }
-        let sourceLetters = normalized(source)
-        func copiedClause(_ run: String) -> Bool {
-            let text = run.trimmingCharacters(in: .whitespacesAndNewlines)
-            for (opening, closing) in [("「", "」"), ("『", "』"), ("\"", "\""), ("“", "”")] {
-                if text.hasPrefix(opening), text.hasSuffix(closing) { return false }
-            }
-            let letters = normalized(text)
-            let hiragana = letters.unicodeScalars.filter { (0x3041...0x3096).contains($0.value) }.count
-            return letters.count >= 10 && hiragana >= 5 && sourceLetters.contains(letters)
-        }
-        var run = ""
-        for scalar in translation.unicodeScalars {
-            if japanese(scalar) || CharacterSet.whitespacesAndNewlines.contains(scalar) ||
-                CharacterSet.punctuationCharacters.contains(scalar) {
-                run.unicodeScalars.append(scalar)
-            } else {
-                if copiedClause(run) { return true }
-                run = ""
-            }
-        }
-        return copiedClause(run)
+        V2ReplyText.isUntranslatedJapaneseReply(source: source, translation: translation, target: canonical(target),
+            preservesExactSource: preservesExactSource)
     }
 
     /// Shared completed-provider check for the reader service and native host CLI.

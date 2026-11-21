@@ -6,54 +6,33 @@ import Foundation
 // (ported from the legacy page font clusters, source-size snap and inconsistency
 // guard). Pure arithmetic over S8 styles and S9 fits; one bounded pass.
 //
-// 1. Key: orientation, bold, outline, fill and outline colour class.
+// 1. Key: orientation, bold and outline (no colour: legacy families mix colours).
 // 2. Source snap: within a key, sources within 1.08x of a band's first value take the
 //    band median (S8 per-block estimates are noisy).
-// 3. Cohorts: same key, sorted by source, chained while max/min <= 1.22; size >= 2.
-//    Each member's fit cap is capRatio x max(own source, cohort median source), so a
-//    small member may grow to the cohort size when its box allows.
-// 4. After the per-block fits, a cohort whose sizes spread > 1.1 takes the common size
-//    x that minimises its spread when each member becomes min(fit, max(0.8 fit, x)).
-//    Members only shrink, so frames only get smaller and stay collision-free. The
-//    change is kept when the spread drops by >= 0.03 and the page inconsistency count
-//    (similar sources, sizes > 1.25x apart) does not rise.
+// 3. Families: same key, sorted by source, chained while max/min <= 1.22; size >= 2.
+//    Every member shares one cap: the family median source x the cap ratio.
+// 4. After the per-block fits, the family takes the largest step of its cap
+//    (1, 0.95 ... 0.65, >= 12 px) that every member reached; the page then takes one scale, the
+//    smallest family step; a member that cannot reach
+//    the last step keeps its own fit. Members only shrink, so frames stay collision-free
+//    (legacy NativeAOTRawTextPainter.swift:961-976 cohort fit planning). A re-fit that lands
+//    below the family size pulls the family down to it (up to three more rounds).
 enum V2Cohort {
     static let snapRatio: CGFloat = 1.08
     static let cohortRatio: CGFloat = 1.22
-    static let spreadTrigger: CGFloat = 1.1
-    static let minimumGain: CGFloat = 0.03
-    static let shrinkFloor: CGFloat = 0.8
-    static let similarSource: CGFloat = 1.15
-    static let inconsistentSize: CGFloat = 1.25
+    static let steps: [CGFloat] = [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65]
+    static let minimumPixels: CGFloat = 12
 
     struct Key: Hashable {
         var vertical: Bool
         var bold: Bool
         var outlined: Bool
-        var fill: Int
-        var outline: Int
-    }
-
-    /// Hue sextant (0-5) when chroma > 60/255, else dark (6), light (7) or mid (8).
-    static func colorClass(_ color: V2RGB?) -> Int {
-        guard let color else { return -1 }
-        let r = CGFloat(color.r) / 255, g = CGFloat(color.g) / 255, b = CGFloat(color.b) / 255
-        let high = max(r, g, b), low = min(r, g, b), chroma = high - low
-        if chroma > 60 / 255 {
-            var hue: CGFloat
-            if high == r { hue = (g - b) / chroma } else if high == g { hue = (b - r) / chroma + 2 } else { hue = (r - g) / chroma + 4 }
-            hue = (hue < 0 ? hue + 6 : hue)
-            return min(5, Int(hue))
-        }
-        let luma = 0.299 * r + 0.587 * g + 0.114 * b
-        return luma < 0.3 ? 6 : luma > 0.72 ? 7 : 8
     }
 
     static func key(_ block: V2Block) -> Key {
         let style = block.style
         let outlined = style.map { $0.strokeColor != nil && $0.strokeWidth > 0 } ?? false
-        return Key(vertical: block.vertical, bold: style?.bold ?? false, outlined: outlined,
-                   fill: colorClass(style?.textColor), outline: outlined ? colorClass(style?.strokeColor) : -1)
+        return Key(vertical: block.vertical, bold: style?.bold ?? false, outlined: outlined)
     }
 
     struct Plan {
@@ -61,12 +40,11 @@ enum V2Cohort {
         var sources: [CGFloat]
         /// Fit cap per block.
         var caps: [CGFloat]
-        /// Member indices of each cohort (>= 2 members).
+        /// Member indices of each family (>= 2 members).
         var cohorts: [[Int]]
-        var keys: [Key]
     }
 
-    static func plan(_ blocks: [V2Block], sources raw: [CGFloat], capRatio: CGFloat, floor: CGFloat) -> Plan {
+    static func plan(_ blocks: [V2Block], sources raw: [CGFloat], capRatio: (V2Block) -> CGFloat, floor: CGFloat) -> Plan {
         var sources = raw
         let keys = blocks.map(key)
         var cohorts: [[Int]] = []
@@ -79,12 +57,12 @@ enum V2Cohort {
             }
             cohorts += chains(members, values: sources, ratio: cohortRatio).filter { $0.count >= 2 }
         }
-        var caps = sources.map { max(floor, $0 * capRatio) }
+        var caps = blocks.indices.map { max(floor, sources[$0] * capRatio(blocks[$0])) }
         for cohort in cohorts {
-            let shared = median(cohort.map { sources[$0] })
-            for index in cohort { caps[index] = max(floor, max(sources[index], shared) * capRatio) }
+            let cap = max(floor, median(cohort.map { sources[$0] }) * (cohort.map { capRatio(blocks[$0]) }.max() ?? 1))
+            for index in cohort { caps[index] = cap }
         }
-        return Plan(sources: sources, caps: caps, cohorts: cohorts, keys: keys)
+        return Plan(sources: sources, caps: caps, cohorts: cohorts)
     }
 
     /// Consecutive runs of `members` (sorted by value) whose values stay within `ratio`
@@ -108,41 +86,12 @@ enum V2Cohort {
         return sorted.count % 2 == 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
     }
 
-    static func spread(_ values: [CGFloat]) -> CGFloat {
-        guard let low = values.min(), let high = values.max(), low > 0 else { return 1 }
-        return high / low
-    }
-
-    /// Target sizes for one cohort, or nil when it is already consistent or cannot improve enough.
-    static func targets(fits: [CGFloat], floor: CGFloat) -> [CGFloat]? {
-        let initial = spread(fits)
-        guard fits.count >= 2, initial > spreadTrigger else { return nil }
-        let floors = fits.map { max(min(floor, $0), $0 * shrinkFloor) }
-        func sizes(_ common: CGFloat) -> [CGFloat] {
-            zip(fits, floors).map { fit, low in min(fit, max(low, common)) }
-        }
-        var best: (sizes: [CGFloat], spread: CGFloat, sum: CGFloat)?
-        for common in Set(fits + floors).sorted() {
-            let candidate = sizes(common)
-            let value = spread(candidate), sum = candidate.reduce(0, +)
-            if best.map({ value < $0.spread - 0.0001 || (abs(value - $0.spread) <= 0.0001 && sum > $0.sum) }) ?? true {
-                best = (candidate, value, sum)
-            }
-        }
-        guard let best, best.spread <= initial - minimumGain else { return nil }
-        return best.sizes.map { ($0 * 4).rounded(.down) / 4 }
-    }
-
-    /// Pairs with the same key and similar sources whose painted sizes are > 1.25x apart.
-    static func inconsistency(sizes: [CGFloat], plan: Plan) -> Int {
-        var count = 0
-        for i in sizes.indices {
-            for j in sizes.indices where j > i && plan.keys[i] == plan.keys[j] {
-                let a = plan.sources[i], b = plan.sources[j]
-                guard a > 0, b > 0, max(a, b) / min(a, b) <= similarSource else { continue }
-                if spread([sizes[i], sizes[j]]) > inconsistentSize { count += 1 }
-            }
-        }
-        return count
+    /// The family's common size (quarter pixels): the largest cap step that every member's
+    /// fit reaches, ignoring members below the last step (they keep their fit).
+    /// nil when no member reaches the last step.
+    static func familySize(cap: CGFloat, fits: [CGFloat]) -> CGFloat? {
+        let sizes = steps.map { ((cap * $0) * 4).rounded(.down) / 4 }.filter { $0 >= min(cap, minimumPixels) }
+        guard let lowest = sizes.last, let need = fits.filter({ $0 >= lowest - 0.01 }).min() else { return nil }
+        return sizes.first { $0 <= need + 0.01 } ?? lowest
     }
 }

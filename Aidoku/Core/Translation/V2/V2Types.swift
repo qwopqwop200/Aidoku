@@ -114,6 +114,8 @@ struct V2PlacedText: Sendable, Codable, Equatable {
     var angle: CGFloat?
     /// Horizontal scale of every line about the frame centre (0.9 condense); nil when 1.
     var condense: CGFloat?
+    /// Line alignment chosen by the size cohort's majority (true = left); nil = by role.
+    var leading: Bool?
 
     /// Painted area: the frame rotated by `angle`.
     var bounds: CGRect { V2Rotation.bounds(frame, angle: angle ?? 0) }
