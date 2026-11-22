@@ -7,15 +7,20 @@ import Foundation
 
 extension V2Style {
     /// Fills `style` on every block; blocks keep order and all other fields.
-    static func estimate(_ page: V2Page, blocks: [V2Block]) -> [V2Block] {
+    /// `raster`, the page's decoded RGBA bytes when at hand, spares each crop a draw of `page.image`.
+    static func estimate(_ page: V2Page, blocks: [V2Block], raster: V2PageRaster? = nil) -> [V2Block] {
         let fonts = V2SimpleFont.estimate(blocks)
+        // Same bytes as drawing the image only for an sRGB page (no colour conversion either way).
+        let raster = raster.flatMap {
+            $0.width == page.width && $0.height == page.height && page.image.colorSpace?.name == CGColorSpace.sRGB ? $0 : nil
+        }
         // Blocks are independent; measure them concurrently.
         let results = UnsafeMutableBufferPointer<V2StyleEstimator.BlockAnalysis?>.allocate(capacity: blocks.count)
         results.initialize(repeating: nil)
         // Deinitialize first: deallocate alone would leak every analysis (crop planes) per call.
         defer { results.deinitialize(); results.deallocate() }
         DispatchQueue.concurrentPerform(iterations: blocks.count) { index in
-            results[index] = V2StyleEstimator.analyze(page.image, block: blocks[index], font: fonts[index])
+            results[index] = V2StyleEstimator.analyze(page.image, block: blocks[index], font: fonts[index], raster: raster)
         }
         var analyses = Array(results)
         let styles = V2StyleEstimator.decide(&analyses, fonts: fonts)
@@ -229,9 +234,9 @@ enum V2StyleEstimator {
         }
     }
 
-    static func analyze(_ image: CGImage, block: V2Block, font: CGFloat) -> BlockAnalysis? {
+    static func analyze(_ image: CGImage, block: V2Block, font: CGFloat, raster: V2PageRaster? = nil) -> BlockAnalysis? {
         let font = Double(font)
-        guard var crop = makeCrop(image, block: block, font: font) else { return nil }
+        guard var crop = makeCrop(image, block: block, font: font, raster: raster) else { return nil }
         var result = V2StyleFeatures(font: font, scale: crop.scale)
         let n = crop.crop.width * crop.crop.height
         let lineCount = crop.crop.lines.reduce(0) { $0 + ($1 ? 1 : 0) }
@@ -286,18 +291,36 @@ enum V2StyleEstimator {
             result.clusters.append(cluster)
         }
         // Interior re-clustering (2k + j): separates a thin fill from merged art colours.
-        var interior = [Bool](repeating: false, count: n)
         var interiorCount = 0
-        for i in 0..<n where crop.crop.lines[i] && !crop.crop.exteriorOwn[i] { interior[i] = true; interiorCount += 1 }
-        crop.crop.interiorAssignment = [UInt8](repeating: 255, count: n)
+        let interior = [Bool](unsafeUninitializedCapacity: n) { out, initialized in
+            crop.crop.lines.withUnsafeBufferPointer { lines in
+                crop.crop.exteriorOwn.withUnsafeBufferPointer { own in
+                    for i in 0..<n {
+                        out[i] = lines[i] && !own[i]
+                        if out[i] { interiorCount += 1 }
+                    }
+                }
+            }
+            initialized = n
+        }
+        var interiorAssignment = [UInt8](repeating: 255, count: n)
         if interiorCount >= 16 {
             let centres = kMeans(crop.crop, k: interiorClusterCount, include: interior)
             let flat = centres.flatMap { $0 }
-            for i in 0..<n where crop.crop.lineDistance2[i] <= 4 && !crop.crop.exteriorOwn[i] {
-                let r = Float(crop.crop.rgb[i * 3]), g = Float(crop.crop.rgb[i * 3 + 1]), b = Float(crop.crop.rgb[i * 3 + 2])
-                crop.crop.interiorAssignment[i] = UInt8(nearestCentre(r, g, b, flat, k: interiorClusterCount))
+            interiorAssignment.withUnsafeMutableBufferPointer { out in
+                crop.crop.rgb.withUnsafeBufferPointer { rgb in
+                    crop.crop.lineDistance2.withUnsafeBufferPointer { d in
+                        crop.crop.exteriorOwn.withUnsafeBufferPointer { own in
+                            for i in 0..<n where d[i] <= 4 && !own[i] {
+                                let r = Float(rgb[i * 3]), g = Float(rgb[i * 3 + 1]), b = Float(rgb[i * 3 + 2])
+                                out[i] = UInt8(nearestCentre(r, g, b, flat, k: interiorClusterCount))
+                            }
+                        }
+                    }
+                }
             }
         }
+        crop.crop.interiorAssignment = interiorAssignment
         for j in 0..<interiorClusterCount {
             var cluster = V2StyleFeatures.Cluster()
             cluster.interior = true
@@ -309,7 +332,8 @@ enum V2StyleEstimator {
         return BlockAnalysis(features: result, crop: crop.crop)
     }
 
-    private static func makeCrop(_ image: CGImage, block: V2Block, font: Double) -> (crop: Crop, scale: Double)? {
+    private static func makeCrop(_ image: CGImage, block: V2Block, font: Double,
+                                 raster: V2PageRaster?) -> (crop: Crop, scale: Double)? {
         let W = image.width, H = image.height
         let m = max(6, 0.5 * font)
         let box = block.bounds
@@ -326,20 +350,26 @@ enum V2StyleEstimator {
             w = max(4, Int(Double(x1 - x0) * s)); h = max(4, Int(Double(y1 - y0) * s))
             s = Double(w) / Double(x1 - x0)
         }
-        guard let source = image.cropping(to: CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)) else { return nil }
-        var rgba = [UInt8](repeating: 255, count: w * h * 4)
-        let space = image.colorSpace.flatMap { $0.model == .rgb ? $0 : nil } ?? CGColorSpace(name: CGColorSpace.sRGB)!
-        let drawn: Bool = rgba.withUnsafeMutableBytes { raw in
-            guard let context = CGContext(data: raw.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                          space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return false }
-            context.interpolationQuality = s < 1 ? .medium : .none
-            context.draw(source, in: CGRect(x: 0, y: 0, width: w, height: h))
-            return true
-        }
-        guard drawn else { return nil }
-        var rgb = [UInt8](repeating: 0, count: w * h * 3)
-        for i in 0..<(w * h) {
-            rgb[i * 3] = rgba[i * 4]; rgb[i * 3 + 1] = rgba[i * 4 + 1]; rgb[i * 3 + 2] = rgba[i * 4 + 2]
+        let region = raster.flatMap { opaqueRegion($0, x0: x0, y0: y0, x1: x1, y1: y1) }
+        let rgb: [UInt8]
+        if let region, s == 1 {
+            // Unscaled: the drawn crop is the raster's bytes.
+            rgb = region.withUnsafeBytes { rgbPlane($0, count: w * h) }
+        } else {
+            let source = region.flatMap { V2StyleEstimator.image($0, width: x1 - x0, height: y1 - y0) }
+                ?? image.cropping(to: CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0))
+            guard let source else { return nil }
+            var rgba = [UInt8](repeating: 255, count: w * h * 4)
+            let space = image.colorSpace.flatMap { $0.model == .rgb ? $0 : nil } ?? CGColorSpace(name: CGColorSpace.sRGB)!
+            let drawn: Bool = rgba.withUnsafeMutableBytes { raw in
+                guard let context = CGContext(data: raw.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                              space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return false }
+                context.interpolationQuality = s < 1 ? .medium : .none
+                context.draw(source, in: CGRect(x: 0, y: 0, width: w, height: h))
+                return true
+            }
+            guard drawn else { return nil }
+            rgb = rgba.withUnsafeBytes { rgbPlane($0, count: w * h) }
         }
         var mask = [UInt8](repeating: 0, count: w * h)
         mask.withUnsafeMutableBytes { raw in
@@ -360,6 +390,44 @@ enum V2StyleEstimator {
         return (Crop(width: w, height: h, rgb: rgb, lines: mask.map { $0 > 0 }), s)
     }
 
+    /// The raster's RGBA rows of [x0, x1) x [y0, y1), or nil when one of them is not opaque
+    /// (drawing composites those over the white context, unlike the raster).
+    private static func opaqueRegion(_ raster: V2PageRaster, x0: Int, y0: Int, x1: Int, y1: Int) -> Data? {
+        let rowBytes = (x1 - x0) * 4
+        var region = Data(count: rowBytes * (y1 - y0))
+        let opaque = raster.rgba.withUnsafeBufferPointer { page in
+            region.withUnsafeMutableBytes { out -> Bool in
+                let out = out.bindMemory(to: UInt8.self).baseAddress!
+                var alpha: UInt8 = 255
+                for y in y0..<y1 {
+                    let source = page.baseAddress! + (y * raster.width + x0) * 4
+                    (out + (y - y0) * rowBytes).update(from: source, count: rowBytes)
+                    for i in stride(from: 3, to: rowBytes, by: 4) { alpha &= source[i] }
+                }
+                return alpha == 255
+            }
+        }
+        return opaque ? region : nil
+    }
+
+    /// The RGB bytes of `count` four-byte RGBX pixels.
+    private static func rgbPlane(_ rgba: UnsafeRawBufferPointer, count: Int) -> [UInt8] {
+        let source = rgba.bindMemory(to: UInt8.self)
+        return [UInt8](unsafeUninitializedCapacity: count * 3) { out, initialized in
+            for i in 0..<count { out[i * 3] = source[i * 4]; out[i * 3 + 1] = source[i * 4 + 1]; out[i * 3 + 2] = source[i * 4 + 2] }
+            initialized = count * 3
+        }
+    }
+
+    /// An opaque sRGB image over RGBA `data` (no copy of the bytes).
+    private static func image(_ data: Data, width: Int, height: Int) -> CGImage? {
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB), let provider = CGDataProvider(data: data as CFData)
+        else { return nil }
+        return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+                       space: space, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                       provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+    }
+
     // MARK: clustering
 
     private static func kMeans(_ crop: Crop, k: Int, include: [Bool]) -> [[Float]] {
@@ -368,14 +436,16 @@ enum V2StyleEstimator {
         // Samples as flat RGB triples.
         var samples: [Float] = []
         samples.reserveCapacity(3 * (total / step + 1))
-        var seen = 0
+        // Every step-th included pixel (seen % step == 0).
+        var skip = 0
         crop.rgb.withUnsafeBufferPointer { rgb in
             include.withUnsafeBufferPointer { m in
                 for i in 0..<(crop.width * crop.height) where m[i] {
-                    if seen % step == 0 {
+                    if skip == 0 {
                         samples.append(Float(rgb[i * 3])); samples.append(Float(rgb[i * 3 + 1])); samples.append(Float(rgb[i * 3 + 2]))
+                        skip = step
                     }
-                    seen += 1
+                    skip -= 1
                 }
             }
         }
@@ -522,8 +592,24 @@ enum V2StyleEstimator {
 
     /// Member pixels of `candidateMask(crop, candidate:)` in raster order.
     static func candidateMembers(_ crop: Crop, candidate: Int) -> [Int] {
-        let mask = candidateMask(crop, candidate: candidate)
-        return mask.indices.filter { mask[$0] }
+        let n = crop.width * crop.height
+        var members: [Int] = []
+        if candidate >= 2 * clusterCount {
+            let label = UInt8(candidate - 2 * clusterCount)
+            crop.interiorAssignment.withUnsafeBufferPointer { a in
+                for i in 0..<n where a[i] == label { members.append(i) }
+            }
+            return members
+        }
+        let label = UInt8(candidate % clusterCount), enclosed = candidate >= clusterCount
+        crop.assignment.withUnsafeBufferPointer { a in
+            crop.lineDistance2.withUnsafeBufferPointer { d in
+                crop.exteriorOwn.withUnsafeBufferPointer { own in
+                    for i in 0..<n where a[i] == label && d[i] <= 4 && !(enclosed && own[i]) { members.append(i) }
+                }
+            }
+        }
+        return members
     }
 
     /// Label plane with a 2 px border: bit 0 member, bit 1 outside the crop, bit 2 counted in the shell.
@@ -550,10 +636,12 @@ enum V2StyleEstimator {
         let member = Labels.member, marked = Labels.marked, pw = labels.stride
         for i in members { labels.at(i).pointee = member }
         let offsets = [(-2, 0), (2, 0), (0, -2), (0, 2), (-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-        let shellOffsets = offsets.map { dx, dy in (padded: dy * pw + dx, crop: dy * w + dx) }
+        let paddedOffsets = offsets.map { dx, dy in dy * pw + dx }, cropOffsets = offsets.map { dx, dy in dy * w + dx }
         var exterior = 0, perimeter = 0, coreCount = 0
         var neighbours = [Int](repeating: 0, count: clusterCount), shell = 0, shellExterior = 0
-        var shellPixels: [Int] = []
+        // Each shell pixel is marked once, so the shell holds at most the crop's other pixels.
+        let shellPixels = UnsafeMutablePointer<UnsafeMutablePointer<UInt8>>.allocate(capacity: crop.width * crop.height)
+        defer { shellPixels.deallocate() }
         var maximumDistance: Int32 = 0
         crop.exteriorDistance2.withUnsafeBufferPointer { dist in
             for i in members { maximumDistance = max(maximumDistance, dist[i]) }
@@ -563,31 +651,37 @@ enum V2StyleEstimator {
         var histogram = [Int](repeating: 0, count: useHistogram ? Int(maximumDistance) + 1 : 1)
         var all = [Int](repeating: 0, count: 768), core = all
         withPointers(crop, &histogram, &all, &core) { own, dist, rgb, a, histogram, all, core in
-            for i in members {
-                let p = labels.at(i)
-                if own[i] { exterior += 1 }
-                // perimeter: 4-neighbour erosion with zero border
-                if p[-1] & p[1] & p[-pw] & p[pw] & member == 0 { perimeter += 1 }
-                // core: no non-cluster pixel within distance < 1.5 (3x3); outside the crop does not count
-                let isCore = p[-pw - 1] & 3 != 0 && p[-pw] & 3 != 0 && p[-pw + 1] & 3 != 0 && p[-1] & 3 != 0
-                    && p[1] & 3 != 0 && p[pw - 1] & 3 != 0 && p[pw] & 3 != 0 && p[pw + 1] & 3 != 0
-                let r = Int(rgb[i * 3]), g = 256 + Int(rgb[i * 3 + 1]), b = 512 + Int(rgb[i * 3 + 2])
-                all[r] += 1; all[g] += 1; all[b] += 1
-                if isCore { coreCount += 1; core[r] += 1; core[g] += 1; core[b] += 1 }
-                if useHistogram { histogram[Int(dist[i])] += 1 }
-                // shell: pixels within Euclidean distance 2 outside the mask
-                for offset in shellOffsets where p[offset.padded] == 0 {
-                    p[offset.padded] = marked
-                    let j = i + offset.crop
-                    shellPixels.append(j)
-                    shell += 1
-                    neighbours[Int(a[j])] += 1
-                    if own[j] { shellExterior += 1 }
+            neighbours.withUnsafeMutableBufferPointer { neighbours in
+                var exteriorTotal = 0, perimeterTotal = 0, coreTotal = 0, shellTotal = 0, shellExteriorTotal = 0
+                for i in members {
+                    let p = labels.at(i)
+                    if own[i] { exteriorTotal += 1 }
+                    // perimeter: 4-neighbour erosion with zero border
+                    if p[-1] & p[1] & p[-pw] & p[pw] & member == 0 { perimeterTotal += 1 }
+                    // core: no non-cluster pixel within distance < 1.5 (3x3); outside the crop does not count
+                    let isCore = p[-pw - 1] & 3 != 0 && p[-pw] & 3 != 0 && p[-pw + 1] & 3 != 0 && p[-1] & 3 != 0
+                        && p[1] & 3 != 0 && p[pw - 1] & 3 != 0 && p[pw] & 3 != 0 && p[pw + 1] & 3 != 0
+                    let r = Int(rgb[i * 3]), g = 256 + Int(rgb[i * 3 + 1]), b = 512 + Int(rgb[i * 3 + 2])
+                    all[r] += 1; all[g] += 1; all[b] += 1
+                    if isCore { coreTotal += 1; core[r] += 1; core[g] += 1; core[b] += 1 }
+                    if useHistogram { histogram[Int(dist[i])] += 1 }
+                    // shell: pixels within Euclidean distance 2 outside the mask
+                    for o in 0..<12 where p[paddedOffsets[o]] == 0 {
+                        let q = p + paddedOffsets[o]
+                        q.pointee = marked
+                        shellPixels[shellTotal] = q
+                        shellTotal += 1
+                        let j = i + cropOffsets[o]
+                        neighbours[Int(a[j])] += 1
+                        if own[j] { shellExteriorTotal += 1 }
+                    }
                 }
+                exterior = exteriorTotal; perimeter = perimeterTotal; coreCount = coreTotal
+                shell = shellTotal; shellExterior = shellExteriorTotal
             }
         }
         for i in members { labels.at(i).pointee = 0 }
-        for j in shellPixels { labels.at(j).pointee = 0 }
+        for index in 0..<shell { shellPixels[index].pointee = 0 }
         c.exterior = Double(exterior) / Double(count)
         let useCore = coreCount >= 4
         let source = useCore ? core : all, total = useCore ? coreCount : count
@@ -665,7 +759,6 @@ enum V2StyleEstimator {
     static func squaredDistance(to target: [Bool], width w: Int, height h: Int) -> [Int32] {
         let infinity: Int64 = 1 << 40
         let m = max(w, h)
-        var grid = [Int64](repeating: 0, count: w * h)
         var out = [Int32](repeating: 0, count: w * h)
         let f = UnsafeMutablePointer<Int64>.allocate(capacity: m), d = UnsafeMutablePointer<Int64>.allocate(capacity: m)
         let v = UnsafeMutablePointer<Int>.allocate(capacity: m), z = UnsafeMutablePointer<Double>.allocate(capacity: m + 1)
@@ -692,43 +785,36 @@ enum V2StyleEstimator {
             }
         }
         target.withUnsafeBufferPointer { t in
-            grid.withUnsafeMutableBufferPointer { g in
-                // Column pass: for a 0/infinity input two row-major sweeps equal the 1-D transform.
-                let steps = UnsafeMutablePointer<Int64>.allocate(capacity: w * h)
-                defer { steps.deallocate() }
-                let none = Int64(Int32.max)
-                for x in 0..<w { steps[x] = t[x] ? 0 : none }
-                if h > 1 {
-                    for y in 1..<h {
-                        let row = y * w
-                        for x in 0..<w {
-                            let above = steps[row - w + x]
-                            steps[row + x] = t[row + x] ? 0 : (above == none ? none : above + 1)
-                        }
+            // Column pass: for a 0/infinity input two row-major sweeps equal the 1-D transform.
+            let steps = UnsafeMutablePointer<Int32>.allocate(capacity: w * h)
+            defer { steps.deallocate() }
+            let none = Int32.max
+            for x in 0..<w { steps[x] = t[x] ? 0 : none }
+            if h > 1 {
+                for y in 1..<h {
+                    let row = y * w
+                    for x in 0..<w {
+                        let above = steps[row - w + x]
+                        steps[row + x] = t[row + x] ? 0 : (above == none ? none : above + 1)
                     }
                 }
-                for x in 0..<w {
-                    let last = (h - 1) * w + x
-                    g[last] = steps[last] == none ? infinity : steps[last] * steps[last]
-                }
-                if h > 1 {
-                    for y in stride(from: h - 2, through: 0, by: -1) {
-                        let row = y * w
-                        for x in 0..<w {
-                            let below = steps[row + w + x]
-                            let step = min(steps[row + x], below == none ? none : below + 1)
-                            steps[row + x] = step
-                            g[row + x] = step == none ? infinity : step * step
-                        }
+                for y in stride(from: h - 2, through: 0, by: -1) {
+                    let row = y * w
+                    for x in 0..<w {
+                        let below = steps[row + w + x]
+                        steps[row + x] = min(steps[row + x], below == none ? none : below + 1)
                     }
                 }
-                out.withUnsafeMutableBufferPointer { o in
-                    for y in 0..<h {
-                        let row = y * w
-                        for x in 0..<w { f[x] = g[row + x] }
-                        transform(w)
-                        for x in 0..<w { o[row + x] = Int32(clamping: d[x]) }
+            }
+            out.withUnsafeMutableBufferPointer { o in
+                for y in 0..<h {
+                    let row = y * w
+                    for x in 0..<w {
+                        let step = steps[row + x]
+                        f[x] = step == none ? infinity : Int64(step) * Int64(step)
                     }
+                    transform(w)
+                    for x in 0..<w { o[row + x] = Int32(clamping: d[x]) }
                 }
             }
         }
@@ -736,12 +822,14 @@ enum V2StyleEstimator {
     }
 
     static func channelMedian(_ rgb: [UInt8], indices: [Int]) -> [Double] {
-        var histograms = [[Int]](repeating: [Int](repeating: 0, count: 256), count: 3)
-        for i in indices {
-            histograms[0][Int(rgb[i * 3])] += 1; histograms[1][Int(rgb[i * 3 + 1])] += 1; histograms[2][Int(rgb[i * 3 + 2])] += 1
-        }
         guard !indices.isEmpty else { return [255, 255, 255] }
-        return histograms.map { histogramMedian($0, count: indices.count) }
+        var histograms = [Int](repeating: 0, count: 768)
+        histograms.withUnsafeMutableBufferPointer { h in
+            rgb.withUnsafeBufferPointer { rgb in
+                for i in indices { h[Int(rgb[i * 3])] += 1; h[256 + Int(rgb[i * 3 + 1])] += 1; h[512 + Int(rgb[i * 3 + 2])] += 1 }
+            }
+        }
+        return (0..<3).map { histogramMedian(Array(histograms[(256 * $0)..<(256 * $0 + 256)]), count: indices.count) }
     }
 
     /// numpy-style median (mean of the two middle values) of a value histogram.
@@ -937,21 +1025,30 @@ extension V2StyleEstimator {
         }
         var observations: [OutlineObservation?] = Array(repeating: nil, count: analyses.count)
         var scores: [Double?] = Array(repeating: nil, count: analyses.count)
-        for index in analyses.indices {
-            guard var analysis = analyses[index],
-                  let j = pickFill(analysis.features, forest: P.fillPass2, consensus: consensus) else { continue }
-            let f = analysis.features
-            let profile = analysis.profile(j)
-            let rings = profile.compactMap { $0 }
-            let background = (rings.isEmpty ? f.ringBackground : median(rings.suffix(3).map(\.median)))
-                .map { $0.rounded(.toNearestOrEven) }
-            results[index].textColor = rgb(f.clusters[j].core)
-            results[index].bold = f.clusters[j].strokeWidth / f.font >= P.boldStrokeRatio
-            if let observation = outlineObservation(f, fill: j, rings: profile, background: background) {
-                observations[index] = observation
-                scores[index] = P.outline.logit(observation.features)
+        // Blocks are independent given the consensus (each ring profile is a distance transform).
+        analyses.withUnsafeMutableBufferPointer { analyses in
+            results.withUnsafeMutableBufferPointer { results in
+                observations.withUnsafeMutableBufferPointer { observations in
+                    scores.withUnsafeMutableBufferPointer { scores in
+                        DispatchQueue.concurrentPerform(iterations: analyses.count) { index in
+                            guard var analysis = analyses[index],
+                                  let j = pickFill(analysis.features, forest: P.fillPass2, consensus: consensus) else { return }
+                            let f = analysis.features
+                            let profile = analysis.profile(j)
+                            let rings = profile.compactMap { $0 }
+                            let background = (rings.isEmpty ? f.ringBackground : median(rings.suffix(3).map(\.median)))
+                                .map { $0.rounded(.toNearestOrEven) }
+                            results[index].textColor = rgb(f.clusters[j].core)
+                            results[index].bold = f.clusters[j].strokeWidth / f.font >= P.boldStrokeRatio
+                            if let observation = outlineObservation(f, fill: j, rings: profile, background: background) {
+                                observations[index] = observation
+                                scores[index] = P.outline.logit(observation.features)
+                            }
+                            analyses[index] = analysis
+                        }
+                    }
+                }
             }
-            analyses[index] = analysis
         }
         // pass 2: page consensus of the outline score (lettering is consistent within a page)
         let present = scores.compactMap { $0 }

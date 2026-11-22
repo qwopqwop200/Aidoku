@@ -327,10 +327,15 @@ extension DownloadTask {
             let ceiling = translationSettings == nil ? Self.maxConcurrentPageTasks : 2
             let limit = AppSettings.downloads.parallel.get()
                 ? max(1, min(source.config?.maximumParallelRequests ?? ceiling, ceiling)) : 1
+            // Translating: `limit` requests fetch the next pages (files) while the translator's
+            // pipeline width of pages translate, so fetches are off the translation critical path.
+            let fetchGate = translationSettings.map { _ in TranslationProviderRequestLimiter(maximumConcurrentRequests: limit) }
+            let window = translationSettings.map { limit + DownloadImageTranslator.pipelineWidth(settings: $0) } ?? limit
             var next = networkPages.makeIterator()
-            for _ in 0..<limit {
+            for _ in 0..<window {
                 if let page = next.next() {
-                    group.addTask { await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory, translationSettings: translationSettings) }
+                    group.addTask { await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory,
+                                                            translationSettings: translationSettings, fetchGate: fetchGate) }
                 }
             }
             while let result = await group.next() {
@@ -357,7 +362,8 @@ extension DownloadTask {
                 }
                 // Refill before publishing progress to keep transport slots busy.
                 if let page = next.next() {
-                    group.addTask { await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory, translationSettings: translationSettings) }
+                    group.addTask { await self.downloadPage(page, source: source, tmpDirectory: tmpDirectory,
+                                                            translationSettings: translationSettings, fetchGate: fetchGate) }
                 }
                 await incrementProgress(for: download.chapterIdentifier, failedPage: failed ? result.pageNumber : nil)
             }
@@ -391,9 +397,14 @@ extension DownloadTask {
 
     // Every result is a file, so queued output never holds decoded images.
     private func downloadPage(_ page: NetworkPage, source: AidokuRunner.Source, tmpDirectory: URL,
-                              translationSettings: ReaderTranslationSettings?) async -> PageDownloadResult {
+                              translationSettings: ReaderTranslationSettings?,
+                              fetchGate: TranslationProviderRequestLimiter?) async -> PageDownloadResult {
         let request = await source.getModifiedImageRequest(url: page.url, context: page.context)
-        let fetched = await fetchPageData(for: request, tmpDirectory: tmpDirectory)
+        let fetched = if let fetchGate {
+            try? await fetchGate.withPermit { await self.fetchPageData(for: request, tmpDirectory: tmpDirectory) }
+        } else {
+            await fetchPageData(for: request, tmpDirectory: tmpDirectory)
+        }
         guard fetched != nil || source.features.processesPages else { return .init(pageNumber: page.pageNumber, file: nil) }
         defer { fetched?.0.removeItem() }
         let staged = tmpDirectory.appendingPathComponent(".incoming-\(page.pageNumber)-\(UUID().uuidString)")

@@ -5,7 +5,8 @@ actor ReaderTranslationService {
     private let client: RemoteTranslating
     private let warmsOCROnReaderOpen: Bool
     private var service: TranslationService?
-    private let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 16)
+    // One permit stays free for the visible page while look-ahead and downloads fill the rest.
+    private let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 16, foregroundReserve: 1)
 
     private var activeReaders: Set<UUID> = []
     private var metadataGeneration: UInt64 = 0
@@ -19,11 +20,16 @@ actor ReaderTranslationService {
             metadataGeneration &+= 1
             for task in metadataTasks.values { task.cancel() }
             if warmsOCROnReaderOpen {
-                if #available(iOS 18.0, *), ReaderTranslationSettings().shouldProcessReaderPages {
+                let warmsConnection = ReaderTranslationSettings().shouldProcessReaderPages
+                if #available(iOS 18.0, *), warmsConnection {
                     Task(priority: .utility) { await ReaderTranslationV2Service.shared.prewarm() }
                 }
                 let configuration = ReaderTranslationSettings().configuration
-                Task(priority: .utility) { [client] in await client.prepare(configuration: configuration) }
+                Task(priority: .utility) { [client] in
+                    await client.prepare(configuration: configuration)
+                    // The first page's request then skips connection setup.
+                    if warmsConnection { await client.warmConnection(configuration: configuration) }
+                }
             }
         } else {
             activeReaders.remove(owner)
@@ -132,6 +138,12 @@ actor ReaderTranslationService {
         try await service?.purgeCache()
     }
 
+    /// Called when a page starts S1-S4 that will need a provider request (throttled per origin).
+    nonisolated func warmProviderConnection(settings: ReaderTranslationSettings) {
+        let configuration = settings.configuration
+        Task(priority: .utility) { [client] in await client.warmConnection(configuration: configuration) }
+    }
+
     /// V2 S5: one page request through the live client, sharing the provider limit.
     @available(iOS 18.0, *)
     func translateV2(
@@ -158,13 +170,20 @@ actor ReaderTranslationService {
                 guard attempt < Self.retryDelays.count, Self.isTransient(error, attempt: attempt), !Task.isCancelled else {
                     throw error
                 }
-                try await Task.sleep(nanoseconds: Self.retryDelays[attempt])
+                try await Task.sleep(nanoseconds: Self.retryDelay(after: error, attempt: attempt))
                 attempt += 1
             }
         }
     }
 
     static let retryDelays: [UInt64] = [1_000_000_000, 3_000_000_000]
+
+    /// A first connection loss is usually a reused idle connection the server had closed; the
+    /// retry opens a new one, so it need not wait. Other failures keep the 1 s / 3 s backoff.
+    static func retryDelay(after error: Error, attempt: Int) -> UInt64 {
+        if attempt == 0, case .transport(.networkConnectionLost)? = error as? RemoteTranslationError { return 0 }
+        return retryDelays[attempt]
+    }
 
     /// Provider failures worth an automatic retry (a malformed response only on the first attempt).
     static func isTransient(_ error: Error, attempt: Int) -> Bool {

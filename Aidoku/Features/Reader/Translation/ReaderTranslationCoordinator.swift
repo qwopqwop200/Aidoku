@@ -214,6 +214,10 @@ final class ReaderTranslationCoordinator {
 
     func install() {
         guard #available(iOS 18.0, *), let owner else { return }
+        // Start the model load at viewDidLoad, not after the push transition (viewDidAppear).
+        if ReaderTranslationSettings().shouldProcessReaderPages {
+            Task(priority: .userInitiated) { await ReaderTranslationV2Service.shared.prewarm() }
+        }
         button.accessibilityLabel = NSLocalizedString("TRANSLATION_TITLE")
         button.accessibilityIdentifier = "reader.translation.toggle"
         button.tintColor = .secondaryLabel
@@ -252,10 +256,10 @@ final class ReaderTranslationCoordinator {
         initialSynchronizationPending = true
     }
 
-    /// Chapter changes: stop page work for the old chapter.
+    /// Chapter changes: stop page work for the old chapter. The look-ahead is pruned by the
+    /// next synchronization instead, so a next-chapter page translated ahead is joined, not lost.
     func cancel() {
         v2Pages.allObjects.forEach { $0.cancelV2Work() }
-        cancelV2Lookahead()
     }
 
     /// The V2 models remain warm across readers; memory pressure releases them.
@@ -371,13 +375,7 @@ final class ReaderTranslationCoordinator {
             ReaderTranslationDiagnostics.record("loaded_translation_miss")
             return nil
         }
-        // The cached bitmap is the upright source; it must match the source size.
-        let upright = [.up, .upMirrored, .down, .downMirrored].contains(image.imageOrientation)
-        let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
-        let expected = upright ? pixelSize : CGSize(width: pixelSize.height, height: pixelSize.width)
-        guard abs(CGFloat(cached.width) - expected.width) <= 1, abs(CGFloat(cached.height) - expected.height) <= 1 else {
-            return nil
-        }
+        guard ReaderTranslationPage.fits(cached, source: image) else { return nil }
         ReaderTranslationDiagnostics.record("loaded_translation_hit")
         return ReaderTranslationPreparedImage(
             image: UIImage(cgImage: cached, scale: image.scale, orientation: .up), settings: settings, v2CacheKey: key,
@@ -446,8 +444,10 @@ extension ReaderTranslationCoordinator {
                         }.value
                         try Task.checkCancellation()
                         guard let pixels else { continue }
-                        _ = try await ReaderTranslationV2Service.shared.translatePage(
+                        let output = try await ReaderTranslationV2Service.shared.translatePage(
                             pixels, cacheKey: key(page, crop), settings: settings, priority: .prefetch)
+                        try Task.checkCancellation()
+                        self?.presentFinished(output.image, key: key(page, crop))
                     }
                     if let self, !Task.isCancelled {
                         if v2LookaheadFinished.count >= 256 { v2LookaheadFinished.removeAll() }
@@ -496,6 +496,14 @@ extension ReaderTranslationCoordinator {
             next.append(page)
         }
         return visiblePages + next
+    }
+
+    /// Without this a loaded page shows its source until it is visible and the sync debounce
+    /// (180-350 ms after a turn) runs `processV2`, which then finds the page in memory.
+    private func presentFinished(_ output: CGImage, key: String) {
+        let settings = pageSettings()
+        guard isVisible, settings.automaticallyTranslate, settings.overlay.visible else { return }
+        ReaderTranslationPage.presentFinished(output, key: key, settings: settings)
     }
 
     private func cancelV2Lookahead() {

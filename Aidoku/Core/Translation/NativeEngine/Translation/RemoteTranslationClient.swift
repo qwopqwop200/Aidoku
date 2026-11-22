@@ -3,6 +3,9 @@ import Foundation
 protocol RemoteTranslating: Sendable {
     func prepare(configuration: RemoteTranslationConfiguration) async
 
+    /// Opens the provider connection ahead of a page request (no credential or body is sent).
+    func warmConnection(configuration: RemoteTranslationConfiguration) async
+
     func translate(
         _ request: RemoteTranslationRequest,
         configuration: RemoteTranslationConfiguration
@@ -11,6 +14,40 @@ protocol RemoteTranslating: Sendable {
 
 extension RemoteTranslating {
     func prepare(configuration: RemoteTranslationConfiguration) async {}
+    func warmConnection(configuration: RemoteTranslationConfiguration) async {}
+}
+
+/// Provider origins with traffic in flight or within `idleSeconds`; only an idle origin is warmed,
+/// so a page's request reuses an open TCP/TLS (HTTP/2) connection instead of setting one up.
+final class ProviderConnectionWarmth: @unchecked Sendable {
+    static let idleSeconds: TimeInterval = 2
+
+    private let lock = NSLock()
+    private var active: [String: Int] = [:]
+    private var lastActivity: [String: TimeInterval] = [:]
+
+    static func origin(of url: URL) -> String? {
+        guard let scheme = url.scheme?.lowercased(), let host = url.host?.lowercased() else { return nil }
+        return scheme + "://" + host + ":" + String(url.port ?? (scheme == "http" ? 80 : 443))
+    }
+
+    /// A warm-up is admitted only when nothing used the origin recently; traffic always is.
+    func begin(_ origin: String, warmUp: Bool, now: TimeInterval) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if warmUp, active[origin, default: 0] > 0 || now - (lastActivity[origin] ?? -.infinity) < Self.idleSeconds {
+            return false
+        }
+        active[origin, default: 0] += 1
+        return true
+    }
+
+    func end(_ origin: String, now: TimeInterval) {
+        lock.lock(); defer { lock.unlock() }
+        let remaining = active[origin, default: 1] - 1
+        active[origin] = remaining > 0 ? remaining : nil
+        if lastActivity.count >= 32 { lastActivity = lastActivity.filter { now - $0.value < 600 } }
+        lastActivity[origin] = now
+    }
 }
 
 /// Per-endpoint record of whether a custom server accepts the compact structured format. Only a
@@ -199,6 +236,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     private let imageSupport: TranslationImageSupport
     private let rechecksImageSupport: Bool
     let compactOutput = CompactChatOutputRegistry()
+    let connectionWarmth = ProviderConnectionWarmth()
     private struct UnsupportedImageInput: Error {}
 
     init(
@@ -233,6 +271,10 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
                                      cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 1.5)
             request.setValue("Bearer " + secret, forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
+            // The probe also opens the connection that a reader-open warm-up would.
+            let origin = ProviderConnectionWarmth.origin(of: endpoint)
+            if let origin { _ = connectionWarmth.begin(origin, warmUp: false, now: ProcessInfo.processInfo.systemUptime) }
+            defer { if let origin { connectionWarmth.end(origin, now: ProcessInfo.processInfo.systemUptime) } }
             let response = try await transport.data(for: request, maximumResponseBytes: 64 * 1024,
                                                     bypassesProxy: endpoint.scheme == "http")
             try Task.checkCancellation()
@@ -245,6 +287,23 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         } catch {
             // Metadata is optional; translation reports its own errors.
         }
+    }
+
+    /// A credential-free HEAD to the endpoint while the page is still in OCR: DNS, TCP and TLS
+    /// (1-3 round trips) are then already done when the page request is sent on that connection.
+    func warmConnection(configuration: RemoteTranslationConfiguration) async {
+        guard !Task.isCancelled, let endpoint = try? configuration.validatedEndpoint(),
+              let origin = ProviderConnectionWarmth.origin(of: endpoint),
+              connectionWarmth.begin(origin, warmUp: true, now: ProcessInfo.processInfo.systemUptime)
+        else { return }
+        defer { connectionWarmth.end(origin, now: ProcessInfo.processInfo.systemUptime) }
+        // Without a stored key the page request is never sent.
+        guard (try? credentialStore.secret(for: configuration.credentialAccount)) != nil else { return }
+        var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 5)
+        request.httpMethod = "HEAD"
+        request.setValue("Aidoku-iOS/1", forHTTPHeaderField: "User-Agent")
+        // Any answer (typically 404/405) leaves the connection open; failures are the page request's to report.
+        _ = try? await transport.data(for: request, maximumResponseBytes: 1024 * 1024, bypassesProxy: endpoint.scheme == "http")
     }
 
     func translate(
@@ -458,6 +517,9 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             ? configuration.maximumResponseBytes.multipliedReportingOverflow(by: 8).partialValue
             : configuration.maximumResponseBytes
         let transportResponse: TranslationHTTPResponse
+        let origin = ProviderConnectionWarmth.origin(of: endpoint)
+        if let origin { _ = connectionWarmth.begin(origin, warmUp: false, now: ProcessInfo.processInfo.systemUptime) }
+        defer { if let origin { connectionWarmth.end(origin, now: ProcessInfo.processInfo.systemUptime) } }
         do {
             transportResponse = try await transport.data(
                 for: urlRequest, maximumResponseBytes: maximumBodyBytes, bypassesProxy: endpoint.scheme == "http"

@@ -31,8 +31,17 @@ final class ReaderTranslationPage {
     private weak var v2Source: UIImage?
     private var v2Failed = false
     private(set) var isPresentingV2 = false
+    var hasV2Work: Bool { v2Task != nil }
 
-    init(imageView: UIImageView) { self.imageView = imageView }
+    /// Live pages, so a page finished by look-ahead attaches before it turns or scrolls into view.
+    private static let live = NSHashTable<ReaderTranslationPage>.weakObjects()
+    /// Bumped whenever a finished page becomes presentable; a view that probed the cache earlier probes again.
+    static var finishedGeneration = 0
+
+    init(imageView: UIImageView) {
+        self.imageView = imageView
+        Self.live.add(self)
+    }
 
     deinit { v2Task?.cancel() }
 
@@ -165,6 +174,32 @@ extension ReaderTranslationPage {
         }
         begin(key: key, source: source)
         displayV2(output, source: source, settings: settings)
+    }
+
+    /// Attaches a page that finished elsewhere (look-ahead) to every live view showing its source,
+    /// such as a paged neighbour or a webtoon page below the viewport that loaded before it finished.
+    static func presentFinished(_ output: CGImage, key: String, settings: ReaderTranslationSettings) {
+        guard #available(iOS 18.0, *) else { return }
+        finishedGeneration &+= 1
+        for page in live.allObjects {
+            // A page with its own V2 task joins the same computation and presents it itself.
+            guard page.v2Task == nil, !(page.isPresentingV2 && page.v2Identity == key),
+                  let source = page.imageView?.image, let sourcePage = page.sourcePage, fits(output, source: source),
+                  ReaderTranslationV2Service.cacheKey(page: sourcePage.translationCacheKey,
+                      crop: sourcePage.translationSourceRect ?? ReaderTranslationSplitGeometry.unit, settings: settings) == key
+            else { continue }
+            ReaderTranslationDiagnostics.record("v2_lookahead_attached", page: sourcePage.index + 1)
+            page.displayLoadedV2(UIImage(cgImage: output, scale: source.scale, orientation: .up),
+                                 key: key, source: source, settings: settings)
+        }
+    }
+
+    /// A V2 bitmap is the upright source: it must match the source's pixel size.
+    static func fits(_ output: CGImage, source image: UIImage) -> Bool {
+        let upright = [.up, .upMirrored, .down, .downMirrored].contains(image.imageOrientation)
+        let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        let expected = upright ? pixelSize : CGSize(width: pixelSize.height, height: pixelSize.width)
+        return abs(CGFloat(output.width) - expected.width) <= 1 && abs(CGFloat(output.height) - expected.height) <= 1
     }
 
     private func begin(key: String, source: UIImage) {

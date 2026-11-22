@@ -77,14 +77,12 @@ enum TranslationRequestPriority: Sendable {
     case foreground
     case prefetch
     case metadata(MetadataTranslationPriority)
-    case promotable(TranslationRequestPromotion)
     case shared(TranslationRequestPrioritySet)
 
     var isForeground: Bool {
         switch self {
         case .foreground: true
         case .prefetch, .metadata: false
-        case .promotable(let promotion): promotion.isForeground
         case .shared(let priorities): priorities.schedulingRank == 0
         }
     }
@@ -93,10 +91,17 @@ enum TranslationRequestPriority: Sendable {
         switch self {
         case .foreground: 0
         case .prefetch: 1
-        case .promotable(let promotion): promotion.isForeground ? 0 : 1
         case .shared(let priorities): priorities.schedulingRank
         case .metadata(let priority): priority.rawValue
         }
+    }
+
+    /// Page look-ahead (and a left page's remaining work), kept out of foreground-reserved capacity.
+    var isPrefetch: Bool { schedulingRank == Self.prefetch.schedulingRank }
+
+    /// Runs `action` after every change of a shared rank, so a gate can admit a raised waiter.
+    func observeChanges(_ action: @escaping @Sendable () -> Void) {
+        if case .shared(let priorities) = self { priorities.observe(action) }
     }
 }
 
@@ -105,6 +110,7 @@ enum TranslationRequestPriority: Sendable {
 final class TranslationRequestPrioritySet: @unchecked Sendable {
     private let lock = NSLock()
     private var consumers: [UUID: TranslationRequestPriority] = [:]
+    private var observers: [@Sendable () -> Void] = []
 
     var schedulingRank: Int {
         let priorities = lock.withLock { Array(consumers.values) }
@@ -112,25 +118,21 @@ final class TranslationRequestPrioritySet: @unchecked Sendable {
     }
 
     func set(_ priority: TranslationRequestPriority, for consumer: UUID) {
-        lock.withLock { consumers[consumer] = priority }
+        let observers = lock.withLock {
+            consumers[consumer] = priority
+            return self.observers
+        }
+        observers.forEach { $0() }
     }
 
     func remove(_ consumer: UUID) { _ = lock.withLock { consumers.removeValue(forKey: consumer) } }
-}
 
-/// Shared by one page's queued provider requests. Promotion never cancels or
-/// duplicates an in-flight request.
-final class TranslationRequestPromotion: @unchecked Sendable {
-    private let lock = NSLock()
-    private var foreground = false
-
-    var isForeground: Bool { lock.withLock { foreground } }
-
-    func promote() { lock.withLock { foreground = true } }
+    func observe(_ action: @escaping @Sendable () -> Void) { lock.withLock { observers.append(action) } }
 }
 
 /// Page work precedes metadata; each priority remains FIFO.
-/// All priorities share the configured total request cap.
+/// All priorities share the configured total request cap; with a cap of at least two,
+/// `foregroundReserve` permits stay free for foreground work while look-ahead waits.
 actor TranslationProviderRequestLimiter {
     private struct Waiter {
         let id: UUID
@@ -139,12 +141,19 @@ actor TranslationProviderRequestLimiter {
     }
 
     private(set) var maximumConcurrentRequests: Int
+    private let foregroundReserve: Int
     private var activeRequests = 0
     private var waiters: [Waiter] = []
 
-    init(maximumConcurrentRequests: Int) {
+    init(maximumConcurrentRequests: Int, foregroundReserve: Int = 0) {
         precondition(maximumConcurrentRequests > 0)
         self.maximumConcurrentRequests = maximumConcurrentRequests
+        self.foregroundReserve = max(0, foregroundReserve)
+    }
+
+    private func admits(_ priority: TranslationRequestPriority) -> Bool {
+        let reserve = priority.isPrefetch ? min(foregroundReserve, maximumConcurrentRequests - 1) : 0
+        return activeRequests + reserve < maximumConcurrentRequests
     }
 
     func setMaximumConcurrentRequests(_ value: Int) {
@@ -167,10 +176,12 @@ actor TranslationProviderRequestLimiter {
 
     private func acquire(waiterID: UUID, priority: TranslationRequestPriority) async throws {
         try Task.checkCancellation()
-        if activeRequests < maximumConcurrentRequests {
+        if admits(priority) {
             activeRequests += 1
             return
         }
+        // A waiter raised to foreground may take a reserved permit at once.
+        priority.observeChanges { [weak self] in Task { await self?.admitWaiters() } }
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation {
                 (continuation: CheckedContinuation<Void, Error>) in
@@ -178,6 +189,7 @@ actor TranslationProviderRequestLimiter {
                     continuation.resume(throwing: CancellationError())
                 } else {
                     waiters.append(Waiter(id: waiterID, priority: priority, continuation: continuation))
+                    admitWaiters()
                 }
             }
         } onCancel: {
@@ -203,6 +215,8 @@ actor TranslationProviderRequestLimiter {
                 let right = waiters[$1].priority.schedulingRank
                 return left == right ? $0 < $1 : left < right
             } ?? 0
+            // Look-ahead held back by the reserve; lower ranks keep waiting behind it.
+            guard admits(waiters[index].priority) else { return }
             activeRequests += 1
             waiters.remove(at: index).continuation.resume()
         }

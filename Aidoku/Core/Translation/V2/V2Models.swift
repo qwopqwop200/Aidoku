@@ -134,13 +134,17 @@ final class V2Models: @unchecked Sendable {
         self.loadMilliseconds = loadMilliseconds
     }
 
-    /// Loads all models from compiled `.mlmodelc` resources; the detector program loads
-    /// lazily, so call `warmUp()` before the first page.
+    /// Loads all models from compiled `.mlmodelc` resources, concurrently; the detector program
+    /// loads lazily, so call `warmUp()` before the first page.
     static func load(bundle: Bundle = .main, detectorInstances: Int = 2, inpainterInstances: Int = 2) throws -> V2Models {
+        let lock = NSLock()
         var timings: [String: Double] = [:]
         func timed<T>(_ name: String, _ body: () throws -> T) rethrows -> T {
             let start = DispatchTime.now().uptimeNanoseconds
-            defer { timings[name] = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000 }
+            defer {
+                let elapsed = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
+                lock.withLock { timings[name] = elapsed }
+            }
             return try body()
         }
         func compiled(_ name: String) throws -> URL {
@@ -154,13 +158,27 @@ final class V2Models: @unchecked Sendable {
                 NativeCoreMLDetector(bundle: bundle)
             }
         }
-        let recognition = try timed("recognizer") { try V2RecognitionEngine.load(bundle: bundle) }
-        let layout = try timed("layout") { try V2RFDETRModel(compiledURL: compiled(V2RFDETRModel.resourceName)) }
-        let inpainters = try timed("inpainter") {
-            try (0..<max(1, inpainterInstances)).map { _ in try V2AOTModel(compiledURL: compiled(V2AOTModel.resourceName)) }
+        // Independent loads overlap: the set is resident after the slowest one, not their sum.
+        var recognition: Result<V2RecognitionEngine, Error>?
+        var layout: Result<V2RFDETRModel, Error>?
+        var inpainters: Result<[V2AOTModel], Error>?
+        DispatchQueue.concurrentPerform(iterations: 3) { index in
+            switch index {
+            case 0:
+                let result = Result { try timed("recognizer") { try V2RecognitionEngine.load(bundle: bundle) } }
+                lock.withLock { recognition = result }
+            case 1:
+                let result = Result { try timed("layout") { try V2RFDETRModel(compiledURL: compiled(V2RFDETRModel.resourceName)) } }
+                lock.withLock { layout = result }
+            default:
+                let result = Result { try timed("inpainter") {
+                    try (0..<max(1, inpainterInstances)).map { _ in try V2AOTModel(compiledURL: compiled(V2AOTModel.resourceName)) }
+                } }
+                lock.withLock { inpainters = result }
+            }
         }
-        return V2Models(detectors: detectors, recognition: recognition, layout: layout, inpainters: inpainters,
-                        loadMilliseconds: timings)
+        return try V2Models(detectors: detectors, recognition: recognition!.get(), layout: layout!.get(),
+                            inpainters: inpainters!.get(), loadMilliseconds: timings)
     }
 
     /// One throwaway prediction per model instance on a blank page, so the first real
@@ -170,8 +188,13 @@ final class V2Models: @unchecked Sendable {
         let raster = V2PageRaster(width: side, height: side, rgba: [UInt8](repeating: 255, count: side * side * 4))
         let page = V2Page(id: "v2-warm-up", image: try raster.image())
         let mask = (0..<(side * side)).map { (200..<240).contains($0 / side) && (200..<300).contains($0 % side) ? UInt8(255) : 0 }
+        let line = V2Line(polygon: [CGPoint(x: 240, y: 100), CGPoint(x: 272, y: 100), CGPoint(x: 272, y: 400),
+                                    CGPoint(x: 240, y: 400)],
+                          bounds: CGRect(x: 240, y: 100, width: 32, height: 300), vertical: true, detectionScore: 1)
         async let layoutWarm = V2LayoutDetection.detect(raster, models: self)
+        // Every model warms concurrently (the recognizer handles too), so the set is ready after the slowest.
         try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { try await V2Recognition.warmUp(page, line: line, engine: self.recognition) }
             for detector in detectors.all {
                 group.addTask { _ = try await V2Detection.detect(page, detector: detector) }
             }
@@ -180,10 +203,6 @@ final class V2Models: @unchecked Sendable {
             }
             try await group.waitForAll()
         }
-        let line = V2Line(polygon: [CGPoint(x: 240, y: 100), CGPoint(x: 272, y: 100), CGPoint(x: 272, y: 400),
-                                    CGPoint(x: 240, y: 400)],
-                          bounds: CGRect(x: 240, y: 100, width: 32, height: 300), vertical: true, detectionScore: 1)
-        try await V2Recognition.warmUp(page, line: line, engine: recognition)
         _ = try await layoutWarm
     }
 }

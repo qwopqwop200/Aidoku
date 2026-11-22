@@ -87,6 +87,18 @@ final class V2AOTModel: @unchecked Sendable {
         // Disjoint canvas rows per lane; the union patch averages up to the whole page.
         canvas.withUnsafeMutableBufferPointer { canvasBuffer in canvasMask.withUnsafeMutableBufferPointer { maskBuffer in
         nonisolated(unsafe) let out = canvasBuffer.baseAddress!, outMask = maskBuffer.baseAddress!
+        if (pw, ph) == (rw, rh) {
+            // Native resolution: each area is one pixel, so canvas rows are page rows (the canvas
+            // alpha is never read).
+            mask.withUnsafeBufferPointer { maskPage in rgba.withUnsafeBufferPointer { page in
+                for y in 0..<ph {
+                    let p = (y0 + y) * width + x0, c = (oy + y) * canvasWidth + ox
+                    (out + c * 4).update(from: page.baseAddress! + p * 4, count: pw * 4)
+                    (outMask + c).update(from: maskPage.baseAddress! + p, count: pw)
+                }
+            } }
+            return
+        }
         let lanes = rh >= 256 ? 8 : 1
         DispatchQueue.concurrentPerform(iterations: lanes) { lane in
         for y in (ph * lane / lanes)..<(ph * (lane + 1) / lanes) {
@@ -111,11 +123,14 @@ final class V2AOTModel: @unchecked Sendable {
         }
         } }
         for y in -pad..<(ph + pad) {
+            // Interior rows only visit their side borders (sources are interior, so order is free).
             let inside = y >= 0 && y < ph
-            for x in -pad..<(pw + pad) where !inside || x < 0 || x >= pw {
-                let c = (oy + y) * canvasWidth + ox + x
-                let s = (oy + min(ph - 1, max(0, y))) * canvasWidth + ox + min(pw - 1, max(0, x))
-                for k in 0..<4 { canvas[c * 4 + k] = canvas[s * 4 + k] }
+            for span in [-pad..<0, (inside ? pw : 0)..<(pw + pad)] {
+                for x in span {
+                    let c = (oy + y) * canvasWidth + ox + x
+                    let s = (oy + min(ph - 1, max(0, y))) * canvasWidth + ox + min(pw - 1, max(0, x))
+                    for k in 0..<4 { canvas[c * 4 + k] = canvas[s * 4 + k] }
+                }
             }
         }
     }
@@ -127,11 +142,28 @@ final class V2AOTModel: @unchecked Sendable {
         let columns = (width + cell - 1) / cell, rows = (height + cell - 1) / cell
         var occupied: [Int] = []
         var seen = [Bool](repeating: false, count: columns * rows)
-        for y in 0..<height {
-            let row = y * width, cellRow = (y / cell) * columns
-            for x in 0..<width where mask[row + x] != 0 && !seen[cellRow + x / cell] {
-                seen[cellRow + x / cell] = true
-                occupied.append(cellRow + x / cell)
+        // Same discovery order as a per-pixel scan: zero 8-byte words are skipped, and the rest of a
+        // cell is skipped once it is seen.
+        mask.withUnsafeBytes { bytes in
+            for y in 0..<height {
+                let row = y * width, cellRow = (y / cell) * columns
+                var x = 0
+                while x < width {
+                    if x + 8 <= width && bytes.loadUnaligned(fromByteOffset: row + x, as: UInt64.self) == 0 {
+                        x += 8
+                        continue
+                    }
+                    let c = cellRow + x / cell
+                    if seen[c] {
+                        x = (x / cell + 1) * cell
+                    } else if bytes[row + x] != 0 {
+                        seen[c] = true
+                        occupied.append(c)
+                        x = (x / cell + 1) * cell
+                    } else {
+                        x += 1
+                    }
+                }
             }
         }
         guard !occupied.isEmpty else { return [] }

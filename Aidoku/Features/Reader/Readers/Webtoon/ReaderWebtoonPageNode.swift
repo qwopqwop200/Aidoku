@@ -31,6 +31,8 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
         }
     }
     private var preparedTranslation: ReaderTranslationPreparedImage?
+    /// `ReaderTranslationPage.finishedGeneration` when `preparedTranslation` was probed.
+    private var preparedGeneration = 0
     // animatedData is consumed before frames decode, so record failures separately.
     private var hasLoadFailure = false
     private var releaseDeferredByZoom = false
@@ -107,6 +109,10 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
                     return false
                 }
                 self.translationPage?.displayLoadedImage(prepared)
+            } else if let page = self.translationPage, !page.isPresentingV2, !page.hasV2Work,
+                      self.preparedGeneration != ReaderTranslationPage.finishedGeneration {
+                // The view loaded after a cache miss and a page finished since: attach it if it is this one.
+                self.attachFinishedPage(image)
             }
             return true
         }
@@ -649,9 +655,10 @@ extension ReaderWebtoonPageNode {
         }
         let issued = pageLoadGeneration
         // Keep source pixels for OCR and save/share alongside the translated canvas.
-        func install(_ prepared: ReaderTranslationPreparedImage?, force: Bool) -> Bool {
+        func install(_ prepared: ReaderTranslationPreparedImage?, generation: Int, force: Bool) -> Bool {
             _translationPage?.reset()
             preparedTranslation = prepared
+            preparedGeneration = generation
             imageNode.animatedData = gifData
             image = sourceImage
             imageNode.image = sourceImage
@@ -663,11 +670,13 @@ extension ReaderWebtoonPageNode {
         do {
             while true {
                 try Task.checkCancellation()
+                let generation = ReaderTranslationPage.finishedGeneration
                 let prepared = try await delegate?.delegate?.prepareCachedTranslationForDisplay(image: sourceImage, page: page)
                 try Task.checkCancellation()
                 guard issued == pageLoadGeneration else { return false }
                 if prepared?.isCurrent() == false { continue }
-                if install(prepared.flatMap { $0.matchesSourceImage(sourceImage) ? $0 : nil }, force: false) { return true }
+                let current = prepared.flatMap { $0.matchesSourceImage(sourceImage) ? $0 : nil }
+                if install(current, generation: generation, force: false) { return true }
             }
         } catch is CancellationError {
             return false
@@ -675,7 +684,22 @@ extension ReaderWebtoonPageNode {
             guard !Task.isCancelled, issued == pageLoadGeneration else { return false }
             // A failed cached overlay does not invalidate the decoded source.
             ReaderTranslationDiagnostics.record("loaded_presentation_fallback")
-            return install(nil, force: true)
+            return install(nil, generation: ReaderTranslationPage.finishedGeneration, force: true)
+        }
+    }
+
+    /// Probes the cache again without hiding the committed source; a hit attaches in place.
+    @MainActor
+    private func attachFinishedPage(_ image: UIImage) {
+        preparedGeneration = ReaderTranslationPage.finishedGeneration
+        let issued = pageLoadGeneration
+        Task { @MainActor [weak self, page = self.page] in
+            guard let prepared = try? await self?.delegate?.delegate?.prepareCachedTranslationForDisplay(image: image, page: page),
+                  let self, issued == pageLoadGeneration, self.image === image, preparedTranslation == nil,
+                  let translationPage = _translationPage, !translationPage.isPresentingV2, !translationPage.hasV2Work
+            else { return }
+            preparedTranslation = prepared
+            translationPage.displayLoadedImage(prepared)
         }
     }
 

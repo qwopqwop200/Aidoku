@@ -1663,6 +1663,12 @@ extension ReaderPagedViewController {
         }
     }
 
+    /// The next chapter's pages once preloaded (empty for the previous chapter's cache).
+    var translationNextChapterPages: [Page] {
+        guard let nextChapter, viewModel.preloadedChapter == nextChapter else { return [] }
+        return viewModel.preloadedPages
+    }
+
     func translationPages() -> [ReaderTranslationPage] {
         guard #available(iOS 18.0, *) else { return [] }
         return visiblePageControllers().compactMap { $0.pageView?.translationPage }

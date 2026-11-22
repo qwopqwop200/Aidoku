@@ -38,6 +38,62 @@ struct V2PaidRequestTests {
         #expect(!ReaderTranslationService.isTransient(CancellationError(), attempt: 0))
     }
 
+    /// Look-ahead never takes the last compute slot; a waiting look-ahead raised to foreground takes it at once.
+    @Test func computeSlotsKeepOneSlotForTheVisiblePage() async throws {
+        let slots = V2ComputeSlots(count: 2)
+        try await slots.acquire(priority: .prefetch)
+        let priorities = TranslationRequestPrioritySet()
+        priorities.set(.prefetch, for: UUID())
+        let admitted = Box()
+        let waiting = Task {
+            try await slots.acquire(priority: .shared(priorities))
+            admitted.set()
+        }
+        try await Task.sleep(nanoseconds: 20_000_000)
+        #expect(!admitted.value)
+        priorities.set(.foreground, for: UUID())
+        try await waiting.value
+        #expect(admitted.value)
+    }
+
+    /// Look-ahead holds at most cap - 1 provider permits, so a visible page's request starts at once.
+    @Test func providerLimiterKeepsOnePermitForTheVisiblePage() async throws {
+        let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 2, foregroundReserve: 1)
+        let gate = AsyncStream<Void>.makeStream()
+        let holding = Task { try await limiter.withPermit(priority: .prefetch) { for await _ in gate.stream { break } } }
+        try await Task.sleep(nanoseconds: 20_000_000)
+        let queued = Box()
+        let lookahead = Task { try await limiter.withPermit(priority: .prefetch) { queued.set() } }
+        try await Task.sleep(nanoseconds: 20_000_000)
+        #expect(!queued.value)
+        try await limiter.withPermit(priority: .foreground) {}
+        gate.continuation.yield()
+        try await holding.value
+        try await lookahead.value
+        #expect(queued.value)
+    }
+
+    @Test func firstConnectionLossRetriesWithoutBackoff() {
+        let lost = RemoteTranslationError.transport(.networkConnectionLost)
+        #expect(ReaderTranslationService.retryDelay(after: lost, attempt: 0) == 0)
+        #expect(ReaderTranslationService.retryDelay(after: lost, attempt: 1) == 3_000_000_000)
+        #expect(ReaderTranslationService.retryDelay(after: RemoteTranslationError.transport(.timedOut), attempt: 0)
+            == 1_000_000_000)
+    }
+
+    @Test func connectionWarmUpOnlyTargetsIdleOrigins() throws {
+        let warmth = ProviderConnectionWarmth()
+        let origin = try #require(ProviderConnectionWarmth.origin(of: URL(string: "https://API.example/v1/responses")!))
+        #expect(origin == "https://api.example:443")
+        #expect(warmth.begin(origin, warmUp: true, now: 10))
+        #expect(!warmth.begin(origin, warmUp: true, now: 10.5))  // a warm-up is in flight
+        warmth.end(origin, now: 11)
+        #expect(!warmth.begin(origin, warmUp: true, now: 12))    // used 1 s ago
+        #expect(warmth.begin(origin, warmUp: false, now: 12))    // traffic is never throttled
+        warmth.end(origin, now: 12)
+        #expect(warmth.begin(origin, warmUp: true, now: 14.5))
+    }
+
     private final class Box: @unchecked Sendable {
         private let lock = NSLock()
         private var flag = false

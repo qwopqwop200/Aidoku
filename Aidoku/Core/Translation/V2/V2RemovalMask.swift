@@ -44,7 +44,9 @@ enum V2RemovalMask {
         // Peak memory scales with the frame pixels in flight: large blocks run in batches of at most
         // `concurrentBlockPixels` (one at a time when larger).
         let threads = max(1, ProcessInfo.processInfo.activeProcessorCount)
+        // Largest first: a page waits for its slowest block, so it should not start last.
         let small = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) <= concurrentBlockPixels / threads }
+            .sorted { (geometries[$0]?.frame.pixels ?? 0) > (geometries[$1]?.frame.pixels ?? 0) }
         let large = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) > concurrentBlockPixels / threads }
         rgba.withUnsafeBufferPointer { pixels in
             results.withUnsafeMutableBufferPointer { out in
@@ -436,12 +438,20 @@ enum V2RemovalMask {
     /// Blocks smaller than this run their feature groups serially.
     static let parallelPixels = 65_536
 
-    /// Runs `body(0..<count)`; concurrently (nested under the per-block loop) for large blocks.
+    /// Runs `body(0..<count)`; concurrently for large blocks. Inside the per-block
+    /// `concurrentPerform` a nested one gets only cores / blocks threads (serial for most pages),
+    /// so the other groups go to worker threads while this thread runs group 0.
     static func runGroups(_ count: Int, parallel: Bool, _ body: (Int) -> Void) {
-        if parallel {
-            DispatchQueue.concurrentPerform(iterations: count, execute: body)
-        } else {
+        guard parallel, count > 1 else {
             for group in 0..<count { body(group) }
+            return
+        }
+        withoutActuallyEscaping(body) { body in
+            let group = DispatchGroup()
+            let queue = DispatchQueue.global(qos: DispatchQoS.QoSClass(rawValue: qos_class_self()) ?? .default)
+            for index in 1..<count { queue.async(group: group) { body(index) } }
+            body(0)
+            group.wait()
         }
     }
 
@@ -592,11 +602,23 @@ enum V2RemovalMask {
         let chunk = min(rows, 16_384)
         guard chunk > 0 else { return }
         let chunks = (rows + chunk - 1) / chunk
-        runGroups(chunks, parallel: parallel && chunks > 1) { index in
+        let work = { (index: Int) in
             let start = index * chunk, count = min(chunk, rows - start)
+            gemmSlots.wait()
             mlpChunk(input, rows: rows, start: start, count: count, network: net, output: output + start)
+            gemmSlots.signal()
+        }
+        // A nested `concurrentPerform` (throttled like the feature groups were) keeps fewer chunks in flight.
+        if parallel && chunks > 1 {
+            DispatchQueue.concurrentPerform(iterations: chunks, execute: work)
+        } else {
+            (0..<chunks).forEach(work)
         }
     }
+
+    /// Concurrent MLP chunks, process-wide: sgemm throughput saturates at about 4 threads (shared
+    /// matrix units), and each chunk holds about 10 MB of layer scratch.
+    static let gemmSlots = DispatchSemaphore(value: 4)
 
     private static func mlpChunk(_ input: UnsafePointer<Float>, rows: Int, start: Int, count: Int, network net: Network,
                                  output o: UnsafeMutablePointer<Float>) {
@@ -752,12 +774,10 @@ enum V2RemovalMask {
         var top = h, bottom = -1, left = w, right = -1
         for y in 0..<h {
             let source = plane + y * w, row = d + y * w
-            var first = -1, last = -1
-            for x in 0..<w {
-                let seed = (source[x] > 0) != inverted
-                row[x] = seed ? far : 0
-                if seed { if first < 0 { first = x }; last = x }
-            }
+            for x in 0..<w { row[x] = (source[x] > 0) != inverted ? far : 0 }
+            var first = 0, last = w - 1
+            while first < w && row[first] == 0 { first += 1 }
+            if first == w { first = -1 } else { while row[last] == 0 { last -= 1 } }
             if first >= 0 {
                 top = min(top, y); bottom = y
                 left = min(left, first); right = max(right, last)
@@ -782,14 +802,15 @@ enum V2RemovalMask {
         for y in top...bottom {
             let row = d + y * w
             if y > 0 { vertical(row, row - w) }
-            var x = max(1, left)
-            while x <= right { row[x] = min(row[x], row[x - 1] + a); x += 1 }
+            // The running value stays in a register (no store-to-load round trip per pixel).
+            var x = max(1, left), previous = row[x - 1]
+            while x <= right { previous = min(row[x], previous + a); row[x] = previous; x += 1 }
         }
         for y in stride(from: bottom, through: top, by: -1) {
             let row = d + y * w
             if y + 1 < h { vertical(row, row + w) }
-            var x = min(w - 2, right)
-            while x >= left { row[x] = min(row[x], row[x + 1] + a); x -= 1 }
+            var x = min(w - 2, right), previous = row[x + 1]
+            while x >= left { previous = min(row[x], previous + a); row[x] = previous; x -= 1 }
         }
     }
 

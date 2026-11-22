@@ -90,8 +90,9 @@ final class V2RecognitionEngine: @unchecked Sendable {
             languageModelURL: find(languageModelResourceName, ["bin"]))
     }
 
-    func withHandle<T>(_ body: (MLModel) async throws -> T) async throws -> T {
-        let model = await pool.acquire()
+    /// `rank` (lower first, read when a handle frees) orders pages that wait for a handle.
+    func withHandle<T>(rank: @escaping @Sendable () -> Int = { 0 }, _ body: (MLModel) async throws -> T) async throws -> T {
+        let model = await pool.acquire(rank: rank)
         do {
             let value = try await body(model)
             await pool.release(model)
@@ -144,17 +145,21 @@ final class V2RecognitionEngine: @unchecked Sendable {
         func models() throws -> [MLModel] { try results.map { try $0!.get() } }
     }
 
-    /// Exclusive handle checkout shared by concurrent pages.
+    /// Exclusive handle checkout shared by concurrent pages: a freed handle goes to the
+    /// best-ranked waiter, FIFO within a rank.
     private actor HandlePool {
         private var free: [MLModel]
-        private var waiters: [CheckedContinuation<MLModel, Never>] = []
+        private var waiters: [(rank: @Sendable () -> Int, continuation: CheckedContinuation<MLModel, Never>)] = []
         init(_ models: [MLModel]) { free = models }
-        func acquire() async -> MLModel {
+        func acquire(rank: @escaping @Sendable () -> Int) async -> MLModel {
             if let model = free.popLast() { return model }
-            return await withCheckedContinuation { waiters.append($0) }
+            return await withCheckedContinuation { waiters.append((rank, $0)) }
         }
         func release(_ model: MLModel) {
-            if waiters.isEmpty { free.append(model) } else { waiters.removeFirst().resume(returning: model) }
+            guard !waiters.isEmpty else { free.append(model); return }
+            let ranks = waiters.map { $0.rank() }
+            let best = ranks.indices.min { ranks[$0] == ranks[$1] ? $0 < $1 : ranks[$0] < ranks[$1] } ?? 0
+            waiters.remove(at: best).continuation.resume(returning: model)
         }
     }
 }
@@ -170,16 +175,20 @@ enum V2Recognition {
     }
 
     /// The accepted lines (non-empty text, confidence >= `minimumConfidence`) in input order.
-    static func recognize(_ page: V2Page, lines: [V2Line], engine: V2RecognitionEngine) async throws -> [V2Line] {
+    static func recognize(_ page: V2Page, lines: [V2Line], engine: V2RecognitionEngine,
+                          rank: @escaping @Sendable () -> Int = { 0 }) async throws -> [V2Line] {
         guard !lines.isEmpty else { return [] }
         guard let frame = NativeOCRCGImageAdapter.makeRGBAFrame(from: page.image) else {
             throw V2RecognitionEngine.Failure.imageConversionFailed
         }
-        return try await recognize(frame: frame, lines: lines, engine: engine)
+        return try await recognize(frame: frame, lines: lines, engine: engine, rank: rank)
     }
 
-    /// Frame overload so the orchestrator can share the detector's RGBA frame.
-    static func recognize(frame: NativeOCRRGBAFrame, lines: [V2Line], engine: V2RecognitionEngine) async throws -> [V2Line] {
+    /// Frame overload so the orchestrator can share the detector's RGBA frame. Handles are
+    /// checked out per crop, so a better-ranked page (the visible one) takes every handle
+    /// within one crop instead of sharing them with a look-ahead page for the whole stage.
+    static func recognize(frame: NativeOCRRGBAFrame, lines: [V2Line], engine: V2RecognitionEngine,
+                          rank: @escaping @Sendable () -> Int = { 0 }) async throws -> [V2Line] {
         let plans = lines.map { plan($0.polygon) }
         // Longest crops first: cost is linear in width, so this balances the lanes (LPT).
         let order = plans.indices.filter { plans[$0] != nil }
@@ -191,14 +200,15 @@ enum V2Recognition {
         try await withThrowingTaskGroup(of: [(Int, Read?)].self) { group in
             for _ in 0..<lanes {
                 group.addTask(priority: .userInitiated) {
-                    try await engine.withHandle { model in
-                        var results: [(Int, Read?)] = []
-                        while let index = queue.next() {
+                    var results: [(Int, Read?)] = []
+                    while true {
+                        let read = try await engine.withHandle(rank: rank) { model -> (Int, Read?)? in
+                            guard let index = queue.next() else { return nil }
                             try Task.checkCancellation()
-                            results.append((index, try await predict(plans[index]!, frame: frame,
-                                                                     model: model, engine: engine)))
+                            return (index, try await predict(plans[index]!, frame: frame, model: model, engine: engine))
                         }
-                        return results
+                        guard let read else { return results }
+                        results.append(read)
                     }
                 }
             }

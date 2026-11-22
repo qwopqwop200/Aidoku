@@ -23,6 +23,8 @@ struct V2PipelineHooks: Sendable {
     /// Ids S5 is expected to translate (S6/S7 speculate on them minus background
     /// blocks); nil predicts every non-background block.
     var predictTranslated: (@Sendable (_ blocks: [V2Block]) -> Set<Int>)?
+    /// The page's current scheduling rank (lower first) for shared S3 recognizer handles.
+    var recognitionRank: @Sendable () -> Int = { 0 }
 }
 
 @available(iOS 18.0, macOS 15.0, *)
@@ -124,18 +126,30 @@ enum V2Pipeline {
         do {
             read = try await timings.record(Stage.recognize) {
                 if let frame = front.frame {
-                    return try await V2Recognition.recognize(frame: frame, lines: lines, engine: models.recognition)
+                    return try await V2Recognition.recognize(frame: frame, lines: lines, engine: models.recognition,
+                                                             rank: hooks.recognitionRank)
                 }
-                return try await V2Recognition.recognize(page, lines: lines, engine: models.recognition)
+                return try await V2Recognition.recognize(page, lines: lines, engine: models.recognition,
+                                                         rank: hooks.recognitionRank)
             }
         } catch { failures.append("s3: \(error)") }
 
         // S4
-        var blocks = await timings.record(Stage.group) {
+        let classified = await timings.record(Stage.group) {
             let grouped = V2Grouping.group(read, layout: layout, pageSize: pageSize, raster: front.gray,
                                            direction: page.readingDirection)
-            let classified = V2RoleFilter.classify(grouped, layout: layout)
-            return V2Interior.apply(classified, raster: front.gray, pageSize: pageSize, layout: layout)
+            return V2RoleFilter.classify(grouped, layout: layout)
+        }
+        // S5 (LLM or replay) reads only the S4 text, bounds and roles: it starts before S4b, whose
+        // fields are put back on its result below.
+        async let translated: (result: Result<[V2Block], Error>, ms: Double) = {
+            let start = DispatchTime.now().uptimeNanoseconds
+            do { return (.success(try await translate(page, classified)), milliseconds(since: start)) } catch {
+                return (.failure(error), milliseconds(since: start))
+            }
+        }()
+        var blocks = await timings.record(Stage.group) {
+            V2Interior.apply(classified, raster: front.gray, pageSize: pageSize, layout: layout)
         }
         timings.stages[Stage.front] = milliseconds(since: started)
         hooks.frontFinished()
@@ -154,14 +168,23 @@ enum V2Pipeline {
         // Only the back branch reads the page raster: it is freed when that ends, not held across
         // the provider wait; a speculation miss decodes the same bytes again.
         front.raster = nil
-        let translateStart = DispatchTime.now().uptimeNanoseconds
-        do {
-            blocks = try await timings.record(Stage.translate) { try await translate(page, candidates) }
-        } catch {
+        let (translation, translateMilliseconds) = await translated
+        switch translation {
+        case .success(let output):
+            let interior = Dictionary(candidates.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            blocks = output.map { block in
+                guard let source = interior[block.id] else { return block }
+                var block = block
+                block.balloon = source.balloon
+                block.rows = source.rows
+                block.panel = source.panel
+                return block
+            }
+        case .failure(let error):
             translateFailed.raise()
             failures.append("s5: \(error)")
         }
-        let translateMilliseconds = milliseconds(since: translateStart)
+        timings.stages[Stage.translate] = translateMilliseconds
         var back = await overlapped
         timings.stages.merge(back.stages) { $0 + $1 }
         if let failure = back.failure { failures.append(failure) }
@@ -260,11 +283,12 @@ enum V2Pipeline {
         return block
     }
 
-    /// The block fields S6/S7 read for a paintable (non-background) block: all but the translation
-    /// and the dialogue/sfx distinction.
+    /// The block fields S6/S7 read for a paintable (non-background) block: all but the translation,
+    /// S8's style and the dialogue/sfx distinction.
     static func eraseInput(_ block: V2Block) -> V2Block {
         var block = block
         block.translation = nil
+        block.style = nil
         if block.role != .background { block.role = .dialogue }
         return block
     }
@@ -287,14 +311,14 @@ enum V2Pipeline {
             return back
         }
         var timings = V2Timings()
-        let styled = await timings.record(Stage.style) { V2Style.estimate(page, blocks: blocks) }
-        back.styled = styled
-        back.paintable = styled.filter { $0.role != .background && (predicted?.contains($0.id) ?? true) }
+        // S6/S7 do not read S8's style, so S8 runs alongside them instead of before.
+        let paintable = blocks.filter { $0.role != .background && (predicted?.contains($0.id) ?? true) }
+        back.paintable = paintable
         // Skipped when the page was cancelled or S5 already failed (the result would be discarded).
-        if !back.paintable.isEmpty, !Task.isCancelled, !stop.isRaised {
-            back.erased = await erase(page, paintable: back.paintable, layout: front.layout, raster: front.raster,
-                                      models: models)
-        }
+        async let erased: Erased? = paintable.isEmpty || Task.isCancelled || stop.isRaised ? nil
+            : erase(page, paintable: paintable, layout: front.layout, raster: front.raster, models: models)
+        back.styled = await timings.record(Stage.style) { V2Style.estimate(page, blocks: blocks, raster: front.raster) }
+        back.erased = await erased
         hooks.releaseBack()
         back.stages = timings.stages
         if let erased = back.erased { back.stages.merge(erased.stages) { $0 + $1 } }

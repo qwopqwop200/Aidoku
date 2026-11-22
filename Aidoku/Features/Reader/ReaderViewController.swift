@@ -1205,7 +1205,9 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
     }
 
     var translationUpcomingPages: [Page] {
-        pages.filter { $0.type == .imagePage && !$0.isTextPage }
+        // The paged reader's preloaded next chapter continues the look-ahead past the chapter end.
+        let next = (reader as? ReaderPagedViewController)?.translationNextChapterPages ?? []
+        return (pages + next).filter { $0.type == .imagePage && !$0.isTextPage }
     }
 
     var translationCurrentPageIndex: Int { max(0, currentPage - 1) }

@@ -8,7 +8,9 @@ import UniformTypeIdentifiers
 /// policy, the live provider call, page admission and the durable cache.
 @available(iOS 18.0, *)
 actor ReaderTranslationV2Service {
-    static let shared = ReaderTranslationV2Service()
+    static let shared = ReaderTranslationV2Service(warmProvider: {
+        ReaderTranslationService.shared.warmProviderConnection(settings: $0)
+    })
     /// Bump when the translated blocks (S1-S5) can change; keys both cache rows.
     static let version = "v2-pipeline-1"
     /// Bump when only rendering (S4b boxes, S6-S10) can change; re-renders from stored blocks.
@@ -24,6 +26,8 @@ actor ReaderTranslationV2Service {
 
     private let loadModels: ModelLoader
     private let translateBlocks: BlockTranslator
+    /// Opens the provider connection during S1-S4 (only the live service; tests stay offline).
+    private let warmProvider: (@Sendable (ReaderTranslationSettings) -> Void)?
     private let diskCache: ReaderTranslationDiskCache?
     private var models: V2Models?
     private var loading: Task<V2Models, Error>?
@@ -35,20 +39,23 @@ actor ReaderTranslationV2Service {
     /// merely waiting for the provider.
     nonisolated let frontSlots: V2ComputeSlots
     nonisolated let backSlots: V2ComputeSlots
-    /// Coalesced page work (visible demand joins and promotes a look-ahead).
+    /// Coalesced page work: it runs at its best current consumer's rank (visible demand promotes a
+    /// look-ahead; a consumer that leaves counts as look-ahead, so a left page never outranks the visible one).
     private var inflight: [String: Flight] = [:]
     /// Finished bitmaps by cache key, including non-persisted (temporary) pages.
     private var memory = V2PageMemoryCache()
+    /// Disk reads + decodes of stored page bitmaps, shared by concurrent lookups of one key.
+    private var storedLoads: [String: Task<CGImage?, Never>] = [:]
     private let availableMemory: @Sendable () -> UInt64
     private let memoryProfile: V2PerformanceProfile
 
     private final class Flight {
         let task: Task<PageOutput, Error>
-        let promotion: TranslationRequestPromotion
+        let priorities: TranslationRequestPrioritySet
         var consumers = 0
-        init(task: Task<PageOutput, Error>, promotion: TranslationRequestPromotion) {
+        init(task: Task<PageOutput, Error>, priorities: TranslationRequestPrioritySet) {
             self.task = task
-            self.promotion = promotion
+            self.priorities = priorities
         }
     }
     private var memoryObserver: NSObjectProtocol?
@@ -67,8 +74,10 @@ actor ReaderTranslationV2Service {
         observesMemoryWarnings: Bool = true,
         frontSlots: Int = V2PerformanceProfile.current.frontSlots, backSlots: Int = V2PerformanceProfile.current.backSlots,
         availableMemory: @escaping @Sendable () -> UInt64 = { ProcessMemory.available() },
-        memoryProfile: V2PerformanceProfile = .current
+        memoryProfile: V2PerformanceProfile = .current,
+        warmProvider: (@Sendable (ReaderTranslationSettings) -> Void)? = nil
     ) {
+        self.warmProvider = warmProvider
         self.availableMemory = availableMemory
         self.memoryProfile = memoryProfile
         self.frontSlots = V2ComputeSlots(count: frontSlots)
@@ -170,9 +179,24 @@ actor ReaderTranslationV2Service {
     /// so a cached translation is presented without flashing the source.
     func cachedPage(cacheKey key: String, persists: Bool = true) async -> CGImage? {
         if let image = memory.image(for: key) { return image }
-        guard persists, let diskCache, let data = try? await diskCache.data(for: Self.imageKey(key), kind: .layout),
-              let image = await Self.decodeOffActor(data) else { return nil }
-        remember(image, for: key)
+        guard persists, let diskCache else { return nil }
+        return await storedPage(key, cache: diskCache)
+    }
+
+    /// The loader probe, the page view and the pipeline often ask for the same page at once:
+    /// they share one read and one full-page decode (about 10 ms and 10 MB each), which runs
+    /// off this actor that every page's bookkeeping waits on.
+    private func storedPage(_ key: String, cache: ReaderTranslationDiskCache) async -> CGImage? {
+        if let loading = storedLoads[key] { return await loading.value }
+        guard !Task.isCancelled else { return nil }
+        let task = Task.detached(priority: Task.currentPriority) { () -> CGImage? in
+            guard let data = try? await cache.data(for: Self.imageKey(key), kind: .layout) else { return nil }
+            return Self.decode(data)
+        }
+        storedLoads[key] = task
+        let image = await task.value
+        if storedLoads[key] == task { storedLoads[key] = nil }
+        if let image { remember(image, for: key) }
         return image
     }
 
@@ -191,23 +215,25 @@ actor ReaderTranslationV2Service {
         guard let key else { return try await compute(source, key: nil, persists: false, settings: settings, priority: priority) }
         if let image = memory.image(for: key) { return PageOutput(image: image, timings: nil, fromCache: true) }
         let flight: Flight
+        let consumer = UUID()
         if let existing = inflight[key] {
             flight = existing
+            flight.priorities.set(priority, for: consumer)
         } else {
-            let promotion = TranslationRequestPromotion()
+            let priorities = TranslationRequestPrioritySet()
+            priorities.set(priority, for: consumer)
             let task = Task { [weak self] () throws -> PageOutput in
                 guard let self else { throw CancellationError() }
                 let output = try await self.compute(source, key: key, persists: persists, settings: settings,
-                                                    priority: .promotable(promotion))
+                                                    priority: .shared(priorities))
                 await self.remember(output.image, for: key)
                 return output
             }
-            flight = Flight(task: task, promotion: promotion)
+            flight = Flight(task: task, priorities: priorities)
             inflight[key] = flight
         }
-        if priority.isForeground { flight.promotion.promote() }
         flight.consumers += 1
-        defer { leave(key, flight) }
+        defer { leave(key, flight, consumer) }
         // A cancelled consumer returns at once instead of waiting for the others' page.
         let once = V2ResumeOnce<PageOutput>()
         return try await withTaskCancellationHandler {
@@ -220,7 +246,9 @@ actor ReaderTranslationV2Service {
         }
     }
 
-    private func leave(_ key: String, _ flight: Flight) {
+    private func leave(_ key: String, _ flight: Flight, _ consumer: UUID) {
+        // A paid request that outlives the page then waits behind the visible page's work.
+        flight.priorities.set(.prefetch, for: consumer)
         flight.consumers -= 1
         guard flight.consumers <= 0 else { return }
         // Stop the shared work as soon as nobody is left.
@@ -235,8 +263,7 @@ actor ReaderTranslationV2Service {
     ) async throws -> PageOutput {
         try Task.checkCancellation()
         let cache = key == nil || !persists ? nil : diskCache
-        if let key, let cache, let data = try? await cache.data(for: Self.imageKey(key), kind: .layout),
-           let image = await Self.decodeOffActor(data) {
+        if let key, let cache, let image = await storedPage(key, cache: cache) {
             try Task.checkCancellation()
             return PageOutput(image: image, timings: nil, fromCache: true)
         }
@@ -265,6 +292,7 @@ actor ReaderTranslationV2Service {
         let translate = translateBlocks
         let failure = V2TranslationFailureBox()
         let page = V2Page(id: key ?? UUID().uuidString, image: source, readingDirection: settings.readingDirection)
+        if replayBlocks == nil { warmProvider?(settings) }
         // Encode the provider's page JPEG concurrently with S1-S4.
         let jpegTask: Task<Data, Error>? = replayBlocks == nil && settings.includePageImage
             ? Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
@@ -313,7 +341,8 @@ actor ReaderTranslationV2Service {
                     return Set(Self.replay(replayBlocks, onto: blocks).filter(V2Layout.isPaintable).map(\.id))
                 }
                 return Self.eligibleForTranslation(blocks, settings: settings)
-            })
+            },
+            recognitionRank: { priority.schedulingRank })
         let result = await V2Pipeline.run(page, models: models, translate: translator, hooks: hooks)
         hold.releaseAll()
         try Task.checkCancellation()
@@ -387,11 +416,6 @@ actor ReaderTranslationV2Service {
         return CGImageDestinationFinalize(destination) ? data as Data : nil
     }
 
-    /// A full-page JPEG decode must not hold the actor that every page's bookkeeping waits on.
-    private static func decodeOffActor(_ data: Data) async -> CGImage? {
-        await Task.detached(priority: Task.currentPriority) { decode(data) }.value
-    }
-
     static func decode(_ data: Data) -> CGImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else {
             return nil
@@ -456,7 +480,8 @@ struct V2PageMemoryCache {
 }
 
 /// Priority-ordered counting semaphore: foreground (or promoted) waiters are
-/// admitted before look-ahead, FIFO within a rank; waiting is cancellable.
+/// admitted before look-ahead, FIFO within a rank; waiting is cancellable. With two or
+/// more slots, look-ahead never takes the last free one, so a visible page starts at once.
 final class V2ComputeSlots: @unchecked Sendable {
     private struct Waiter {
         let id: UUID
@@ -466,24 +491,26 @@ final class V2ComputeSlots: @unchecked Sendable {
 
     private let lock = NSLock()
     private var available: Int
+    private let foregroundReserve: Int
     private var waiters: [Waiter] = []
 
-    init(count: Int) { available = max(1, count) }
+    init(count: Int) {
+        available = max(1, count)
+        foregroundReserve = count >= 2 ? 1 : 0
+    }
 
     func acquire(priority: TranslationRequestPriority) async throws {
         try Task.checkCancellation()
         let id = UUID()
+        // A waiter raised to foreground may take the reserved slot at once.
+        priority.observeChanges { [weak self] in self?.admitWaiting() }
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                let admitted: Bool = lock.withLock {
-                    if available > 0 && waiters.isEmpty {
-                        available -= 1
-                        return true
-                    }
+                let admitted = lock.withLock {
                     waiters.append(Waiter(id: id, priority: priority, continuation: continuation))
-                    return false
+                    return takeAdmitted()
                 }
-                if admitted { continuation.resume() }
+                admitted.forEach { $0.resume() }
             }
         } onCancel: {
             let cancelled: Waiter? = lock.withLock {
@@ -495,20 +522,32 @@ final class V2ComputeSlots: @unchecked Sendable {
     }
 
     func release() {
-        let next: Waiter? = lock.withLock {
-            guard !waiters.isEmpty else {
-                available += 1
-                return nil
-            }
-            // Ranks are read at release time so a promoted look-ahead jumps ahead.
+        let admitted = lock.withLock {
+            available += 1
+            return takeAdmitted()
+        }
+        admitted.forEach { $0.resume() }
+    }
+
+    func admitWaiting() {
+        let admitted = lock.withLock { takeAdmitted() }
+        admitted.forEach { $0.resume() }
+    }
+
+    /// Under the lock: the waiters to resume. Ranks are read now so a promoted look-ahead jumps ahead.
+    private func takeAdmitted() -> [CheckedContinuation<Void, Error>] {
+        var admitted: [CheckedContinuation<Void, Error>] = []
+        while available > 0, !waiters.isEmpty {
             var best = 0
             for index in waiters.indices.dropFirst()
             where waiters[index].priority.schedulingRank < waiters[best].priority.schedulingRank {
                 best = index
             }
-            return waiters.remove(at: best)
+            guard available > (waiters[best].priority.isForeground ? 0 : foregroundReserve) else { break }
+            available -= 1
+            admitted.append(waiters.remove(at: best).continuation)
         }
-        next?.continuation.resume()
+        return admitted
     }
 }
 

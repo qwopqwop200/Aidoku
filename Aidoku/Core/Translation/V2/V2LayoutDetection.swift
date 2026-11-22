@@ -4,7 +4,8 @@ import Foundation
 
 // S1: RF-DETR 648 layout regions (text, SFX, balloon, frame). Numerics follow the legacy
 // tensor contract exactly: PyTorch antialiased triangle resize, ImageNet normalization,
-// global top-160 (query, class) ranking with per-class floors. The mask output is never read.
+// global top-160 (query, class) ranking with per-class floors. The bundled package drops the
+// never-read `instance_masks` output (boxes/logits bit-identical), so Core ML skips the mask head.
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2RFDETRModel: @unchecked Sendable {

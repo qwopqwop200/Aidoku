@@ -181,11 +181,18 @@ def main():
         'weights_sha256':expected, 'fixed_resolution':str(side),
         'native_training_side':'1920', 'inference_side':str(side), 'original_resolution_preserved':'true'})
     converted.save(str(package)); del converted, detector, model, traced
+    # The app reads only boxes and logits: drop the unused per-query masks (~400 MB of GPU buffers per call).
+    model_file = package / 'Data/com.apple.CoreML/model.mlmodel'
+    spec = ct.utils.load_spec(str(model_file))
+    for block in spec.mlProgram.functions['main'].block_specializations.values():
+        del block.outputs[NAMES.index('instance_masks')]
+    del spec.description.output[NAMES.index('instance_masks')]
+    model_file.write_bytes(spec.SerializeToString())
     report.update(phase='coreml-parity', package=str(package)); save()
     engine = ct.models.MLModel(str(package), compute_units=ct.ComputeUnit.CPU_AND_GPU)
     actual = engine.predict({'image':x.numpy()})
     np.savez_compressed(target / 'coreml-parity.npz', **actual)
-    report['coremlRawParity'] = {name:metrics(stock[name], actual[name]) for name in NAMES}
+    report['coremlRawParity'] = {name:metrics(stock[name], actual[name]) for name in NAMES if name in actual}
     report.update(phase='converted-candidate', seconds=time.monotonic() - started)
     save(); print(json.dumps(report), flush=True)
 

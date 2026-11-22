@@ -31,18 +31,13 @@ enum ReaderTranslationPanelOrder {
                 var bright = [Bool](repeating: false, count: count)
                 var dark = [Double](repeating: 0, count: count)
                 var whiteFraction = [Double](repeating: 0, count: count)
+                // Row-major counts of white/black cells per row or per column (no strided reads).
+                let (whiteCounts, blackCounts) = counts(pixels, width: width, x0: area.x0, y0: area.y0, x1: area.x1,
+                                                        y1: area.y1, rows: horizontal)
                 for position in 0..<count {
-                    var whiteCount = 0, blackCount = 0
-                    for cross in 0..<span {
-                        let x = area.x0 + (horizontal ? cross : position)
-                        let y = area.y0 + (horizontal ? position : cross)
-                        let value = pixels[y * width + x]
-                        if value >= 245 { whiteCount += 1 }
-                        if value <= 100 { blackCount += 1 }
-                    }
-                    whiteFraction[position] = Double(whiteCount) / Double(span)
+                    whiteFraction[position] = Double(whiteCounts[position]) / Double(span)
                     bright[position] = whiteFraction[position] >= 0.997
-                    dark[position] = Double(blackCount) / Double(span)
+                    dark[position] = Double(blackCounts[position]) / Double(span)
                 }
                 var bands: [(Int, Int)] = []
                 var start: Int?
@@ -129,5 +124,37 @@ enum ReaderTranslationPanelOrder {
         var ranks = unchanged
         for (rank, id) in order.enumerated() { ranks[id] = rank }
         return Task.isCancelled ? unchanged : ranks
+    }
+
+    /// White (>= 245) and black (<= 100) cell counts of each row (`rows`) or column of the area.
+    private static func counts(_ pixels: [UInt8], width: Int, x0: Int, y0: Int, x1: Int, y1: Int,
+                               rows: Bool) -> ([Int32], [Int32]) {
+        var white = [Int32](repeating: 0, count: rows ? y1 - y0 : x1 - x0)
+        var black = white
+        pixels.withUnsafeBufferPointer { pixels in
+            white.withUnsafeMutableBufferPointer { white in
+                black.withUnsafeMutableBufferPointer { black in
+                    guard let base = pixels.baseAddress, let white = white.baseAddress, let black = black.baseAddress else { return }
+                    for y in y0..<y1 {
+                        let row = base + y * width + x0
+                        if rows {
+                            var whiteCount: Int32 = 0, blackCount: Int32 = 0
+                            for x in 0..<(x1 - x0) {
+                                whiteCount &+= row[x] >= 245 ? 1 : 0
+                                blackCount &+= row[x] <= 100 ? 1 : 0
+                            }
+                            white[y - y0] = whiteCount
+                            black[y - y0] = blackCount
+                        } else {
+                            for x in 0..<(x1 - x0) {
+                                white[x] &+= row[x] >= 245 ? 1 : 0
+                                black[x] &+= row[x] <= 100 ? 1 : 0
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return (white, black)
     }
 }
