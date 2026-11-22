@@ -23,7 +23,8 @@ extension V2Style {
             results[index] = V2StyleEstimator.analyze(page.image, block: blocks[index], font: fonts[index], raster: raster)
         }
         var analyses = Array(results)
-        let styles = V2StyleEstimator.decide(&analyses, fonts: fonts)
+        let styles = V2StyleConsistency.unify(V2StyleEstimator.decide(&analyses, fonts: fonts),
+                                              characters: blocks.map { $0.sourceText.unicodeScalars.count })
         return zip(blocks, styles).map { block, style in
             var block = block
             block.style = style
@@ -1064,5 +1065,114 @@ extension V2StyleEstimator {
             }
         }
         return results
+    }
+}
+
+// MARK: - Page style consistency
+
+/// A page letters with a few styles, and S8 misses drift off them. Blocks chained within a loose
+/// style distance (CIE76 fill dE; half the stroke dE when both have an outline; an outline
+/// mismatch counts as 40) share one style: the group's medoid fill, the majority outline, the
+/// medoid stroke among outlined members and the median stroke width per font px. Bold and size
+/// stay per block. Text under 4 characters (SFX, ruby, fragments; mostly not GT lettering) takes
+/// no part. Fit on TRAIN folds against the colour GT (`port-eval/colorclust`).
+enum V2StyleConsistency {
+    static let threshold = 20.0
+    static let outlineMismatch = 40.0
+    static let strokeWeight = 0.5
+    static let minimumCharacters = 4
+
+    static func lab(_ c: V2RGB) -> (Double, Double, Double) {
+        func linear(_ v: UInt8) -> Double {
+            let c = Double(v) / 255
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        let r = linear(c.r), g = linear(c.g), b = linear(c.b)
+        let x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
+        let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        let z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
+        func f(_ t: Double) -> Double { t > 0.008856 ? pow(t, 1.0 / 3) : 7.787 * t + 16.0 / 116 }
+        let fx = f(x), fy = f(y), fz = f(z)
+        return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+    }
+
+    static func deltaE(_ a: V2RGB, _ b: V2RGB) -> Double {
+        let p = lab(a), q = lab(b)
+        return ((p.0 - q.0) * (p.0 - q.0) + (p.1 - q.1) * (p.1 - q.1) + (p.2 - q.2) * (p.2 - q.2)).squareRoot()
+    }
+
+    static func distance(_ a: V2Style, _ b: V2Style) -> Double {
+        var d = deltaE(a.textColor, b.textColor)
+        switch (a.strokeColor, b.strokeColor) {
+        case let (s?, t?): d = max(d, strokeWeight * deltaE(s, t))
+        case (nil, nil): break
+        default: d = max(d, outlineMismatch)
+        }
+        return d
+    }
+
+    static func unify(_ all: [V2Style], characters: [Int]) -> [V2Style] {
+        let members = all.indices.filter { characters[$0] >= minimumCharacters }
+        let unified = unify(members.map { all[$0] })
+        var result = all
+        for (k, index) in members.enumerated() { result[index] = unified[k] }
+        return result
+    }
+
+    static func unify(_ styles: [V2Style]) -> [V2Style] {
+        let n = styles.count
+        guard n >= 2 else { return styles }
+        var d = [Double](repeating: 0, count: n * n)
+        var root = Array(0..<n)
+        for i in 0..<n {
+            for j in (i + 1)..<n {
+                let value = distance(styles[i], styles[j])
+                d[i * n + j] = value
+                d[j * n + i] = value
+                guard value <= threshold else { continue }
+                // Single linkage: relabel j's group as i's.
+                let from = root[j], to = root[i]
+                if from != to {
+                    for k in 0..<n where root[k] == from { root[k] = to }
+                }
+            }
+        }
+        var result = styles
+        for label in Set(root) {
+            let group = (0..<n).filter { root[$0] == label }
+            guard group.count >= 2 else { continue }
+            var medoid = group[0], best = Double.infinity
+            for i in group {
+                var total = 0.0
+                for j in group { total += d[i * n + j] }
+                if total < best { best = total; medoid = i }
+            }
+            let outlined = group.filter { styles[$0].strokeColor != nil }
+            var strokeMedoid: Int?
+            var bestStroke = Double.infinity
+            for i in outlined {
+                var total = 0.0
+                for j in outlined { total += deltaE(styles[i].strokeColor!, styles[j].strokeColor!) }
+                if total < bestStroke { bestStroke = total; strokeMedoid = i }
+            }
+            let outline = 2 * outlined.count >= group.count
+            let ratios = outlined.map { Double(styles[$0].strokeWidth) / max(1, Double(styles[$0].fontPixels)) }.sorted()
+            var ratio = 0.0
+            if !ratios.isEmpty {
+                let mid = ratios.count / 2
+                ratio = ratios.count % 2 == 1 ? ratios[mid] : (ratios[mid - 1] + ratios[mid]) / 2
+            }
+            for index in group {
+                result[index].textColor = styles[medoid].textColor
+                if outline, let strokeMedoid {
+                    result[index].strokeColor = styles[strokeMedoid].strokeColor
+                    result[index].strokeWidth = CGFloat(ratio * Double(styles[index].fontPixels))
+                } else {
+                    result[index].strokeColor = nil
+                    result[index].strokeWidth = 0
+                }
+            }
+        }
+        return result
     }
 }

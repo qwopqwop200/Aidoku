@@ -414,6 +414,38 @@ struct V2StageTests {
         V2Style(fontPixels: px, bold: false, textColor: fill, strokeColor: stroke, strokeWidth: width)
     }
 
+    @Test func pageStylesUnifyWithinTheLooseDistance() {
+        let indigo = V2RGB(r: 72, g: 70, b: 126), drift = V2RGB(r: 80, g: 80, b: 112), black = V2RGB(r: 2, g: 2, b: 2)
+        let styles = [
+            styled(30, fill: indigo, width: 3), styled(30, fill: indigo, width: 3), styled(60, fill: drift, width: 9),
+            styled(30, fill: black, stroke: nil, width: 0), styled(30, fill: black, width: 3),
+        ]
+        let unified = V2StyleConsistency.unify(styles)
+        // The drifted fill joins the indigo group and takes its medoid colour and width per px.
+        #expect(unified[2].textColor == indigo)
+        #expect(unified[2].strokeWidth == 6)
+        #expect(unified[0].textColor == indigo && unified[1].textColor == indigo)
+        // Black is far from indigo; an outline mismatch keeps the two black blocks apart.
+        #expect(unified[3].textColor == black && unified[3].strokeColor == nil)
+        #expect(unified[4].strokeColor != nil)
+        #expect(V2StyleConsistency.unify([styles[0]]) == [styles[0]])
+        // Short text (SFX, ruby) neither joins nor moves.
+        let gated = V2StyleConsistency.unify(styles, characters: [5, 5, 2, 5, 5])
+        #expect(gated[2] == styles[2])
+        #expect(gated[0].textColor == indigo)
+    }
+
+    @Test func pageStylesTakeTheMajorityOutline() {
+        let a = V2RGB(r: 10, g: 10, b: 10), b = V2RGB(r: 14, g: 12, b: 10)
+        var styles = [styled(30, fill: a), styled(30, fill: b), styled(30, fill: a, stroke: nil, width: 0)]
+        // Within 20 of each outlined member only through fill: mismatch costs 40, so no join.
+        #expect(V2StyleConsistency.unify(styles)[2].strokeColor == nil)
+        styles[2].strokeColor = V2RGB(r: 250, g: 250, b: 250)
+        let unified = V2StyleConsistency.unify(styles)
+        #expect(Set(unified.map { $0.textColor.r }).count == 1)
+        #expect(unified.allSatisfy { $0.strokeColor != nil })
+    }
+
     @Test func cohortsSnapSourcesAndShareOneSize() {
         func block(_ id: Int, _ px: CGFloat) -> V2Block {
             var block = placedBlock(id, CGRect(x: CGFloat(id) * 200, y: 0, width: 100, height: 100), "가")
