@@ -162,6 +162,7 @@ enum V2Grouping {
         }
         let ranks = ReaderTranslationPanelOrder.rightToLeftRanks(pixels: gray.pixels, width: gray.width,
                                                                  height: gray.height, inputs: inputs)
+        guard ranks.sorted() == Array(base.indices) else { return base }
         var ordered = Array(repeating: 0, count: base.count)
         for (slot, rank) in ranks.enumerated() { ordered[rank] = base[slot] }
         return ordered

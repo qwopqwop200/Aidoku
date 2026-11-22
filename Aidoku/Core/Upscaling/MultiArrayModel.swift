@@ -137,13 +137,14 @@ extension MultiArrayModel {
         let predictionStream = AsyncStream<(Int, MLMultiArray)> { [inputName, outputName] continuation in
             Task.detached {
                 for await (i, multi) in multiArrayStream {
-                    var buffer = multi
-                    if let prediction = try? self.mlmodel.prediction(inputName: inputName, outputName: outputName, input: buffer) {
-                        buffer = prediction
+                    // The input buffer is smaller than an output tile and goes back to the pool,
+                    // so a failed or short prediction must not be read as the tile.
+                    if let prediction = try? self.mlmodel.prediction(inputName: inputName, outputName: outputName, input: multi),
+                       prediction.count >= outBlockSize * outBlockSize * 3 {
+                        continuation.yield((i, prediction))
                     } else {
                         LogManager.logger.error("Failed to get output from multiarray model")
                     }
-                    continuation.yield((i, buffer))
                     returnBuffer(multi)
                 }
                 continuation.finish()
@@ -168,7 +169,9 @@ extension MultiArrayModel {
         }
 
         // process final output
-        var imgData: [UInt8] = [UInt8](repeating: 0, count: outWidth * outHeight * channels)
+        // Tiles write concurrently; a raw buffer avoids racing on a shared Swift array.
+        nonisolated(unsafe) let output = UnsafeMutablePointer<UInt8>.allocate(capacity: outWidth * outHeight * channels)
+        output.initialize(repeating: 0, count: outWidth * outHeight * channels)
 
         await withTaskGroup(of: Void.self) { group in
             for await (i, prediction) in predictionStream {
@@ -191,14 +194,17 @@ extension MultiArrayModel {
                                 let destY = originY + srcY
                                 let destIndex = (destY * outWidth + destX) * channels + channel
                                 let srcIndex = srcY * outBlockSize + srcX
-                                guard destIndex >= 0, srcIndex >= 0 else { continue }
-                                imgData[destIndex] = tempBlock[srcIndex]
+                                // Edge tiles of images smaller than a block start off-image; skip, don't wrap rows.
+                                guard destX >= 0, destY >= 0, destX < outWidth, destY < outHeight else { continue }
+                                output[destIndex] = tempBlock[srcIndex]
                             }
                         }
                     }
                 }
             }
         }
+        var imgData = Array(UnsafeBufferPointer(start: output, count: outWidth * outHeight * channels))
+        output.deallocate()
 
         applyGrayscaleMask(
             expandedImage.grayscaleMask,
@@ -556,7 +562,7 @@ private extension CGImage {
         let grayscaleMask: [UInt8]? = if preserveGrayscale {
             createGrayscaleMask(pixelData: u8Array)
         } else {
-            []
+            nil
         }
 
         var rArr = [Float](repeating: 0, count: mainW * mainH)

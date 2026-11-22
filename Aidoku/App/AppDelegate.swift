@@ -25,6 +25,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private lazy var sourceStartup = Task { await SourceManager.shared.start() }
     private var networkObserverId: UUID?
     private var importingSharedImages = false
+    private var sharedImageImportRequested = false
 
     private lazy var loadingAlert: UIAlertController = {
         let loadingAlert = UIAlertController(
@@ -207,6 +208,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         Self.removePreviousReaderSessions(in: [ReaderTemporaryPageStore.sessionsDirectory, TemporarySharedImageSession.root])
 
+        // read before sceneDidBecomeActive can start a refresh that sets the flag again
+        let refreshInterrupted = AppSettings.flags.libraryRefreshInProgress.get()
         Task {
             await sourceStartup.value
             await BackupManager.shared.scheduleAutoBackup()
@@ -220,7 +223,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 }
             }
 
-            if AppSettings.flags.libraryRefreshInProgress.get() {
+            if refreshInterrupted {
                 presentAlert(
                     title: NSLocalizedString("LIBRARY_REFRESH_INTERRUPTED"),
                     message: NSLocalizedString("LIBRARY_REFRESH_INTERRUPTED_TEXT"),
@@ -686,16 +689,26 @@ extension AppDelegate {
         }
     }
 
-    func importPendingSharedImages() {
-        guard !importingSharedImages,
-              let presenter = Self.sharedImagePresenter(in: UIApplication.shared.firstKeyWindow) else { return }
+    func importPendingSharedImages(skipping handled: Set<URL> = []) {
+        // A share that lands during an import is picked up when it finishes, not at the next activation.
+        guard !importingSharedImages else { sharedImageImportRequested = true; return }
+        guard let presenter = Self.sharedImagePresenter(in: UIApplication.shared.firstKeyWindow) else { return }
         importingSharedImages = true
         Task {
-            defer { importingSharedImages = false }
+            var seen = handled
+            defer {
+                importingSharedImages = false
+                if sharedImageImportRequested {
+                    sharedImageImportRequested = false
+                    importPendingSharedImages(skipping: seen)
+                }
+            }
             do {
                 let inbox = try SharedImageInbox.live()
                 let batches = try inbox.pendingBatches()
-                guard !batches.isEmpty else { return }
+                // The URL open and scene activation both fire per share; rerun only for batches not seen yet.
+                guard !batches.isEmpty, !Set(batches.map(\.directory)).isSubset(of: handled) else { return }
+                seen.formUnion(batches.map(\.directory))
                 if !AppSettings.reader.saveSharedImages.get() {
                     var readable = batches
                     var info = await LocalFileManager.shared.prepareImageImport(from: batches.flatMap(\.images), name: batches[0].title)

@@ -16,7 +16,7 @@ extension SourceObject {
         } else {
             source.apiVersion
         }
-        if let url = source.url {
+        if let url = source.url, url.pathComponents.count >= 2 {
             path = url.pathComponents[url.pathComponents.count - 2..<url.pathComponents.count]
                 .joined(separator: "/")
         }

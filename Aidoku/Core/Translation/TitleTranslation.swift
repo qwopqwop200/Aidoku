@@ -48,6 +48,13 @@ extension TitleTranslationKind {
         }
     }
 
+    /// `isEnabled` from the one saved key, without loading every setting on the main thread.
+    var isSavedEnabled: Bool {
+        let keys: [Self: String] = [.manga: "mangaTitles", .chapter: "chapterTitles", .author: "authors",
+                                    .sourceLabel: "sourceLabels", .tag: "mangaTags", .description: "mangaDescriptions"]
+        return UserDefaults.standard.bool(forKey: ReaderTranslationSettings.keyPrefix + (keys[self] ?? ""))
+    }
+
     func isEnabled(in settings: ReaderTranslationSettings) -> Bool {
         switch self {
         case .manga: settings.translateMangaTitles
@@ -99,6 +106,11 @@ enum TitleTranslation {
         ] + (ReaderTranslationLanguageFilter.identity(settings: settings) ?? []))
     }
 
+    /// Settings inputs of a displayed translation (nil when disabled); other changes keep the result.
+    static func settingsIdentity(kind: TitleTranslationKind, settings: ReaderTranslationSettings) -> String? {
+        kind.isEnabled(in: settings) ? cacheKey("", kind: kind, settings: settings) : nil
+    }
+
     static func translate(
         _ original: String, kind: TitleTranslationKind, settings: ReaderTranslationSettings,
         service: ReaderTranslationService = .shared, diskCache: ReaderTranslationDiskCache = .shared
@@ -138,6 +150,7 @@ struct TranslatedTitleText: View {
     @State private var revision = UUID()
     @State private var translated: String?
     @State private var translatedIdentity: String?
+    @State private var requestSettings: ReaderTranslationSettings?
 
     init(_ original: String, kind: TitleTranslationKind, translating source: String? = nil) {
         self.original = original
@@ -153,15 +166,20 @@ struct TranslatedTitleText: View {
         Text(translatedIdentity == identity ? (translated ?? original) : original)
             .task(id: identity) {
                 let requestIdentity = identity
-                guard !source.isEmpty, original.contains(source) else { return }
+                guard !source.isEmpty, original.contains(source), kind == .description || kind.isSavedEnabled else { return }
+                let settings = ReaderTranslationSettings()
+                if requestSettings != settings { requestSettings = settings }
                 let result = kind == .description
-                    ? await MangaDescriptionTranslation.translate(source, settings: ReaderTranslationSettings())
-                    : await TitleTranslation.translate(source, kind: kind, settings: ReaderTranslationSettings())
+                    ? await MangaDescriptionTranslation.translate(source, settings: settings)
+                    : await TitleTranslation.translate(source, kind: kind, settings: settings)
                 guard !Task.isCancelled else { return }
                 translated = original.replacingOccurrences(of: source, with: result)
                 translatedIdentity = requestIdentity
             }
             .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed).receive(on: DispatchQueue.main)) { _ in
+                // Unrelated changes must not cancel and resend in-flight provider requests.
+                if let requestSettings, TitleTranslation.settingsIdentity(kind: kind, settings: requestSettings) ==
+                    TitleTranslation.settingsIdentity(kind: kind, settings: ReaderTranslationSettings()) { return }
                 translated = nil
                 revision = UUID()
             }
@@ -180,10 +198,13 @@ final class TranslatedTitleLabel: UILabel {
     private var translationTask: Task<Void, Never>?
     private var settingsObserver: AnyCancellable?
     private var revision = UUID()
+    private var settings: ReaderTranslationSettings?
 
     override var text: String? {
         get { super.text }
         set {
+            // Cell reconfiguration repeats the text; restarting would cancel its provider request.
+            guard newValue != original else { return }
             original = newValue
             refreshTranslation()
         }
@@ -206,8 +227,14 @@ final class TranslatedTitleLabel: UILabel {
         settingsObserver = NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                MainActor.assumeIsolated { self?.refreshTranslation() }
+                MainActor.assumeIsolated { self?.settingsChanged() }
             }
+    }
+
+    private func settingsChanged() {
+        if let settings, TitleTranslation.settingsIdentity(kind: kind, settings: settings) ==
+            TitleTranslation.settingsIdentity(kind: kind, settings: ReaderTranslationSettings()) { return }
+        refreshTranslation()
     }
 
     private func refreshTranslation() {
@@ -215,7 +242,9 @@ final class TranslatedTitleLabel: UILabel {
         revision = UUID()
         super.text = original
         guard let original else { return }
+        guard kind.isSavedEnabled else { settings = nil; return }
         let settings = ReaderTranslationSettings()
+        self.settings = settings
         guard kind.isEnabled(in: settings) else { return }
         let requestRevision = revision
         let kind = kind

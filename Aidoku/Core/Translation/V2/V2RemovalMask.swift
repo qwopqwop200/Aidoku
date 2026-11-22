@@ -1,6 +1,7 @@
 import Accelerate
 import CoreGraphics
 import Foundation
+import os
 
 /// S6: page-size 0/255 source-text removal mask, recall first. Per block, local morphology and
 /// colour features inside the dilated line polygons (T = median line thickness) feed a two-stage
@@ -40,7 +41,8 @@ enum V2RemovalMask {
         guard !targets.isEmpty else { return mask }
         let geometries = targets.map { geometry($0, width: width, height: height) }
         var results = [BlockMask?](repeating: nil, count: targets.count)
-        // Peak memory scales with the frame pixels in flight: large blocks run one at a time.
+        // Peak memory scales with the frame pixels in flight: large blocks run in batches of at most
+        // `concurrentBlockPixels` (one at a time when larger).
         let threads = max(1, ProcessInfo.processInfo.activeProcessorCount)
         let small = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) <= concurrentBlockPixels / threads }
         let large = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) > concurrentBlockPixels / threads }
@@ -51,8 +53,25 @@ enum V2RemovalMask {
                     let index = small[k]
                     base[index] = geometries[index].flatMap { segment($0, pixels: pixels, width: width, height: height) }
                 }
-                for index in large {
-                    base[index] = geometries[index].flatMap { segment($0, pixels: pixels, width: width, height: height) }
+                // On iOS a batch never exceeds the largest classifier block, which the old code already ran alone.
+#if os(iOS)
+                let batchPixels = large.compactMap { geometries[$0]?.frame.pixels }.filter { $0 <= maximumBlockPixels }.max() ?? 0
+#else
+                let batchPixels = concurrentBlockPixels
+#endif
+                var start = 0
+                while start < large.count {
+                    let first = start
+                    var end = start + 1, total = geometries[large[start]]?.frame.pixels ?? 0
+                    while end < large.count, total + (geometries[large[end]]?.frame.pixels ?? 0) <= batchPixels {
+                        total += geometries[large[end]]?.frame.pixels ?? 0
+                        end += 1
+                    }
+                    DispatchQueue.concurrentPerform(iterations: end - first) { k in
+                        let index = large[first + k]
+                        base[index] = geometries[index].flatMap { segment($0, pixels: pixels, width: width, height: height) }
+                    }
+                    start = end
                 }
             }
         }
@@ -146,6 +165,11 @@ enum V2RemovalMask {
     static func segment(_ geometry: Geometry, pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int) -> BlockMask? {
         let frame = geometry.frame
         guard frame.pixels <= maximumBlockPixels else { return polygonMask(geometry.polygons, width: width, height: height) }
+#if os(iOS)
+        // The classifier (about 384 bytes per frame pixel) must leave half the remaining app memory free.
+        let available = os_proc_available_memory()
+        if available > 0, frame.pixels * 384 > available / 2 { return polygonMask(geometry.polygons, width: width, height: height) }
+#endif
         let polygons = geometry.polygons, thickness = geometry.thickness, roiRadius = geometry.roiRadius
         let scales = geometry.scales, blurHalf = geometry.blurHalf
         let x0 = frame.x, y0 = frame.y
@@ -379,15 +403,13 @@ enum V2RemovalMask {
     static func polygonMask(_ polygons: [[CGPoint]], width: Int, height: Int) -> BlockMask? {
         guard let frame = paddedFrame(polygons, pad: outputDilation + 1, width: width, height: height) else { return nil }
         let w = frame.width, h = frame.height, n = frame.pixels
-        let plane = UnsafeMutablePointer<Float>.allocate(capacity: n)
-        defer { plane.deallocate() }
-        plane.update(repeating: 0, count: n)
-        for polygon in polygons {
-            fill(polygon.map { CGPoint(x: $0.x - CGFloat(frame.x), y: $0.y - CGFloat(frame.y)) }, into: plane, width: w, height: h)
-        }
-        var mask = [UInt8](unsafeUninitializedCapacity: n) { buffer, count in
-            for i in 0..<n { buffer[i] = plane[i] > 0 ? 1 : 0 }
-            count = n
+        // Filled straight into the 0/1 byte mask (no float plane for these large frames).
+        var mask = [UInt8](repeating: 0, count: n)
+        mask.withUnsafeMutableBufferPointer { plane in
+            for polygon in polygons {
+                fill(polygon.map { CGPoint(x: $0.x - CGFloat(frame.x), y: $0.y - CGFloat(frame.y)) }, into: plane.baseAddress!,
+                     width: w, height: h)
+            }
         }
         dilate(&mask, width: w, height: h, radius: outputDilation)
         return BlockMask(frame: frame, mask: mask)
@@ -772,7 +794,7 @@ enum V2RemovalMask {
     }
 
     /// Fills pixels whose centre (integer coordinate) lies inside or on the polygon.
-    static func fill(_ polygon: [CGPoint], into plane: UnsafeMutablePointer<Float>, width w: Int, height h: Int) {
+    static func fill<T: Numeric>(_ polygon: [CGPoint], into plane: UnsafeMutablePointer<T>, width w: Int, height h: Int) {
         let ys = polygon.map(\.y)
         let top = max(0, Int(ceil(ys.min()! - 1e-6))), bottom = min(h - 1, Int(floor(ys.max()! + 1e-6)))
         guard top <= bottom else { return }

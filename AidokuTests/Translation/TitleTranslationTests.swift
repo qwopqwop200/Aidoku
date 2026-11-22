@@ -16,6 +16,22 @@ struct TitleTranslationTests {
         }
     }
 
+    @Test func settingsIdentityIgnoresUnrelatedChanges() {
+        var settings = ReaderTranslationSettings()
+        settings.translateMangaTitles = true
+        let identity = TitleTranslation.settingsIdentity(kind: .manga, settings: settings)
+        var unrelated = settings
+        unrelated.automaticallyTranslate.toggle()
+        unrelated.maximumConcurrentRequests = 3
+        var target = settings
+        target.targetLanguage = "ja"
+        var disabled = settings
+        disabled.translateMangaTitles = false
+        #expect(identity != nil && TitleTranslation.settingsIdentity(kind: .manga, settings: unrelated) == identity)
+        #expect(TitleTranslation.settingsIdentity(kind: .manga, settings: target) != identity)
+        #expect(TitleTranslation.settingsIdentity(kind: .manga, settings: disabled) == nil)
+    }
+
     @Test func previousMetadataContractDoesNotReuseSavedResults() async throws {
         let fixture = TitleCacheFixture()
         var settings = ReaderTranslationSettings()

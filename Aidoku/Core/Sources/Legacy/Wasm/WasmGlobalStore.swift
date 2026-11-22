@@ -42,6 +42,13 @@ class WasmGlobalStore {
     func removeStdValue(_ descriptor: Int32) {
         stdDescriptors.removeValue(forKey: descriptor)
     }
+
+    // frees values created after the given pointers, which a trapped wasm call can never destroy
+    func removeValues(after std: Int32, requests request: Int32) -> Int32 {
+        stdDescriptors = stdDescriptors.filter { $0.key <= std }
+        requests = requests.filter { $0.key <= request }
+        return -1
+    }
 }
 
 // MARK: - Memory R/W
@@ -52,19 +59,25 @@ extension WasmGlobalStore {
 //    }
 
     func readString(offset: Int32, length: Int32) -> String? {
-        try? vm.runtime.memory().readString(offset: UInt32(offset), length: UInt32(length))
+        guard offset >= 0, length >= 0 else { return nil }
+        return try? vm.runtime.memory().readString(offset: UInt32(offset), length: UInt32(length))
     }
 
     func readData(offset: Int32, length: Int32) -> Data? {
-        try? vm.runtime.memory().readData(offset: UInt32(offset), length: UInt32(length))
+        guard offset >= 0, length >= 0 else { return nil }
+        return try? vm.runtime.memory().readData(offset: UInt32(offset), length: UInt32(length))
     }
 
     func readValues<T: WasmType>(offset: Int32, length: Int32) -> [T]? {
-        try? vm.runtime.memory().readValues(offset: UInt32(offset), length: UInt32(length))
+        // Memory.readValues only bounds-checks `length` bytes, so check the full byte range first
+        guard offset >= 0, length >= 0, length <= Int32.max / 8,
+              readBytes(offset: offset, length: length * Int32(MemoryLayout<T>.stride)) != nil else { return nil }
+        return try? vm.runtime.memory().readValues(offset: UInt32(offset), length: UInt32(length))
     }
 
     func readBytes(offset: Int32, length: Int32) -> [UInt8]? {
-        try? vm.runtime.memory().readBytes(offset: UInt32(offset), length: UInt32(length))
+        guard offset >= 0, length >= 0 else { return nil }
+        return try? vm.runtime.memory().readBytes(offset: UInt32(offset), length: UInt32(length))
     }
 
 //    func write<T: WasmType & FixedWidthInteger>(value: T, offset: Int32) {
@@ -72,6 +85,7 @@ extension WasmGlobalStore {
 //    }
 
     func write(bytes: [UInt8], offset: Int32) {
+        guard offset >= 0 else { return }
         try? vm.runtime.memory().write(bytes: bytes, offset: UInt32(offset))
     }
 

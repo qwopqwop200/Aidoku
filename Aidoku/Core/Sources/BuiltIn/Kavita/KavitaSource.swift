@@ -171,21 +171,33 @@ actor KavitaSourceRunner: Runner {
 
         var manga = manga
 
+        // The series, metadata and volume requests are independent; run them concurrently.
+        let helper = helper, key = manga.key, mirror = lastWorkingMirrorCopy
+        async let seriesResult: KavitaSeries? = {
+            guard needsDetails else { return nil }
+            var copy = mirror
+            let series: KavitaSeries = try await helper.request(path: "api/Series/\(key)", lastWorkingMirror: &copy)
+            return series
+        }()
+        async let volumesResult: ([KavitaVolume], URL?)? = {
+            guard needsChapters else { return nil }
+            var copy = mirror
+            let volumes: [KavitaVolume] = try await helper.request(path: "api/Series/volumes?seriesId=\(key)", lastWorkingMirror: &copy)
+            return (volumes, copy)
+        }()
+
         if needsDetails {
-            let series: KavitaSeries = try await helper.request(path: "api/Series/\(manga.key)", lastWorkingMirror: &lastWorkingMirrorCopy)
             let metadata: KavitaSeriesMetadata = try await helper.request(
                 path: "api/Series/metadata?seriesId=\(manga.key)",
                 lastWorkingMirror: &lastWorkingMirrorCopy
             )
+            guard let series = try await seriesResult else { throw SourceError.networkError }
             baseUrl = lastWorkingMirrorCopy ?? baseUrl
             manga = manga.copy(from: series.intoManga(sourceKey: sourceKey, baseUrl: baseUrl, apiKey: apiKey, metadata: metadata))
         }
 
-        if needsChapters {
-            let volumes: [KavitaVolume] = try await helper.request(
-                path: "api/Series/volumes?seriesId=\(manga.key)",
-                lastWorkingMirror: &lastWorkingMirrorCopy
-            )
+        if case let (volumes, volumesMirror)? = try await volumesResult {
+            lastWorkingMirrorCopy = volumesMirror
             baseUrl = lastWorkingMirrorCopy ?? baseUrl
             var chapters = volumes.flatMap { $0.intoChapters(baseUrl: baseUrl, apiKey: apiKey) }
             chapters.sort { a, b in

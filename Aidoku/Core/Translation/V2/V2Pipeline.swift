@@ -82,6 +82,14 @@ enum V2Pipeline {
         var stages: [String: Double] = [:]
     }
 
+    /// Raised when S5 throws: its blocks then paint nothing, so the speculative S6/S7 is skipped.
+    private final class Flag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var raised = false
+        var isRaised: Bool { lock.withLock { raised } }
+        func raise() { lock.withLock { raised = true } }
+    }
+
     static func milliseconds(since start: UInt64) -> Double {
         Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
     }
@@ -103,6 +111,11 @@ enum V2Pipeline {
         var front = await timings.record(Stage.parallel) { await runFront(page, models: models) }
         timings.stages.merge(front.stages) { $0 + $1 }
         failures += front.failures
+        // A page cancelled during S1 || S2 (result discarded) skips S3/S4 and the rest.
+        if Task.isCancelled {
+            return V2PageResult(pageID: page.id, blocks: [], placed: [], output: page.image, timings: timings,
+                                failure: (failures + ["cancelled"]).joined(separator: "; "))
+        }
         let layout = front.layout
         let lines = await timings.record(Stage.assemble) { V2LineAssembly.assemble(front.lines, layout: layout) }
 
@@ -129,27 +142,38 @@ enum V2Pipeline {
         // Only S2-S4 read the frame and gray raster; free them before the provider wait.
         front.frame = nil
         front.gray = nil
-        let shared = front
 
         // S5 (LLM or replay) || S8 -> S6 -> S7 (S6/S7 on the predicted paint set).
         let candidates = blocks
         let predicted = hooks.predictTranslated?(candidates)
-        async let overlapped = runBack(page, blocks: candidates, predicted: predicted, front: shared,
-                                       models: models, hooks: hooks)
+        let translateFailed = Flag()
+        async let overlapped = { [front] in
+            await runBack(page, blocks: candidates, predicted: predicted, front: front, models: models, hooks: hooks,
+                          stop: translateFailed)
+        }()
+        // Only the back branch reads the page raster: it is freed when that ends, not held across
+        // the provider wait; a speculation miss decodes the same bytes again.
+        front.raster = nil
         let translateStart = DispatchTime.now().uptimeNanoseconds
         do {
             blocks = try await timings.record(Stage.translate) { try await translate(page, candidates) }
-        } catch { failures.append("s5: \(error)") }
+        } catch {
+            translateFailed.raise()
+            failures.append("s5: \(error)")
+        }
         let translateMilliseconds = milliseconds(since: translateStart)
         var back = await overlapped
         timings.stages.merge(back.stages) { $0 + $1 }
         if let failure = back.failure { failures.append(failure) }
 
         let tailStart = DispatchTime.now().uptimeNanoseconds
-        var admitted = true
-        do { try await hooks.acquireBack() } catch {
-            admitted = false
-            failures.append("back: \(error)")
+        var admitted = false
+        // Nothing to erase or paint (no text, or S5 failed): the cheap rest needs no back slot.
+        if blocks.contains(where: V2Layout.isPaintable) {
+            do {
+                try await hooks.acquireBack()
+                admitted = true
+            } catch { failures.append("back: \(error)") }
         }
         // A cancelled page (result discarded) skips the tail, which could run unadmitted.
         if Task.isCancelled {
@@ -189,7 +213,7 @@ enum V2Pipeline {
                 timings.stages[Stage.speculationMiss] = 1
                 // Free the stale speculative background and mask before recomputing them.
                 back.erased = nil
-                let recomputed = await erase(page, paintable: paintable, layout: layout, raster: shared.raster,
+                let recomputed = await erase(page, paintable: paintable, layout: layout, raster: decodePixels(page.image).raster,
                                              models: models)
                 timings.stages.merge(recomputed.stages) { $0 + $1 }
                 erased = recomputed
@@ -246,9 +270,15 @@ enum V2Pipeline {
     }
 
     private static func runBack(_ page: V2Page, blocks: [V2Block], predicted: Set<Int>?, front: Front,
-                                models: V2Models, hooks: V2PipelineHooks) async -> Back {
+                                models: V2Models, hooks: V2PipelineHooks, stop: Flag) async -> Back {
         let start = DispatchTime.now().uptimeNanoseconds
         var back = Back()
+        // A page without text has nothing to measure or erase: no back slot wait.
+        if blocks.isEmpty {
+            back.styled = []
+            back.stages[Stage.back] = milliseconds(since: start)
+            return back
+        }
         // Not admitted (the tail then recomputes everything after S5) or cancelled.
         let admitted = (try? await hooks.acquireBack()) != nil
         guard admitted, !Task.isCancelled else {
@@ -260,7 +290,8 @@ enum V2Pipeline {
         let styled = await timings.record(Stage.style) { V2Style.estimate(page, blocks: blocks) }
         back.styled = styled
         back.paintable = styled.filter { $0.role != .background && (predicted?.contains($0.id) ?? true) }
-        if !back.paintable.isEmpty {
+        // Skipped when the page was cancelled or S5 already failed (the result would be discarded).
+        if !back.paintable.isEmpty, !Task.isCancelled, !stop.isRaised {
             back.erased = await erase(page, paintable: back.paintable, layout: front.layout, raster: front.raster,
                                       models: models)
         }

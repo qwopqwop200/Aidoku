@@ -75,8 +75,10 @@ struct MangaView: View {
                     .listRowSeparator(.hidden)
                 }
                 Group {
-                    ForEach(viewModel.chapters.indices, id: \.self) { index in
-                        let chapter = viewModel.chapters[index]
+                    // index into the same snapshot the indices came from; the live array can shrink first
+                    let chapters = viewModel.chapters
+                    ForEach(chapters.indices, id: \.self) { index in
+                        let chapter = chapters[index]
                         viewForChapter(chapter, index: index)
                     }
 
@@ -100,8 +102,9 @@ struct MangaView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
 
-                    ForEach(viewModel.otherDownloadedChapters.indices, id: \.self) { index in
-                        let chapter = viewModel.otherDownloadedChapters[index]
+                    let otherChapters = viewModel.otherDownloadedChapters
+                    ForEach(otherChapters.indices, id: \.self) { index in
+                        let chapter = otherChapters[index]
                         viewForChapter(chapter, index: index, secondSection: true)
                     }
 
@@ -244,7 +247,7 @@ struct MangaView: View {
                     manga: {
                         var mangaWithFilteredChapters = viewModel.manga
                         mangaWithFilteredChapters.chapters = if viewModel.chapterSortAscending {
-                            viewModel.chapters.reversed()
+                            viewModel.reversedChapters
                         } else {
                             viewModel.chapters
                         }
@@ -523,6 +526,8 @@ extension MangaView {
                             mangaId: viewModel.manga.key,
                             chapterId: chapter.key
                         )
+                        // drop it from the source list too, or the next refilter brings it back
+                        viewModel.manga.chapters?.removeAll { $0.key == chapter.key }
                         if let index = viewModel.chapters.firstIndex(of: chapter) {
                             withAnimation {
                                 _ = viewModel.chapters.remove(at: index)

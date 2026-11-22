@@ -8,9 +8,15 @@ import UIKit
 actor ReaderTranslationImageLoader {
     private let temporaryStore: ReaderTemporaryPageStore
     private let pipeline = ImagePipeline.shared
+    // One decode at a time: concurrent look-ahead decodes would all pass the same headroom check.
+    private let serial = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     init(temporaryStore: ReaderTemporaryPageStore) { self.temporaryStore = temporaryStore }
 
     func load(_ page: Page) async throws -> UIImage {
+        try await serial.withPermit(priority: .prefetch) { try await self.decode(page) }
+    }
+
+    private func decode(_ page: Page) async throws -> UIImage {
         try await ReaderTranslationDiagnostics.measure("source_decode_load") {
             try Task.checkCancellation()
             if let image = page.image { return try await processRaw(image) }

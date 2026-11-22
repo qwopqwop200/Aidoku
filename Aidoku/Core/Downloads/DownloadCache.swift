@@ -99,9 +99,8 @@ class DownloadCache {
         rootDirectory.subdirectories[sourceKey]?.subdirectories[manga.mangaKey.directoryName] = Self.scanManga(url)
     }
 
-    // add chapter to directory cache
+    // add chapter to directory cache; callers check `isSafe(chapter:)` off the main actor first
     func add(chapter: ChapterIdentifier) {
-        guard isSafe(chapter: chapter) else { return }
         loadIfNeeded(chapter.mangaIdentifier)
         if !loaded { touchedManga.insert(directory(for: chapter.mangaIdentifier).path) }
         let sourceDirectory = rootDirectory.subdirectories[chapter.sourceKey.directoryName]
@@ -258,8 +257,11 @@ extension DownloadCache {
 
     /// Sanitized names can collide; IDs saved in ComicInfo (if any) decide ownership.
     private nonisolated static func storedIdentity(at url: URL) -> StoredIdentity? {
-        guard let value = DownloadedChapterFile.comicInfo(in: url)?.extraData() else { return nil }
-        return StoredIdentity(source: value.sourceKey, manga: value.mangaKey, chapter: value.chapterKey)
+        let file = url.pathExtension.lowercased() == "cbz" ? url : url.appendingPathComponent("ComicInfo.xml")
+        return DownloadedChapterFile.memoized(file) {
+            guard let value = DownloadedChapterFile.comicInfo(in: url)?.extraData() else { return nil }
+            return StoredIdentity(source: value.sourceKey, manga: value.mangaKey, chapter: value.chapterKey)
+        }
     }
 
     private nonisolated static func matchesStoredManga(in directory: URL, source: String, manga: String) -> Bool {

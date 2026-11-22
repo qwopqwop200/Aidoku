@@ -438,6 +438,13 @@ extension ReaderWebtoonViewController {
 
     func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
         isZooming = false
+        // Pages that left the display range mid-pinch kept their bitmaps; release them now.
+        for (section, sectionPages) in pages.enumerated() {
+            for item in sectionPages.indices {
+                (collectionNode.nodeForItem(at: IndexPath(item: item, section: section)) as? ReaderWebtoonPageNode)?
+                    .releaseContentDeferredByZoom()
+            }
+        }
         scrollViewDidScroll(scrollView)
         settleChapterInsertion()
     }

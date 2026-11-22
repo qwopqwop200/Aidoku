@@ -131,19 +131,20 @@ class Source: Identifiable {
     }
 
     var printFunction: (Int32, Int32) -> Void {
-        { string, length in
+        { [unowned self] string, length in
             LogManager.logger.log(self.globalStore.readString(offset: string, length: length) ?? "")
         }
     }
 
     // needed for assemblyscript
     var abort: (Int32, Int32, Int32, Int32) -> Void {
-        { msg, fileName, line, column in
-            let messageLength = self.globalStore.readBytes(offset: msg - 4, length: 1)?.first ?? 0
-            let fileLength = self.globalStore.readBytes(offset: fileName - 4, length: 1)?.first ?? 0
+        { [unowned self] msg, fileName, line, column in
+            // assemblyscript strings are utf-16 with a 32-bit byte length before them
+            let messageLength = self.globalStore.readValues(offset: msg - 4, length: 1)?.first ?? Int32(0)
+            let fileLength = self.globalStore.readValues(offset: fileName - 4, length: 1)?.first ?? Int32(0)
 
-            let message = self.globalStore.readString(offset: msg, length: Int32(messageLength))
-            let file = self.globalStore.readString(offset: fileName, length: Int32(fileLength))
+            let message = self.globalStore.readData(offset: msg, length: messageLength).flatMap { String(data: $0, encoding: .utf16LittleEndian) }
+            let file = self.globalStore.readData(offset: fileName, length: fileLength).flatMap { String(data: $0, encoding: .utf16LittleEndian) }
 
             LogManager.logger.error("[\(self.id)] [Abort] \(message ?? "") \(file ?? ""):\(line):\(column)")
 

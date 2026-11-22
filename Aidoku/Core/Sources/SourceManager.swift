@@ -137,10 +137,22 @@ extension SourceManager {
         let objects: [SourceObjectData] = await CoreDataManager.shared.container.performBackgroundTask { context in
             CoreDataManager.shared.getSources(context: context).map { $0.toData() }
         }
+        let candidates = objects.filter { !disabledSourceKeys.contains($0.id) }
+        // Packages are independent: load a few at once, then merge in fetch order so duplicates resolve as before.
+        var results = [Result<AidokuRunner.Source?, Error>](repeating: .success(nil), count: candidates.count)
+        await withTaskGroup(of: (Int, Result<AidokuRunner.Source?, Error>).self) { group in
+            for (index, dbSource) in candidates.enumerated() {
+                if index >= 4, let (done, result) = await group.next() { results[done] = result }
+                group.addTask {
+                    do { return (index, .success(try await dbSource.loadNewSource())) } catch { return (index, .failure(error)) }
+                }
+            }
+            for await (done, result) in group { results[done] = result }
+        }
         var snapshot = InstalledSourceSnapshot()
-        for dbSource in objects where !disabledSourceKeys.contains(dbSource.id) {
+        for (dbSource, result) in zip(candidates, results) {
             do {
-                if let source = try await dbSource.loadNewSource() {
+                if let source = try result.get() {
                     if snapshot.sources[source.key] != nil {
                         // remove duplicate coredata sources
                         CoreDataManager.shared.remove(dbSource.objectID)
@@ -320,9 +332,11 @@ extension SourceManager {
         let externalSources: [ExternalSourceInfo]? = if !url.pathExtension.isEmpty {
             try? JSONDecoder().decode([ExternalSourceInfo].self, from: data)
         } else {
-            if let sources = try? await session.object(
-                from: url.appendingPathComponent("index.min.json")
-            ) as [ExternalSourceInfo] {
+            if let (data, _) = try? await SourceResponseBody.read(
+                URLRequest(url: url.appendingPathComponent("index.min.json")), session: session, policy: { _ in
+                    .limited(Self.maximumSourceListBytes)
+                }
+            ), let sources = try? JSONDecoder().decode([ExternalSourceInfo].self, from: data) {
                 sources
             } else {
                 nil
@@ -508,10 +522,16 @@ extension SourceManager {
         let sources = missingKeys.sorted().compactMap { sourcesByKey[$0] }
 
         Task {
-            for source in sources {
-                guard let url = source.fileURL else { continue }
-                if await importSource(from: url) != nil {
-                    continuation.yield(source.id)
+            // Downloads are independent; overlap a few instead of installing strictly one by one.
+            await withTaskGroup(of: Void.self) { group in
+                for (index, source) in sources.enumerated() {
+                    guard let url = source.fileURL else { continue }
+                    if index >= 4 { await group.next() }
+                    group.addTask {
+                        if await self.importSource(from: url) != nil {
+                            continuation.yield(source.id)
+                        }
+                    }
                 }
             }
             continuation.finish()
@@ -559,7 +579,9 @@ extension SourceManager {
         }
         let extracted = temporaryDirectory.appendingPathComponent("package", isDirectory: true)
         do {
-            try SourcePackageExtractor.extract(fileUrl, to: extracted)
+            // Unzip off the actor so other source calls are not blocked; cancellation still reaches the extractor.
+            let extraction = Task.detached { [fileUrl] in try SourcePackageExtractor.extract(fileUrl, to: extracted) }
+            try await withTaskCancellationHandler { try await extraction.value } onCancel: { extraction.cancel() }
         } catch {
             LogManager.logger.error("Failed to unarchive source package: \(error)")
             return nil

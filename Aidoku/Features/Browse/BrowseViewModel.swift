@@ -23,6 +23,7 @@ class BrowseViewModel {
     private var storedUpdatesSources: [SourceInfo]?
     private var storedPinnedSources: [SourceInfo]?
     private var storedInstalledSources: [SourceInfo]?
+    private var externalLoadGeneration = 0
 
     func loadInstalledSources() async {
         let installedSources = await SourceManager.shared.getSourceInfos()
@@ -70,6 +71,9 @@ class BrowseViewModel {
         if reload {
             await SourceManager.shared.startSourceListsReload(skipUpdateNotification: true)
         }
+        // A newer load (e.g. a source list was removed) must not be overwritten by this one's stale lists.
+        externalLoadGeneration += 1
+        let generation = externalLoadGeneration
 
         unfilteredExternalSources = []
         updatesSources = []
@@ -83,7 +87,9 @@ class BrowseViewModel {
         let stream = await SourceManager.shared.streamSourceListsLoad()
 
         for await url in stream {
+            guard generation == externalLoadGeneration else { return }
             guard let sourceList = await SourceManager.shared.getSourceList(url: url) else { continue }
+            guard generation == externalLoadGeneration else { return }
 
             if sourceList.legacy {
                 hasLegacySourceList = true

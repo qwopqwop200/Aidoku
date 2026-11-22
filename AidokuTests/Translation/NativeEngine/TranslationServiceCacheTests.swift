@@ -167,6 +167,18 @@ struct TranslationServiceCacheTests {
         #expect(support.status(for: configuration) == .unknown)
     }
 
+    @Test func pageLetteringImageRejectionIsTypedHTTPError() async throws {
+        let transport = ImageSupportTransport()
+        let client = RemoteTranslationClient(credentialStore: TestCredentials(), transport: transport)
+        var request = RemoteTranslationRequest(sourceLanguage: "en", targetLanguage: "ko", sourceText: "Hello")
+        request.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
+        request.filtersSFX = true; request.filtersBackground = true; request.translatesPageLettering = true
+        await #expect(throws: RemoteTranslationError.httpStatus(400, requestID: nil)) {
+            try await client.translate(request, configuration: imageConfiguration())
+        }
+        #expect(await transport.images == [true])
+    }
+
     // MARK: Helpers
 
     private func identity(_ configuration: RemoteTranslationConfiguration, _ request: RemoteTranslationRequest,

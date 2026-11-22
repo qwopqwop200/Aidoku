@@ -57,6 +57,7 @@ class ReaderPageView: UIView {
     private static let sharedImageAnalyzer = ImageAnalyzer()
     private var liveTextTask: Task<Void, Never>?
     private var liveTextGeneration = 0
+    private var liveTextPending = false
 
     private var needsDictionaryOverlayRender = false
     private var dictionaryAnalysisTask: Task<Void, Never>?
@@ -95,6 +96,7 @@ class ReaderPageView: UIView {
 
     deinit {
         cancelDictionaryTextAnalysis()
+        liveTextTask?.cancel()
     }
 
     func configure() {
@@ -154,6 +156,11 @@ class ReaderPageView: UIView {
         if needsDictionaryOverlayRender {
             renderDictionaryOverlaysIfNeeded()
         }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil, liveTextPending { startLiveTextAnalysis() }
     }
 }
 
@@ -229,7 +236,9 @@ extension ReaderPageView {
                     guard !Task.isCancelled, issued == imageLoadGeneration, let image else { return false }
                     return await prepareAndDisplayImage(image)
                 }
-                guard !Task.isCancelled, let image = UIImage(contentsOfFile: url.path) else { return false }
+                // Read and decode off the main actor, within the pixel cap.
+                let image = await Task.detached { (try? Data(contentsOf: url)).flatMap { ImagePixelCap.decodeImage($0) } }.value
+                guard !Task.isCancelled, let image else { return false }
                 return await prepareAndDisplayImage(image)
             }
             return await setPageImage(url: url, context: page.context, sourceId: self.sourceId)
@@ -452,7 +461,8 @@ extension ReaderPageView {
             }
             guard
                 let imageData = Data(base64Encoded: base64),
-                var image = UIImage(data: imageData)
+                // An over-cap page decodes as a bounded thumbnail, like the Nuke and translation paths.
+                var image = ImagePixelCap.decodeImage(imageData)
             else {
                 return nil
             }
@@ -723,6 +733,9 @@ extension ReaderPageView {
         else {
             return
         }
+        // Preloaded neighbour pages have no window; analyse once the page is shown.
+        liveTextPending = window == nil
+        guard !liveTextPending else { return }
         liveTextGeneration += 1
         let generation = liveTextGeneration
         liveTextTask?.cancel()
@@ -741,6 +754,7 @@ extension ReaderPageView {
     }
 
     private func cancelLiveTextAnalysis() {
+        liveTextPending = false
         liveTextGeneration += 1
         liveTextTask?.cancel()
         liveTextTask = nil

@@ -65,6 +65,7 @@ extension MangaView {
         private var fetchedDetails = false
         private var restoringChapterFilters = false
         private var markedOpened = false
+        private var reversedChaptersCache: (chapters: [AidokuRunner.Chapter], reversed: [AidokuRunner.Chapter])?
         private let dataLoadOwnership = MangaDataLoadOwnership()
         private var cancellables = Set<AnyCancellable>()
 
@@ -653,11 +654,18 @@ extension MangaView.ViewModel {
     }
 
     private func loadDownloadStatus() async {
+        // each status check is several file system calls, so check every chapter off the main actor
+        let (sourceKey, mangaKey) = (manga.sourceKey, manga.key)
+        let keys = ((manga.chapters ?? chapters) + otherDownloadedChapters).map(\.key)
+        let (before, revision) = (downloadStatus, downloadRemovalRevision)
+        let loaded = await Task.detached {
+            DownloadManager.shared.getDownloadStatuses(for: keys.map { .init(sourceKey: sourceKey, mangaKey: mangaKey, chapterKey: $0) })
+        }.value
+        guard !Task.isCancelled, revision == downloadRemovalRevision, manga.sourceKey == sourceKey, manga.key == mangaKey else { return }
         var statuses = downloadStatus
-        for chapter in (manga.chapters ?? chapters) + otherDownloadedChapters {
-            statuses[chapter.key] = DownloadManager.shared.getDownloadStatus(
-                for: .init(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: chapter.key)
-            )
+        // keep statuses that download notifications changed while the disk was being checked
+        for (identifier, status) in loaded where statuses[identifier.chapterKey] == before[identifier.chapterKey] {
+            statuses[identifier.chapterKey] = status
         }
         if statuses != downloadStatus {
             downloadStatus = statuses
@@ -737,6 +745,17 @@ extension MangaView.ViewModel {
     // every chapter row shown in the list, across both sections
     var listedChapters: [AidokuRunner.Chapter] {
         chapters + otherDownloadedChapters
+    }
+
+    // the open reader gets this on every view update; reuse one array so it can compare by storage, not element by element
+    var reversedChapters: [AidokuRunner.Chapter] {
+        if let cache = reversedChaptersCache, cache.chapters == chapters {
+            reversedChaptersCache?.chapters = chapters
+            return cache.reversed
+        }
+        let reversed = Array(chapters.reversed())
+        reversedChaptersCache = (chapters, reversed)
+        return reversed
     }
 
     // resolve selected chapter keys, which can come from either the chapter list

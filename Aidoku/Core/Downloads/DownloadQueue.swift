@@ -228,10 +228,12 @@ actor DownloadQueue {
         // disable individual download cancelled notifications
         cancellationNotificationDepth += 1
         defer { cancellationNotificationDepth -= 1 }
+        // One identity scan per manga; per-chapter checks reopened every sibling archive.
+        let safe = cache.safeChapters(chapters)
         for chapter in chapters {
             if let task = tasks[chapter.sourceKey] {
                 await task.cancel(chapter: chapter)
-            } else if cache.isSafe(chapter: chapter) {
+            } else if safe.contains(chapter) {
                 cache.tmpDirectory(for: chapter).removeItem()
             }
             if let download = queue[chapter.sourceKey]?.first(where: { $0.chapterIdentifier == chapter }) {
@@ -267,7 +269,8 @@ actor DownloadQueue {
         let cancellation = Task {
             cancellationNotificationDepth += 1
             for task in Array(tasks.values) { await task.cancel() }
-            for download in queue.values.joined() where cache.isSafe(chapter: download.chapterIdentifier) {
+            let safe = cache.safeChapters(queue.values.joined().map(\.chapterIdentifier))
+            for download in queue.values.joined() where safe.contains(download.chapterIdentifier) {
                 cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
             }
             queue = [:]

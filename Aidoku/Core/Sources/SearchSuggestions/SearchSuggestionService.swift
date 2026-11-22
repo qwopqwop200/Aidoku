@@ -120,22 +120,25 @@ actor SearchSuggestionService {
 actor SearchSuggestionHTTPClient {
     private var session: URLSession?
     private var bypass: Bool?
+    private var generation = 0
 
     deinit { session?.invalidateAndCancel() }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         let enabled = SourceNetwork.isEnabled
-        if session == nil || bypass != enabled {
+        let current = await SourceNetwork.shared.proxyGeneration
+        if session == nil || bypass != enabled || generation != current {
             let settings = URLSessionConfiguration.ephemeral
             settings.httpCookieStorage = nil
             settings.httpShouldSetCookies = false
             settings.urlCache = nil
             let config = try await SourceNetwork.shared.configuration(settings, bypass: enabled)
             // A second request may have created the session while configuration awaited.
-            if session == nil || bypass != enabled {
+            if session == nil || bypass != enabled || generation != current {
                 session?.finishTasksAndInvalidate()
                 session = URLSession(configuration: config)
                 bypass = enabled
+                generation = current
             }
         }
         guard let session else { throw URLError(.unknown) }

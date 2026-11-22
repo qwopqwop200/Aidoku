@@ -52,7 +52,8 @@ private struct OIDCLoginControllerView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: OIDCLoginController, context: Context) {
-        webViewURL = uiViewController.webView.url
+        // Report navigations from KVO; writing state during this update is undefined in SwiftUI.
+        uiViewController.onURLChange = { webViewURL = $0 }
     }
 }
 
@@ -64,12 +65,16 @@ private class OIDCLoginController: UIViewController, WKNavigationDelegate {
 
     private var isActive = true
     private var isCompleting = false
+    private var urlObservation: NSKeyValueObservation?
+    var onURLChange: ((URL?) -> Void)?
 
     lazy var webView: WKWebView = {
         let config = WKWebViewConfiguration()
         // Setup has no source key yet. Isolate credentials from every previous browser login.
         config.websiteDataStore = .nonPersistent()
         let webView = WKWebView(frame: self.view.bounds, configuration: config)
+        // The view is created at screen size and resized later by the sheet.
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         webView.navigationDelegate = self
         return webView
     }()
@@ -88,6 +93,9 @@ private class OIDCLoginController: UIViewController, WKNavigationDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         self.view.addSubview(webView)
+        urlObservation = webView.observe(\.url) { [weak self] webView, _ in
+            MainActor.assumeIsolated { self?.onURLChange?(webView.url) }
+        }
         let request = URLRequest(url: loginURL)
         webView.loadSourceRequest(request)
     }
@@ -114,6 +122,7 @@ private class OIDCLoginController: UIViewController, WKNavigationDelegate {
 
     func cancel() {
         isActive = false
+        urlObservation = nil
         webView.cancelSourceRequest()
         webView.stopLoading()
         webView.navigationDelegate = nil

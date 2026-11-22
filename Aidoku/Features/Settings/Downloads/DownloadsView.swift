@@ -136,7 +136,8 @@ private struct DownloadedMangaRow: View {
                 source: SourceManager.shared.store.source(for: manga.sourceId),
                 coverImage: manga.coverUrl ?? "",
                 width: 56,
-                height: 56 * 3/2
+                height: 56 * 3/2,
+                downsampleWidth: 56
             )
 
             VStack(alignment: .leading, spacing: 4) {

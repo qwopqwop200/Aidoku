@@ -337,6 +337,19 @@ extension LibraryViewModel {
             let actuallyEmpty = libraryObjects.isEmpty
 
             var ids = Set<MangaIdentifier>()
+            // One distinct-id fetch per filter instead of a count query per title.
+            func mangaIds(_ entityName: String) -> Set<MangaIdentifier> {
+                let request = NSFetchRequest<NSDictionary>(entityName: entityName)
+                request.resultType = .dictionaryResultType
+                request.propertiesToFetch = ["sourceId", "mangaId"]
+                request.returnsDistinctResults = true
+                return Set(((try? context.fetch(request)) ?? []).compactMap { row in
+                    guard let source = row["sourceId"] as? String, let manga = row["mangaId"] as? String else { return nil }
+                    return MangaIdentifier(sourceKey: source, mangaKey: manga)
+                })
+            }
+            let tracked = filters.contains { $0.type == .tracking } ? mangaIds("Track") : []
+            let started = filters.contains { $0.type == .started } ? mangaIds("History") : []
 
             main: for libraryObject in libraryObjects {
                 guard
@@ -371,17 +384,11 @@ extension LibraryViewModel {
                         case .downloaded:
                             continue
                         case .tracking:
-                            condition = CoreDataManager.shared.hasTrack(
-                                mangaId: info.id,
-                                context: context
-                            )
+                            condition = tracked.contains(info.id)
                         case .hasUnread:
                             continue
                         case .started:
-                            condition = CoreDataManager.shared.hasHistory(
-                                mangaId: info.id,
-                                context: context
-                            )
+                            condition = started.contains(info.id)
                         case .completed:
                             condition = mangaObject.status == AidokuRunner.PublishingStatus.completed.rawValue
                         case .source:
@@ -452,11 +459,7 @@ extension LibraryViewModel {
             CoreDataManager.shared.unreadCounts(mangaIds: identifiers, context: context)
         }
         guard isCurrent(), !Task.isCancelled else { return nil }
-        var downloads: [MangaIdentifier: Int] = [:]
-        for identifier in identifiers {
-            guard isCurrent(), !Task.isCancelled else { return nil }
-            downloads[identifier] = await DownloadManager.shared.downloadsCount(for: identifier)
-        }
+        let downloads = await DownloadManager.shared.downloadsCounts(for: identifiers)
         guard isCurrent(), !Task.isCancelled else { return nil }
         func enrich(_ values: [MangaInfo]) -> [MangaInfo] {
             values.map { value in

@@ -258,7 +258,10 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             guard request.imageJPEG != nil, request.filtersSFX == true, request.filtersBackground == true else {
                 throw RemoteTranslationError.invalidRequest("page translation requires image, SFX and background roles")
             }
-            return try await translateOnce(request, configuration: configuration)
+            let result = try await translateOnce(request, configuration: configuration)
+            // An explicit retest (connection test) that accepted the page image restores text batches' images.
+            if rechecksImageSupport { imageSupport.record(.supported, for: configuration) }
+            return result
         }
         var effectiveRequest = request
         if !rechecksImageSupport, imageSupport.status(for: configuration) == .unsupported {
@@ -482,7 +485,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         try Task.checkCancellation()
         let requestID = sanitizedRequestID(response.value(forHTTPHeaderField: "x-request-id"))
         guard (200...299).contains(response.statusCode) else {
-            if request.imageJPEG != nil,
+            // The page path has no text-only downgrade, so its rejection stays a typed HTTP error.
+            if request.imageJPEG != nil, request.translatesPageLettering != true,
                TranslationImageSupport.isUnsupportedResponse(status: response.statusCode, body: body) {
                 throw UnsupportedImageInput()
             }

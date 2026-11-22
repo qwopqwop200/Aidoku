@@ -45,7 +45,11 @@ struct ChapterListHeaderView: View {
         self._displayMode = displayMode
         self.mangaId = mangaId
 
-        if let allChapters, !allChapters.isEmpty {
+        if let allChapters, !allChapters.isEmpty, let cached = Self.filterOptionsCache, cached.chapters == allChapters {
+            // the header is rebuilt on every list update; equal arrays usually share storage, so this is cheap
+            Self.filterOptionsCache?.chapters = allChapters
+            (self.languages, self.scanlators, self.showMenu) = (cached.languages, cached.scanlators, true)
+        } else if let allChapters, !allChapters.isEmpty {
             var languages: Set<String> = []
             var scanlators: Set<String> = []
             for chapter in allChapters {
@@ -63,8 +67,11 @@ struct ChapterListHeaderView: View {
             self.languages = languages.sorted()
             self.scanlators = scanlators.sorted()
             self.showMenu = true
+            Self.filterOptionsCache = (allChapters, self.languages, self.scanlators)
         }
     }
+
+    @MainActor private static var filterOptionsCache: (chapters: [AidokuRunner.Chapter], languages: [String], scanlators: [String])?
 
     var body: some View {
         HStack {

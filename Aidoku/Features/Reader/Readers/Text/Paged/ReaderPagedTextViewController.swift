@@ -42,6 +42,7 @@ class ReaderPagedTextViewController: BaseObservingViewController {
     private var chapterGeneration = UUID()
     private var isLoadingChapter = false  // Prevent race conditions
     private var lastPaginationSize: CGSize = .zero  // Track size to avoid repagination loops
+    private var isTransitioningSize = false  // The transition completion repaginates once
 
     /// Fixed text insets used by child page view controllers.
     /// Computed once during pagination and kept constant so text doesn't shift
@@ -152,7 +153,7 @@ class ReaderPagedTextViewController: BaseObservingViewController {
 
         // Repaginate if view size changed significantly (e.g., rotation)
         let newSize = view.bounds.size
-        if !pages.isEmpty && lastPaginationSize != .zero {
+        if !pages.isEmpty && lastPaginationSize != .zero && !isTransitioningSize {
             if abs(lastPaginationSize.width - newSize.width) > 10 ||
                abs(lastPaginationSize.height - newSize.height) > 10 {
                 repaginate()
@@ -162,9 +163,11 @@ class ReaderPagedTextViewController: BaseObservingViewController {
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
+        isTransitioningSize = true
 
         coordinator.animate(alongsideTransition: nil) { [weak self] _ in
             guard let self else { return }
+            self.isTransitioningSize = false
 
             if self.usesAutoPageLayout {
                 let newUsesDouble = size.width > size.height

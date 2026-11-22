@@ -124,20 +124,17 @@ extension CoreDataManager {
         updates: [ChapterIdentifier],
         context: NSManagedObjectContext
     ) {
-        let request = MangaUpdateObject.fetchRequest()
-
-        var predicates: [NSPredicate] = []
-        for update in updates {
-            predicates.append(NSPredicate(
-                format: "sourceId == %@ AND chapterId == %@ AND mangaId == %@",
-                update.sourceKey, update.chapterKey, update.mangaKey
-            ))
-        }
-        request.predicate = NSCompoundPredicate(orPredicateWithSubpredicates: predicates)
-
-        if let fetchedUpdates = try? context.fetch(request) {
-            for update in fetchedUpdates {
-                context.delete(update)
+        // A per-update OR predicate exceeds SQLite's expression depth for a few hundred updates.
+        for (manga, ids) in Dictionary(grouping: Set(updates), by: \.mangaIdentifier) {
+            for keys in ids.map(\.chapterKey).chunked(into: 500) {
+                let request = MangaUpdateObject.fetchRequest()
+                request.predicate = NSPredicate(
+                    format: "sourceId == %@ AND mangaId == %@ AND chapterId IN %@",
+                    manga.sourceKey, manga.mangaKey, keys
+                )
+                for update in (try? context.fetch(request)) ?? [] {
+                    context.delete(update)
+                }
             }
         }
     }

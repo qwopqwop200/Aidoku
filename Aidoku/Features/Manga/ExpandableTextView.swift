@@ -27,24 +27,10 @@ struct ExpandableTextView: View {
             .joined(separator: "  \n")
     }
 
-    private var markdownTheme: Theme {
-        Theme()
-            .paragraph { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontSize(15)
-                    }
-                    .lineSpacing(0)
-                    .foregroundStyle(.secondary)
-            }
-    }
-
     var body: some View {
         let text = expanded ? text : textUntilNewline
         ZStack(alignment: .bottomTrailing) {
-            Markdown(text)
-                .markdownSoftBreakMode(.lineBreak)
-                .markdownTheme(markdownTheme)
+            DescriptionMarkdown(text: text)
                 .environment(
                     \.openURL,
                     OpenURLAction { url in
@@ -147,6 +133,29 @@ struct ExpandableTextView: View {
         // the line height of the bounding box is slightly different than the actual line height,
         // so we divide by approximately the appropriate line heights
         truncated = total.size.height / 19.6 > geometry.size.height / 18
+    }
+}
+
+// a separate view so the description is only parsed again when its text changes, not on every parent update
+private struct DescriptionMarkdown: View {
+    let text: String
+
+    private var markdownTheme: Theme {
+        Theme()
+            .paragraph { configuration in
+                configuration.label
+                    .markdownTextStyle {
+                        FontSize(15)
+                    }
+                    .lineSpacing(0)
+                    .foregroundStyle(.secondary)
+            }
+    }
+
+    var body: some View {
+        Markdown(text)
+            .markdownSoftBreakMode(.lineBreak)
+            .markdownTheme(markdownTheme)
     }
 }
 

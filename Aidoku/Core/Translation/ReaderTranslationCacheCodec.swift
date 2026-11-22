@@ -26,7 +26,12 @@ enum ReaderTranslationCacheCodec {
     static func unpack(_ data: Data) throws -> Data {
         guard isPacked(data) else { return data } // Existing v1 JSON remains readable.
         let algorithm: NSData.CompressionAlgorithm = data.starts(with: zlibMagic) ? .zlib : .lzfse
-        return try (Data(data.dropFirst(magic.count)) as NSData).decompressed(using: algorithm) as Data
+        // Decompress straight from the stored bytes instead of copying the compressed body first.
+        return try data.dropFirst(magic.count).withUnsafeBytes { bytes in
+            guard let base = bytes.baseAddress else { return try (Data() as NSData).decompressed(using: algorithm) as Data }
+            return try NSData(bytesNoCopy: UnsafeMutableRawPointer(mutating: base), length: bytes.count, freeWhenDone: false)
+                .decompressed(using: algorithm) as Data
+        }
     }
 
     static func repack(_ data: Data) throws -> Data {

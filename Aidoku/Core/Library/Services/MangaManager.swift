@@ -21,6 +21,8 @@ actor MangaManager {
     private var libraryRefreshTask: Task<Bool, Never>?
     private var libraryRefreshProgressTask: Task<(), Never>?
     private var onLibraryRefreshProgress: (@MainActor (Progress) -> Void)?
+    // a background task that joined a running refresh also needs its progress
+    private var joinedRefreshTask: (ProgressReporting & Sendable)?
 
     private var pendingBackgroundRefresh: (category: String?, skipReachabilityCheck: Bool)?
     private var nextAutomaticRefreshAttempt = Date.distantPast
@@ -464,6 +466,7 @@ extension MangaManager {
         guard !Task.isCancelled else { return false }
         if let libraryRefreshTask {
             // A caller joining an existing refresh does not own its cancellation or completion effects.
+            if let task { joinedRefreshTask = task }
             return await libraryRefreshTask.value
         } else {
             // spawn new library refresh
@@ -497,6 +500,7 @@ extension MangaManager {
                 libraryRefreshProgressTask?.cancel()
                 libraryRefreshProgressTask = nil
                 onLibraryRefreshProgress = nil
+                joinedRefreshTask = nil
                 await tabController?.hideAccessoryView()
                 NotificationCenter.default.post(name: .updateLibrary, object: nil)
                 if Task.isCancelled {
@@ -520,7 +524,9 @@ extension MangaManager {
     private nonisolated func shouldSkip(
         manga: Manga,
         options: [String],
-        excludedCategories: [String] = [],
+        excludedIds: Set<MangaIdentifier>,
+        unreadCounts: [MangaIdentifier: [ChapterCount]]?,
+        readCounts: [MangaIdentifier: [ChapterCount]]?,
         loadedSourceKeys: Set<String>,
         context: NSManagedObjectContext
     ) -> Bool {
@@ -543,39 +549,72 @@ extension MangaManager {
             return true
         }
         // has unread chapters
-        if options.contains("hasUnread") && CoreDataManager.shared.unreadCount(
+        if options.contains("hasUnread") && (unreadCounts.map { Self.count($0[manga.identifier], for: manga) }
+            ?? CoreDataManager.shared.unreadCount(
             mangaId: manga.identifier,
             lang: manga.langFilter,
             scanlators: manga.scanlatorFilter,
             context: context
-        ) > 0 {
+        )) > 0 {
             return true
         }
         // has no read chapters
-        if options.contains("notStarted") && CoreDataManager.shared.readCount(
+        if options.contains("notStarted") && (readCounts.map { Self.count($0[manga.identifier], for: manga) }
+            ?? CoreDataManager.shared.readCount(
             mangaId: manga.identifier,
             lang: manga.langFilter,
             scanlators: manga.scanlatorFilter,
             context: context
-        ) == 0 {
+        )) == 0 {
             return true
         }
 
-        if !excludedCategories.isEmpty {
-            // check if excluded via category
-            let categories = CoreDataManager.shared.getCategories(
-                mangaId: manga.identifier,
-                context: context
-            ).compactMap { $0.title }
-
-            if !categories.isEmpty {
-                if excludedCategories.contains(where: categories.contains) {
-                    return true
-                }
-            }
+        // excluded via category
+        if excludedIds.contains(manga.identifier) {
+            return true
         }
 
         return false
+    }
+
+    typealias ChapterCount = (lang: String?, scanlator: String?, count: Int)
+
+    /// Chapter counts grouped by manga, language and scanlator in one fetch; nil if the grouped fetch fails.
+    private nonisolated static func chapterCounts(unread: Bool, context: NSManagedObjectContext) -> [MangaIdentifier: [ChapterCount]]? {
+        let request = NSFetchRequest<NSDictionary>(entityName: "Chapter")
+        request.resultType = .dictionaryResultType
+        // same conditions as CoreDataManager.unreadCount / readCount
+        request.predicate = unread
+            ? NSPredicate(format: "(history == nil OR history.completed == false) AND locked == false")
+            : NSPredicate(format: "history.completed == true")
+        let count = NSExpressionDescription()
+        count.name = "count"
+        count.expression = NSExpression(forFunction: "count:", arguments: [NSExpression(forKeyPath: "id")])
+        count.expressionResultType = .integer64AttributeType
+        request.propertiesToFetch = ["sourceId", "mangaId", "lang", "scanlator", count]
+        request.propertiesToGroupBy = ["sourceId", "mangaId", "lang", "scanlator"]
+        guard let rows = try? context.fetch(request) else { return nil }
+        var result: [MangaIdentifier: [ChapterCount]] = [:]
+        for row in rows {
+            guard
+                let sourceKey = row["sourceId"] as? String,
+                let mangaKey = row["mangaId"] as? String,
+                let number = row["count"] as? NSNumber
+            else { return nil }
+            let item: ChapterCount = (row["lang"] as? String, row["scanlator"] as? String, number.intValue)
+            result[.init(sourceKey: sourceKey, mangaKey: mangaKey), default: []].append(item)
+        }
+        return result
+    }
+
+    /// Applies the manga's language and scanlator filters like the scalar count fetches.
+    private nonisolated static func count(_ rows: [ChapterCount]?, for manga: Manga) -> Int {
+        let scanlators = manga.scanlatorFilter?.isEmpty == false ? manga.scanlatorFilter : nil
+        return (rows ?? []).reduce(0) { total, row in
+            guard manga.langFilter == nil || row.lang == manga.langFilter else { return total }
+            if let scanlators, !(row.scanlator.map { scanlators.contains($0) } ?? scanlators.contains("")) { return total }
+            return total + row.count
+        }
     }
 
     private func doLibraryRefresh(
@@ -623,11 +662,23 @@ extension MangaManager {
 
         // filter items that we should skip
         let filteredManga = await CoreDataManager.shared.container.performBackgroundTask { context in
-            allManga.filter { manga in
+            // one library fetch instead of one per manga
+            let excludedIds = excludedCategories.isEmpty ? [] : Set(
+                CoreDataManager.shared.getLibraryManga(context: context).compactMap { object -> MangaIdentifier? in
+                    let titles = (object.categories?.allObjects as? [CategoryObject])?.compactMap(\.title) ?? []
+                    return excludedCategories.contains(where: titles.contains) ? object.manga?.identifier : nil
+                }
+            )
+            // one grouped count fetch instead of one count query per manga
+            let unreadCounts = skipOptions.contains("hasUnread") ? Self.chapterCounts(unread: true, context: context) : nil
+            let readCounts = skipOptions.contains("notStarted") ? Self.chapterCounts(unread: false, context: context) : nil
+            return allManga.filter { manga in
                 !self.shouldSkip(
                     manga: manga,
                     options: skipOptions,
-                    excludedCategories: excludedCategories,
+                    excludedIds: excludedIds,
+                    unreadCounts: unreadCounts,
+                    readCounts: readCounts,
                     loadedSourceKeys: allLoadedSourceKeys,
                     context: context
                 )
@@ -640,12 +691,11 @@ extension MangaManager {
         let notificationsEnabled = AppSettings.library.notifyNewChapters.get()
         var pendingNotifications: [NotificationManager.NewChaptersSummary] = []
 
-        let newDetails = await {
-            var results: [MangaIdentifier: AidokuRunner.Manga] = [:]
+        await {
             let progress = Progress(totalUnitCount: Int64(total))
 
             for manga in filteredManga {
-                guard !Task.isCancelled else { return results }
+                guard !Task.isCancelled else { return }
 
                 guard
                     let newManga = try? await SourceManager.shared.source(for: manga.sourceId)?
@@ -657,13 +707,7 @@ extension MangaManager {
                     continue
                 }
 
-                guard !Task.isCancelled else { return results }
-                if updateMetadata {
-                    // final metadata publication needs no chapter arrays
-                    var metadata = newManga
-                    metadata.chapters = nil
-                    results[manga.identifier] = metadata
-                }
+                guard !Task.isCancelled else { return }
 
                 let mangaId = manga.identifier
                 let mangaTitle = manga.title
@@ -732,21 +776,10 @@ extension MangaManager {
                 progress.completedUnitCount = Int64(completed)
                 updateLibraryRefreshProgress(progress)
             }
-
-            return results
         }()
 
         // These summaries describe committed rows, including a write that finished during cancellation.
         await NotificationManager.shared.notifyNewChapters(pendingNotifications)
-        guard !Task.isCancelled else { return }
-
-        if updateMetadata {
-            for mangaItem in filteredManga {
-                guard let newInfo = newDetails[mangaItem.identifier] else { continue }
-                mangaItem.load(from: newInfo.toOld())
-            }
-        }
-
         guard !Task.isCancelled else { return }
         if category == nil {
             AppSettings.library.lastUpdated.set(Date.now)
@@ -755,11 +788,14 @@ extension MangaManager {
 
     private func updateLibraryRefreshProgress(_ progress: Progress) {
         libraryRefreshProgressTask?.cancel()
+        let joined = joinedRefreshTask
         libraryRefreshProgressTask = Task {
             // buffer progress updates by 100ms
             try? await Task.sleep(nanoseconds: 100_000_000)
             guard !Task.isCancelled else { return }
             await onLibraryRefreshProgress?(progress)
+            joined?.progress.totalUnitCount = progress.totalUnitCount
+            joined?.progress.completedUnitCount = progress.completedUnitCount
         }
     }
 }

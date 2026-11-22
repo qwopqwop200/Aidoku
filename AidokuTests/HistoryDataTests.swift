@@ -106,6 +106,28 @@ struct HistoryDataTests {
         #expect(try writer.count(for: ReadingSessionObject.fetchRequest()) == 1)
     }
 
+    /// Batched completion must reuse existing rows, link new rows to chapters and not duplicate repeated IDs.
+    @Test func setCompletedReusesAndLinksHistoryAcrossBatches() throws {
+        let fixture = try TemporaryCoreDataStore()
+        defer { fixture.close() }
+        let context = fixture.context
+        let manager = CoreDataManager.shared
+        let manga = AidokuRunner.Manga(sourceKey: "complete-fixture", key: "manga", title: "Title")
+        manager.addToLibrary(manga: manga, chapters: (0..<600).map { .init(key: "\($0)") }, context: context)
+        let ids = (0..<601).map { ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: "\($0)") }
+        manager.setProgress(2, chapterId: ids[0], context: context)
+        try context.save()
+        #expect(manager.setCompleted(chapterIds: ids + [ids[1]], context: context))
+        try context.save()
+        context.reset()
+        #expect(try context.count(for: HistoryObject.fetchRequest()) == 601)
+        let first = try #require(manager.getHistory(chapterId: ids[0], context: context))
+        #expect(first.completed && first.progress == 2 && first.chapter != nil)
+        #expect(manager.getHistory(chapterId: ids[599], context: context)?.chapter != nil)
+        #expect(manager.getHistory(chapterId: ids[600], context: context)?.completed == true)
+        #expect(manager.getHistory(chapterId: ids[600], context: context)?.chapter == nil)
+    }
+
     // MARK: Metadata cache (persisted on disk)
 
     @Test func metadataCacheRestoresOnlyTheRequestedChapterAfterReopen() throws {

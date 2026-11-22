@@ -79,7 +79,9 @@ struct MarkdownView: View {
 private struct LocalFileImageProvider: ImageProvider {
     @ContentBuilder
     func makeImage(url: URL?) -> some View {
-        if let url, url.isFileURL, let image = UIImage(contentsOfFile: url.path) {
+        // Capped like reader pages so a huge local image cannot exhaust memory.
+        if let url, url.isFileURL, let data = try? Data(contentsOf: url, options: .mappedIfSafe),
+           let image = ImagePixelCap.decodeImage(data) {
             Image(uiImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

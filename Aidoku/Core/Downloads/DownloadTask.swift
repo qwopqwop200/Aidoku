@@ -112,7 +112,8 @@ actor DownloadTask: Identifiable {
                 warmedPages.task.cancel()
                 self.warmedPages = nil
             }
-            for download in cancelled where cache.isSafe(chapter: download.chapterIdentifier) {
+            let safe = cache.safeChapters(cancelled.map(\.chapterIdentifier))
+            for download in cancelled where safe.contains(download.chapterIdentifier) {
                 cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
             }
             // Clean up before yielding: a delegate callback may re-enqueue the chapter.
@@ -133,7 +134,8 @@ actor DownloadTask: Identifiable {
         running = false
         let cancellation = Task {
             await previousWorker?.value
-            for download in cancelled where cache.isSafe(chapter: download.chapterIdentifier) {
+            let safe = cache.safeChapters(cancelled.map(\.chapterIdentifier))
+            for download in cancelled where safe.contains(download.chapterIdentifier) {
                 cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
             }
             if cancelledCurrent {
@@ -596,7 +598,8 @@ extension DownloadTask {
                     }
                 }
 
-                await cache.add(chapter: download.chapterIdentifier)
+                // The identity check rescans the manga folder, so it runs here rather than on the main actor.
+                if cache.isSafe(chapter: download.chapterIdentifier) { await cache.add(chapter: download.chapterIdentifier) }
             } catch {
                 guard !Task.isCancelled else { return false }
                 LogManager.logger.error("Error moving temporary download directory (\(tmpDirectory)) to final location: \(error)")

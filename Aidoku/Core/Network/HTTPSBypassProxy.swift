@@ -10,15 +10,22 @@ final class HTTPSBypassProxy: @unchecked Sendable {
     private var startup: CheckedContinuation<NWEndpoint, Error>?
     private var endpoint: NWEndpoint?
     private var fragmentedConnections = 0
+    private var port: NWEndpoint.Port?
+    private var stopped = false
+    private var served: NWEndpoint.Port?
+    private let changed: @Sendable () -> Void
+
+    init(changed: @escaping @Sendable () -> Void = {}) { self.changed = changed }
 
     func start() async throws -> NWEndpoint {
         try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 if let endpoint = self.endpoint { continuation.resume(returning: endpoint); return }
-                guard self.listener == nil else { continuation.resume(throwing: URLError(.cannotConnectToHost)); return }
+                guard !self.stopped, self.listener == nil else { continuation.resume(throwing: URLError(.cannotConnectToHost)); return }
                 do {
                     let parameters = NWParameters.tcp
-                    parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
+                    parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: self.port ?? .any)
+                    parameters.allowLocalEndpointReuse = true
                     let listener = try NWListener(using: parameters)
                     self.listener = listener
                     self.startup = continuation
@@ -37,10 +44,18 @@ final class HTTPSBypassProxy: @unchecked Sendable {
                             case .ready:
                                 guard let port = listener.port else { self.stopOnQueue(); return }
                                 let endpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: port)
+                                self.port = port
+                                if self.served != nil, self.served != port { self.changed() }
+                                self.served = port
                                 self.endpoint = endpoint
                                 self.startup?.resume(returning: endpoint)
                                 self.startup = nil
-                            case .failed, .cancelled: self.stopOnQueue()
+                            case .failed:
+                                // iOS reclaims listeners of suspended apps; sessions keep this port, so listen on it again.
+                                let restart = self.endpoint != nil
+                                self.stopOnQueue()
+                                if restart { Task { _ = try? await self.start() } }
+                            case .cancelled: self.stopOnQueue()
                             default: break
                         }
                     }
@@ -53,13 +68,15 @@ final class HTTPSBypassProxy: @unchecked Sendable {
         }
     }
 
-    func stop() { queue.async { self.stopOnQueue() } }
+    func stop() { queue.async { self.stopped = true; self.stopOnQueue() } }
 
     func fragmentCount() async -> Int {
         await withCheckedContinuation { continuation in queue.async { continuation.resume(returning: self.fragmentedConnections) } }
     }
 
     private func stopOnQueue() {
+        // A listener that never became ready may have lost its port: take any port and let holders rebuild.
+        if endpoint == nil, listener != nil { port = nil; if served != nil, !stopped { changed() } }
         listener?.stateUpdateHandler = nil
         listener?.newConnectionHandler = nil
         listener?.cancel()
@@ -103,7 +120,9 @@ private extension HTTPSBypassProxy {
             timer.schedule(deadline: .now() + 15, repeating: 15)
             timer.setEventHandler { [weak self] in
                 guard let self else { return }
-                if ProcessInfo.processInfo.systemUptime - self.lastActivity > (self.connected ? 120 : 15) { self.close() }
+                // DNS (two servers in turn) and TCP connects have their own timeouts, so only the greeting uses the short limit.
+                let limit: TimeInterval = self.connected || self.resolution != nil ? 120 : 15
+                if ProcessInfo.processInfo.systemUptime - self.lastActivity > limit { self.close() }
             }
             self.timer = timer
             timer.resume()
@@ -239,7 +258,7 @@ private extension HTTPSBypassProxy {
             remote.start(queue: queue)
             // Try another resolved address if one family has no usable route.
             queue.asyncAfter(deadline: .now() + 3) { [weak self, weak remote] in
-                guard let self, let remote, !self.finished, !self.connected, self.remote === remote else { return }
+                guard let self, let remote, !self.finished, !self.connected, self.remote === remote, addresses.count > 1 else { return }
                 self.open(addresses: Array(addresses.dropFirst()), port: port)
             }
         }

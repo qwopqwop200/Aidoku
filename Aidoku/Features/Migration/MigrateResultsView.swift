@@ -110,6 +110,8 @@ struct MigrateResultsView: View {
             didFirstLoad = true
             await loadSourceNames()
             await startMatching()
+            // A push cancels this task; resume unfinished rows when the view reappears.
+            if Task.isCancelled { didFirstLoad = false }
         }
     }
 }
@@ -149,7 +151,7 @@ extension MigrateResultsView {
 
     func startMatching() async {
         // Row removal must not shift the cursor over work that has not started.
-        let matchingSeries = selectedSeries
+        let matchingSeries = selectedSeries.filter { states[$0.identifier].map { $0 == .running } ?? true }
         matchingSeries.forEach {
             matchingDemand[$0.identifier]?.revoke()
             matchingDemand[$0.identifier] = MigrationRowDemand()
@@ -202,6 +204,7 @@ extension MigrateResultsView {
             }
         }
 
+        guard !Task.isCancelled else { return }
         withAnimation {
             isLoading = false
         }

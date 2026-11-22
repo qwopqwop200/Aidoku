@@ -8,7 +8,7 @@ import WebKit
 actor SourceNetwork {
     static let shared = SourceNetwork()
     static let enabledKey = "Network.httpsBypass"
-    private let proxy = HTTPSBypassProxy()
+    private let proxy = HTTPSBypassProxy { Task { await SourceNetwork.shared.proxyChanged() } }
     private var startup: Task<NWEndpoint, Error>?
     private var proxiedSession: URLSession?
     private var proxiedLoader: DataLoader?
@@ -38,6 +38,18 @@ actor SourceNetwork {
             if !(error is CancellationError) { startup = nil }
             throw error
         }
+    }
+
+    /// Bumped whenever the proxy moves, so other session owners can rebuild.
+    private(set) var proxyGeneration = 0
+
+    // The proxy moved to another port: drop everything that still points at the old one.
+    private func proxyChanged() {
+        proxyGeneration += 1
+        startup = nil
+        proxiedSession?.finishTasksAndInvalidate(); proxiedSession = nil
+        proxiedLoader = nil
+        Task { @MainActor in try? await Self.refreshWebStores() }
     }
 
     func configuration(_ base: URLSessionConfiguration = .default, bypass: Bool? = nil) async throws -> URLSessionConfiguration {
@@ -77,8 +89,9 @@ actor SourceNetwork {
         try await session().download(for: request)
     }
 
-    func object<T: Decodable>(from url: URL) async throws -> T { try await object(from: URLRequest(url: url)) }
-    func object<T: Decodable>(from request: URLRequest) async throws -> T {
+    nonisolated func object<T: Decodable>(from url: URL) async throws -> T { try await object(from: URLRequest(url: url)) }
+    // Decoding off the actor keeps large JSON from delaying image loader lookups.
+    nonisolated func object<T: Decodable>(from request: URLRequest) async throws -> T {
         let (data, _) = try await data(for: request)
         return try JSONDecoder().decode(T.self, from: data)
     }

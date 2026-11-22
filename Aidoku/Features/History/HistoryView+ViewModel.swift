@@ -39,6 +39,8 @@ extension HistoryView {
 
         private var missingMangaQueue: [MangaIdentifier: Set<String>] = [:]  // [mangaKey: Set<chapterId>]
         private var mangaLoadTask: Task<Void, Never>?
+        // Chapters a successful source fetch did not return; refetching cannot resolve them.
+        private var unavailableChapters = Set<ChapterIdentifier>()
         private let maxConcurrentLoads = 3
 
         private let batchSize = 100
@@ -362,6 +364,9 @@ extension HistoryView.ViewModel {
                         let key = ChapterIdentifier(sourceKey: mangaId.sourceKey, mangaKey: mangaId.mangaKey, chapterKey: chapter.key)
                         self.chapterCache[key] = chapter
                     }
+                    for chapterKey in chapterIds where !chapters.contains(where: { $0.key == chapterKey }) {
+                        self.unavailableChapters.insert(.init(sourceKey: mangaId.sourceKey, mangaKey: mangaId.mangaKey, chapterKey: chapterKey))
+                    }
                 }
                 self.refilterHistory()
             }
@@ -567,7 +572,9 @@ extension HistoryView.ViewModel {
     private func addMetadata(_ metadata: HistoryMetadataBatch, missingChapters: [ChapterIdentifier]) {
         mangaCache.merge(metadata.manga) { _, new in new }
         chapterCache.merge(metadata.chapters) { _, new in new }
-        for chapterId in missingChapters {
+        // The view model may already hold metadata fetched earlier; avoid refetching it from the source.
+        for chapterId in missingChapters where mangaCache[chapterId.mangaIdentifier] == nil || chapterCache[chapterId] == nil {
+            guard !unavailableChapters.contains(chapterId) else { continue }
             addToQueue(mangaId: chapterId.mangaIdentifier, chapterKey: chapterId.chapterKey)
         }
     }

@@ -41,8 +41,7 @@ class ReaderDoublePageViewController: BaseObservingViewController {
         self.secondPageController = secondPage
         self.direction = direction
         super.init()
-        self.firstPageController.isInDoublePageController = true
-        self.secondPageController.isInDoublePageController = true
+        // viewWillAppear marks the children; data-source spreads that never appear must not disable their zoom.
     }
 
     override func configure() {

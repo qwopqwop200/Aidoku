@@ -359,6 +359,15 @@ private struct HistoryEntryCell: View, @MainActor Equatable {
     var onPressed: (() -> Void)?
 
     private static let coverImageWidth: CGFloat = 56
+    // Creating a DateFormatter per cell render is expensive while scrolling.
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     var body: some View {
         Button {
@@ -422,10 +431,7 @@ private struct HistoryEntryCell: View, @MainActor Equatable {
         if let currentPage = entry.currentPage, let totalPages = entry.totalPages, currentPage > 0, currentPage < totalPages {
             components.append(String(format: NSLocalizedString("PAGE_X_OF_X"), currentPage, totalPages))
         }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        components.append(formatter.string(from: entry.date))
+        components.append(Self.timeFormatter.string(from: entry.date))
         return components.joined(separator: " - ")
     }
 

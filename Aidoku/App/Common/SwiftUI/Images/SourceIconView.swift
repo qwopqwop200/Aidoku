@@ -47,7 +47,8 @@ private struct IconView: View {
         SourceImageView(
             imageUrl: imageUrl?.absoluteString ?? "",
             width: iconSize,
-            height: iconSize
+            height: iconSize,
+            downsampleWidth: iconSize
         )
         .clipShape(RoundedRectangle(cornerRadius: iconSize * 0.225))
         .overlay(

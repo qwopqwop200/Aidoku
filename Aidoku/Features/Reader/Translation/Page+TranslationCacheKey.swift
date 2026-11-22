@@ -23,6 +23,8 @@ extension Page {
             parts.append(base64Identity)
         }
         let data = (try? JSONEncoder().encode(parts)) ?? Data()
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        // Same lowercase hex as String(format: "%02x"), without a formatter per byte (hot on the main thread).
+        let hex = Array("0123456789abcdef".utf8)
+        return String(decoding: SHA256.hash(data: data).flatMap { [hex[Int($0 >> 4)], hex[Int($0 & 15)]] }, as: UTF8.self)
     }
 }

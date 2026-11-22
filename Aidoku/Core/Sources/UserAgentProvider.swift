@@ -12,6 +12,8 @@ actor UserAgentProvider {
 
     private var userAgent: String?
     private var loadTask: Task<String?, Never>?
+    // A failed lookup is retried at most this often, not by every request (each try builds a WKWebView on main).
+    private var lastFailure: Date?
 
     private init() {}
 
@@ -22,6 +24,9 @@ actor UserAgentProvider {
 
         if let loadTask {
             return await loadTask.value
+        }
+        if let lastFailure, Date().timeIntervalSince(lastFailure) < 30 {
+            return nil
         }
 
         let task = Task<String?, Never> { @MainActor in
@@ -43,6 +48,7 @@ actor UserAgentProvider {
         let userAgent = await task.value
 
         self.userAgent = userAgent
+        lastFailure = userAgent == nil ? Date() : nil
         loadTask = nil
 
         return userAgent

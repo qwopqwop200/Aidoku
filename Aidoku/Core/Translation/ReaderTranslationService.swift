@@ -101,8 +101,8 @@ actor ReaderTranslationService {
             },
             sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage)
         let service = try translationService()
-        let concurrency = max(1, min(BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests,
-            settings.maximumConcurrentRequests))
+        // The limiter is shared with page requests, so it must use the same per-device cap.
+        let concurrency = V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
         await limiter.setMaximumConcurrentRequests(concurrency)
         let progress = try ReaderTranslationProgress(regions: regions, plans: plans, configuration: settings.configuration)
         let results = try await BoundedTranslationBatchExecutor.translate(

@@ -9,7 +9,7 @@ import Foundation
 
 class WasmAidoku: WasmImports {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     init(globalStore: WasmGlobalStore) {
         self.globalStore = globalStore
@@ -38,7 +38,7 @@ extension WasmAidoku {
                 var tagList: [String] = []
                 let tagStrings: [Int32] = self.globalStore.readValues(offset: tags, length: tagCount) ?? []
                 let tagStringLengths: [Int32] = self.globalStore.readValues(offset: tagStrLens, length: tagCount) ?? []
-                for i in 0..<Int(tagCount) {
+                for i in 0..<min(tagStrings.count, tagStringLengths.count) {
                     if let str = self.globalStore.readString(offset: tagStrings[i], length: tagStringLengths[i]) {
                         tagList.append(str)
                     }

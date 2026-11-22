@@ -140,8 +140,20 @@ actor DownloadManager {
         await queue.hasQueuedDownloads()
     }
 
+    // Existence checks come first: the identity check rescans the manga folder and most chapters have no files.
     nonisolated func getDownloadStatus(for chapter: ChapterIdentifier) -> DownloadStatus {
-        guard cache.isSafe(chapter: chapter) else { return .none }
+        let status = unverifiedDownloadStatus(for: chapter)
+        return status == .none || cache.isSafe(chapter: chapter) ? status : .none
+    }
+
+    /// Batch variant: verifies each manga's stored identities once, not once per chapter.
+    nonisolated func getDownloadStatuses(for chapters: [ChapterIdentifier]) -> [ChapterIdentifier: DownloadStatus] {
+        let statuses = chapters.map { ($0, unverifiedDownloadStatus(for: $0)) }
+        let safe = cache.safeChapters(statuses.filter { $0.1 != .none }.map(\.0))
+        return Dictionary(statuses.map { ($0, safe.contains($0) ? $1 : .none) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    private nonisolated func unverifiedDownloadStatus(for chapter: ChapterIdentifier) -> DownloadStatus {
         let chapterDirectory = cache.directory(for: chapter)
         if chapterDirectory.exists || chapterDirectory.appendingPathExtension("cbz").exists {
             return .finished
@@ -384,6 +396,15 @@ extension DownloadManager {
 
     func removeProgressBlock(for chapter: ChapterIdentifier) async {
         await queue.removeProgressBlock(for: chapter)
+    }
+
+    // One actor hop for a whole library instead of one round trip per title.
+    func downloadsCounts(for identifiers: [MangaIdentifier]) -> [MangaIdentifier: Int] {
+        var counts: [MangaIdentifier: Int] = [:]
+        for identifier in identifiers where !Task.isCancelled {
+            counts[identifier] = downloadsCount(for: identifier)
+        }
+        return counts
     }
 }
 

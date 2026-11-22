@@ -150,12 +150,24 @@ final class CoreDataManager: @unchecked Sendable {
     @discardableResult
     func clear<T: NSManagedObject>(request: NSFetchRequest<T>, context: NSManagedObjectContext) -> Bool {
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: (request as? NSFetchRequest<NSFetchRequestResult>)!)
+        deleteRequest.resultType = .resultTypeObjectIDs
         do {
-            _ = try context.execute(deleteRequest)
+            mergeBatchDelete(try context.execute(deleteRequest), from: context)
             return true
         } catch {
             LogManager.logger.error("CoreDataManager.clear: \(error.localizedDescription)")
             return false
+        }
+    }
+
+    // Batch deletes bypass contexts, so the view context would keep faults to deleted rows.
+    func mergeBatchDelete(_ result: NSPersistentStoreResult, from context: NSManagedObjectContext) {
+        guard
+            let ids = (result as? NSBatchDeleteResult)?.result as? [NSManagedObjectID], !ids.isEmpty,
+            context.persistentStoreCoordinator === container.persistentStoreCoordinator
+        else { return }
+        Task { @MainActor in
+            NSManagedObjectContext.mergeChanges(fromRemoteContextSave: [NSDeletedObjectsKey: ids], into: [self.context])
         }
     }
 
@@ -189,11 +201,11 @@ final class CoreDataManager: @unchecked Sendable {
             let request = HistoryObject.fetchRequest()
             let historyObjects = (try? context.fetch(request)) ?? []
             let total = Float(historyObjects.count)
-            var i: Float = 0
+            // Report about 100 steps; each report starts a main-actor task.
+            let step = max(1, historyObjects.count / 100)
             var count = 0
-            for historyObject in historyObjects {
-                progress?(i / total)
-                i += 1
+            for (index, historyObject) in historyObjects.enumerated() {
+                if index % step == 0 { progress?(Float(index) / total) }
                 guard
                     historyObject.chapter == nil,
                     let chapterObject = self.getChapter(

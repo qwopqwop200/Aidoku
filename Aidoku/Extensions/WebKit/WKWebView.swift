@@ -36,6 +36,7 @@ extension WKWebView {
         objc_setAssociatedObject(self, &SourceNavigationPreparation.key, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
 
+    @MainActor
     func getCookies(for domain: String? = nil) async -> [String: String]  {
         await withCheckedContinuation { continuation in
             configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in

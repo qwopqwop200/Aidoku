@@ -634,6 +634,13 @@ extension ReaderTextViewController {
                 // Update the bottom boundary transition view
                 updateBoundaryTransitionViews()
                 view.layoutIfNeeded()
+                if sections.count > 3 && !loadingPrevious {
+                    let oldContentHeight = scrollView.contentSize.height
+                    unloadSection(at: 0)
+                    updateBoundaryTransitionViews()
+                    view.layoutIfNeeded()
+                    scrollView.contentOffset.y -= oldContentHeight - scrollView.contentSize.height
+                }
 
                 loadingNext = false
             }
@@ -714,9 +721,32 @@ extension ReaderTextViewController {
                 let newContentHeight = scrollView.contentSize.height
                 let heightDelta = newContentHeight - oldContentHeight
                 scrollView.contentOffset.y = oldOffset + heightDelta
+                if sections.count > 3 && !loadingNext {
+                    unloadSection(at: sections.count - 1)
+                    updateBoundaryTransitionViews()
+                }
 
                 loadingPrevious = false
             }
+        }
+    }
+
+    /// Unload a far section so infinite scroll keeps at most three chapters in memory.
+    private func unloadSection(at index: Int) {
+        let removed = sections.remove(at: index)
+        for hc in removed.hostingControllers {
+            hc.willMove(toParent: nil)
+            hc.view.removeFromSuperview()
+            hc.removeFromParent()
+        }
+        removed.transitionView?.removeFromSuperview()
+        if index == 0 {
+            previousChapter = removed.chapter
+        } else {
+            sections[index - 1].transitionView?.removeFromSuperview()
+            sections[index - 1].transitionView = nil
+            sections[index - 1].transitionHeightConstraint = nil
+            nextChapter = removed.chapter
         }
     }
 

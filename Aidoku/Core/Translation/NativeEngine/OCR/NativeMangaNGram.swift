@@ -14,9 +14,9 @@ final class NativeMangaNGram: @unchecked Sendable {
     }
     private let ids: [String: UInt64]
     private let gramKeys: [UInt64]
-    private let gramValues: [Double]
+    private let gramValues: [Float16]
     private let contextKeys: [UInt64]
-    private let contextValues: [Double]
+    private let contextValues: [Float16]
     private let vocabularySize: Int
 
     init(data: Data) throws {
@@ -51,8 +51,9 @@ final class NativeMangaNGram: @unchecked Sendable {
                 }
             }
         }
-        func values(_ count: Int) -> [Double] {
-            table(count, as: UInt16.self) { Double(Float16(bitPattern: $0)) }
+        // Kept as Float16 (exactly widened at lookup): a quarter of the resident Double tables.
+        func values(_ count: Int) -> [Float16] {
+            table(count, as: UInt16.self) { Float16(bitPattern: $0) }
         }
         let gramKeys = table(g, as: UInt64.self) { $0 }
         let gramValues = values(g)
@@ -155,12 +156,12 @@ final class NativeMangaNGram: @unchecked Sendable {
         }
     }
 
-    private func lookup(_ key: UInt64, keys: [UInt64], values: [Double]) -> Double? {
+    private func lookup(_ key: UInt64, keys: [UInt64], values: [Float16]) -> Double? {
         var low = 0, high = keys.count
         while low < high {
             let middle = low + (high - low) / 2
             if keys[middle] < key { low = middle + 1 } else { high = middle }
         }
-        return low < keys.count && keys[low] == key ? values[low] : nil
+        return low < keys.count && keys[low] == key ? Double(values[low]) : nil
     }
 }

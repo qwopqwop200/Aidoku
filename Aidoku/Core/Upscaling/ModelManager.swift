@@ -103,6 +103,7 @@ actor ModelManager {
         }
         // remove from cache
         imageModelCache[fileName] = nil
+        try? FileManager.default.removeItem(at: FileManager.default.cachesDirectory.appendingPathComponent(fileName + ".mlmodelc"))
     }
 
     // get installed models from disk
@@ -272,7 +273,15 @@ extension ModelManager {
         guard let modelType = info.type else { return nil }
 
         // load coreml model
-        let compiledUrl = try MLModel.compileModel(at: fileURL)
+        // Keep one compiled copy per model and reuse it until the model file changes, instead of
+        // compiling a new temporary copy on every launch.
+        let compiledUrl = FileManager.default.cachesDirectory.appendingPathComponent(fileName + ".mlmodelc")
+        let date = { (url: URL) in (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate }
+        if !(date(compiledUrl).flatMap { compiled in date(fileURL).map { compiled >= $0 } } ?? false) {
+            let freshUrl = try MLModel.compileModel(at: fileURL)
+            try? FileManager.default.removeItem(at: compiledUrl)
+            try FileManager.default.moveItem(at: freshUrl, to: compiledUrl)
+        }
         let mlModel = try MLModel(contentsOf: compiledUrl)
         let model: ImageProcessingModel?
 
@@ -287,7 +296,8 @@ extension ModelManager {
                 model = nil
         }
         if let model {
-            imageModelCache[fileName] = model
+            // Only the enabled model is used; drop models loaded before a switch.
+            imageModelCache = [fileName: model]
         }
         return model
     }

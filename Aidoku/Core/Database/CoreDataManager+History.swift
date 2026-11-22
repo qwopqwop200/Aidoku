@@ -37,7 +37,9 @@ extension CoreDataManager {
         }
         for batch in objectIds.chunked(into: 500) {
             do {
-                _ = try context.execute(NSBatchDeleteRequest(objectIDs: batch))
+                let request = NSBatchDeleteRequest(objectIDs: batch)
+                request.resultType = .resultTypeObjectIDs
+                mergeBatchDelete(try context.execute(request), from: context)
             } catch {
                 LogManager.logger.error("CoreDataManager.clearHistoryExcludingLibrary: \(error.localizedDescription)")
                 return false
@@ -199,6 +201,10 @@ extension CoreDataManager {
             let inLibrary = self.hasLibraryManga(mangaId: mangaId, context: context)
 
             var keptHistory: [String: HistoryObject] = [:]
+            // One chapter fetch for all unlinked rows instead of one per row.
+            lazy var chapters = Dictionary(
+                self.getChapters(mangaId: mangaId, context: context).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }
+            )
             for history in objects.sorted(by: { ($0.dateRead ?? .distantPast) > ($1.dateRead ?? .distantPast) }) {
                 // Keep the newest progress and preserve sessions attached to older duplicates.
                 if let keeper = keptHistory[history.chapterId] {
@@ -210,14 +216,7 @@ extension CoreDataManager {
                 keptHistory[history.chapterId] = history
                 // link history to chapter if link is missing
                 if inLibrary && history.chapter == nil {
-                    if let chapter = self.getChapter(
-                        chapterId: .init(
-                            sourceKey: mangaId.sourceKey,
-                            mangaKey: mangaId.mangaKey,
-                            chapterKey: history.chapterId
-                        ),
-                        context: context
-                    ) {
+                    if let chapter = chapters[history.chapterId] {
                         history.chapter = chapter
                         needsSave = true
                     }
@@ -287,11 +286,48 @@ extension CoreDataManager {
         context: NSManagedObjectContext
     ) -> Bool {
         var success = false
+        // Prefetch per manga: each single-row fetch also rescans every pending insert.
+        var histories: [ChapterIdentifier: HistoryObject] = [:]
+        var chapters: [ChapterIdentifier: ChapterObject] = [:]
+        var prefetched: Set<ChapterIdentifier> = []
+        for (manga, ids) in Dictionary(grouping: Set(chapterIds), by: \.mangaIdentifier) {
+            for keys in ids.map(\.chapterKey).chunked(into: 500) {
+                let format = "sourceId == %@ AND mangaId == %@ AND %K IN %@"
+                let historyRequest = HistoryObject.fetchRequest()
+                historyRequest.predicate = NSPredicate(format: format, manga.sourceKey, manga.mangaKey, "chapterId", keys)
+                let chapterRequest = ChapterObject.fetchRequest()
+                chapterRequest.predicate = NSPredicate(format: format, manga.sourceKey, manga.mangaKey, "id", keys)
+                guard
+                    let historyRows = try? context.fetch(historyRequest),
+                    let chapterRows = try? context.fetch(chapterRequest)
+                else { continue }
+                let historyGroups = Dictionary(grouping: historyRows, by: \.chapterId)
+                let chapterGroups = Dictionary(grouping: chapterRows, by: \.id)
+                // Legacy duplicate rows keep the single-row lookup.
+                for key in keys where historyGroups[key]?.count ?? 0 < 2 && chapterGroups[key]?.count ?? 0 < 2 {
+                    let id = ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.mangaKey, chapterKey: key)
+                    histories[id] = historyGroups[key]?.first
+                    chapters[id] = chapterGroups[key]?.first
+                    prefetched.insert(id)
+                }
+            }
+        }
         for chapterId in chapterIds {
-            let historyObject = self.getOrCreateHistory(
-                chapterId: chapterId,
-                context: context
-            )
+            let historyObject: HistoryObject
+            if let history = histories[chapterId] {
+                historyObject = history
+            } else if prefetched.contains(chapterId) {
+                historyObject = HistoryObject(context: context)
+                historyObject.sourceId = chapterId.sourceKey
+                historyObject.mangaId = chapterId.mangaKey
+                historyObject.chapterId = chapterId.chapterKey
+                if let chapterObject = chapters[chapterId] {
+                    historyObject.chapter = chapterObject
+                }
+                histories[chapterId] = historyObject
+            } else {
+                historyObject = self.getOrCreateHistory(chapterId: chapterId, context: context)
+            }
             guard !historyObject.completed else { continue }
             historyObject.completed = true
             historyObject.dateRead = date

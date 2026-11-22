@@ -17,7 +17,7 @@ struct TrackerListView: View {
     @State private var trackItems: [TrackItem] = []
     @State private var trackerInfo: [String: TrackerInfo] = [:]
 
-    private let refreshPublisher = NotificationCenter.default.publisher(for: .updateTrackers)
+    private let refreshPublisher = NotificationCenter.default.publisher(for: .updateTrackers).receive(on: DispatchQueue.main)
 
     var body: some View {
         VStack {

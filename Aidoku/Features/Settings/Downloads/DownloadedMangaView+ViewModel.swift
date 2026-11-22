@@ -87,17 +87,17 @@ extension DownloadedMangaView.ViewModel {
         return sortAscending ? sorted : sorted.reversed()
     }
 
+    // Compiled once; the sort comparator runs this O(n log n) times on the main actor.
+    private static let titleNumberRegexes = [
+        #"(?:chapter|ch\.?|episode|ep\.?)\s*(\d+(?:\.\d+)?)"#,
+        #"^(\d+(?:\.\d+)?)(?:\s|$)"#,  // Starting with number
+        #"(\d+(?:\.\d+)?)$"#           // Ending with number
+    ].compactMap { try? NSRegularExpression(pattern: $0, options: .caseInsensitive) }
+
     private func extractNumberFromTitle(_ title: String) -> Double? {
         // Look for patterns like "Chapter 1", "Ch. 15.5", "Episode 42", etc.
-        let patterns = [
-            #"(?:chapter|ch\.?|episode|ep\.?)\s*(\d+(?:\.\d+)?)"#,
-            #"^(\d+(?:\.\d+)?)(?:\s|$)"#,  // Starting with number
-            #"(\d+(?:\.\d+)?)$"#           // Ending with number
-        ]
-
-        for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-               let match = regex.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
+        for regex in Self.titleNumberRegexes {
+            if let match = regex.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
                let range = Range(match.range(at: 1), in: title) {
                 let numberString = String(title[range])
                 if let number = Double(numberString) {
@@ -125,13 +125,15 @@ extension DownloadedMangaView.ViewModel {
     /// Update only changed chapters to preserve scroll position
     private func updateChaptersSelectively(newChapters: [DownloadedChapterInfo]) {
         let oldChapters = chapters
+        // Compare in display order; disk order never matches the sorted list.
+        let newChapters = sortChapters(newChapters)
 
         // Quick equality check
         guard !areChapterListsEqual(oldChapters, newChapters) else { return }
 
         // Use gentle animation for list updates
         withAnimation(.easeInOut(duration: 0.25)) {
-            chapters = sortChapters(newChapters)
+            chapters = newChapters
         }
     }
 

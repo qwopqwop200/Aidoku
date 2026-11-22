@@ -154,6 +154,10 @@ extension LocalFileImportView.ContentView {
                                     from: sorted, name: sorted[0].lastPathComponent
                                 )
                             }
+                            // The picker copies each file into tmp; drop copies the prepared import does not reference.
+                            if importFileInfo?.url != url {
+                                for picked in urls { try? FileManager.default.removeItem(at: picked) }
+                            }
                             if let importFileInfo {
                                 fileInfo = importFileInfo
                                 fullyPresented = true

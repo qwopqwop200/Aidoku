@@ -195,8 +195,9 @@ enum V2LayoutDetection {
     /// Pure decode of one RF-DETR output into page-pixel regions, ordered by descending score.
     static func decode(_ raw: V2RFDETRModel.RawOutput, width: Int, height: Int) throws -> [V2LayoutRegion] {
         let queries = V2RFDETRModel.queries, classes = V2RFDETRModel.classes
-        let boxData = raw.boxes.dataPointer.assumingMemoryBound(to: Float.self)
-        let logitData = raw.logits.dataPointer.assumingMemoryBound(to: Float.self)
+        // Copied under the array's lock: a GPU-backed output is only coherent inside withUnsafeBufferPointer.
+        let boxData = raw.boxes.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
+        let logitData = raw.logits.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
         let boxStride = raw.boxes.strides.map(\.intValue), logitStride = raw.logits.strides.map(\.intValue)
         let thresholds = V2RFDETRModel.thresholds
         let floor = thresholds.min() ?? 0

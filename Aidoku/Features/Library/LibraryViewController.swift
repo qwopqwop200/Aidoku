@@ -536,7 +536,7 @@ class LibraryViewController: OldMangaCollectionViewController {
 extension LibraryViewController {
     func updateNavbarItems() {
         if isEditing {
-            let allItemsSelected = collectionView.indexPathsForSelectedItems?.count ?? 0 == dataSource.snapshot().itemIdentifiers.count
+            let allItemsSelected = collectionView.indexPathsForSelectedItems?.count ?? 0 == dataSource.snapshot().numberOfItems
             navigationItem.leftBarButtonItem = if allItemsSelected {
                 makeBarButton(
                     action: #selector(deselectAllItems),
@@ -787,6 +787,7 @@ extension LibraryViewController {
         if rows != appliedRows {
             appliedRows = rows
             dataSource.apply(snapshot, animatingDifferences: canShowRows)
+            updateVisibleItemAppearance() // badge-only changes no longer reconfigure cells
         }
 
         // handle empty library or category
@@ -1273,6 +1274,7 @@ extension LibraryViewController: LibraryCategorySelectionHeaderDelegate {
                 ignoreOptionChange = false
                 return
             }
+            let previousCategory = viewModel.currentCategory
             if indexPath.section == 0 {
                 if indexPath.row == 0 {
                     viewModel.currentCategory = nil
@@ -1287,6 +1289,9 @@ extension LibraryViewController: LibraryCategorySelectionHeaderDelegate {
                 guard viewModel.filterGroups.indices.contains(indexPath.row) else { return }
                 viewModel.currentCategory = viewModel.filterGroups[indexPath.row].title
             }
+            // Header syncs (initial selection, category list refresh) re-report the current option; the
+            // ignore flag is reset before this task runs, so skip the redundant full library reload here.
+            guard viewModel.currentCategory != previousCategory else { return }
             locked = viewModel.isCategoryLocked()
             updateLockState()
             deselectAllItems()

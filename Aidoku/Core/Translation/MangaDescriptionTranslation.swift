@@ -161,6 +161,7 @@ struct TranslatedDescriptionView: View {
     @State private var revision = UUID()
     @State private var translation: String?
     @State private var translatedIdentity: String?
+    @State private var requestSettings: ReaderTranslationSettings?
     private var identity: String { revision.uuidString + original }
 
     var body: some View {
@@ -168,12 +169,16 @@ struct TranslatedDescriptionView: View {
         ExpandableTextView(text: translatedIdentity == identity ? (translation ?? fallback) : fallback, expanded: $expanded)
             .task(id: identity) {
                 let requestedIdentity = identity
-                let result = await MangaDescriptionTranslation.translate(original, settings: ReaderTranslationSettings())
+                let settings = ReaderTranslationSettings()
+                if requestSettings != settings { requestSettings = settings }
+                let result = await MangaDescriptionTranslation.translate(original, settings: settings)
                 guard !Task.isCancelled else { return }
                 translation = result
                 translatedIdentity = requestedIdentity
             }
             .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed).receive(on: DispatchQueue.main)) { _ in
+                if let requestSettings, TitleTranslation.settingsIdentity(kind: .description, settings: requestSettings) ==
+                    TitleTranslation.settingsIdentity(kind: .description, settings: ReaderTranslationSettings()) { return }
                 translation = nil
                 revision = UUID()
             }

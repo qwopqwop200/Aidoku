@@ -155,6 +155,29 @@ struct V2ReaderPipelineAdmissionTests {
         #expect(first.image.width == page.width && first.image.height == page.height && !first.fromCache)
         #expect(second.image.width == page.width)
     }
+
+    /// A cancelled joiner returns at once; the shared page keeps running for the other consumer.
+    @Test func cancelledJoinerReturnsWithoutStoppingTheSharedPage() async throws {
+        let gate = V2Gate()
+        let service = ReaderTranslationV2Service(
+            translateBlocks: { blocks, _, _, _, _ in
+                await gate.wait()
+                return blocks.map { var output = $0; output.translation = "번역"; return output }
+            },
+            diskCache: nil, observesMemoryWarnings: false)
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "V2Cancel-\(UUID())")!)
+        settings.sourceLanguage = "auto"
+        _ = try await service.residentModels()
+        let page = V2SyntheticPages.make(index: 2)
+        let lookahead = Task { try await service.translatePage(page, cacheKey: "k", settings: settings, priority: .prefetch) }
+        while await gate.waiters == 0 { try await Task.sleep(nanoseconds: 10_000_000) }
+        let visible = Task { try await service.translatePage(page, cacheKey: "k", settings: settings) }
+        while await service.consumerCount("k") < 2 { await Task.yield() }
+        visible.cancel()
+        await #expect(throws: CancellationError.self) { try await visible.value }
+        await gate.open()
+        #expect(try await lookahead.value.image.width == page.width)
+    }
 }
 
 actor V2Gate {

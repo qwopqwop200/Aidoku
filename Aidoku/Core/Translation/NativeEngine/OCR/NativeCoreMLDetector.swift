@@ -59,10 +59,12 @@ private actor NativeCoreMLDetectorModelPredictor {
             }
         }
         let model: MLModel
+        let pending = load!
         do {
-            model = try await load!.value.model
+            model = try await pending.value.model
         } catch {
-            load = nil
+            // A late waiter must not discard a retry another caller already started.
+            if load == pending { load = nil }
             throw error
         }
         let provider = try MLDictionaryFeatureProvider(dictionary: ["x": MLFeatureValue(multiArray: array)])
@@ -453,8 +455,11 @@ enum NativeCoreMLDetectionOutput {
         let rowStride = output.strides[2].intValue
         let columnStride = output.strides[3].intValue
         func map<Element: BinaryFloatingPoint>(_ type: Element.Type) -> NativeCoreMLDetectionMap {
-            makeMap(pointer: output.dataPointer.assumingMemoryBound(to: type),
-                    width: width, height: height, rowStride: rowStride, columnStride: columnStride)
+            // withUnsafeBytes locks a pixel-buffer-backed output; dataPointer does not.
+            output.withUnsafeBytes { bytes in
+                makeMap(pointer: bytes.baseAddress!.assumingMemoryBound(to: type),
+                        width: width, height: height, rowStride: rowStride, columnStride: columnStride)
+            }
         }
         switch output.dataType {
         case .float32: return map(Float.self)

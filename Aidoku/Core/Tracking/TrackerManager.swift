@@ -270,7 +270,7 @@ actor TrackerManager {
             if AppSettings.tracking.autoSyncFromTracker.get() || (tracker is EnhancedTracker) || (tracker is PageTracker) {
                 await syncProgressFromTracker(tracker: tracker, trackItem: trackItem, manga: manga)
             } else {
-                NotificationCenter.default.post(name: .syncTrackItem, object: trackItem)
+                await MainActor.run { NotificationCenter.default.post(name: .syncTrackItem, object: trackItem) }
             }
         } catch {
             LogManager.logger.error("Failed to register tracker \(tracker.id): \(error)")
@@ -297,8 +297,11 @@ actor TrackerManager {
                 throw error
             }
         }
-        NotificationCenter.default.post(name: .updateTrackers, object: nil)
-        NotificationCenter.default.post(name: .trackItemAdded, object: item)
+        // Observers (TrackerListView, MangaDetailsHeaderView) touch the view context and SwiftUI state.
+        await MainActor.run {
+            NotificationCenter.default.post(name: .updateTrackers, object: nil)
+            NotificationCenter.default.post(name: .trackItemAdded, object: item)
+        }
     }
 
     /// Removes the TrackItem from the data store.
@@ -306,6 +309,7 @@ actor TrackerManager {
         await CoreDataManager.shared.container.performBackgroundTask { @Sendable context in
             self.removeTrackItem(item: item, context: context)
         }
+        await MainActor.run { NotificationCenter.default.post(name: .updateTrackers, object: nil) }
     }
 
     /// Sets the chapter offset for a track item.
@@ -323,7 +327,7 @@ actor TrackerManager {
                 LogManager.logger.error("TrackManager.setTrackChapterOffset(item:chapterOffset:): \(error)")
             }
         }
-        NotificationCenter.default.post(name: .updateTrackers, object: nil)
+        await MainActor.run { NotificationCenter.default.post(name: .updateTrackers, object: nil) }
     }
 
     nonisolated func removeTrackItem(item: TrackItem, context: NSManagedObjectContext) {
@@ -337,7 +341,6 @@ actor TrackerManager {
         } catch {
             LogManager.logger.error("TrackManager.removeTrackItem(item:): \(error)")
         }
-        NotificationCenter.default.post(name: .updateTrackers, object: nil)
     }
 
     /// Checks if a manga is being tracked
@@ -463,6 +466,10 @@ actor TrackerManager {
             var progressed: [String: Int] = [:]
 
             var lastRead = Date.distantPast
+            // One fetch instead of one per remote chapter.
+            let request = HistoryObject.fetchRequest()
+            request.predicate = NSPredicate(format: "sourceId == %@ AND mangaId == %@", manga.sourceKey, manga.key)
+            let histories = Dictionary(((try? context.fetch(request)) ?? []).map { ($0.chapterId, $0) }, uniquingKeysWith: { first, _ in first })
 
             for (chapterKey, progress) in result {
                 let chapterId = ChapterIdentifier(
@@ -470,10 +477,7 @@ actor TrackerManager {
                     mangaKey: manga.key,
                     chapterKey: chapterKey
                 )
-                let existingHistory = CoreDataManager.shared.getHistory(
-                    chapterId: chapterId,
-                    context: context
-                )
+                let existingHistory = histories[chapterKey]
                 if progress.date == nil, existingHistory.map(TrackerHistorySnapshot.init) != originalHistory[chapterKey] {
                     // An undated response cannot establish that it is newer than
                     // reading/completion/deletion that happened during the fetch.
@@ -563,7 +567,7 @@ actor TrackerManager {
                     let items = try await tracker.search(for: manga, includeNsfw: true)
                     guard let item = items.first else {
                         LogManager.logger.error("Unable to find track item from tracker \(tracker.id)")
-                        return
+                        continue
                     }
                     await TrackerManager.shared.register(tracker: tracker, manga: manga, item: item)
                 } catch {
@@ -731,28 +735,16 @@ extension TrackerManager {
             var stillPending: [PageTrackUpdate] = []
             var successes = 0
 
-            for var update in sent {
-                guard let tracker = trackerResolver(update.trackerId) as? PageTracker else {
-                    continue // tracker no longer exists, remove the update
-                }
-                guard await isCurrentLink(update, tracker: tracker), pendingByKey[update.key] == update else { continue }
-                do {
-                    try await tracker.setProgress(
-                        trackId: update.trackId,
-                        chapterId: update.chapterId,
-                        progress: update.progress
-                    )
-                    if update.failCount > 0 {
-                        successes += 1
+            // Updates have distinct keys (one per chapter), so send them a few at a time instead of serially.
+            for start in stride(from: 0, to: sent.count, by: 4) {
+                await withTaskGroup(of: (PageTrackUpdate?, Bool).self) { group in
+                    for update in sent[start..<min(start + 4, sent.count)] {
+                        group.addTask { await self.sendPageUpdate(update) }
                     }
-                } catch {
-                    LogManager.logger.error("Failed to set tracker progress (\(tracker.id)): \(error)")
-                    update.failCount += 1
-                    if update.failCount >= 3 {
-                        LogManager.logger.warn("Removing failed page update after 3 attempts: \(update)")
-                        continue // remove update after three failed attempts (initial + two retries)
+                    for await (failed, recovered) in group {
+                        if let failed { stillPending.append(failed) }
+                        if recovered { successes += 1 }
                     }
-                    if await isCurrentLink(update, tracker: tracker) { stillPending.append(update) }
                 }
             }
 
@@ -765,6 +757,31 @@ extension TrackerManager {
             )
             savePageTrackingState()
             pageUpdateTask = nil
+        }
+    }
+
+    /// Returns the update to retry, if any, and whether a previously failed update went through.
+    private func sendPageUpdate(_ update: PageTrackUpdate) async -> (PageTrackUpdate?, Bool) {
+        var update = update
+        guard let tracker = trackerResolver(update.trackerId) as? PageTracker else {
+            return (nil, false) // tracker no longer exists, remove the update
+        }
+        guard await isCurrentLink(update, tracker: tracker), pendingByKey[update.key] == update else { return (nil, false) }
+        do {
+            try await tracker.setProgress(
+                trackId: update.trackId,
+                chapterId: update.chapterId,
+                progress: update.progress
+            )
+            return (nil, update.failCount > 0)
+        } catch {
+            LogManager.logger.error("Failed to set tracker progress (\(tracker.id)): \(error)")
+            update.failCount += 1
+            if update.failCount >= 3 {
+                LogManager.logger.warn("Removing failed page update after 3 attempts: \(update)")
+                return (nil, false) // remove update after three failed attempts (initial + two retries)
+            }
+            return (await isCurrentLink(update, tracker: tracker) ? update : nil, false)
         }
     }
 

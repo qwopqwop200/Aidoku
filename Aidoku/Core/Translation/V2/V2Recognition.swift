@@ -37,6 +37,8 @@ final class V2RecognitionEngine: @unchecked Sendable {
     let dictionary: [String]
     let languageModel: NativeMangaNGram?
     let handleCount: Int
+    /// Every resident handle, for `V2Recognition.warmUp`; pages check handles out of `pool`.
+    let handles: [MLModel]
     private let pool: HandlePool
 
     /// `modelURL` is a compiled `.mlmodelc` (or an `.mlpackage`, compiled here).
@@ -69,7 +71,8 @@ final class V2RecognitionEngine: @unchecked Sendable {
         DispatchQueue.concurrentPerform(iterations: count) { index in
             slots.store(index, Result { try MLModel(contentsOf: compiledURL, configuration: configuration) })
         }
-        pool = HandlePool(try slots.models())
+        handles = try slots.models()
+        pool = HandlePool(handles)
         handleCount = count
     }
 
@@ -212,6 +215,20 @@ enum V2Recognition {
         }
     }
 
+    /// One prediction on every handle: each is a separate runtime whose first prediction costs
+    /// about 0.3 s, which a cold page otherwise pays on every lane.
+    static func warmUp(_ page: V2Page, line: V2Line, engine: V2RecognitionEngine) async throws {
+        guard let frame = NativeOCRCGImageAdapter.makeRGBAFrame(from: page.image), let plan = plan(line.polygon) else {
+            throw V2RecognitionEngine.Failure.imageConversionFailed
+        }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for model in engine.handles {
+                group.addTask { _ = try await predict(plan, frame: frame, model: model, engine: engine) }
+            }
+            try await group.waitForAll()
+        }
+    }
+
     /// Legacy crop plan for the full-frame manga policy (dynamic width, publisher width rule,
     /// reading-order quad) on the padded line polygon.
     static func plan(_ polygon: [CGPoint]) -> NativeCoreMLRecognitionPreprocessor.Plan? {
@@ -271,16 +288,17 @@ enum V2Recognition {
                                        dataType: .float32)
         let destination = compact.dataPointer.assumingMemoryBound(to: Float.self)
         let row = compact.strides[0].intValue, column = compact.strides[1].intValue
-        let index = indices.dataPointer.assumingMemoryBound(to: Int32.self)
-        let score = scores.dataPointer.assumingMemoryBound(to: Float.self)
+        // Copied under the array's lock: a GPU-backed output is only coherent inside withUnsafeBufferPointer.
+        let index = indices.withUnsafeBufferPointer(ofType: Int32.self) { Array($0) }
+        let score = scores.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
         let indexStride = indices.strides[1].intValue, scoreStride = scores.strides[1].intValue
         for step in 0..<timeSteps {
             destination[step * column] = Float(index[step * indexStride])
             destination[row + step * column] = score[step * scoreStride]
         }
         if let topIndices, let topScores {
-            let ti = topIndices.dataPointer.assumingMemoryBound(to: Int32.self)
-            let ts = topScores.dataPointer.assumingMemoryBound(to: Float.self)
+            let ti = topIndices.withUnsafeBufferPointer(ofType: Int32.self) { Array($0) }
+            let ts = topScores.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
             let iStrides = topIndices.strides.map(\.intValue), sStrides = topScores.strides.map(\.intValue)
             for rank in 0..<alternatives {
                 let indexRow = destination + (2 + rank * 2) * row, scoreRow = indexRow + row

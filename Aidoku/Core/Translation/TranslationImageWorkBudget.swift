@@ -14,7 +14,7 @@ final class TranslationImageWorkBudget: Sendable {
     /// Reclaims page caches first, then the resident V2 models only if headroom is still
     /// short; each step rechecks so queued recoveries do not evict warm resources again.
     /// Returns whether the models were purged.
-    private static func reclaimIdleResources(requiredHeadroom: UInt64) async -> Bool {
+    static func reclaimIdleResources(requiredHeadroom: UInt64) async -> Bool {
         @Sendable func short() -> Bool { !Task.isCancelled && ProcessMemory.available() < requiredHeadroom }
         guard short() else { return false }
         do {

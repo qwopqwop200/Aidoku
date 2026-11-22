@@ -8,6 +8,7 @@
 import AidokuRunner
 import Foundation
 import Nuke
+import UIKit
 
 extension ImageRequest.UserInfoKey {
     static let processesKey: Self = "aidoku/usesPageProcessor"
@@ -31,9 +32,17 @@ struct PageInterceptorProcessor: ImageProcessing {
         }.get()
 
         var container = container
-        container.image = output?.image
-            ?? container.data.flatMap { PlatformImage(data: $0) }
+        // Only GIF data is read back; drop the empty decoder's transport bytes from the cached result.
+        let isTransport = context.request.userInfo[.processesKey] as? Bool == true && container.type == nil && container.image.size == .zero
+        let image = output?.image
+            ?? container.data.flatMap { ImagePixelCap.decodeImage($0) }
             ?? container.image
+        container.image = image
+        // Cap only after the source has unscrambled at native pixel positions.
+        if let cgImage = image.cgImage, let capped = ImagePixelCap.downscaled(cgImage), capped !== cgImage {
+            container.image = PlatformImage(cgImage: capped, scale: image.scale, orientation: image.imageOrientation)
+        }
+        if isTransport { container.data = nil }
         return container
     }
 

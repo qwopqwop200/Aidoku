@@ -46,7 +46,6 @@ actor ReaderTranslationV2Service {
         let task: Task<PageOutput, Error>
         let promotion: TranslationRequestPromotion
         var consumers = 0
-        var cancelledConsumers = 0
         init(task: Task<PageOutput, Error>, promotion: TranslationRequestPromotion) {
             self.task = task
             self.promotion = promotion
@@ -103,7 +102,12 @@ actor ReaderTranslationV2Service {
         if let loading { return try await loading.value }
         let generation = modelGeneration
         let loader = loadModels
-        let task = Task.detached(priority: .userInitiated) { try loader() }
+        let task = Task.detached(priority: .userInitiated) {
+            let loaded = try loader()
+            // Cold first predictions (about 0.3 s per instance) here, before any page can share the set.
+            try? await loaded.warmUp()
+            return loaded
+        }
         loading = task
         loadID &+= 1
         let id = loadID
@@ -167,7 +171,7 @@ actor ReaderTranslationV2Service {
     func cachedPage(cacheKey key: String, persists: Bool = true) async -> CGImage? {
         if let image = memory.image(for: key) { return image }
         guard persists, let diskCache, let data = try? await diskCache.data(for: Self.imageKey(key), kind: .layout),
-              let image = Self.decode(data) else { return nil }
+              let image = await Self.decodeOffActor(data) else { return nil }
         remember(image, for: key)
         return image
     }
@@ -204,25 +208,24 @@ actor ReaderTranslationV2Service {
         if priority.isForeground { flight.promotion.promote() }
         flight.consumers += 1
         defer { leave(key, flight) }
+        // A cancelled consumer returns at once instead of waiting for the others' page.
+        let once = V2ResumeOnce<PageOutput>()
         return try await withTaskCancellationHandler {
-            try await flight.task.value
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<PageOutput, Error>) in
+                once.install(continuation)
+                Task { once.resume(with: await flight.task.result) }
+            }
         } onCancel: {
-            Task { await self.consumerCancelled(key, flight) }
-        }
-    }
-
-    private func consumerCancelled(_ key: String, _ flight: Flight) {
-        // Stop the shared work as soon as nobody is left.
-        flight.cancelledConsumers += 1
-        if flight.consumers - flight.cancelledConsumers <= 0 {
-            flight.task.cancel()
-            if inflight[key] === flight { inflight[key] = nil }
+            once.resume(with: .failure(CancellationError()))
         }
     }
 
     private func leave(_ key: String, _ flight: Flight) {
         flight.consumers -= 1
-        if flight.consumers <= 0, inflight[key] === flight { inflight[key] = nil }
+        guard flight.consumers <= 0 else { return }
+        // Stop the shared work as soon as nobody is left.
+        flight.task.cancel()
+        if inflight[key] === flight { inflight[key] = nil }
     }
 
     func consumerCount(_ key: String) -> Int { inflight[key]?.consumers ?? 0 }
@@ -233,7 +236,7 @@ actor ReaderTranslationV2Service {
         try Task.checkCancellation()
         let cache = key == nil || !persists ? nil : diskCache
         if let key, let cache, let data = try? await cache.data(for: Self.imageKey(key), kind: .layout),
-           let image = Self.decode(data) {
+           let image = await Self.decodeOffActor(data) {
             try Task.checkCancellation()
             return PageOutput(image: image, timings: nil, fromCache: true)
         }
@@ -245,21 +248,26 @@ actor ReaderTranslationV2Service {
         try Task.checkCancellation()
         let translationGeneration = await cache?.currentGeneration(settings: settings, kind: .translation)
         let layoutGeneration = await cache?.currentGeneration(settings: settings, kind: .layout)
-        // Memory admission (reclaims caches and models when short).
-        try await TranslationImageWorkBudget.shared.withPermit(
-            priority: priority,
-            decodedBytes: TranslationImageWorkBudget.decodedBytes(width: UInt64(source.width), height: UInt64(source.height))
-        ) {}
+        let decodedBytes = TranslationImageWorkBudget.decodedBytes(width: UInt64(source.width), height: UInt64(source.height))
+        let required = TranslationImageWorkBudget.requiredHeadroom(decodedBytes: decodedBytes)
+        let hold = V2SlotHold(front: frontSlots, back: backSlots)
+        defer { hold.releaseAll() }
+        // Memory admission (reclaims caches and models when short), rechecked once a front slot is
+        // held: the pages that ran while this one waited for the slot have spent that headroom.
+        while true {
+            try await TranslationImageWorkBudget.shared.withPermit(priority: priority, decodedBytes: decodedBytes) {}
+            try await hold.acquireFront(priority: priority)
+            try Task.checkCancellation()
+            if ProcessMemory.available() >= required { break }
+            hold.releaseFront()
+        }
         let models = try await residentModels()
         let translate = translateBlocks
         let failure = V2TranslationFailureBox()
-        let hold = V2SlotHold(front: frontSlots, back: backSlots)
-        defer { hold.releaseAll() }
-        try await hold.acquireFront(priority: priority)
         let page = V2Page(id: key ?? UUID().uuidString, image: source, readingDirection: settings.readingDirection)
         // Encode the provider's page JPEG concurrently with S1-S4.
         let jpegTask: Task<Data, Error>? = replayBlocks == nil && settings.includePageImage
-            ? Task.detached(priority: .userInitiated) {
+            ? Task.detached(priority: priority.isForeground ? .userInitiated : .utility) {
                 try ReaderTranslationImagePreparation.translationJPEG(UIImage(cgImage: source))
             } : nil
         defer { jpegTask?.cancel() }
@@ -293,7 +301,12 @@ actor ReaderTranslationV2Service {
         let hooks = V2PipelineHooks(
             // S1-S4 are done: free the front slot before the provider call starts.
             frontFinished: { hold.releaseFront() },
-            acquireBack: { try await hold.acquireBack(priority: priority) },
+            acquireBack: {
+                try await hold.acquireBack(priority: priority)
+                // S6-S10 allocate mask and inpaint buffers: free idle caches first when short. Never
+                // waits, since this page's own S1-S4 buffers are part of the shortfall.
+                _ = await TranslationImageWorkBudget.reclaimIdleResources(requiredHeadroom: required)
+            },
             releaseBack: { hold.releaseBack() },
             predictTranslated: { blocks in
                 if let replayBlocks {
@@ -372,6 +385,11 @@ actor ReaderTranslationV2Service {
         guard let destination = CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
         CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary)
         return CGImageDestinationFinalize(destination) ? data as Data : nil
+    }
+
+    /// A full-page JPEG decode must not hold the actor that every page's bookkeeping waits on.
+    private static func decodeOffActor(_ data: Data) async -> CGImage? {
+        await Task.detached(priority: Task.currentPriority) { decode(data) }.value
     }
 
     static func decode(_ data: Data) -> CGImage? {

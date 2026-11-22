@@ -24,7 +24,8 @@ struct SelectionData {
 }
 
 class AudioHandler: NSObject, WKURLSchemeHandler {
-    private var tasks = Set<ObjectIdentifier>()
+    // Running fetches by scheme task; cancelled on stop and removed once answered.
+    private var tasks: [ObjectIdentifier: Task<Void, Never>] = [:]
 
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let requestUrl = task.request.url,
@@ -36,15 +37,13 @@ class AudioHandler: NSObject, WKURLSchemeHandler {
         }
 
         let taskId = ObjectIdentifier(task)
-        tasks.insert(taskId)
-
-        Task {
+        tasks[taskId] = Task {
             do {
                 let request = URLRequest(url: targetUrl, timeoutInterval: 4)
                 let (data, _) = try await URLSession.shared.data(for: request)
 
                 await MainActor.run {
-                    guard self.tasks.contains(taskId) else { return }
+                    guard self.tasks.removeValue(forKey: taskId) != nil else { return }
 
                     let response = HTTPURLResponse(
                         url: requestUrl,
@@ -61,7 +60,7 @@ class AudioHandler: NSObject, WKURLSchemeHandler {
                 }
             } catch {
                 await MainActor.run {
-                    guard self.tasks.contains(taskId) else { return }
+                    guard self.tasks.removeValue(forKey: taskId) != nil else { return }
                     task.didFailWithError(error)
                 }
             }
@@ -69,7 +68,7 @@ class AudioHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {
-        tasks.remove(ObjectIdentifier(task))
+        tasks.removeValue(forKey: ObjectIdentifier(task))?.cancel()
     }
 }
 
@@ -84,9 +83,11 @@ class ImageHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
+        // Respond synchronously: the data points into the dictionary's mapped file, and a deferred
+        // reply could outlive a rebuilt lookup bundle or reach a task WebKit has already stopped.
         LookupEngine.shared.withMediaFile(dictName: dictionary, mediaPath: mediaPath) { data in
             let mime = mimeType(for: mediaPath)
-            Task { @MainActor in
+            do {
                 guard !data.isEmpty else {
                     task.didFailWithError(URLError(.fileDoesNotExist))
                     return
@@ -461,9 +462,10 @@ struct PopupWebView: UIViewRepresentable {
                 return (await AnkiManager.shared.checkDuplicates(fields: fields), nil)
             }
             if message.name == "getEntries", let body = message.body as? [String: Any] {
-                let start = body["start"] as? Int ?? 0
+                // A redirect or back navigation can leave the page requesting past the current entries.
+                let start = min(max(body["start"] as? Int ?? 0, 0), entries.count)
                 let count = body["count"] as? Int ?? 0
-                return (Array(entries[start..<start + count]), nil)
+                return (Array(entries[start..<max(start, min(start + count, entries.count))]), nil)
             }
             if message.name == "lookupRedirect", let query = message.body as? String {
                 entries = parent.onRedirect?(query) ?? []

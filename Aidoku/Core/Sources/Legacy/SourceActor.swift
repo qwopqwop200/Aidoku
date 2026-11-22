@@ -7,9 +7,25 @@
 
 import Foundation
 
+// wasm imports block on semaphores (net requests), so run on a dedicated queue instead of the cooperative pool;
+// blocked pool threads could starve the Cloudflare handler task that has to signal them
+final class SourceExecutor: @unchecked Sendable, SerialExecutor {
+    private let queue = DispatchQueue(label: "Aidoku.LegacySource")
+
+    func enqueue(_ job: UnownedJob) {
+        queue.async { job.runSynchronously(on: self.asUnownedSerialExecutor()) }
+    }
+
+    func asUnownedSerialExecutor() -> UnownedSerialExecutor {
+        UnownedSerialExecutor(ordinary: self)
+    }
+}
+
 actor SourceActor {
 
-    var source: Source
+    unowned var source: Source
+    private let executor = SourceExecutor()
+    nonisolated var unownedExecutor: UnownedSerialExecutor { executor.asUnownedSerialExecutor() }
 
     enum SourceError: Error {
         case missingValue
@@ -26,8 +42,9 @@ actor SourceActor {
     func getMangaList(filters: [FilterBase], page: Int = 1) -> MangaPageResult {
         let filterDescriptor = source.globalStore.storeStdValue(filters)
 
+        let (std, req) = (source.globalStore.stdDescriptorPointer, source.globalStore.requestsPointer)
         let pageResultDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_manga_list")
-            .call(filterDescriptor, Int32(page))) ?? -1
+            .call(filterDescriptor, Int32(page))) ?? source.globalStore.removeValues(after: std, requests: req)
 
         let result = source.globalStore.readStdValue(pageResultDescriptor) as? MangaPageResult ?? MangaPageResult(manga: [], hasNextPage: false)
         source.globalStore.removeStdValue(pageResultDescriptor)
@@ -39,8 +56,9 @@ actor SourceActor {
     func getMangaListing(listing: Listing, page: Int = 1) -> MangaPageResult {
         let listingDescriptor = source.globalStore.storeStdValue(listing)
 
+        let (std, req) = (source.globalStore.stdDescriptorPointer, source.globalStore.requestsPointer)
         let pageResultDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_manga_listing")
-            .call(listingDescriptor, Int32(page))) ?? -1
+            .call(listingDescriptor, Int32(page))) ?? source.globalStore.removeValues(after: std, requests: req)
 
         let result = source.globalStore.readStdValue(pageResultDescriptor) as? MangaPageResult ?? MangaPageResult(manga: [], hasNextPage: false)
         source.globalStore.removeStdValue(pageResultDescriptor)
@@ -52,8 +70,9 @@ actor SourceActor {
     func getMangaDetails(manga: Manga) throws -> Manga {
         let mangaDescriptor = source.globalStore.storeStdValue(manga)
 
+        let (std, req) = (source.globalStore.stdDescriptorPointer, source.globalStore.requestsPointer)
         let resultMangaDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_manga_details")
-            .call(mangaDescriptor)) ?? -1
+            .call(mangaDescriptor)) ?? source.globalStore.removeValues(after: std, requests: req)
 
         let manga = source.globalStore.readStdValue(resultMangaDescriptor) as? Manga
         source.globalStore.removeStdValue(resultMangaDescriptor)
@@ -70,7 +89,9 @@ actor SourceActor {
         source.globalStore.chapterCounter = 0
         source.globalStore.currentManga = manga.id
 
-        let chapterListDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_chapter_list").call(mangaDescriptor)) ?? -1
+        let (std, req) = (source.globalStore.stdDescriptorPointer, source.globalStore.requestsPointer)
+        let chapterListDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_chapter_list").call(mangaDescriptor))
+            ?? source.globalStore.removeValues(after: std, requests: req)
 
         source.globalStore.chapterCounter = 0
 
@@ -88,8 +109,9 @@ actor SourceActor {
     func getPageList(chapter: Chapter) -> [Page] {
         let chapterDescriptor = source.globalStore.storeStdValue(chapter)
 
+        let (std, req) = (source.globalStore.stdDescriptorPointer, source.globalStore.requestsPointer)
         let pageListDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "get_page_list")
-            .call(chapterDescriptor)) ?? -1
+            .call(chapterDescriptor)) ?? source.globalStore.removeValues(after: std, requests: req)
 
         var pages = source.globalStore.readStdValue(pageListDescriptor) as? [Page] ?? []
         source.globalStore.removeStdValue(pageListDescriptor)
@@ -130,7 +152,9 @@ actor SourceActor {
     func handleUrl(url: String) throws -> DeepLink {
         let urlDescriptor = source.globalStore.storeStdValue(url)
 
-        let deepLinkDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "handle_url").call(urlDescriptor)) ?? -1
+        let (std, req) = (source.globalStore.stdDescriptorPointer, source.globalStore.requestsPointer)
+        let deepLinkDescriptor: Int32 = (try? source.globalStore.vm.findFunction(name: "handle_url").call(urlDescriptor))
+            ?? source.globalStore.removeValues(after: std, requests: req)
 
         let deepLink = source.globalStore.readStdValue(deepLinkDescriptor) as? DeepLink
         source.globalStore.removeStdValue(deepLinkDescriptor)

@@ -35,6 +35,7 @@ actor ReaderTranslationDiskCache {
     private var activePolicy: ReaderTranslationCachePolicy?
     private var pendingTouches: [String] = []
     private var touchFlushTask: Task<Void, Never>?
+    private var savedPolicy: (settings: ReaderTranslationSettings, policy: ReaderTranslationCachePolicy)?
 
     deinit { touchFlushTask?.cancel() }
 
@@ -142,11 +143,16 @@ actor ReaderTranslationDiskCache {
     }
 
     /// Clear invalidates in-flight writers. A transaction preserves the previous entry on write failure.
-    func store(_ data: Data, for key: String, kind: Kind, generation expected: UInt64) throws {
+    nonisolated func store(_ data: Data, for key: String, kind: Kind, generation expected: UInt64) async throws {
+        try Task.checkCancellation()
+        // Compressing a page JPEG takes tens of ms; do it in the caller so cache reads never wait on it.
+        try await storePacked(ReaderTranslationCacheCodec.pack(data), for: key, kind: kind, generation: expected)
+    }
+
+    private func storePacked(_ packed: Data, for key: String, kind: Kind, generation expected: UInt64) throws {
         try Task.checkCancellation()
         try prepare()
         guard storageGeneration(for: kind) == expected, kind != .snapshot else { return }
-        let packed = ReaderTranslationCacheCodec.pack(data)
         guard Int64(packed.count) <= byteLimit else { return }
         try storePayload(packed, name: fileName(key, kind: kind))
         try trim()
@@ -167,7 +173,7 @@ actor ReaderTranslationDiskCache {
         guard storageGeneration(for: kind) == generation else { return }
         guard kind != .translation || !regions.contains(where: { $0.translationRecoveryFailure != nil }) else { return }
         if regions.isEmpty {
-            try store(Data("[]".utf8), for: key, kind: kind, generation: generation)
+            try storePacked(ReaderTranslationCacheCodec.pack(Data("[]".utf8)), for: key, kind: kind, generation: generation)
             return
         }
         let archive = try ReaderTranslationRegionArchive(regions)
@@ -239,7 +245,10 @@ actor ReaderTranslationDiskCache {
         guard let database else { return }
         var cursor = ""
         var processed = 0
-        while let row = try database.nextRow("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%' "
+        // Rows that are not legacy region JSON (V2 blocks, "[]") never convert; scan once, not every launch.
+        let regionsUpgraded = try database.hasMarker("region-archive-v1")
+        while !regionsUpgraded,
+              let row = try database.nextRow("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%' "
             + "OR name LIKE 'metadata-%') AND NOT EXISTS (SELECT 1 FROM region_links WHERE region_links.name=cache.name) ORDER BY name LIMIT 1",
             after: cursor) {
             try Task.checkCancellation()
@@ -257,6 +266,7 @@ actor ReaderTranslationDiskCache {
                 guard self.database === database else { return }
             }
         }
+        if !regionsUpgraded { try database.execute("INSERT INTO cache_policy(name,value) VALUES('region-archive-v1','1')") }
         // Recompress payloads, then region bases. Base names stay the hash of canonical ATZ1 bytes.
         for (marker, table) in [("payload-compression-v2", "cache"), ("base-compression-v2", "region_bases")] {
             guard try !database.hasMarker(marker) else { continue }
@@ -285,7 +295,7 @@ actor ReaderTranslationDiskCache {
 
     private func prepare() throws {
         if database != nil {
-            if tracksSavedSettings { try applyPolicy(ReaderTranslationCachePolicy(ReaderTranslationSettings())) }
+            if tracksSavedSettings { try applyPolicy(currentSavedPolicy()) }
             return
         }
         // An empty SQLite database needs a few pages. Below that, disable storage entirely.
@@ -306,8 +316,17 @@ actor ReaderTranslationDiskCache {
         try opened.optimizePageSize()
         database = opened
         activePolicy = nil
-        if tracksSavedSettings { try applyPolicy(ReaderTranslationCachePolicy(ReaderTranslationSettings())) }
+        if tracksSavedSettings { try applyPolicy(currentSavedPolicy()) }
         try trim()
+    }
+
+    /// Every cache call checks the saved settings; hash them into a policy only when they change.
+    private func currentSavedPolicy() -> ReaderTranslationCachePolicy {
+        let settings = ReaderTranslationSettings()
+        if let savedPolicy, savedPolicy.settings == settings { return savedPolicy.policy }
+        let policy = ReaderTranslationCachePolicy(settings)
+        savedPolicy = (settings, policy)
+        return policy
     }
 
     private func trim() throws {
@@ -757,7 +776,8 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                     continue
                 }
                 guard ReaderTranslationDiskCache.Kind.allCases.contains(where: { name.hasPrefix($0.rawValue + "-") }) else { continue }
-                let data = ReaderTranslationCacheCodec.pack(try Data(contentsOf: file))
+                // Drain each file's Foundation temporaries; a legacy directory can hold thousands.
+                let data = try autoreleasepool { ReaderTranslationCacheCodec.pack(try Data(contentsOf: file)) }
                 let accessed = Int64((values.contentModificationDate?.timeIntervalSince1970 ?? 0) * 1_000_000)
                 if Int64(data.count) <= byteLimit { try storeRow(data, name: name, legacyAccess: accessed) }
                 pending.append(file)

@@ -65,9 +65,11 @@ extension TextRecognizer {
                 continue
             }
 
-            guard startOffset < clusterObservation.characters.count else { continue }
-
-            let startIndex = text.index(text.startIndex, offsetBy: startOffset)
+            guard
+                startOffset < clusterObservation.characters.count,
+                // Joined characters can merge graphemes, leaving the text shorter than its hit boxes.
+                let startIndex = text.index(text.startIndex, offsetBy: startOffset, limitedBy: text.endIndex)
+            else { continue }
             lookupSlice += String(text[startIndex...])
 
             for character in clusterObservation.characters[startOffset...] {
@@ -126,6 +128,7 @@ extension TextRecognizer {
             let mergedText = segmentBuilds.map(\.text).joined().trimmingCharacters(in: .whitespacesAndNewlines)
             guard !mergedText.isEmpty else { return nil }
 
+            let mergedIndices = Array(mergedText.indices)
             var currentOffset = 0
             let segments = segmentBuilds.map { segment -> ParagraphOverlay.Segment in
                 let startOffset = currentOffset
@@ -133,9 +136,8 @@ extension TextRecognizer {
 
                 let charHits = segment.charRects.enumerated().compactMap { idx, rect -> ParagraphOverlay.CharHit? in
                     let globalOffset = startOffset + idx
-                    guard globalOffset < mergedText.count else { return nil }
-                    let sliceStart = mergedText.index(mergedText.startIndex, offsetBy: globalOffset)
-                    let slice = String(mergedText[sliceStart...])
+                    guard globalOffset < mergedIndices.count else { return nil }
+                    let slice = String(mergedText[mergedIndices[globalOffset]...])
                     guard !slice.isEmpty else { return nil }
                     return .init(text: slice, rect: rect)
                 }

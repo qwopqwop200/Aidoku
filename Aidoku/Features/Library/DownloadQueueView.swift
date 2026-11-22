@@ -188,19 +188,18 @@ struct DownloadQueueView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .downloadsQueued)) { output in
                 guard let downloads = output.object as? [Download] else { return }
-                for download in downloads {
-                    let index = queue.firstIndex(where: { $0.sourceId == download.chapterIdentifier.sourceKey })
-                    var downloads = index != nil ? self.queue[index!].downloads : []
-                    if !downloads.contains(download) { downloads.append(download) }
-                    withAnimation {
-                        if let index {
-                            queue[index].downloads = downloads
-                        } else {
-                            queue.append((download.chapterIdentifier.sourceKey, downloads))
-                        }
+                // Build on a local copy with a set: per-item @State writes and linear contains were O(n^2).
+                var queue = self.queue
+                var queued = Set(queue.flatMap { $0.downloads.map(\.chapterIdentifier) })
+                for download in downloads where queued.insert(download.chapterIdentifier).inserted {
+                    if let index = queue.firstIndex(where: { $0.sourceId == download.chapterIdentifier.sourceKey }) {
+                        queue[index].downloads.append(download)
+                    } else {
+                        queue.append((download.chapterIdentifier.sourceKey, [download]))
                     }
-                    subscribeToProgress(download: download)
                 }
+                withAnimation { self.queue = queue }
+                for download in downloads { subscribeToProgress(download: download) }
             }
             .onReceive(NotificationCenter.default.publisher(for: .downloadFinished)) { output in
                 guard let download = output.object as? Download else { return }
@@ -212,8 +211,23 @@ struct DownloadQueueView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .downloadsCancelled)) { output in
                 if let chapters = output.object as? [ChapterIdentifier] {
-                    let removed = queue.flatMap(\.downloads).filter { chapters.contains($0.chapterIdentifier) }
-                    for download in removed { remove(download: download) }
+                    // One pass with a set instead of a linear search and a state write per cancelled chapter.
+                    let ids = Set(chapters)
+                    let removed = queue.flatMap(\.downloads).filter { ids.contains($0.chapterIdentifier) }
+                    guard !removed.isEmpty else { return }
+                    withAnimation {
+                        queue = queue.compactMap { section -> (sourceId: String, downloads: [Download])? in
+                            let downloads = section.downloads.filter { !ids.contains($0.chapterIdentifier) }
+                            return downloads.isEmpty ? nil : (section.sourceId, downloads)
+                        }
+                        if queue.isEmpty { isPaused = false }
+                    }
+                    Task {
+                        for download in removed {
+                            await DownloadManager.shared.removeProgressBlock(for: download.chapterIdentifier)
+                            progress.removeValue(forKey: download.chapterIdentifier)
+                        }
+                    }
                     return
                 }
                 for (_, downloads) in queue {

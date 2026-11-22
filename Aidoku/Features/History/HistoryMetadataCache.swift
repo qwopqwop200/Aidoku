@@ -29,6 +29,8 @@ final class HistoryMetadataCache: @unchecked Sendable {
     private let maxBytes: Int
     private let maxAge: TimeInterval = 24 * 60 * 60
     private var revision: UInt64 = 0
+    // Last decoded archive, reused while the file bytes are unchanged (avoids a full JSON decode per call).
+    private var memo: (data: Data, entries: [Entry])?
 
     init(directory: URL, maxBytes: Int = 2 * 1024 * 1024) {
         file = directory.appendingPathComponent("metadata.json")
@@ -111,10 +113,13 @@ final class HistoryMetadataCache: @unchecked Sendable {
         guard maxBytes > 0,
               let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize,
               size <= maxBytes,
-              let data = try? Data(contentsOf: file), data.count <= maxBytes,
-              let archive = try? JSONDecoder().decode(Archive.self, from: data), archive.version == 1,
-              archive.entries.count <= maxEntries else { return [] }
-        return archive.entries.filter {
+              let data = try? Data(contentsOf: file), data.count <= maxBytes else { return [] }
+        if memo?.data != data {
+            guard let archive = try? JSONDecoder().decode(Archive.self, from: data), archive.version == 1,
+                  archive.entries.count <= maxEntries else { return [] }
+            memo = (data, archive.entries)
+        }
+        return (memo?.entries ?? []).filter {
             $0.manga.chapters == nil && $0.id.mangaKey == $0.manga.key && $0.id.chapterKey == $0.chapter.key &&
                 now.timeIntervalSince($0.storedAt) < maxAge && now.timeIntervalSince($0.storedAt) >= 0
         }
@@ -129,6 +134,7 @@ final class HistoryMetadataCache: @unchecked Sendable {
                 do {
                     try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
                     try data.write(to: file, options: .atomic)
+                    memo = (data, retained)
                 } catch { /* A cache write failure must not prevent reading. */ }
                 return
             }

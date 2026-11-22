@@ -247,7 +247,7 @@ final class ReaderDictionaryCoordinator {
         if let cachedSelectionMatch, cachedSelectionMatch.text == text {
             matchedCount = cachedSelectionMatch.matchedCount
         } else {
-            matchedCount = LookupEngine.shared.lookup(text).first.flatMap { String($0.matched).count }
+            matchedCount = LookupEngine.shared.lookup(text, maxResults: 1).first.flatMap { String($0.matched).count }
             cachedSelectionMatch = (text: text, matchedCount: matchedCount)
         }
 

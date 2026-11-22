@@ -10,9 +10,10 @@ enum ChapterLanguageDisplay {
             }
         }
     }()
+    // Bundle localizations are fixed for the process; built once instead of per chapter row.
+    static let displayLocale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? Locale.current.identifier)
 
-    static func localized(_ original: String, acceptsCode: Bool = true,
-                          locale: Locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? Locale.current.identifier)) -> String {
+    static func localized(_ original: String, acceptsCode: Bool = true, locale: Locale = displayLocale) -> String {
         let value = original.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let code = englishNames[value] ?? (acceptsCode && Locale.isoLanguageCodes.contains(value) ? value : nil)
         guard let code else { return original }

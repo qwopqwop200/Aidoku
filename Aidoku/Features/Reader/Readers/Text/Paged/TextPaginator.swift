@@ -7,6 +7,7 @@
 //  font settings, and line spacing.
 //
 
+import ImageIO
 import UIKit
 
 /// Represents a single page of paginated text
@@ -174,7 +175,16 @@ class TextPaginator {
         let scale = min(1, maxWidth / max(1, image.size.width), maxHeight / max(1, image.size.height))
 
         let attachment = NSTextAttachment()
-        attachment.image = image
+        // Decode at most the drawn size (at 3x) instead of keeping full-resolution pixels for every page.
+        let maxPixels = max(image.size.width, image.size.height) * scale * 3
+        if scale < 1, let source = CGImageSourceCreateWithURL(url as CFURL, nil), let thumbnail = CGImageSourceCreateThumbnailAtIndex(
+            source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                        kCGImageSourceThumbnailMaxPixelSize: maxPixels] as CFDictionary
+        ) {
+            attachment.image = UIImage(cgImage: thumbnail)
+        } else {
+            attachment.image = image
+        }
         attachment.bounds = CGRect(
             x: 0,
             y: 0,
@@ -351,9 +361,13 @@ class TextPaginator {
             return [page]
         }
 
+        // Lay out a bounded slice instead of the whole remainder, which made pagination quadratic.
+        var sliceLimit = 4096
         while currentLocation < fullLength {
             // Create fresh text storage with remaining text
-            let remainingRange = NSRange(location: currentLocation, length: fullLength - currentLocation)
+            let remainingLength = fullLength - currentLocation
+            let sliceLength = min(remainingLength, sliceLimit)
+            let remainingRange = NSRange(location: currentLocation, length: sliceLength)
             let remainingText = attributedString.attributedSubstring(from: remainingRange)
 
             let textStorage = NSTextStorage(attributedString: remainingText)
@@ -379,6 +393,12 @@ class TextPaginator {
             // Convert glyph range to character range
             var actualGlyphRange = NSRange()
             let characterRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: &actualGlyphRange)
+
+            // Retry with more text unless the page ended well before the slice did.
+            if sliceLength < remainingLength && characterRange.upperBound > sliceLength * 3 / 4 {
+                sliceLimit *= 2
+                continue
+            }
 
             // Adjust for the offset we're at
             let absoluteRange = NSRange(location: currentLocation + characterRange.location, length: characterRange.length)

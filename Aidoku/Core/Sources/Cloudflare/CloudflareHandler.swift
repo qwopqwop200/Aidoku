@@ -163,6 +163,8 @@ extension CloudflareHandler {
                 NSLayoutConstraint.deactivate(hiddenConstraints)
                 hiddenConstraints = []
                 webView.removeFromSuperview()
+                // Drop the solved page; the detached web view is kept until the next challenge.
+                webView.loadHTMLString("", baseURL: nil)
                 popupController?.dismiss(animated: true)
                 popupController = nil
             }
@@ -420,10 +422,12 @@ extension CloudflareHandler {
 
         // Reservation occurs before actor hops so repeated checks cannot create two sheets.
         guard await disableTimeout(expectedID: challengeID) else { return }
-        guard let parent else {
+        guard var parent else {
             await self.finishChallenge(expectedID: challengeID, with: .failure(HandleError.missingParentView))
             return
         }
+        // Present above any sheet already shown; UIKit rejects presenting from a presenting controller.
+        while let presented = parent.presentedViewController, !presented.isBeingDismissed { parent = presented }
         guard let handlerProxy = await proxy(for: request, expectedID: challengeID) else { return }
         browserOwnership.perform(expectedID: challengeID) {
             let popup = WebViewViewController(request: request, handler: handlerProxy)
@@ -442,6 +446,10 @@ extension CloudflareHandler {
                 webView.centerYAnchor.constraint(equalTo: popup.view.centerYAnchor)
             ])
             parent.present(popup, animated: true)
+        }
+        // A rejected presentation never disappears, which would leave every later challenge waiting forever.
+        if browserOwnership.isCurrent(challengeID), !popupShown {
+            await self.finishChallenge(expectedID: challengeID, with: .failure(HandleError.missingParentView))
         }
     }
 

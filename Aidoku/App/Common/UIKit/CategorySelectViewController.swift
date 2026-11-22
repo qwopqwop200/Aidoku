@@ -35,15 +35,15 @@ class CategorySelectViewController: UITableViewController {
 
         navigationItem.rightBarButtonItem?.isEnabled = false
         Task {
-            (categories, selectedCategories) = await CoreDataManager.shared.container.performBackgroundTask { context in
+            (categories, selectedCategories) = await CoreDataManager.shared.container.performBackgroundTask { [manga] context in
                 let categories = CoreDataManager.shared.getCategoryTitles(context: context)
                 let inLibrary = CoreDataManager.shared.hasLibraryManga(
-                    mangaId: self.manga.identifier,
+                    mangaId: manga.identifier,
                     context: context
                 )
                 let selectedCategories: [String] = if inLibrary {
                     CoreDataManager.shared.getCategories(
-                        mangaId: self.manga.identifier,
+                        mangaId: manga.identifier,
                         context: context
                     )
                     .compactMap { $0.title }
@@ -64,9 +64,9 @@ class CategorySelectViewController: UITableViewController {
     @objc func addCategory() {
         close()
         Task {
-            let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { context in
+            let inLibrary = await CoreDataManager.shared.container.performBackgroundTask { [manga] context in
                 CoreDataManager.shared.hasLibraryManga(
-                    mangaId: self.manga.identifier,
+                    mangaId: manga.identifier,
                     context: context
                 )
             }

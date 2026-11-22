@@ -11,6 +11,7 @@ struct InsightsView: View {
     @State private var data: InsightsData = .init()
     @State private var statsGridHeight: CGFloat = .zero
     @State private var shouldAnimateGridHeightChange = false
+    @State private var loaded = false
 
     init(data: InsightsData? = nil) {
         _data = State(initialValue: data ?? .init())
@@ -146,8 +147,10 @@ struct InsightsView: View {
         }
         .navigationTitle(NSLocalizedString("INSIGHTS"))
         .task {
-            guard data.currentStreak == 0 else { return }
+            // Load once; a zero streak otherwise rescans all history on every appear.
+            guard !loaded, data.currentStreak == 0 else { return }
             data = await .get()
+            loaded = true
         }
     }
 }

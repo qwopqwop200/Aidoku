@@ -7,6 +7,7 @@ enum ReaderTranslationImagePreparation {
         guard image.imageOrientation != .up || image.cgImage == nil else { return image }
         let format = UIGraphicsImageRendererFormat()
         format.scale = image.scale
+        format.preferredRange = .standard
         return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
             image.draw(at: .zero)
         }
@@ -22,6 +23,7 @@ enum ReaderTranslationImagePreparation {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true
+        format.preferredRange = .standard
         let normalized = UIGraphicsImageRenderer(size: size, format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(origin: .zero, size: size))

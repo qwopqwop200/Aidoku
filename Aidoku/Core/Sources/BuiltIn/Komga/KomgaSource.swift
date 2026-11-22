@@ -102,6 +102,8 @@ actor KomgaSourceRunner: Runner {
     private var server: String
     private var storedTags: [String] = []
     private var lastWorkingMirror: URL?
+    // Home listings often show several books of one series; share each in-flight series request.
+    private var seriesRequests: [String: Task<KomgaSeries, Error>] = [:]
 
     init(sourceKey: String, name: String, server: String) {
         self.sourceKey = sourceKey
@@ -862,6 +864,17 @@ extension KomgaSourceRunner {
         return .init(components: components.compactMap { $0 })
     }
 
+    private func series(id: String) async throws -> KomgaSeries {
+        let task = seriesRequests[id] ?? Task { [helper, lastWorkingMirror] in
+            var lastWorkingMirrorCopy = lastWorkingMirror
+            let series: KomgaSeries = try await helper.request(path: "api/v1/series/\(id)", lastWorkingMirror: &lastWorkingMirrorCopy)
+            return series
+        }
+        seriesRequests[id] = task
+        defer { if seriesRequests[id] == task { seriesRequests[id] = nil } }
+        return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+    }
+
     private func createLinks<T: Codable & Sendable>(
         for items: [T],
         sourceKey: String,
@@ -869,16 +882,12 @@ extension KomgaSourceRunner {
         isBookBased: Bool
     ) async throws -> [HomeComponent.Value.Link] {
         var links: [HomeComponent.Value.Link?] = Array(repeating: nil, count: items.count)
-        try await withThrowingTaskGroup(of: (Int, HomeComponent.Value.Link).self) { [helper] taskGroup in
+        try await withThrowingTaskGroup(of: (Int, HomeComponent.Value.Link).self) { taskGroup in
             for (index, item) in items.enumerated() {
-                taskGroup.addTask { [lastWorkingMirror] in
-                    var lastWorkingMirrorCopy = lastWorkingMirror
+                taskGroup.addTask {
                     let link: HomeComponent.Value.Link
                     if isBookBased, let book = item as? KomgaBook {
-                        let series: KomgaSeries = try await helper.request(
-                            path: "api/v1/series/\(book.seriesId)",
-                            lastWorkingMirror: &lastWorkingMirrorCopy
-                        )
+                        let series = try await self.series(id: book.seriesId)
                         let manga = book.intoManga(sourceKey: sourceKey, baseUrl: baseUrl)
                         let bookTitle = book.metadata.title.isEmpty ? book.name : book.metadata.title
                         let subtitle = "\(book.metadata.number) - \(bookTitle)"

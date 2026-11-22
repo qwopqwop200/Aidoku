@@ -97,7 +97,7 @@ extension LocalFileManager {
     }
 
     // get info about a file to be imported
-    func loadImportFileInfo(url: URL) -> ImportFileInfo? {
+    func loadImportFileInfo(url: URL) async -> ImportFileInfo? {
         // if the given url comes from an imported file that isn't copied, we need to do this
         let accessGranted = url.startAccessingSecurityScopedResource()
         defer {
@@ -105,7 +105,7 @@ extension LocalFileManager {
         }
 
         if let source = CGImageSourceCreateWithURL(url as CFURL, nil), CGImageSourceGetCount(source) > 0 {
-            return prepareImageImport(from: [url], name: url.lastPathComponent)
+            return await prepareImageImport(from: [url], name: url.lastPathComponent)
         }
 
         // ensure the file is one we can parse
@@ -201,7 +201,8 @@ extension LocalFileManager {
     }
 
     // Keep selection order; process one image at a time to avoid holding every full-resolution photo in memory.
-    func prepareImageImport(from urls: [URL], name: String) -> ImportFileInfo? {
+    // Nonisolated async: minutes of decoding must not block the actor (page fetches, scans, uploads).
+    nonisolated func prepareImageImport(from urls: [URL], name: String) async -> ImportFileInfo? {
         guard !urls.isEmpty else { return nil }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let temporaryFile = TemporaryLocalImageFile(directory: directory)
@@ -225,10 +226,14 @@ extension LocalFileManager {
                     let normalized = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
                         image.draw(in: CGRect(origin: .zero, size: image.size))
                     }
-                    guard let png = normalized.pngData() else { throw LocalFileManagerError.invalidFileType }
                     let pageName = String(format: "%08d.png", index + 1)
                     let pageURL = directory.appendingPathComponent(pageName)
-                    try png.write(to: pageURL)
+                    // Encode straight to the file instead of holding a second, encoded copy in memory.
+                    guard let bitmap = normalized.cgImage,
+                          let png = CGImageDestinationCreateWithURL(pageURL as CFURL, "public.png" as CFString, 1, nil)
+                    else { throw LocalFileManagerError.invalidFileType }
+                    CGImageDestinationAddImage(png, bitmap, nil)
+                    guard CGImageDestinationFinalize(png) else { throw LocalFileManagerError.invalidFileType }
                     try archive.addEntry(with: pageName, fileURL: pageURL)
                     try FileManager.default.removeItem(at: pageURL)
                     if previews.count < 3 {
@@ -325,7 +330,7 @@ extension LocalFileManager {
         for chapter in chapters {
             guard let archive = try? Archive(url: chapter, accessMode: .read) else { continue }
             let pages = archive.filter {
-                $0.type == .file && !$0.path.hasPrefix("__MACOSX/") &&
+                $0.type == .file && !isHiddenPath($0.path) &&
                 allowedImageExtensions.contains(($0.path as NSString).pathExtension.lowercased())
             }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
             guard let first = pages.first, first.uncompressedSize <= 250 * 1024 * 1024 else { continue }
@@ -748,13 +753,21 @@ extension LocalFileManager {
             eventMask: [.write, .delete, .rename],
             queue: DispatchQueue.global(qos: .background)
         )
-        source.setEventHandler { [weak self] in
+        source.setEventHandler { [weak self, weak source] in
+            // A deleted or renamed Local folder leaves this descriptor watching a dead vnode, so watch the new one.
+            let moved = source.map { !$0.data.isDisjoint(with: [.delete, .rename]) } ?? false
             // run a scan when a file is changed
-            Task { await self?.scanLocalFiles() }
+            Task { await self?.scanLocalFiles(); if moved { await self?.restartFileSystemListener() } }
         }
         source.setCancelHandler { close(fd) }
         localFolderSource = source
         source.resume()
+    }
+
+    private func restartFileSystemListener() {
+        localFolderSource?.cancel()
+        localFolderSource = nil
+        startFileSystemListener()
     }
 
     // stop file system listener

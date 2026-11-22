@@ -416,9 +416,6 @@ class ReaderViewController: BaseObservingViewController {
                 }
             }
         }
-        addObserver(forName: "Reader.autoScroll") { [weak self] _ in
-            self?.updateAutoScrollButton()
-        }
         addObserver(forName: AppSettings.reader.autoScrollPosition.key) { [weak self] _ in
             guard let self else { return }
             let visible = self.reader is ReaderWebtoonViewController && UserDefaults.standard.bool(forKey: "Reader.autoScroll")
@@ -1090,7 +1087,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
                 if nextChapterInList == nil {
                     nextChapterInList = new
                 }
-                if shouldMark && markDuplicates && isDuplicate {
+                if shouldMark && markDuplicates && isDuplicate && !chaptersToMark.contains(new) {
                     chaptersToMark.append(new)
                 }
                 if !isDuplicate {
@@ -1131,7 +1128,7 @@ extension ReaderViewController: @MainActor ReaderHoldingDelegate {
                 if !isDuplicate {
                     return findBestChapterMatch(from: index, step: 1, relativeTo: reference)
                 }
-                if shouldMark && markDuplicates {
+                if shouldMark && markDuplicates && !chaptersToMark.contains(new) {
                     chaptersToMark.append(new)
                 }
             }

@@ -28,12 +28,14 @@ struct SourceMenuTranslationModifier: ViewModifier {
     var filterTitle: String?
     var optionKind: TitleTranslationKind = .sourceLabel
     @State private var revision = UUID()
+    @State private var requestIdentity: [String?]?
     private var identity: String { revision.uuidString + ReaderTranslationCacheIdentity.encoded(originals + [filterTitle ?? "", String(limitsOptions), optionKind.rawValue]) }
 
     func body(content: Content) -> some View {
         content
             .task(id: identity) {
                 let settings = ReaderTranslationSettings()
+                if requestIdentity != settingsIdentity(settings) { requestIdentity = settingsIdentity(settings) }
                 let skipsOptions = limitsOptions && !SourceMenuTranslation.translatesOptions(
                     count: originals.count, includeLargeLists: settings.translateLargeFilterOptions)
                 let requested = skipsOptions ? [] : originals
@@ -47,9 +49,15 @@ struct SourceMenuTranslationModifier: ViewModifier {
                 labels = translated
             }
             .onReceive(NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed).receive(on: DispatchQueue.main)) { _ in
+                if let requestIdentity, requestIdentity == settingsIdentity(ReaderTranslationSettings()) { return }
                 labels = [:]
                 revision = UUID()
             }
+    }
+
+    private func settingsIdentity(_ settings: ReaderTranslationSettings) -> [String?] {
+        [TitleTranslation.settingsIdentity(kind: .sourceLabel, settings: settings),
+         TitleTranslation.settingsIdentity(kind: optionKind, settings: settings), String(settings.translateLargeFilterOptions)]
     }
 }
 

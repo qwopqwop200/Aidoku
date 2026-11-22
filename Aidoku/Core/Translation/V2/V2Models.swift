@@ -183,7 +183,7 @@ final class V2Models: @unchecked Sendable {
         let line = V2Line(polygon: [CGPoint(x: 240, y: 100), CGPoint(x: 272, y: 100), CGPoint(x: 272, y: 400),
                                     CGPoint(x: 240, y: 400)],
                           bounds: CGRect(x: 240, y: 100, width: 32, height: 300), vertical: true, detectionScore: 1)
-        _ = try await V2Recognition.recognize(page, lines: [line], engine: recognition)
+        try await V2Recognition.warmUp(page, line: line, engine: recognition)
         _ = try await layoutWarm
     }
 }

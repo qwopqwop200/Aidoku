@@ -64,7 +64,8 @@ actor BackupManager {
                 dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
                 target = Self.directory.appendingPathComponent("aidoku_\(dateFormatter.string(from: backup.date))_\(UUID().uuidString).aib")
             }
-            let data = try encoder.encode(backup)
+            // Drop the encoder's bridged temporaries before the write rather than at the end of the job.
+            let data = try autoreleasepool { try encoder.encode(backup) }
             guard !Task.isCancelled else { return false }
             try data.write(to: target, options: .atomic)
             NotificationCenter.default.post(name: .updateBackupList, object: nil)
@@ -145,7 +146,9 @@ actor BackupManager {
         } else {
             nil
         }
-        return await CoreDataManager.shared.container.performBackgroundTask { context in
+        // The Core Data block can't see task cancellation (e.g. an expired background task), so relay it.
+        let cancel = Progress()
+        return await withTaskCancellationHandler { await CoreDataManager.shared.container.performBackgroundTask { context in
             let library: [BackupLibraryManga]? = if options.libraryEntries {
                 CoreDataManager.shared.getLibraryManga(context: context).map {
                     BackupLibraryManga(libraryObject: $0, skipCategories: !options.categories)
@@ -154,21 +157,21 @@ actor BackupManager {
                 nil
             }
             let history: [BackupHistory]? = if options.history {
-                Self.mapInBatches(HistoryObject.fetchRequest(), context: context) {
+                Self.mapInBatches(HistoryObject.fetchRequest(), context: context, cancel: cancel) {
                     BackupHistory(historyObject: $0)
                 }
             } else {
                 nil
             }
             let manga: [BackupManga]? = if options.libraryEntries {
-                Self.mapInBatches(MangaObject.fetchRequest(), context: context) {
+                Self.mapInBatches(MangaObject.fetchRequest(), context: context, cancel: cancel) {
                     BackupManga(mangaObject: $0)
                 }
             } else {
                 nil
             }
             let chapters: [BackupChapter]? = if options.chapters {
-                Self.mapInBatches(ChapterObject.fetchRequest(), context: context) {
+                Self.mapInBatches(ChapterObject.fetchRequest(), context: context, cancel: cancel) {
                     BackupChapter(chapterObject: $0)
                 }
             } else {
@@ -182,7 +185,7 @@ actor BackupManager {
                 nil
             }
             let sessionItems: [BackupReadingSession]? = if options.readingSessions {
-                Self.mapInBatches(ReadingSessionObject.fetchRequest(), context: context, BackupReadingSession.init)
+                Self.mapInBatches(ReadingSessionObject.fetchRequest(), context: context, cancel: cancel, BackupReadingSession.init)
             } else {
                 nil
             }
@@ -192,7 +195,7 @@ actor BackupManager {
                 nil
             }
             let updateItems: [BackupUpdate]? = if options.updates {
-                Self.mapInBatches(MangaUpdateObject.fetchRequest(), context: context, BackupUpdate.init)
+                Self.mapInBatches(MangaUpdateObject.fetchRequest(), context: context, cancel: cancel, BackupUpdate.init)
             } else {
                 nil
             }
@@ -227,7 +230,7 @@ actor BackupManager {
                 automatic: options.automatic,
                 version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
             )
-        }
+        } } onCancel: { cancel.cancel() }
     }
 
     /// Faults each converted batch back out so large fetches don't stay materialized.
@@ -235,13 +238,14 @@ actor BackupManager {
         _ request: NSFetchRequest<T>,
         context: NSManagedObjectContext,
         batchSize: Int = 1_000,
+        cancel: Progress? = nil,
         _ transform: (T) -> R?
     ) -> [R] {
         request.fetchBatchSize = batchSize
         guard let objects = try? context.fetch(request) else { return [] }
         var result: [R] = []
         result.reserveCapacity(objects.count)
-        for start in stride(from: 0, to: objects.count, by: batchSize) {
+        for start in stride(from: 0, to: objects.count, by: batchSize) where cancel?.isCancelled != true {
             autoreleasepool {
                 let batch = objects[start..<min(start + batchSize, objects.count)]
                 for object in batch {
@@ -404,8 +408,13 @@ extension BackupManager {
             })
             let keys = Set(items.lazy.map(\.identifier))
             for (key, row) in library where !keys.contains(key) { context.delete(row) }
+            // Rows without manga all share one key above; remove every one of them, as upstream's full clear did.
+            let orphans = LibraryMangaObject.fetchRequest()
+            orphans.predicate = NSPredicate(format: "manga == nil")
+            try delete(orphans)
             for item in items {
-                guard let parent = manga[item.identifier] else { throw BackupError.library }
+                // Skip entries without metadata, as before, instead of failing the whole restore.
+                guard let parent = manga[item.identifier] else { continue }
                 let row = item.toObject(context: context, existing: library[item.identifier])
                 row.manga = parent
                 if let titles = item.categories {
@@ -431,7 +440,9 @@ extension BackupManager {
             }
         }
         var chapters = try index(
-            ChapterObject.fetchRequest(), when: relinkChapterManga || relinkChapterHistory || backup.updates?.isEmpty == false, key: { $0.identifier }
+            ChapterObject.fetchRequest(),
+            when: relinkChapterManga || relinkChapterHistory || backup.updates?.isEmpty == false || backup.readingSessions?.isEmpty == false,
+            key: { $0.identifier }
         )
         if let items = backup.chapters {
             let keys = Set(items.lazy.map { ChapterIdentifier(sourceKey: $0.sourceId, mangaKey: $0.mangaId, chapterKey: $0.id) })
@@ -447,16 +458,24 @@ extension BackupManager {
         }
         // Reconnect relationships whose endpoints were restored.
         for (key, row) in chapters {
-            if relinkChapterManga { row.manga = manga[key.mangaIdentifier] }
-            if relinkChapterHistory { row.history = history[key] }
+            // Unchanged links are skipped so their rows and inverses aren't dirtied.
+            if relinkChapterManga, row.manga !== manga[key.mangaIdentifier] { row.manga = manga[key.mangaIdentifier] }
+            if relinkChapterHistory, row.history !== history[key] { row.history = history[key] }
         }
         if let items = backup.readingSessions {
             try delete(ReadingSessionObject.fetchRequest())
             for item in items where item.endDate > item.startDate && item.pagesRead > 0 {
                 let row = item.toObject(context: context)
-                let parent = history[item.identifier] ?? CoreDataManager.shared.getOrCreateHistory(chapterId: item.identifier, context: context)
-                history[item.identifier] = parent
-                row.history = parent
+                // All history and chapter rows are indexed above, so don't fetch per session.
+                if history[item.identifier] == nil {
+                    let parent = HistoryObject(context: context)
+                    parent.sourceId = item.sourceId
+                    parent.mangaId = item.mangaId
+                    parent.chapterId = item.chapterId
+                    parent.chapter = chapters[item.identifier]
+                    history[item.identifier] = parent
+                }
+                row.history = history[item.identifier]
             }
         }
         if let items = backup.updates {
@@ -681,7 +700,7 @@ extension BackupManager {
             Task { @MainActor in
                 guard
                     let delegate = UIApplication.shared.appDelegate,
-                    delegate.topViewController != nil
+                    let top = delegate.topViewController
                 else {
                     continuation.resume(returning: false)
                     return
@@ -698,6 +717,8 @@ extension BackupManager {
                         }
                     ]
                 )
+                // UIKit drops a presentation onto a busy controller; don't hold the restore (and its lock) forever.
+                if top.presentedViewController == nil { continuation.resume(returning: false) }
             }
         }
     }
@@ -710,11 +731,10 @@ extension BackupManager {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.backupTaskIdentifier, using: nil) { @Sendable [weak self] task in
             guard let self, let task = task as? BGProcessingTask else { return }
 
-            let work = Task { @Sendable in
-                let success = await self.createAutoBackup()
-                task.setTaskCompleted(success: success)
-            }
-            task.expirationHandler = { work.cancel() }
+            // Complete on expiry; a large backup can outlive the window, and the system kills apps that don't complete.
+            let delivery = LibraryBackgroundRefresh { success in task.setTaskCompleted(success: success) }
+            task.expirationHandler = { delivery.expire() }
+            delivery.start { await self.createAutoBackup() }
         }
 #endif
     }

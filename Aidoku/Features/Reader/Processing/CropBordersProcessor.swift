@@ -65,39 +65,44 @@ struct CropBordersProcessor: ImageProcessing {
                 context.clear(CGRect(x: 0, y: 0, width: width, height: stripHeight))
                 context.draw(strip, in: CGRect(x: 0, y: stripHeight - rows, width: width, height: rows))
             }
-            let y = CGFloat(y)
+            let rowStart = row * width * 4 /* 4 for A, R, G, B */
 
-            for x in 0 ..< width {
-                let x = CGFloat(x)
-                let pixelIndex = (widthFloat * CGFloat(row) + x) * 4 /* 4 for A, R, G, B */
+            func isContent(_ x: Int) -> Bool {
+                let pixelIndex = rowStart + x * 4
 
                 // crop transparent
-                if data[Int(pixelIndex)] == 0 { continue }
+                if data[pixelIndex] == 0 { return false }
 
                 // crop white
                 if
-                    data[Int(pixelIndex+1)] > whiteThreshold
-                    && data[Int(pixelIndex+2)] > whiteThreshold
-                    && data[Int(pixelIndex+3)] > whiteThreshold
+                    data[pixelIndex+1] > whiteThreshold
+                    && data[pixelIndex+2] > whiteThreshold
+                    && data[pixelIndex+3] > whiteThreshold
                 {
-                    continue
+                    return false
                 }
 
                 // crop black
                 if
-                    data[Int(pixelIndex+1)] < blackThreshold
-                    && data[Int(pixelIndex+2)] < blackThreshold
-                    && data[Int(pixelIndex+3)] < blackThreshold
+                    data[pixelIndex+1] < blackThreshold
+                    && data[pixelIndex+2] < blackThreshold
+                    && data[pixelIndex+3] < blackThreshold
                 {
-                    continue
+                    return false
                 }
-
-                lowX = min(x, lowX)
-                highX = max(x, highX)
-
-                lowY = min(y, lowY)
-                highY = max(y, highY)
+                return true
             }
+
+            // Only a row's outermost content pixels affect the bounds; skip its interior.
+            guard let first = (0 ..< width).first(where: isContent) else { continue }
+            let last = (first ..< width).reversed().first(where: isContent) ?? first
+            let y = CGFloat(y)
+
+            lowX = min(CGFloat(first), lowX)
+            highX = max(CGFloat(last), highX)
+
+            lowY = min(y, lowY)
+            highY = max(y, highY)
         }
 
         guard highX >= lowX, highY >= lowY else { return .zero }

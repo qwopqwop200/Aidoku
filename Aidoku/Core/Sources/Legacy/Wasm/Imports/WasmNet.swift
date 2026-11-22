@@ -86,7 +86,7 @@ struct WasmRequestObject: KVCObject {
 // MARK: - Net Module
 class WasmNet: WasmImports {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     let semaphore = DispatchSemaphore(value: 0)
 

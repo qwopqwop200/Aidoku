@@ -269,7 +269,7 @@ struct MangaDetailsHeaderView: View {
         .onChange(of: source != nil) { _ in
             updateReadButtonText()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .updateTrackers)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .updateTrackers).receive(on: DispatchQueue.main)) { _ in
             isTracking = TrackerManager.shared.isTracking(mangaId: manga.identifier)
         }
         .task {

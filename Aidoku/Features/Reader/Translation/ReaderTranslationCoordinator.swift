@@ -426,11 +426,21 @@ extension ReaderTranslationCoordinator {
             v2Lookahead[taskKey] = Task { [weak self] in
                 defer { if let self, !Task.isCancelled { self.v2Lookahead[taskKey] = nil } }
                 do {
-                    let image = try await loader.load(page)
+                    // Pages rendered before (reopened reader, resumed look-ahead) need no source decode.
+                    let probe = splitsWidePages
+                        ? Self.v2LookaheadCrops(imageSize: CGSize(width: 2, height: 1), splitsWidePages: true, direction: direction) : [unit]
+                    var cached = true
+                    for crop in probe where cached {
+                        cached = await ReaderTranslationV2Service.shared.cachedPage(cacheKey: key(page, crop)) != nil
+                    }
                     try Task.checkCancellation()
-                    let crops = Self.v2LookaheadCrops(imageSize: image.size, splitsWidePages: splitsWidePages, direction: direction)
+                    let image: UIImage? = try await cached ? nil : loader.load(page)
+                    try Task.checkCancellation()
+                    let crops = image.map {
+                        Self.v2LookaheadCrops(imageSize: $0.size, splitsWidePages: splitsWidePages, direction: direction)
+                    } ?? probe
                     for crop in crops {
-                        guard let part = ReaderTranslationSplitGeometry.image(image, crop: crop) else { continue }
+                        guard let image, let part = ReaderTranslationSplitGeometry.image(image, crop: crop) else { continue }
                         let pixels = await Task.detached(priority: .utility) {
                             ReaderTranslationImagePreparation.uprightSourceImage(part).cgImage
                         }.value

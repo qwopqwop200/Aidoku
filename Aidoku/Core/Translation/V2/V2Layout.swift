@@ -52,13 +52,15 @@ enum V2Layout {
         }
         let sourceBounds = paintable.map { $0.bounds.intersection(page) }
         let plan = V2Cohort.plan(paintable, sources: paintable.map(sourcePixels), capRatio: capRatio, floor: floorPixels)
+        // Shaped once per block; family re-fits reuse it.
+        let texts = paintable.map(measured)
         func obstacles(_ index: Int, _ frames: [CGRect]) -> [CGRect] {
             frames + sourceBounds.enumerated().compactMap { other, rect in other != index && !rect.isNull ? rect : nil }
         }
         var placed: [V2PlacedText] = []
         var frames: [CGRect] = []
         for (index, block) in paintable.enumerated() {
-            let result = placeBlock(block, page: page, obstacles: obstacles(index, frames), placedFrames: frames,
+            let result = placeBlock(block, text: texts[index], page: page, obstacles: obstacles(index, frames), placedFrames: frames,
                                     source: plan.sources[index], cap: plan.caps[index])
             placed.append(result)
             frames.append(result.bounds)
@@ -86,7 +88,7 @@ enum V2Layout {
                 for index in cohort where placed[index].fontPixels > size + 0.01 {
                     let others = frames.enumerated().compactMap { $0.offset != index ? $0.element : nil }
                     for context in [Array(frames[..<index]), others] {
-                        let result = placeBlock(paintable[index], page: page, obstacles: obstacles(index, context),
+                        let result = placeBlock(paintable[index], text: texts[index], page: page, obstacles: obstacles(index, context),
                                                 placedFrames: context, source: plan.sources[index], cap: size)
                         if result.fontPixels <= placed[index].fontPixels, !intersectsAny(result.bounds, others) {
                             placed[index] = result
@@ -162,7 +164,8 @@ enum V2Layout {
 
     static func isPaintable(_ block: V2Block) -> Bool {
         guard block.role != .background, let text = block.translation else { return false }
-        return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // As painted: markup-only text ("<br>", zero-width space) would erase the source and paint nothing.
+        return !displayText(text).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     // MARK: - Font
@@ -576,11 +579,13 @@ enum V2Layout {
 
     // MARK: - Per block
 
-    private static func placeBlock(_ block: V2Block, page: CGRect, obstacles: [CGRect],
+    private static func measured(_ block: V2Block) -> MeasuredText {
+        MeasuredText(displayText(V2TranslationLengthCap.capped(block.translation ?? "", sourceText: block.sourceText)),
+                     font: font(size: referenceSize, bold: isBold(block)))
+    }
+
+    private static func placeBlock(_ block: V2Block, text: MeasuredText, page: CGRect, obstacles: [CGRect],
                                    placedFrames: [CGRect], source: CGFloat, cap: CGFloat) -> V2PlacedText {
-        let text = MeasuredText(displayText(V2TranslationLengthCap.capped(block.translation ?? "",
-                                                                          sourceText: block.sourceText)),
-                                font: font(size: referenceSize, bold: isBold(block)))
         let target = targetBox(block, page: page, source: source, obstacles: obstacles)
 
         func strokeInset(_ size: CGFloat) -> CGFloat { strokeWidth(for: block, fontPixels: size) }

@@ -44,7 +44,8 @@ private actor DictionaryTextAnalysisQueue {
         if waiters.isEmpty {
             isRunning = false
         } else {
-            waiters.removeFirst().continuation.resume()
+            // Newest first: the page the user just reached or scrolled to beats older queued pages.
+            waiters.removeLast().continuation.resume()
         }
     }
 

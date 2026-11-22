@@ -12,7 +12,8 @@ extension V2Style {
         // Blocks are independent; measure them concurrently.
         let results = UnsafeMutableBufferPointer<V2StyleEstimator.BlockAnalysis?>.allocate(capacity: blocks.count)
         results.initialize(repeating: nil)
-        defer { results.deallocate() }
+        // Deinitialize first: deallocate alone would leak every analysis (crop planes) per call.
+        defer { results.deinitialize(); results.deallocate() }
         DispatchQueue.concurrentPerform(iterations: blocks.count) { index in
             results[index] = V2StyleEstimator.analyze(page.image, block: blocks[index], font: fonts[index])
         }
@@ -303,6 +304,8 @@ enum V2StyleEstimator {
             if interiorCount >= 16 { measureExtra(2 * k + j, into: &cluster) }
             result.clusters.append(cluster)
         }
+        // Ring profiles read only the colour, cluster and line-distance planes.
+        crop.crop.lines = []; crop.crop.ring = []; crop.crop.exteriorDistance2 = []
         return BlockAnalysis(features: result, crop: crop.crop)
     }
 

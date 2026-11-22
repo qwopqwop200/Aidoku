@@ -10,7 +10,7 @@ import SwiftSoup
 
 class WasmStd: WasmImports {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     enum ObjectType: Int {
         case null = 0
@@ -330,6 +330,7 @@ extension WasmStd {
             if let keyString = self.globalStore.readString(offset: key, length: keyLen),
                var object = self.globalStore.readStdValue(descriptor) as? [String: Any?],
                let valueToSet = self.globalStore.readStdValue(value) {
+                self.globalStore.stdDescriptors[descriptor] = nil
                 object[keyString] = valueToSet
                 self.globalStore.stdDescriptors[descriptor] = object
             }
@@ -396,6 +397,7 @@ extension WasmStd {
             if var array = self.globalStore.readStdValue(descriptor) as? [Any?],
                let valueToSet = self.globalStore.readStdValue(value),
                index < array.count {
+                self.globalStore.stdDescriptors[descriptor] = nil
                 array[Int(index)] = valueToSet
                 self.globalStore.stdDescriptors[descriptor] = array
             }
@@ -407,6 +409,8 @@ extension WasmStd {
             guard descriptor >= 0, value >= 0 else { return }
             if var array = self.globalStore.readStdValue(descriptor) as? [Any?],
                let valueToAppend = self.globalStore.readStdValue(value) {
+                // drop the stored reference so the append doesn't copy the whole array
+                self.globalStore.stdDescriptors[descriptor] = nil
                 array.append(valueToAppend)
                 self.globalStore.stdDescriptors[descriptor] = array
             }

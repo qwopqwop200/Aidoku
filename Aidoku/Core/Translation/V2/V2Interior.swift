@@ -204,7 +204,9 @@ enum V2Interior {
     /// holding >= 70% of the source yields the largest centred rectangle inscribed in its rows.
     static func lobeRect(_ box: Box, source: Box, dirty: (Int, Int) -> Bool) -> Box? {
         let w = box.x1 - box.x0, h = box.y1 - box.y0
-        guard w > 4, h > 4 else { return nil }
+        // The source must overlap the box (the seed loops below would trap on an inverted range).
+        guard w > 4, h > 4, max(box.x0, source.x0) < min(box.x1, source.x1), max(box.y0, source.y0) < min(box.y1, source.y1)
+        else { return nil }
         // Paper 4-connected to the source box.
         var mask = [Bool](repeating: false, count: w * h), queue: [Int] = []
         for y in max(box.y0, source.y0)..<min(box.y1, source.y1) {

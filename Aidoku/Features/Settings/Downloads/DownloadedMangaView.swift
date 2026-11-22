@@ -148,7 +148,8 @@ struct DownloadedMangaView: View {
                 source: SourceManager.shared.store.source(for: viewModel.manga.sourceId),
                 coverImage: viewModel.manga.coverUrl ?? "",
                 width: 56,
-                height: 56 * 3/2
+                height: 56 * 3/2,
+                downsampleWidth: 56
             )
 
             VStack(alignment: .leading, spacing: 4) {
@@ -189,10 +190,7 @@ struct DownloadedMangaView: View {
         var components: [String] = []
 
         // Add current date (when viewed)
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        components.append(formatter.string(from: Date()))
+        components.append(mediumDateFormatter.string(from: Date()))
 
         // Add size
         components.append(viewModel.manga.formattedSize)
@@ -239,6 +237,14 @@ struct DownloadedMangaView: View {
     }
 }
 
+// Shared: rows re-render on every history/download update and formatters are costly to create.
+private let mediumDateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .none
+    return formatter
+}()
+
 private struct ChapterRow: View {
     let chapter: DownloadedChapterInfo
     let history: (page: Int, date: Int)?
@@ -284,10 +290,7 @@ private struct ChapterRow: View {
 
         // download date
         if let downloadDate = chapter.downloadDate {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .none
-            components.append(formatter.string(from: downloadDate))
+            components.append(mediumDateFormatter.string(from: downloadDate))
         }
 
         // file size

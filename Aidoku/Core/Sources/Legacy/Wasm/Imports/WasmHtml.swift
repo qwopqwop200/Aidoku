@@ -10,7 +10,7 @@ import SwiftSoup
 
 class WasmHtml {
 
-    var globalStore: WasmGlobalStore
+    unowned var globalStore: WasmGlobalStore
 
     init(globalStore: WasmGlobalStore) {
         self.globalStore = globalStore

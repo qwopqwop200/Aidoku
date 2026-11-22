@@ -84,7 +84,12 @@ final class V2AOTModel: @unchecked Sendable {
                           into canvas: inout [UInt8], canvasMask: inout [UInt8], canvasWidth: Int) {
         let (x0, y0, x1, y1) = patch.rect, (pw, ph) = patch.size, (ox, oy) = patch.origin
         let rw = x1 - x0, rh = y1 - y0
-        for y in 0..<ph {
+        // Disjoint canvas rows per lane; the union patch averages up to the whole page.
+        canvas.withUnsafeMutableBufferPointer { canvasBuffer in canvasMask.withUnsafeMutableBufferPointer { maskBuffer in
+        nonisolated(unsafe) let out = canvasBuffer.baseAddress!, outMask = maskBuffer.baseAddress!
+        let lanes = rh >= 256 ? 8 : 1
+        DispatchQueue.concurrentPerform(iterations: lanes) { lane in
+        for y in (ph * lane / lanes)..<(ph * (lane + 1) / lanes) {
             let ya = y0 + y * rh / ph, yb = y0 + min(rh, ((y + 1) * rh + ph - 1) / ph)
             for x in 0..<pw {
                 let xa = x0 + x * rw / pw, xb = x0 + min(rw, ((x + 1) * rw + pw - 1) / pw)
@@ -97,12 +102,14 @@ final class V2AOTModel: @unchecked Sendable {
                     }
                 }
                 let n = (yb - ya) * (xb - xa), c = (oy + y) * canvasWidth + ox + x
-                canvas[c * 4] = UInt8((sums.0 + n / 2) / n)
-                canvas[c * 4 + 1] = UInt8((sums.1 + n / 2) / n)
-                canvas[c * 4 + 2] = UInt8((sums.2 + n / 2) / n)
-                canvasMask[c] = hit
+                out[c * 4] = UInt8((sums.0 + n / 2) / n)
+                out[c * 4 + 1] = UInt8((sums.1 + n / 2) / n)
+                out[c * 4 + 2] = UInt8((sums.2 + n / 2) / n)
+                outMask[c] = hit
             }
         }
+        }
+        } }
         for y in -pad..<(ph + pad) {
             let inside = y >= 0 && y < ph
             for x in -pad..<(pw + pad) where !inside || x < 0 || x >= pw {

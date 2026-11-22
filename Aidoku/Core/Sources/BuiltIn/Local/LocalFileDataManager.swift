@@ -313,6 +313,8 @@ extension LocalFileDataManager {
                 mangaId,
                 LocalSourceRunner.sourceKey
             )
+            // Every chapter's file path is read below; load them in one query instead of one fault each.
+            request.relationshipKeyPathsForPrefetching = ["fileInfo"]
             return try self.context.fetch(request)
         }()
 
@@ -323,6 +325,8 @@ extension LocalFileDataManager {
             return !availableChapters.contains(fileName)
         }
         for chapter in chaptersToRemove {
+            // fileInfo is nullified, not cascaded, so delete it too rather than leaving an orphan row.
+            if let fileInfo = chapter.fileInfo { context.delete(fileInfo) }
             self.context.delete(chapter)
         }
 
@@ -357,6 +361,7 @@ extension LocalFileDataManager {
             // A replayed scan must not duplicate a chapter already committed for this archive.
             let existing = ChapterObject.fetchRequest()
             existing.predicate = NSPredicate(format: "mangaId == %@ AND sourceId == %@", mangaId, LocalSourceRunner.sourceKey)
+            existing.relationshipKeyPathsForPrefetching = ["fileInfo"]
             let canonical = archive.standardizedFileURL.resolvingSymlinksInPath().path
             if try context.fetch(existing).contains(where: { chapter in
                 guard let path = chapter.fileInfo?.path else { return false }

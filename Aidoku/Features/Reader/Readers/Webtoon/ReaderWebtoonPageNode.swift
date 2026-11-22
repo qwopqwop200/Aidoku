@@ -33,6 +33,7 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     private var preparedTranslation: ReaderTranslationPreparedImage?
     // animatedData is consumed before frames decode, so record failures separately.
     private var hasLoadFailure = false
+    private var releaseDeferredByZoom = false
     var text: String?
     var ratio: CGFloat?
 
@@ -179,6 +180,8 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     override func didExitPreloadState() {
         super.didExitPreloadState()
         cancelPageLoad()
+        // A page decoded ahead of the display range may leave without ever entering it.
+        releaseOffscreenContent()
     }
 
     override func didEnterVisibleState() {
@@ -208,12 +211,24 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
 
     override func didExitDisplayState() {
         super.didExitDisplayState()
+        releaseOffscreenContent()
+    }
+
+    /// Releases content whose display exit was skipped during a pinch zoom.
+    func releaseContentDeferredByZoom() {
+        guard releaseDeferredByZoom, !isInDisplayState else { return }
+        releaseOffscreenContent()
+    }
+
+    private func releaseOffscreenContent() {
         guard !isVisible else { return }
 
         // don't hide images if zooming in/out
         if let delegate, delegate.isZooming {
+            releaseDeferredByZoom = true
             return
         }
+        releaseDeferredByZoom = false
 
         cancelLiveTextAnalysis()
         cancelDictionaryTextAnalysis()
@@ -860,6 +875,7 @@ extension ReaderWebtoonPageNode {
     private func handleMemoryWarning() {
         cancelLiveTextAnalysis()
         cancelDictionaryTextAnalysis()
+        hasScheduledDictionaryTextAnalysis = false
         clearDictionaryOverlays()
 
         // remove data from non-visible pages

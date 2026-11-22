@@ -12,14 +12,18 @@ class TrackerSettingOptionViewCoordinator: NSObject, UIPickerViewDelegate, UIPic
     var total: Int
     var numberType: NumberType
 
-    let pickerView = UIPickerView(frame: CGRect(x: 10, y: 40, width: 250, height: 150))
+    // Created only when the picker is shown; the SwiftUI view re-creates this coordinator on every render.
+    lazy var pickerView: UIPickerView = {
+        let pickerView = UIPickerView(frame: CGRect(x: 10, y: 40, width: 250, height: 150))
+        pickerView.delegate = self
+        pickerView.dataSource = self
+        return pickerView
+    }()
 
     init(total: Int = 0, numberType: NumberType = .int) {
         self.total = total
         self.numberType = numberType
         super.init()
-        pickerView.delegate = self
-        pickerView.dataSource = self
     }
 
     func numberOfComponents(in pickerView: UIPickerView) -> Int {
