@@ -5,15 +5,19 @@ import Foundation
 /// S6: page-size 0/255 source-text removal mask, recall first.
 ///
 /// Per block, inside the line polygons dilated by max(8, 0.3 T) (T = median line
-/// thickness), cheap local-background features (black-hat / top-hat at 0.12/0.3/0.6 T
-/// and at 1/2.5 estimated stroke widths, colour distance to the ring background, local
-/// contrast, signed polygon distance) feed a two-stage auto-context MLP fit on train GT
+/// thickness) and the line boxes grown 0.5 T along their axis, cheap local-background
+/// features (black-hat / top-hat at 0.12/0.3/0.6 T and at 1/2.5 estimated stroke widths,
+/// colour distance to the ring background, local contrast, signed polygon distance) feed a two-stage auto-context MLP fit on train GT
 /// `text_glyph_instance_mask` (the out-of-repo research scripts (scripts-mask)). The stage-2 probability is
 /// thresholded low and dilated 2 px so antialiased fringes and outline bands are
 /// erased.
 enum V2RemovalMask {
     static let roiScale = 0.3
     static let roiMinimum = 8
+    /// Each line's bounding box, grown along its reading axis by this many line thicknesses, is
+    /// also searched: detection often stops short of a column's last glyph or a trailing mark
+    /// (train: GT regions with > 2% of their glyph pixels left 116 -> 104, far false positives +1%).
+    static let lineEndExtension = 0.5
     static let threshold: Float = 0.05
     /// Large lettering (line thickness >= 70 px) gets a lower threshold. Both values were fit on
     /// the train split only (max train recall with train far-FP <= 1.15x legacy).
@@ -98,6 +102,7 @@ enum V2RemovalMask {
         let scales: [Int]
         let blurHalf: Int
         let frame: Frame
+        var lineEnds: [[CGPoint]] = []
     }
 
     struct BlockMask {
@@ -130,9 +135,13 @@ enum V2RemovalMask {
                       max(4, roundEven(0.6 * thickness))]
         let blurHalf = max(3, roundEven(0.25 * thickness) | 1)
         let pad = roiRadius + max(scales[2], 2 * blurHalf, outputDilation) + 4
-        guard let frame = paddedFrame(polygons, pad: pad, width: width, height: height) else { return nil }
+        let along = CGFloat(lineEndExtension * thickness)
+        let lineEnds = block.lines.map { line in
+            corners(line.vertical ? line.bounds.insetBy(dx: 0, dy: -along) : line.bounds.insetBy(dx: -along, dy: 0))
+        }.filter { $0.allSatisfy(isUsable) }
+        guard let frame = paddedFrame(polygons + lineEnds, pad: pad, width: width, height: height) else { return nil }
         return Geometry(polygons: polygons, thickness: thickness, roiRadius: roiRadius, scales: scales,
-                        blurHalf: blurHalf, frame: frame)
+                        blurHalf: blurHalf, frame: frame, lineEnds: lineEnds)
     }
 
     /// Bounding box of `polygons` grown by `pad` (plus one on the far side), clipped to the page.
@@ -163,6 +172,9 @@ enum V2RemovalMask {
         }
         let roi = space.copy(poly)
         morph(roi, width: w, height: h, radius: roiRadius, max: true, space: space)
+        for end in geometry.lineEnds {
+            fill(end.map { CGPoint(x: $0.x - CGFloat(x0), y: $0.y - CGFloat(y0)) }, into: roi, width: w, height: h)
+        }
         var roiIndices = [Int]()
         roiIndices.reserveCapacity(n / 2)
         for i in 0..<n where roi[i] > 0 { roiIndices.append(i) }
@@ -591,7 +603,6 @@ enum V2RemovalMask {
         let layer1 = UnsafeMutablePointer<Float>.allocate(capacity: count * hidden)
         let layer2 = UnsafeMutablePointer<Float>.allocate(capacity: count * hidden)
         defer { x?.deallocate(); layer1.deallocate(); layer2.deallocate() }
-        var zero: Float = 0
         let block: UnsafePointer<Float>
         if let x {
             for f in 0..<features { (x + f * count).update(from: input + f * rows + start, count: count) }
@@ -599,13 +610,14 @@ enum V2RemovalMask {
         } else {
             block = input
         }
-        // layer = W[hidden x in] * X[in x count]; bias and ReLU per hidden row.
+        // layer = W[hidden x in] * X[in x count]; bias and ReLU per hidden row in one pass.
         func biasReLU(_ layer: UnsafeMutablePointer<Float>, _ biases: [Float]) {
             for j in 0..<hidden {
-                var bias = biases[j]
-                let row = layer + j * count
-                vDSP_vsadd(row, 1, &bias, row, 1, n)
-                vDSP_vthres(row, 1, &zero, row, 1, n)
+                let bias = biases[j], row = layer + j * count
+                for i in 0..<count {
+                    let value = row[i] + bias
+                    row[i] = value < 0 ? 0 : value
+                }
             }
         }
         vDSP_mmul(net.w1, 1, block, 1, layer1, 1, vDSP_Length(hidden), n, vDSP_Length(features))

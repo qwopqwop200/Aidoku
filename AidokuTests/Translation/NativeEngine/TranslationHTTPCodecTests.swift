@@ -150,6 +150,13 @@ struct TranslationHTTPCodecTests {
         }
     }
 
+    @Test func rawTabsAndNewlinesInsideTranslationsReadAsSpaces() throws {
+        let envelope = "{\"translations\":[{\"id\":\"box-a\",\"text\":\"하나\u{200B}\t둘\n셋\"}]}"
+        let body = try JSONSerialization.data(withJSONObject: ["output": [["content": [["type": "output_text", "text": envelope]]]]])
+        let translations = try TranslationHTTPCodec.responseTranslations(from: body, protocol: .responses, expectedSegmentIDs: ["box-a"])
+        #expect(translations.map(\.text) == ["하나\u{200B} 둘 셋"])
+    }
+
     @Test func batchRequestRejectsDuplicateOrUnsafeSegmentIDs() {
         for segments in [[RemoteTranslationSegment(id: "same", text: "one"), .init(id: "same", text: "two")],
                          [RemoteTranslationSegment(id: "box/one", text: "one")]] {

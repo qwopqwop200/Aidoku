@@ -6,10 +6,11 @@ import Foundation
 // (ported from the legacy page font clusters, source-size snap and inconsistency
 // guard). Pure arithmetic over S8 styles and S9 fits; one bounded pass.
 //
-// 1. Key: orientation, bold and outline (no colour: legacy families mix colours).
+// 1. Key: orientation and bold (no colour: legacy families mix colours; no outline: S8 outline presence is noisy).
 // 2. Source snap: within a key, sources within 1.08x of a band's first value take the
 //    band median (S8 per-block estimates are noisy).
-// 3. Families: same key, sorted by source, chained while max/min <= 1.22; size >= 2.
+// 3. Families: same key, sorted by source, chained while max/min <= 1.22; size >= 2. A block in no
+//    family joins the nearest family of its key within 1.08x.
 //    Every member shares one cap: the family median source x the cap ratio.
 // 4. After the per-block fits, the family takes the largest step of its cap
 //    (1, 0.95 ... 0.65, >= 12 px) that every member reached; the page then takes one scale, the
@@ -26,13 +27,10 @@ enum V2Cohort {
     struct Key: Hashable {
         var vertical: Bool
         var bold: Bool
-        var outlined: Bool
     }
 
     static func key(_ block: V2Block) -> Key {
-        let style = block.style
-        let outlined = style.map { $0.strokeColor != nil && $0.strokeWidth > 0 } ?? false
-        return Key(vertical: block.vertical, bold: style?.bold ?? false, outlined: outlined)
+        Key(vertical: block.vertical, bold: block.style?.bold ?? false)
     }
 
     struct Plan {
@@ -56,6 +54,14 @@ enum V2Cohort {
                 for index in band { sources[index] = median }
             }
             cohorts += chains(members, values: sources, ratio: cohortRatio).filter { $0.count >= 2 }
+        }
+        // A block left out of every family joins the nearest family of its key within the snap ratio.
+        let grouped = Set(cohorts.joined())
+        for index in blocks.indices where !grouped.contains(index) {
+            let near = cohorts.indices.map { ($0, median(cohorts[$0].map { sources[$0] })) }.filter { cohort, mid in
+                keys[cohorts[cohort][0]] == keys[index] && max(mid, sources[index]) <= min(mid, sources[index]) * snapRatio
+            }.min { abs($0.1 - sources[index]) < abs($1.1 - sources[index]) }
+            if let near { cohorts[near.0].append(index) }
         }
         var caps = blocks.indices.map { max(floor, sources[$0] * capRatio(blocks[$0])) }
         for cohort in cohorts {

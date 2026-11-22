@@ -27,6 +27,11 @@ enum V2Layout {
     static let marginRatio: CGFloat = 0.2
     /// Line advance in em; matches the legacy renderer's Korean line height (1.18 em).
     static let lineHeightEm: CGFloat = 1.18
+    /// Painted ink of one line, in em: Hangul, Latin and punctuation stay within 0.83 above
+    /// and 0.11 below the baseline, so a block of n lines is (n - 1) line advances plus this.
+    static let inkHeightEm: CGFloat = 0.94
+    /// Baseline below the top of a line's ink, in em.
+    static let inkAscentEm: CGFloat = 0.83
     /// Vertical cell advance per character, in em.
     static let verticalAdvanceEm: CGFloat = 1.02
     /// Fraction of the box width used for wrapping, leaving room for kerning drift.
@@ -41,6 +46,8 @@ enum V2Layout {
     static let strictRuleRatio: CGFloat = 0.9
     /// A stacked horizontal fit yields to vertical columns at no less than this share of its size.
     static let stackedVerticalRatio: CGFloat = 0.85
+    /// Compaction may take a wrap up to this much wider than the narrowest one when it has fewer bad breaks.
+    static let compactBreakWidth: CGFloat = 1.15
 
     /// Horizontal lines averaging under two graphemes (three or more lines): a vertical
     /// stack set with horizontal line spacing.
@@ -137,8 +144,10 @@ enum V2Layout {
                 }
             }
         }
-        for group in Dictionary(grouping: blocks.indices, by: root).values.sorted(by: { $0[0] < $1[0] })
-        where group.allSatisfy({ placed[$0].angle == nil }) {
+        for cluster in Dictionary(grouping: blocks.indices, by: root).values.sorted(by: { $0[0] < $1[0] }) {
+            // Tilted members keep their frames; the upright ones still share the line.
+            let group = cluster.filter { placed[$0].angle == nil }
+            guard group.count >= 2 else { continue }
             let lefts = group.map { blocks[$0].bounds.minX }, tops = group.map { blocks[$0].bounds.minY }
             let top = lefts.max()! - lefts.min()! >= tops.max()! - tops.min()!
             func start(_ rect: CGRect) -> CGFloat { top ? rect.minY : rect.minX }
@@ -274,8 +283,7 @@ enum V2Layout {
             spaceWidth = CGFloat(CTLineGetTypographicBounds(line(" "), nil, nil, nil))
             var count = 0
             paragraphs = text.components(separatedBy: .newlines).compactMap { paragraph in
-                let words = Self.glued(paragraph.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\u{3000}" || $0 == "\u{200B}" })
-                    .map(String.init))
+                let words = Self.glued(paragraph.split(whereSeparator: { $0.isWhitespace || $0 == "\u{200B}" }).map(String.init))
                 guard !words.isEmpty else { return nil }
                 return words.map { string in
                     let shaped = line(string)
@@ -542,7 +550,7 @@ enum V2Layout {
     static func horizontalFit(_ text: MeasuredText, size: CGFloat, width: CGFloat, pitch: CGFloat = lineHeightEm) -> Fit {
         let scale = size / referenceSize
         let wrapped = text.wrap(limit: max(width * widthSlack, 1) / scale)
-        let extent = CGSize(width: wrapped.widest * scale, height: CGFloat(wrapped.lines.count) * size * pitch)
+        let extent = CGSize(width: wrapped.widest * scale, height: (CGFloat(wrapped.lines.count - 1) * pitch + inkHeightEm) * size)
         return Fit(size: size, lines: wrapped.lines, extent: extent, vertical: false)
     }
 
@@ -636,7 +644,7 @@ enum V2Layout {
         let hangul = result.unicodeScalars.contains { (0xAC00...0xD7A3).contains($0.value) }
         result = String(String.UnicodeScalarView(result.unicodeScalars.map { scalar -> Unicode.Scalar in
             switch scalar.value {
-            case 0x2028, 0x2029, 0x200B, 0xFEFF: " "
+            case 0x2028, 0x2029, 0x200B, 0x2800, 0xFEFF: " "
             case 0x7C where hangul: " "
             default: scalar
             }
@@ -644,6 +652,8 @@ enum V2Layout {
         if hangul {
             // A Japanese long-vowel mark after Hangul is a tilde in Korean ("아ー" -> "아~").
             result = result.replacingOccurrences(of: "(?<=[가-힣])[ーｰ]+", with: "~", options: .regularExpression)
+            // A slash marking a source line break ("중에/숨기고"); kept next to Latin letters or digits ("1/2").
+            result = result.replacingOccurrences(of: "(?<![A-Za-z0-9] ?)/(?! ?[A-Za-z0-9])", with: " ", options: .regularExpression)
             let kana = result.unicodeScalars.filter { (0x3040...0x30FF).contains($0.value) }
             if !kana.isEmpty, kana.allSatisfy({ $0 == "っ" || $0 == "ッ" }) {
                 result = result.replacingOccurrences(of: "[っッ]", with: "", options: .regularExpression)
@@ -917,14 +927,14 @@ enum V2Layout {
     /// order (bounded); nil when no count fits (or when a word would split and `whole`).
     static func spanFit(_ text: MeasuredText, size: CGFloat, rows: V2RowSpans, centreY: CGFloat, stroke: CGFloat,
                         whole: Bool) -> (fit: Fit, top: CGFloat)? {
-        let pitch = size * lineHeightEm, scale = size / referenceSize
-        let most = Int((rows.bottom - rows.top - 2 * stroke) / pitch)
+        let pitch = size * lineHeightEm, ink = size * inkHeightEm, scale = size / referenceSize
+        let most = Int((rows.bottom - rows.top - 2 * stroke - ink) / pitch) + 1
         guard most >= 1, scale > 0 else { return nil }
         for count in 1...min(most, 40) {
-            let height = CGFloat(count) * pitch
+            let height = CGFloat(count - 1) * pitch + ink
             let top = min(max(centreY - height / 2, rows.top + stroke), rows.bottom - stroke - height)
             let halves = (0..<count).map { line in
-                rows.halfWidth(top + CGFloat(line) * pitch - stroke, top + CGFloat(line + 1) * pitch + stroke) - stroke
+                rows.halfWidth(top + CGFloat(line) * pitch - stroke, top + CGFloat(line) * pitch + ink + stroke) - stroke
             }
             let wrapped = text.wrap(limits: { line in line < count ? max(0, 2 * halves[line] * widthSlack / scale) : 0 })
             guard wrapped.lines.count == count, !(whole && wrapped.split),
@@ -944,21 +954,28 @@ enum V2Layout {
         let scale = fit.size / referenceSize
         let maxHeight = min(box.height - 2 * stroke, max(sourceHeight, fit.extent.height))
         let whole = text.widestWord * scale / widthSlack
-        // Never narrower than the widest word: compaction adds no split.
-        var low = max(1, whole), high = fit.extent.width / widthSlack + 1
-        guard low < high else { return fit }
-        var best = fit
-        for _ in 0..<10 {
-            let middle = (low + high) / 2
-            let candidate = horizontalFit(text, size: fit.size, width: middle, pitch: pitch)
-            if candidate.extent.height <= maxHeight + 0.01, candidate.extent.width <= fit.extent.width + 0.01 {
-                best = candidate
-                high = middle
-            } else {
-                low = middle
-            }
+        // Every distinct greedy wrap from the fit's width down to the narrowest one (never narrower than the
+        // widest word, so no split is added): the narrowest wins unless one at most 1.15x wider has fewer bad breaks.
+        var wraps = [fit]
+        while wraps.count < 64, let last = wraps.last {
+            let width = last.extent.width / widthSlack - 0.05
+            guard width >= whole else { break }
+            let next = horizontalFit(text, size: fit.size, width: width, pitch: pitch)
+            guard next.extent.height <= maxHeight + 0.01 else { break }
+            wraps.append(next)
         }
-        return best
+        let narrowest = wraps[wraps.count - 1], limit = narrowest.extent.width * compactBreakWidth + 0.01
+        return wraps.reversed().filter { $0.extent.width <= limit }
+            .min { badBreaks($0.lines) < badBreaks($1.lines) } ?? narrowest
+    }
+
+    /// Lines of one bare grapheme plus breaks that split a Korean phrase (determiner | word, word | dependent noun).
+    static func badBreaks(_ lines: [String]) -> Int {
+        guard lines.count > 1 else { return 0 }
+        return lines.filter { $0.count == 1 && $0.allSatisfy(\.isLetter) }.count + zip(lines, lines.dropFirst()).filter { a, b in
+            guard let last = a.split(separator: " ").last, let first = b.split(separator: " ").first else { return false }
+            return MeasuredText.couples(String(last), String(first))
+        }.count
     }
 
     private static func alignedFrames(_ fit: Fit, in box: CGRect, stroke: CGFloat, page: CGRect) -> [CGRect] {

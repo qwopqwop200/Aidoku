@@ -4,11 +4,13 @@ import Foundation
 
 // S7: AOT-GAN 1024 FP16 restoration of the S6 removal mask.
 //
-// Transport arithmetic is the legacy NativeResidentAOT seam: integer-area
-// downscale of the whole page into the top-left of a 1024 canvas (any-hit
-// binary mask, masked RGB zeroed, edge-extended padding), one prediction,
-// then clamped half-pixel bilinear upsampling of `raw_rgb` written ONLY at
-// mask pixels. Every pixel outside the mask is byte-identical to the input.
+// One prediction per page. The mask regions (16-px cells with context) are
+// packed as a mosaic into the 1024 canvas at native resolution when they fit
+// (else at the least downscale; the whole-page 1024 downscale blurred fills
+// and seams). Per patch the transport is the legacy NativeResidentAOT seam:
+// integer-area downscale (any-hit binary mask, masked RGB zeroed, edge-extended
+// padding), then clamped half-pixel bilinear upsampling of `raw_rgb` written
+// ONLY at mask pixels. Every pixel outside the mask is byte-identical to the input.
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2AOTModel: @unchecked Sendable {
@@ -44,20 +46,140 @@ final class V2AOTModel: @unchecked Sendable {
         options.outputBackings = ["raw_rgb": output]
     }
 
-    /// Synchronous whole-page restore (legacy transport) straight into the bytes of the
-    /// returned image; call through `executor`. `removal` is page-sized, nonzero = erase.
+    /// Synchronous restore straight into the bytes of the returned image; call through `executor`.
+    /// `removal` is page-sized, nonzero = erase. One prediction covers every mask region: the
+    /// `mosaic` patches are packed into one model canvas and scattered back to their page rects.
     func restoreImage(_ raster: V2PageRaster, removal: [UInt8]) throws -> CGImage {
         guard removal.count == raster.width * raster.height else { throw Failure.maskSize }
         let width = raster.width, height = raster.height
         var data = raster.rgba.withUnsafeBytes { Data($0) }
-        if removal.contains(where: { $0 != 0 }) {
-            let content = try predict(rgba: raster.rgba, removal: removal, width: width, height: height)
-            try data.withUnsafeMutableBytes { bytes in
+        let patches = Self.mosaic(removal, width: width, height: height)
+        guard let first = patches.first else { return try V2PageRaster.image(data, width: width, height: height) }
+        // A packed patch carries a `pad` border; the single unpacked patch at the origin needs none.
+        let pad = first.origin == (0, 0) ? 0 : Self.pad
+        let cw = patches.map { $0.origin.0 + $0.size.0 }.max()! + pad
+        let ch = patches.map { $0.origin.1 + $0.size.1 }.max()! + pad
+        var canvas = [UInt8](repeating: 255, count: cw * ch * 4)
+        var canvasMask = [UInt8](repeating: 0, count: cw * ch)
+        for patch in patches {
+            Self.downscale(raster.rgba, mask: removal, width: width, patch: patch, pad: pad,
+                           into: &canvas, canvasMask: &canvasMask, canvasWidth: cw)
+        }
+        let content = try predict(rgba: canvas, removal: canvasMask, width: cw, height: ch)
+        guard content == (cw, ch) else { throw Failure.modelContract }
+        try data.withUnsafeMutableBytes { bytes in
+            for patch in patches {
                 try Self.scatter(into: bytes.bindMemory(to: UInt8.self), mask: removal, width: width, height: height,
-                                 raw: output, content: content)
+                                 raw: output, content: patch.size, region: patch.rect, origin: patch.origin)
             }
         }
         return try V2PageRaster.image(data, width: width, height: height)
+    }
+
+    /// A page rect (x0, y0, x1, y1; exclusive) drawn at `origin` of the model canvas at `size`.
+    struct Patch {
+        var rect: (Int, Int, Int, Int)
+        var origin: (Int, Int)
+        var size: (Int, Int)
+    }
+
+    /// Context margins tried, widest first, and the replicated border around each packed patch
+    /// (without it a patch's fill reads its canvas neighbour as context).
+    static let margins = [384, 256, 160, 96, 64]
+    static let pad = 16
+
+    /// Integer-area downscale (the `fill` arithmetic) of `patch.rect` into the canvas with the any-hit
+    /// mask, then its edge pixels replicated `pad` px outward (unmasked).
+    static func downscale(_ rgba: [UInt8], mask: [UInt8], width: Int, patch: Patch, pad: Int,
+                          into canvas: inout [UInt8], canvasMask: inout [UInt8], canvasWidth: Int) {
+        let (x0, y0, x1, y1) = patch.rect, (pw, ph) = patch.size, (ox, oy) = patch.origin
+        let rw = x1 - x0, rh = y1 - y0
+        for y in 0..<ph {
+            let ya = y0 + y * rh / ph, yb = y0 + min(rh, ((y + 1) * rh + ph - 1) / ph)
+            for x in 0..<pw {
+                let xa = x0 + x * rw / pw, xb = x0 + min(rw, ((x + 1) * rw + pw - 1) / pw)
+                var sums = (0, 0, 0), hit: UInt8 = 0
+                for yy in ya..<yb {
+                    for xx in xa..<xb {
+                        let p = yy * width + xx
+                        sums.0 += Int(rgba[p * 4]); sums.1 += Int(rgba[p * 4 + 1]); sums.2 += Int(rgba[p * 4 + 2])
+                        hit |= mask[p]
+                    }
+                }
+                let n = (yb - ya) * (xb - xa), c = (oy + y) * canvasWidth + ox + x
+                canvas[c * 4] = UInt8((sums.0 + n / 2) / n)
+                canvas[c * 4 + 1] = UInt8((sums.1 + n / 2) / n)
+                canvas[c * 4 + 2] = UInt8((sums.2 + n / 2) / n)
+                canvasMask[c] = hit
+            }
+        }
+        for y in -pad..<(ph + pad) {
+            let inside = y >= 0 && y < ph
+            for x in -pad..<(pw + pad) where !inside || x < 0 || x >= pw {
+                let c = (oy + y) * canvasWidth + ox + x
+                let s = (oy + min(ph - 1, max(0, y))) * canvasWidth + ox + min(pw - 1, max(0, x))
+                for k in 0..<4 { canvas[c * 4 + k] = canvas[s * 4 + k] }
+            }
+        }
+    }
+
+    /// Disjoint page rects covering `mask`: each occupied 16-px cell plus a context margin, merged
+    /// while they overlap. They are shelf-packed (with `pad` borders) into one model side at native
+    /// resolution with the widest margin that fits, else at the largest scale (steps of 0.9, smallest
+    /// margin) above that of the union of all rects; failing both, the union is the single patch.
+    static func mosaic(_ mask: [UInt8], width: Int, height: Int) -> [Patch] {
+        let cell = 16
+        let columns = (width + cell - 1) / cell, rows = (height + cell - 1) / cell
+        var occupied: [Int] = []
+        var seen = [Bool](repeating: false, count: columns * rows)
+        for y in 0..<height {
+            let row = y * width, cellRow = (y / cell) * columns
+            for x in 0..<width where mask[row + x] != 0 && !seen[cellRow + x / cell] {
+                seen[cellRow + x / cell] = true
+                occupied.append(cellRow + x / cell)
+            }
+        }
+        guard !occupied.isEmpty else { return [] }
+        func merged(_ margin: Int) -> [(Int, Int, Int, Int)] {
+            var merged: [(Int, Int, Int, Int)] = []
+            for c in occupied {
+                let x = (c % columns) * cell, y = (c / columns) * cell
+                var r = (max(0, x - margin), max(0, y - margin), min(width, x + cell + margin), min(height, y + cell + margin))
+                while let i = merged.firstIndex(where: { r.0 < $0.2 && $0.0 < r.2 && r.1 < $0.3 && $0.1 < r.3 }) {
+                    let m = merged.remove(at: i)
+                    r = (min(m.0, r.0), min(m.1, r.1), max(m.2, r.2), max(m.3, r.3))
+                }
+                merged.append(r)
+            }
+            return merged
+        }
+        func size(_ r: (Int, Int, Int, Int), _ scale: Double) -> (Int, Int) {
+            (min(side, max(1, Int(ceil(Double(r.2 - r.0) * scale)))), min(side, max(1, Int(ceil(Double(r.3 - r.1) * scale)))))
+        }
+        func pack(_ rects: [(Int, Int, Int, Int)], _ scale: Double) -> [Patch]? {
+            var patches: [Patch] = []
+            var x = 0, y = 0, shelf = 0
+            for r in rects.sorted(by: { $0.3 - $0.1 > $1.3 - $1.1 }) {
+                let s = size(r, scale), w = s.0 + 2 * pad, h = s.1 + 2 * pad
+                if x + w > side { x = 0; y += shelf; shelf = 0 }
+                guard y + h <= side, w <= side else { return nil }
+                patches.append(Patch(rect: r, origin: (x + pad, y + pad), size: s))
+                x += w; shelf = max(shelf, h)
+            }
+            return patches
+        }
+        for margin in margins {
+            if let patches = pack(merged(margin), 1) { return patches }
+        }
+        let rects = merged(margins.last!)
+        let union = rects.dropFirst().reduce(rects[0]) { (min($0.0, $1.0), min($0.1, $1.1), max($0.2, $1.2), max($0.3, $1.3)) }
+        let unionScale = min(1, Double(side) / Double(max(union.2 - union.0, union.3 - union.1)))
+        var scale = 0.9
+        while scale > unionScale && rects.count > 1 {
+            if let patches = pack(rects, scale) { return patches }
+            scale *= 0.9
+        }
+        return [Patch(rect: union, origin: (0, 0), size: size(union, unionScale))]
     }
 
     /// Fill + prediction into `output`. Returns the content size.
@@ -156,9 +278,14 @@ final class V2AOTModel: @unchecked Sendable {
 
     /// Legacy `scatter`: bilinear restore of mask pixels only (RGBA, alpha untouched).
     /// Rows run in parallel with the legacy per-pixel arithmetic (column taps precomputed).
-    static func scatter(into restored: UnsafeMutableBufferPointer<UInt8>, mask: [UInt8], width w: Int, height h: Int,
-                        raw: MLMultiArray, content: (Int, Int)) throws {
+    /// `region` (x0, y0, x1, y1) limits the restore to that page rect, read from the `content`-sized
+    /// prediction at `origin` (default: the whole page from the top-left).
+    static func scatter(into restored: UnsafeMutableBufferPointer<UInt8>, mask: [UInt8], width: Int, height: Int,
+                        raw: MLMultiArray, content: (Int, Int), region: (Int, Int, Int, Int)? = nil,
+                        origin: (Int, Int) = (0, 0)) throws {
         let (sw, sh) = content
+        let (left, top, right, bottom) = region ?? (0, 0, width, height)
+        let w = right - left, h = bottom - top
         let strides = raw.strides.map(\.intValue)
         let channel = strides[1], rowStride = strides[2], columnStride = strides[3]
         // Column taps: (x0, x1) offsets into a channel row and the weight, as in the per-pixel legacy loop.
@@ -166,7 +293,7 @@ final class V2AOTModel: @unchecked Sendable {
         for x in 0..<w {
             let sx = min(Float(sw - 1), max(0, (Float(x) + 0.5) * Float(sw) / Float(w) - 0.5))
             let x0 = Int(floor(sx)), x1 = min(sw - 1, x0 + 1)
-            taps[x] = (x0 * columnStride, x1 * columnStride, Double(sx) - Double(x0))
+            taps[x] = ((origin.0 + x0) * columnStride, (origin.0 + x1) * columnStride, Double(sx) - Double(x0))
         }
         nonisolated(unsafe) let values = UnsafePointer(raw.dataPointer.assumingMemoryBound(to: Float16.self))
         nonisolated(unsafe) let target = restored.baseAddress!
@@ -177,21 +304,21 @@ final class V2AOTModel: @unchecked Sendable {
                 nonisolated(unsafe) let columns = tapBuffer.baseAddress!
                 @Sendable func rows(_ firstRow: Int, _ lastRow: Int) -> Bool {
                     for y in firstRow..<lastRow {
-                        let row = y * w
+                        let row = (top + y) * width + left
                         var first = 0
                         while first < w && masks[row + first] == 0 { first += 1 }
                         if first == w { continue }
                         let sy = min(Float(sh - 1), max(0, (Float(y) + 0.5) * Float(sh) / Float(h) - 0.5))
                         let y0 = Int(floor(sy)), y1 = min(sh - 1, y0 + 1), dy = Double(sy) - Double(y0)
-                        let top0 = y0 * rowStride, top1 = y1 * rowStride
+                        let top0 = (origin.1 + y0) * rowStride, top1 = (origin.1 + y1) * rowStride
                         for x in first..<w where masks[row + x] != 0 {
                             let (x0, x1, dx) = columns[x]
                             for c in 0..<3 {
                                 let base = values + c * channel
                                 func sample(_ offset: Int) -> Double { Double((Float(base[offset]) + 1) / 2) }
-                                let top = sample(top0 + x0) * (1 - dx) + sample(top0 + x1) * dx
-                                let bottom = y1 == y0 ? top : sample(top1 + x0) * (1 - dx) + sample(top1 + x1) * dx
-                                let selected = top * (1 - dy) + bottom * dy
+                                let upper = sample(top0 + x0) * (1 - dx) + sample(top0 + x1) * dx
+                                let lower = y1 == y0 ? upper : sample(top1 + x0) * (1 - dx) + sample(top1 + x1) * dx
+                                let selected = upper * (1 - dy) + lower * dy
                                 guard selected.isFinite else { return false }
                                 target[(row + x) * 4 + c] = UInt8(floor(min(1, max(0, selected)) * 255 + 0.5))
                             }
@@ -221,7 +348,7 @@ enum V2Inpaint {
         return try await restoreImage(V2PageRaster(page.image), mask: mask, models: models)
     }
 
-    /// Whole-page restore of `raster` (legacy transport) as an image, with one page copy.
+    /// Restore of `raster` (see `V2AOTModel.restoreImage`) as an image, with one page copy.
     static func restoreImage(_ raster: V2PageRaster, mask: [UInt8], models: V2Models) async throws -> CGImage {
         guard mask.count == raster.width * raster.height else { throw V2AOTModel.Failure.maskSize }
         guard mask.contains(where: { $0 != 0 }) else { return try raster.image() }

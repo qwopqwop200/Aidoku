@@ -48,12 +48,9 @@ enum V2Detection {
         return V2Line(polygon: ordered, bounds: bounds, vertical: bounds.height >= bounds.width, detectionScore: Float(score))
     }
 
-    /// TL, TR, BR, BL for a quadrilateral (sort by x, then each side by y); other polygons unchanged.
+    /// TL, TR, BR, BL for a quadrilateral: the reading quad recognition uses (top = the most horizontal
+    /// rightward edge), so a tilted column keeps its short edge on top; other polygons unchanged.
     static func orderedQuad(_ polygon: [CGPoint]) -> [CGPoint] {
-        guard polygon.count == 4 else { return polygon }
-        let sorted = polygon.sorted { ($0.x, $0.y) < ($1.x, $1.y) }
-        let left = sorted[0..<2].sorted { $0.y < $1.y }
-        let right = sorted[2..<4].sorted { $0.y < $1.y }
-        return [left[0], right[0], right[1], left[1]]
+        NativeOCRDirectionGeometry.readingQuad(polygon) ?? polygon
     }
 }

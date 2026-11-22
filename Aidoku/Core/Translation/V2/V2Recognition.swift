@@ -7,9 +7,9 @@ import Foundation
 // The dynamic-width Core ML program runs on the CPU on every measured Apple
 // runtime and one `MLModel` handle serializes its predictions, so a resident
 // pool of independent handles predicts exact-width crops longest-first in
-// parallel. Every numeric step (crop plan, sampling, tensor, model, compact
-// top-k packing, n-gram corrected CTC decode and 0.30 gate) matches the legacy
-// recognizer.
+// parallel. Every numeric step after the padded crop (sampling, tensor, model,
+// compact top-k packing, n-gram corrected CTC decode and 0.30 gate) matches the
+// legacy recognizer.
 
 /// Resident recognizer state. `V2Models` owns one instance for the process.
 @available(iOS 18.0, *)
@@ -243,10 +243,20 @@ enum V2Recognition {
         return reads
     }
 
-    /// Exact legacy crop plan for the full-frame manga policy: dynamic width,
-    /// publisher width rule (<= 640, natural > 2000 up to 2400) and the
-    /// reading-order quad (the legacy main-manga `quad` direction path).
+    /// Legacy crop plan for the full-frame manga policy (dynamic width,
+    /// publisher width rule <= 640, natural > 2000 up to 2400, reading-order
+    /// quad) on the padded line polygon.
     static func plan(_ polygon: [CGPoint]) -> NativeCoreMLRecognitionPreprocessor.Plan? {
+        // A text line (long side >= 1.5 x short) is cropped 5% of its short side
+        // wider on every side: tight detector boxes clip edge strokes. Squarish
+        // boxes keep the exact crop (padding them lets SFX fragments pass the gate).
+        let xs = polygon.map(\.x), ys = polygon.map(\.y)
+        guard let x0 = xs.min(), let x1 = xs.max(), let y0 = ys.min(), let y1 = ys.max() else { return nil }
+        let short = min(x1 - x0, y1 - y0)
+        let pad = max(x1 - x0, y1 - y0) >= 1.5 * short ? short / 20 : 0
+        let polygon = polygon.map {
+            CGPoint(x: $0.x + ($0.x < (x0 + x1) / 2 ? -pad : pad), y: $0.y + ($0.y < (y0 + y1) / 2 ? -pad : pad))
+        }
         let ordered = polygon.count == 4 ? NativeOCRDirectionGeometry.readingQuad(polygon) : nil
         if polygon.count == 4, ordered == nil { return nil }
         return NativeCoreMLRecognitionPreprocessor.plan(

@@ -491,12 +491,11 @@ enum TranslationHTTPCodec {
         let maximumEnvelopeBytes = expectedSegmentIDs.count.multipliedReportingOverflow(by: maximumTranslationBytes)
         guard !maximumEnvelopeBytes.overflow, value.utf8.count <= maximumEnvelopeBytes.partialValue + 16 * 1024,
               let data = value.data(using: .utf8) else { throw RemoteTranslationError.responseTooLarge }
-        let object: Any
-        do {
-            object = try JSONSerialization.jsonObject(with: data)
-        } catch {
-            throw RemoteTranslationError.invalidResponse("structured translation is not valid JSON")
-        }
+        // A provider may break a translation's lines with raw tabs or newlines, which JSON
+        // forbids inside strings; read as spaces (as painted) they keep the page.
+        guard let object = (try? JSONSerialization.jsonObject(with: data)) ?? (try? JSONSerialization.jsonObject(
+            with: Data(value.replacingOccurrences(of: "[\\u0000-\\u001F]", with: " ", options: .regularExpression).utf8)))
+        else { throw RemoteTranslationError.invalidResponse("structured translation is not valid JSON") }
         guard let root = object as? [String: Any], Set(root.keys) == ["translations"],
               let translations = root["translations"] as? [Any], translations.count == expectedSegmentIDs.count else {
             throw RemoteTranslationError.invalidResponse("structured translation does not match the required schema")

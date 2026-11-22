@@ -17,7 +17,7 @@ actor ReaderTranslationV2Service {
     static let version = "v2-pipeline-1"
     /// Bump whenever only the rendering can change (S6-S10 and the S4b lettering boxes): the
     /// image row is re-rendered from the stored blocks without a new provider call.
-    static let renderVersion = "v2-render-2"
+    static let renderVersion = "v2-render-3"
 
     enum Failure: Error { case imageUnavailable }
 

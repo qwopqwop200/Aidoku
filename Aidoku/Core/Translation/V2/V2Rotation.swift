@@ -3,12 +3,12 @@ import Foundation
 
 // Tilt of the source lettering (ported from the legacy NativeSourceTextRotation): each
 // four-point line votes with its longer pair of opposite edges; a length-weighted
-// consensus near the median gives the angle, and tilts under 1.5 degrees (detector
-// noise) count as upright.
+// consensus near the median gives the angle, and tilts under 2.5 degrees (detector
+// noise, and barely visible) count as upright.
 enum V2Rotation {
     static let agreement = CGFloat.pi / 90
     static let maximum = CGFloat.pi / 6
-    static let minimum = CGFloat.pi / 120
+    static let minimum = CGFloat.pi / 72
     static let consensus: CGFloat = 0.6
 
     /// Radians, positive clockwise in top-left page coordinates; 0 when upright or unclear.

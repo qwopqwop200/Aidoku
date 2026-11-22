@@ -88,7 +88,10 @@ enum V2ParagraphGrouping {
 
     private static func orderedDisjoint(_ indices: [Int], along: [[CGFloat]]) -> [Int]? {
         let sorted = indices.sorted { along[$0][0] == along[$1][0] ? $0 < $1 : along[$0][0] < along[$1][0] }
-        return zip(sorted, sorted.dropFirst()).allSatisfy { along[$0.0][1] <= along[$0.1][0] } ? sorted : nil
+        // Neighbours may overlap by up to half the shorter one (a fragment cut off a column end).
+        return zip(sorted, sorted.dropFirst()).allSatisfy { i, j in
+            along[i][1] - along[j][0] <= min(along[i][1] - along[i][0], along[j][1] - along[j][0])/2
+        } ? sorted : nil
     }
 
     /// Correct only order within a contiguous run of one unambiguous column.
@@ -151,6 +154,16 @@ enum V2ParagraphGrouping {
         let sameLimit = glyph*(hasOpenQuote((x.start <= y.start ? a : b).input.source) ? 4 : 2)
         let parallelLimit = glyph*(sameBalloon ? 1.25 : 1)
         let epsilon = max(max(x.maxULP, y.maxULP), max(max(glyph.ulp, sameLimit.ulp), max(ag.ulp, cg.ulp)))*4
+        // A one- or two-glyph fragment cut off a column or row end continues it, measured in the full line's glyphs.
+        let fragments = [a, b].map { $0.input.source.filter { !$0.isWhitespace }.count <= 2 }
+        if fragments[0] != fragments[1] {
+            let (f, o) = fragments[0] ? (x, y) : (y, x)
+            let thick = o.high-o.low
+            if f.high-f.low <= thick*1.3, overlap([f.low, f.high], [o.low, o.high]) >= (f.high-f.low)/2,
+               ag >= -(f.end-f.start)/2, ag <= thick*1.5 {
+                return (max(0, ag)/thick, false)
+            }
+        }
         let same = (fits || sharedText) && max(0, -cg) >= glyph/2 && ag >= -glyph/4 && ag <= sameLimit+epsilon
         let shorter = min(x.end-x.start, y.end-y.start)
         let parallel = fits && cg >= -glyph/4 && cg <= parallelLimit+epsilon
@@ -290,6 +303,7 @@ enum V2ParagraphGrouping {
                               source: atom.input.source)
             return .init(input: input, box: atom.box, along: axis(input), balloon: atom.balloon, text: atom.text)
         }
+        func quoted(_ root: Int) -> Bool { members[root].contains { atoms[$0].input.source.contains(where: "「」『』".contains) } }
         let rails = rubyRails(atoms)
         var edges: [Edge] = []
         for i in atoms.indices where rails[i] == nil { for j in (i+1)..<atoms.count where rails[j] == nil {
@@ -325,6 +339,8 @@ enum V2ParagraphGrouping {
             guard a != b else { continue }
             if let x = owners[a], let y = owners[b], x != y { continue }
             if let x = texts[a], let y = texts[b], x.isDisjoint(with: y) { continue }
+            // SFX guard: a component outside every RF text scope and without a quote mark never joins quoted speech.
+            if (texts[a] == nil) != (texts[b] == nil), quoted(texts[a] == nil ? b : a), !quoted(texts[a] == nil ? a : b) { continue }
             let shared = texts[a].flatMap { x in texts[b].map { x.intersection($0) } }
             if utteranceBoundary(members[a], members[b], atoms: atoms, sharedText: shared != nil) { continue }
             if atoms[a].input.vertical != atoms[b].input.vertical {

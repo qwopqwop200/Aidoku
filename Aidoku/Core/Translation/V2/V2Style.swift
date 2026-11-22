@@ -4,7 +4,7 @@ import Foundation
 // S8 source style estimation for the V2 pipeline (see Docs/translation-v2.md).
 // Cheap, model-free per-block measurement on a bounded crop:
 // - font px: a simple geometric rule (production minimal-policy calibration and
-//   member-logratio grouping).
+//   member-logratio grouping, seeded by the longest texts, text-length-weighted group median).
 // - fill: candidates are k-means colour clusters inside the line polygons, their
 //   parts cut off from the surroundings, and a re-clustering of interior pixels;
 //   small TRAIN-fit boosted trees (V2StyleParameters) pick the fill from cheap
@@ -61,10 +61,11 @@ enum V2SimpleFont {
 
     static func estimate(_ blocks: [V2Block]) -> [CGFloat] {
         guard !blocks.isEmpty else { return [] }
-        var values: [Double] = [], members: [Double] = []
+        var values: [Double] = [], members: [Double] = [], weights: [Double] = []
         for block in blocks {
             let width = Double(block.bounds.width), height = Double(block.bounds.height)
             let count = max(1, block.sourceText.unicodeScalars.count)
+            weights.append(Double(count))
             let prior: Double
             if width.isFinite, height.isFinite, width > 0, height > 0 {
                 prior = max(8, min(min(width, height), (width * height / Double(count)).squareRoot()))
@@ -76,7 +77,9 @@ enum V2SimpleFont {
             values.append(max(1, scale * prior + memberShortScale * member + bias))
         }
         guard values.count > 1 else { return values.map { CGFloat($0 * groupedSizeScale) } }
+        // Longer texts (more reliable estimates) seed the groups; a group takes the median weighted by text length.
         let order = values.indices.sorted {
+            if weights[$0] != weights[$1] { return weights[$0] > weights[$1] }
             if values[$0] != values[$1] { return values[$0] < values[$1] }
             if members[$0] != members[$1] { return members[$0] < members[$1] }
             return $0 < $1
@@ -96,12 +99,23 @@ enum V2SimpleFont {
         }
         var result = values
         for group in groups {
-            let sorted = group.map { values[$0] }.sorted(), middle = group.count / 2
-            let median = group.count % 2 == 1 ? sorted[middle] :
-                sorted[middle - 1] + (sorted[middle] - sorted[middle - 1]) * 0.5
+            let median = weightedMedian(group.map { (values[$0], weights[$0]) })
             for index in group { result[index] = median }
         }
         return result.map { CGFloat($0 * groupedSizeScale) }
+    }
+
+    /// Median of the values weighted by `weight` (the mean of the two middle values on an exact tie).
+    static func weightedMedian(_ items: [(value: Double, weight: Double)]) -> Double {
+        let sorted = items.sorted { $0.value < $1.value }
+        let half = sorted.reduce(0) { $0 + $1.weight } * 0.5
+        var cumulative: Double = 0
+        for (index, item) in sorted.enumerated() {
+            cumulative += item.weight
+            if cumulative == half, index + 1 < sorted.count { return (item.value + sorted[index + 1].value) * 0.5 }
+            if cumulative > half { return item.value }
+        }
+        return sorted.last?.value ?? 0
     }
 
     /// Area-weighted median short side of the members' minimum-area boxes.

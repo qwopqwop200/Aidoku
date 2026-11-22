@@ -6,8 +6,8 @@ import Foundation
 // often span several balloons or cut past rounded outlines, so S9 would either wrap
 // the translation inside the tight column box or paint outside the balloon.
 // The block's bounds get the legacy granted margin, then grow by legacy steps per side,
-// stopped only by other text, other detected balloons, the panel frame, the block's own
-// balloon box and the 8 x 4 line reach (no pixel test). On clean paper, per-row spans
+// stopped by other text, other detected balloons, the panel frame, the block's own
+// balloon box, the 8 x 4 line reach and (clean paper, past 3 x the source) ink. On clean paper, per-row spans
 // through the source centre stop at outlines and art. The result becomes `V2Block.balloon`,
 // the box S9 fits into.
 enum V2Interior {
@@ -35,6 +35,10 @@ enum V2Interior {
     static let growthStep = (horizontal: CGFloat(1), vertical: CGFloat(0.5))
     static let growthSteps = 6
     static let collisionShare: Double = 0.02
+    /// Edge test on the growth (legacy edge risk): a step stops at > 3% ink in its strip, once the box
+    /// holds 3 x the source area (smaller boxes keep growing: the text needs the room; chosen on train folds).
+    static let edgeShare = 0.03
+    static let edgeGuard = 3
     /// Least share of the grown box's area a balloon lobe keeps to replace it (chosen on train folds).
     static let lobeShare = 0.6
     /// A panel frame bounds the growth when it holds this share of the block.
@@ -161,9 +165,10 @@ enum V2Interior {
             guard abs(Int(raster.pixels[y * width + x]) - paper) > inkDistance else { return false }
             return !own.contains { x >= $0.x0 && x < $0.x1 && y >= $0.y0 && y < $0.y1 }
         }
-        // Legacy exterior growth (without its edge-risk test): each side in turn (left, right,
-        // top, bottom) by 1 em (0.5 em vertically), at most `growthSteps` times, while the added
-        // strip covers <= 2% of other blocks' text and enters no other detected balloon.
+        // Legacy exterior growth: each side in turn (left, right, top, bottom) by 1 em (0.5 em
+        // vertically), at most `growthSteps` times, while the added strip covers <= 2% of other
+        // blocks' text and enters no other detected balloon; on clean paper, once the box holds
+        // `edgeGuard` x the source area, also while <= `edgeShare` of the strip is ink or art.
         func area(_ r: Box) -> Int { max(0, r.x1 - r.x0) * max(0, r.y1 - r.y0) }
         func overlap(_ r: Box, _ o: Box) -> Int { max(0, min(r.x1, o.x1) - max(r.x0, o.x0)) * max(0, min(r.y1, o.y1) - max(r.y0, o.y0)) }
         var best = base
@@ -181,6 +186,15 @@ enum V2Interior {
                 let hit = others.reduce(0) { $0 + overlap(next, $1) - overlap(best, $1) }
                 guard strip > 0, Double(hit) <= Double(strip) * collisionShare,
                       !blocked.contains(where: { overlap(next, $0) > overlap(best, $0) }) else { break }
+                if !toned, area(best) >= edgeGuard * area(start) {
+                    var ink = 0
+                    for y in next.y0..<next.y1 {
+                        for x in next.x0..<next.x1 where (x < best.x0 || x >= best.x1 || y < best.y0 || y >= best.y1) && dirty(x, y) {
+                            ink += 1
+                        }
+                    }
+                    guard Double(ink) <= Double(strip) * edgeShare else { break }
+                }
                 best = next
             }
         }

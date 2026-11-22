@@ -240,10 +240,11 @@ enum V2Painter {
             for (index, text) in item.lines.enumerated() {
                 let shaped = line(text, font: font, color: color)
                 let width = CGFloat(CTLineGetTypographicBounds(shaped, nil, nil, nil))
-                let top = item.frame.minY + stroke + CGFloat(index) * lineHeight
-                // Captions (narration) start each line at the frame's left edge; other text is centred.
-                let x = leading ? item.frame.minX + stroke : item.frame.midX - width / 2
-                result.append((text, CGPoint(x: x, y: top + (lineHeight - glyph) / 2 + ascent), shaped))
+                let top = item.frame.minY + stroke + CGFloat(index) * lineHeight   // this line's ink top
+                // Captions (narration) start each line at the frame's left edge (before the condense
+                // about the frame centre); other text is centred.
+                let x = leading ? item.frame.midX - (item.frame.width / 2 - stroke) / (item.condense ?? 1) : item.frame.midX - width / 2
+                result.append((text, CGPoint(x: x, y: top + size * V2Layout.inkAscentEm), shaped))
             }
             return result
         }

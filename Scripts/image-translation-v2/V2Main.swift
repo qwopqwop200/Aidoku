@@ -212,6 +212,17 @@ enum V2Main {
         let delay = settings.translateDelay
         let writePNGs = settings.writePNG && mode != .ocrOnly
 
+        /// S5 replay: the saved translations matched onto `blocks` (synthetic text for the rest with fillUnmatched).
+        @Sendable func replayed(_ pageID: String, _ blocks: [V2Block]) -> [V2Block] {
+            let matched = V2TranslationReplay.apply(replay?.entries(pageID: pageID) ?? [], to: blocks)
+            guard fillUnmatched else { return matched }
+            return matched.map { block in
+                guard block.translation == nil, block.role != .background else { return block }
+                var output = block
+                output.translation = syntheticTranslation(block)
+                return output
+            }
+        }
         /// S5 for one page. `jpeg` is encoded concurrently with S1-S4 (live mode only).
         func translator(for jpeg: Task<Data, Error>?) -> V2Translator {
             { page, blocks in
@@ -220,14 +231,7 @@ enum V2Main {
                     return blocks
                 case .replay:
                     if delay > 0 { try await Task.sleep(nanoseconds: delay * 1_000_000) }
-                    let matched = V2TranslationReplay.apply(replay?.entries(pageID: page.id) ?? [], to: blocks)
-                    guard fillUnmatched else { return matched }
-                    return matched.map { block in
-                        guard block.translation == nil, block.role != .background else { return block }
-                        var output = block
-                        output.translation = syntheticTranslation(block)
-                        return output
-                    }
+                    return replayed(page.id, blocks)
                 case .live:
                     guard !V2Translation.translatable(blocks).isEmpty else { return blocks }
                     let image = try await jpeg?.value
@@ -239,8 +243,15 @@ enum V2Main {
                 }
             }
         }
-        // OCR-only: S6/S7 never speculate and nothing becomes paintable, so no erase/inpaint/render runs.
-        let hooks = mode == .ocrOnly ? V2PipelineHooks(predictTranslated: { _ in [] }) : V2PipelineHooks()
+        // S6/S7 speculate on the blocks S5 will paint, as in the app: none in OCR-only (so no
+        // erase/inpaint/render runs) and the replayed paint set in replay.
+        func hooks(_ pageID: String) -> V2PipelineHooks {
+            switch mode {
+            case .ocrOnly: V2PipelineHooks(predictTranslated: { _ in [] })
+            case .replay: V2PipelineHooks(predictTranslated: { Set(replayed(pageID, $0).filter(V2Layout.isPaintable).map(\.id)) })
+            case .live: V2PipelineHooks()
+            }
+        }
 
         let runStart = DispatchTime.now().uptimeNanoseconds
         var records = [PageRecord?](repeating: nil, count: settings.images.count)
@@ -266,7 +277,7 @@ enum V2Main {
                     } : nil
                     defer { jpeg?.cancel() }
                     let page = V2Page(id: item.id, image: image, readingDirection: direction)
-                    let result = await V2Pipeline.run(page, models: models, translate: translator(for: jpeg), hooks: hooks)
+                    let result = await V2Pipeline.run(page, models: models, translate: translator(for: jpeg), hooks: hooks(item.id))
                     var record = PageRecord(pageID: item.id, image: item.path, mode: mode.rawValue,
                         width: page.width, height: page.height, blocks: result.blocks, placed: result.placed,
                         timings: result.timings.stages, failure: result.failure,

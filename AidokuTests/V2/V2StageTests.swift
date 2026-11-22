@@ -54,6 +54,13 @@ struct V2StageTests {
             V2LayoutRegion(kind: .balloon, bounds: CGRect(x: 80, y: 232, width: 80, height: 150), score: 0.9)
         ]
         #expect(V2LineAssembly.assemble(split, layout: balloons).count == 2)
+        // A tilted column whose two leftmost corners are its top edge keeps that edge on top.
+        let tilted = V2Detection.line(polygon: [
+            CGPoint(x: 74, y: 313), CGPoint(x: 143, y: 850), CGPoint(x: 90, y: 857), CGPoint(x: 20, y: 320)
+        ], score: 0.9)!
+        #expect(tilted.polygon == [
+            CGPoint(x: 20, y: 320), CGPoint(x: 74, y: 313), CGPoint(x: 143, y: 850), CGPoint(x: 90, y: 857)
+        ])
     }
 
     @Test func groupingReadsBalloonColumnsRightToLeft() {
@@ -74,6 +81,20 @@ struct V2StageTests {
         let glyph = V2Line(polygon: rect(470, 310, 40, 40), bounds: CGRect(x: 470, y: 310, width: 40, height: 40),
                            vertical: false, detectionScore: 0.9, text: "！", confidence: 0.95)
         #expect(V2Grouping.group([column(470, 100, 200, "あいうえ"), glyph], layout: [], pageSize: size).count == 1)
+        // A narrow fragment cut off a column head continues it and reads first.
+        let head = V2Line(polygon: rect(480, 110, 18, 36), bounds: CGRect(x: 480, y: 110, width: 18, height: 36),
+                          vertical: true, detectionScore: 0.9, text: "ち", confidence: 0.95)
+        let joined = V2Grouping.group([column(470, 140, 200, "ゃんと"), head], layout: [], pageSize: size)
+        #expect(joined.map(\.sourceText) == ["ちゃんと"])
+    }
+
+    /// SFX guard: an unquoted line outside every RF text region does not join quoted speech below its quote.
+    @Test func groupingKeepsSFXOutOfQuotedSpeech() {
+        let size = CGSize(width: 1000, height: 1400)
+        let lines = [column(470, 100, 200, "「やだぁ」"), column(470, 320, 80, "どちんっ")]
+        #expect(V2Grouping.group(lines, layout: [], pageSize: size).count == 1)
+        let text = V2LayoutRegion(kind: .text, bounds: CGRect(x: 460, y: 90, width: 60, height: 220), score: 0.9)
+        #expect(V2Grouping.group(lines, layout: [text], pageSize: size).count == 2)
     }
 
     /// Legacy intercolumn ruby: a narrow kana rail just right of one kanji column is erased with it, never translated.
@@ -119,7 +140,8 @@ struct V2StageTests {
     @Test func recognitionPlanRotatesColumnsAndRejectsDegenerateQuads() throws {
         let tall = try #require(V2Recognition.plan(rect(10, 10, 50, 400)))
         #expect(tall.rotatedCounterClockwise)
-        #expect(tall.bucket.width == 384)
+        // Text lines are padded by 5% of the short side: 55 x 405, so 48 * 405 / 55 rounds to 353.
+        #expect(tall.bucket.width == 353)
         let long = try #require(V2Recognition.plan(rect(0, 0, 1200, 40)))
         #expect(!long.rotatedCounterClockwise)
         #expect(long.bucket.width == 640)
@@ -155,6 +177,29 @@ struct V2StageTests {
         #expect(background.allSatisfy { $0 == 0 })
     }
 
+    /// A glyph 18-24 px past the end of a 50 px thick line is outside the 15 px ROI square but inside
+    /// the 0.5-thickness line-end extension, so it is erased.
+    @Test func removalMaskSearchesPastTheLineEnd() {
+        let width = 400, height = 200
+        let stroke = CGRect(x: 288, y: 85, width: 6, height: 30)
+        var rgba = [UInt8](repeating: 255, count: width * height * 4)
+        for y in Int(stroke.minY)..<Int(stroke.maxY) {
+            for x in Int(stroke.minX)..<Int(stroke.maxX) {
+                let i = (y * width + x) * 4
+                rgba[i] = 0; rgba[i + 1] = 0; rgba[i + 2] = 0
+            }
+        }
+        let mask = V2RemovalMask.build(rgba: rgba, width: width, height: height,
+                                       blocks: [maskBlock(rect(100, 75, 170, 50), bounds: CGRect(x: 100, y: 75, width: 170, height: 50))],
+                                       layout: [])
+        var erased = 0
+        for y in Int(stroke.minY)..<Int(stroke.maxY) {
+            for x in Int(stroke.minX)..<Int(stroke.maxX) where mask[y * width + x] == 255 { erased += 1 }
+        }
+        #expect(erased * 4 >= 3 * 180)
+        #expect(mask[100 * width + 340] == 0)
+    }
+
     /// `Int(floor(-1e300))` used to trap while computing the block frame.
     @Test func removalMaskIgnoresHugeAndNonFinitePolygons() {
         let width = 300, height = 200
@@ -167,6 +212,38 @@ struct V2StageTests {
         let mask = V2RemovalMask.build(rgba: rgba, width: width, height: height, blocks: blocks, layout: [])
         #expect(mask.count == width * height && mask.allSatisfy { $0 == 0 })
         #expect(V2RemovalMask.build(rgba: [], width: -3, height: 5, blocks: blocks, layout: []).isEmpty)
+    }
+
+    @Test func aotMosaicPacksMaskRegionsAtNativeResolution() {
+        let width = 3000, height = 2000
+        var mask = [UInt8](repeating: 0, count: width * height)
+        let spots = [(100, 100), (700, 200), (2800, 1800), (1500, 1000)]
+        for (sx, sy) in spots { for y in sy..<(sy + 30) { for x in sx..<(sx + 40) { mask[y * width + x] = 255 } } }
+        let patches = V2AOTModel.mosaic(mask, width: width, height: height)
+        for (sx, sy) in spots {
+            let owners = patches.filter { $0.rect.0 <= sx && $0.rect.1 <= sy && $0.rect.2 >= sx + 40 && $0.rect.3 >= sy + 30 }
+            #expect(owners.count == 1)
+        }
+        for (i, a) in patches.enumerated() {
+            // Native resolution, inside the canvas with its pad border, and disjoint from the others.
+            let native = a.size == (a.rect.2 - a.rect.0, a.rect.3 - a.rect.1)
+            #expect(native)
+            #expect(a.origin.0 >= V2AOTModel.pad && a.origin.0 + a.size.0 + V2AOTModel.pad <= 1024)
+            #expect(a.origin.1 >= V2AOTModel.pad && a.origin.1 + a.size.1 + V2AOTModel.pad <= 1024)
+            for b in patches[(i + 1)...] {
+                #expect(a.origin.0 + a.size.0 + V2AOTModel.pad <= b.origin.0 - V2AOTModel.pad
+                        || b.origin.0 + b.size.0 + V2AOTModel.pad <= a.origin.0 - V2AOTModel.pad
+                        || a.origin.1 + a.size.1 + V2AOTModel.pad <= b.origin.1 - V2AOTModel.pad
+                        || b.origin.1 + b.size.1 + V2AOTModel.pad <= a.origin.1 - V2AOTModel.pad)
+            }
+        }
+        // A mask too large to pack is one downscaled patch: the union at the origin.
+        let full = [UInt8](repeating: 255, count: width * height)
+        let union = V2AOTModel.mosaic(full, width: width, height: height)
+        let whole = union.count == 1 && union[0].rect == (0, 0, width, height) && union[0].origin == (0, 0)
+        let downscaled = union.count == 1 && union[0].size == (1024, 683)
+        #expect(whole && downscaled)
+        #expect(V2AOTModel.mosaic([UInt8](repeating: 0, count: 100), width: 10, height: 10).isEmpty)
     }
 
     @Test func aotScatterChangesOnlyMaskPixels() throws {
@@ -227,15 +304,34 @@ struct V2StageTests {
         #expect(V2Style.estimate(page, blocks: []).isEmpty)
     }
 
+    @Test func sourceSizeGroupFollowsTheLongerText() {
+        func block(_ id: Int, _ line: V2Line, _ text: String) -> V2Block {
+            V2Block(id: id, lines: [line], bounds: line.bounds, polygon: line.polygon, vertical: true,
+                    readingOrder: id, sourceText: text, balloon: nil)
+        }
+        func mark(_ x: CGFloat) -> V2Line {
+            V2Line(polygon: rect(x, 100, 30, 34), bounds: CGRect(x: x, y: 100, width: 30, height: 34),
+                   vertical: true, detectionScore: 0.9)
+        }
+        let dialogue = block(1, column(200, 100, 400, ""), "あいうえおかきくけこさしすせそた")
+        let alone = V2SimpleFont.estimate([dialogue])[0]
+        // Two short marks and one dialogue share a group; the group takes the dialogue's size.
+        let sizes = V2SimpleFont.estimate([block(0, mark(100), "ッ!"), dialogue, block(2, mark(300), "ッ!")])
+        #expect(sizes.allSatisfy { abs($0 - alone) < 0.001 })
+    }
+
     // MARK: S9 layout and paint, S10 replay
 
     @Test func layoutFitsTextInsideBoxAndStaysInsidePage() {
-        let placed = V2Layout.place([placedBlock(0, CGRect(x: 100, y: 100, width: 400, height: 300), "안녕 하세요")],
-                                    pageSize: CGSize(width: 1000, height: 1400))
+        let block = placedBlock(0, CGRect(x: 100, y: 100, width: 400, height: 300), "안녕 하세요")
+        let placed = V2Layout.place([block], pageSize: CGSize(width: 1000, height: 1400))
         #expect(placed.count == 1)
         #expect(placed[0].fontPixels == 40)  // outside a balloon the cap is the source size
         #expect(CGRect(x: 80, y: 80, width: 440, height: 340).contains(placed[0].frame))
         #expect(placed[0].lines.joined(separator: " ") == "안녕 하세요")
+        // The frame holds the painted ink: line advances between lines, one 0.94 em ink height for the last.
+        let ink = (CGFloat(placed[0].lines.count - 1) * 1.18 + 0.94) * 40
+        #expect(abs(placed[0].frame.height - 2 * V2Layout.strokeWidth(for: block, fontPixels: 40) - ink) < 0.01)
         let page = CGSize(width: 300, height: 300)
         let long = String(repeating: "아주 긴 번역 문장입니다 ", count: 30)
         let edge = V2Layout.place([placedBlock(0, CGRect(x: 280, y: 280, width: 15, height: 15), long)], pageSize: page)
@@ -287,6 +383,8 @@ struct V2StageTests {
         #expect(V2Layout.displayText("저 유두…!|탱글탱글해서") == "저 유두…! 탱글탱글해서")
         #expect(V2Layout.displayText("알고 있다니까!\u{200B}\u{200B} 그보다") == "알고 있다니까! 그보다")
         #expect(V2Layout.displayText("두근  두근\n  둘째 줄") == "두근 두근\n둘째 줄")
+        #expect(V2Layout.displayText("검사 중에/숨기고\u{2800}있잖아") == "검사 중에 숨기고 있잖아")
+        #expect(V2Layout.displayText("1/2 남았어") == "1/2 남았어")
         // Real kana and non-Hangul text are left alone.
         #expect(V2Layout.displayText("メイド喫茶っ") == "メイド喫茶っ")
         #expect(V2Layout.displayText("a|b") == "a|b")
@@ -296,8 +394,8 @@ struct V2StageTests {
     @Test func interiorGrowsByLegacyReachAndSkipsBackground() {
         // 300x300 gray raster (page 1200x1200): white page, a black 4-cell outline box
         // around x 100...200, y 60...240, a striped text column at x 140...160 inside it.
-        // Legacy exterior growth ignores pixels: only other text, balloons, frames and the
-        // 8 x 4 line reach bound it.
+        // Legacy exterior growth: other text, balloons, frames and the 8 x 4 line reach bound it;
+        // past 3 x the source area an inked strip (the outline rows) stops it too.
         let size = 300
         var pixels = [UInt8](repeating: 255, count: size * size)
         func fill(_ x0: Int, _ y0: Int, _ x1: Int, _ y1: Int, _ value: UInt8) {
@@ -312,7 +410,7 @@ struct V2StageTests {
                             sourceText: "あいうえお")
         let interior = V2Interior.apply([block], raster: raster, pageSize: CGSize(width: 1200, height: 1200))[0].balloon
         #expect(interior.map { $0.width > bounds.width * 1.5 } == true)
-        #expect(interior.map { CGRect(x: 0, y: 80, width: 1200, height: 1040).contains($0) } == true)
+        #expect(interior.map { CGRect(x: 0, y: 236, width: 1200, height: 728).contains($0) } == true)
         // Tone (mid-gray paper) still grows but gets no row spans; background blocks are skipped.
         let gray = V2GrayRaster(pixels: [UInt8](repeating: 128, count: size * size), width: size, height: size)
         let toned = V2Interior.apply([block], raster: gray, pageSize: CGSize(width: 1200, height: 1200))[0]
@@ -345,10 +443,12 @@ struct V2StageTests {
             block.style = styled(px, fill: id == 1 ? V2RGB(r: 220, g: 30, b: 30) : V2RGB(r: 0, g: 0, b: 0))
             return block
         }
-        let blocks = [block(0, 40), block(1, 41), block(2, 47), block(3, 80)]
-        let plan = V2Cohort.plan(blocks, sources: [40, 41, 47, 80], capRatio: { _ in 1.2 }, floor: 10)
+        var plain = block(4, 43)
+        plain.style?.strokeColor = nil                       // outline is not part of the key
+        let blocks = [block(0, 40), block(1, 41), block(2, 47), block(3, 80), plain]
+        let plan = V2Cohort.plan(blocks, sources: [40, 41, 47, 80, 43], capRatio: { _ in 1.2 }, floor: 10)
         #expect(plan.sources[0] == plan.sources[1])          // snapped within 1.08x
-        #expect(plan.cohorts == [[0, 1, 2]])                 // 80 px is its own size
+        #expect(plan.cohorts.map { $0.sorted() } == [[0, 1, 2, 4]])  // 80 px is its own size
         #expect(plan.caps[0] == plan.caps[1] && plan.caps[0] == plan.caps[2])  // one family cap
         // The family takes the largest cap step every member reached (members below 0.65 keep theirs).
         #expect(V2Cohort.familySize(cap: 50, fits: [50, 46, 20]) == 45)
@@ -366,6 +466,14 @@ struct V2StageTests {
                              sources: [40, 40, 40, 40], page: CGRect(x: 0, y: 0, width: 1000, height: 1000))
         // Median of the centred tops 170, 130 and 225; the block 12.5 em away keeps its frame.
         #expect(placed.map(\.frame.minY) == [170, 170, 170, 121])
+        // A tilted member keeps its frame; the upright rest still share one top.
+        var tilted = sources.enumerated().map { index, rect in
+            V2PlacedText(blockID: index, frame: CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * 7, width: 100, height: 60),
+                         fontPixels: 40, vertical: false, lines: ["가"], angle: index == 1 ? 0.1 : nil)
+        }
+        V2Layout.alignStarts(&tilted, sources.enumerated().map { placedBlock($0.offset, $0.element, "가") },
+                             sources: [40, 40, 40, 40], page: CGRect(x: 0, y: 0, width: 1000, height: 1000))
+        #expect(tilted.map(\.frame.minY) == [197.5, 117, 197.5, 121])
     }
 
     @Test func rotationFollowsTiltedLineQuads() {
@@ -381,7 +489,7 @@ struct V2StageTests {
                     readingOrder: 0, sourceText: "")
         }
         #expect(abs(V2Rotation.angle(block([quad(0.2), quad(0.21)])) - 0.205) < 0.01)
-        #expect(V2Rotation.angle(block([quad(0.01)])) == 0)
+        #expect(V2Rotation.angle(block([quad(0.03)])) == 0)   // under 2.5 degrees: upright
         #expect(V2Rotation.angle(block([quad(0.2), quad(-0.2)])) == 0)   // no consensus
         let tilted = V2Rotation.bounds(CGRect(x: 0, y: 0, width: 100, height: 20), angle: .pi / 6)
         #expect(abs(tilted.width - (100 * cos(.pi / 6) + 20 * sin(.pi / 6))) < 0.01)
@@ -405,6 +513,8 @@ struct V2StageTests {
         let probe = text.wrap(limit: text.paragraphs[0][0].width + text.spaceWidth + text.paragraphs[0][1].width + 1)
         #expect(!probe.lines.contains { $0.hasPrefix("수") }, "\(probe.lines)")
         #expect(V2Layout.MeasuredText.couples("할", "수") && V2Layout.MeasuredText.couples("몇", "번"))
+        // Compaction counts lone graphemes and split phrases when it picks among wraps.
+        #expect(V2Layout.badBreaks(["있을", "수", "있어"]) == 2 && V2Layout.badBreaks(["있을 수", "있어"]) == 0)
         // A grown box keeps the text centred on its source, not on the box.
         var block = placedBlock(0, CGRect(x: 500, y: 200, width: 80, height: 60), "안녕")
         block.balloon = CGRect(x: 100, y: 100, width: 800, height: 300)
