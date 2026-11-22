@@ -207,6 +207,8 @@ extension ReaderPageView {
                 }
                 if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
                     processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
+                } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
+                    processors.append(UpscaleProcessor())
                 }
                 guard let processed = try? await Self.processRawImage(image, processors: processors) else { return false }
                 image = processed
@@ -296,6 +298,8 @@ extension ReaderPageView {
         }
         if shouldDownsample {
             processors.append(DownsampleProcessor(width: downsampleWidth))
+        } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
+            processors.append(UpscaleProcessor())
         }
         // Downsample while decoding when no earlier processor needs full pixels.
         let thumbnail = shouldDownsample && !shouldCropBorders && !usePageProcessor
@@ -417,8 +421,9 @@ extension ReaderPageView {
         let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
         let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages")
         let downsampleWidth = UIScreen.main.bounds.width
+        let shouldUpscale = !shouldDownsample && UserDefaults.standard.bool(forKey: "Reader.upscaleImages")
         let settingsKey = "crop:\(shouldCropBorders)-downsample:\(shouldDownsample)"
-            + (shouldDownsample ? "-width:\(downsampleWidth)" : "")
+            + (shouldDownsample ? "-width:\(downsampleWidth)" : "") + (shouldUpscale ? "-upscale" : "")
         let fullKey = await Task.detached {
             ReaderImageContentIdentity.base64Key(base64, processorSettingsKey: settingsKey)
         }.value
@@ -463,6 +468,8 @@ extension ReaderPageView {
                 if let processedImage = processor.process(image) {
                     image = processedImage
                 }
+            } else if shouldUpscale, let processedImage = UpscaleProcessor().process(image) {
+                image = processedImage
             }
 
             try Task.checkCancellation()

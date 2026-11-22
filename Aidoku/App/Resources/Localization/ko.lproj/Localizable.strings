@@ -950,7 +950,6 @@
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 글자 인식에 실패했습니다. 다른 이미지나 OCR 모델로 다시 시도하세요.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "번역 캐시 저장소가 올바르지 않거나 사용할 수 없습니다.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "번역 캐시를 저장할 수 없습니다.";
-"ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud 동기화 변경은 Aidoku를 완전히 종료한 뒤 다시 열 때 적용됩니다. 그전까지는 현재 동기화 설정이 유지됩니다.";
 "TRANSLATION_TARGETS" = "번역 대상";
 "PAGES_%i_OF_%i" = "%i / %i페이지";
 "1_SERIES" = "작품 1개";

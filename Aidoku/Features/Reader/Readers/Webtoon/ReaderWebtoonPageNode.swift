@@ -426,6 +426,8 @@ extension ReaderWebtoonPageNode {
         }
         if shouldDownsample {
             processors.append(DownsampleProcessor(width: width))
+        } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
+            processors.append(UpscaleProcessor())
         }
 
         // Setup can finish after this node left the preload range; never enqueue obsolete work.
@@ -525,8 +527,9 @@ extension ReaderWebtoonPageNode {
         let downsampleWidth = pageWidth
         let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
         let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages") && downsampleWidth > 0
+        let shouldUpscale = !shouldDownsample && UserDefaults.standard.bool(forKey: "Reader.upscaleImages")
         let settingsKey = "crop:\(shouldCropBorders)-downsample:\(shouldDownsample)"
-            + (shouldDownsample ? "-width:\(downsampleWidth)" : "")
+            + (shouldDownsample ? "-width:\(downsampleWidth)" : "") + (shouldUpscale ? "-upscale" : "")
         let fullKey = await Task.detached {
             ReaderImageContentIdentity.base64Key(base64, processorSettingsKey: settingsKey)
         }.value
@@ -577,6 +580,8 @@ extension ReaderWebtoonPageNode {
                 if let processedImage = processor.process(image) {
                     image = processedImage
                 }
+            } else if shouldUpscale, let processedImage = UpscaleProcessor().process(image) {
+                image = processedImage
             }
 
             guard !Task.isCancelled else { return nil }

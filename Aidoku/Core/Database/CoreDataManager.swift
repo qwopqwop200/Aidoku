@@ -34,8 +34,7 @@ final class CoreDataManager: @unchecked Sendable {
     private var lastHistoryToken: NSPersistentHistoryToken?
     private var didLoadHistoryToken = false
     private var lastHistoryPurge: Date?
-    // Matches the loaded store options until the next launch.
-    private let usesCloudKitMirroring: Bool
+    private var usesCloudKitMirroring: Bool
 
     private static let historyTokenUrl = FileManager.default.applicationSupportDirectory
         .appendingPathComponent("historyToken.data")
@@ -64,6 +63,16 @@ final class CoreDataManager: @unchecked Sendable {
         }
         .store(in: &cancellables)
 
+        Publishers.Merge(
+            NotificationCenter.default.publisher(for: .init(AppSettings.general.icloudSync.key)),
+            NotificationCenter.default.publisher(for: NSNotification.Name.NSUbiquityIdentityDidChange)
+        )
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.updateCloudConfiguration()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     static func createContainer(usesCloudKitMirroring: Bool) -> NSPersistentCloudKitContainer {
@@ -154,6 +163,21 @@ final class CoreDataManager: @unchecked Sendable {
         let objects = (try? context.fetch(request)) ?? []
         for object in objects {
             context.delete(object)
+        }
+    }
+
+    @MainActor
+    func updateCloudConfiguration() {
+        let usesCloudKitMirroring = Self.shouldUseiCloud
+        remoteHistoryQueue.addOperation { [weak self] in
+            self?.usesCloudKitMirroring = usesCloudKitMirroring
+        }
+
+        guard let cloudDescription = self.container.persistentStoreDescriptions.first else { return }
+        if usesCloudKitMirroring {
+            cloudDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: CoreDataManager.containerID)
+        } else {
+            cloudDescription.cloudKitContainerOptions = nil
         }
     }
 

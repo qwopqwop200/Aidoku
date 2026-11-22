@@ -10,9 +10,6 @@ import UIKit
 import Vision
 
 struct UpscaleProcessor: ImageProcessing {
-    /// Image upscaling is disabled in this build; its settings stay hidden.
-    static let isAvailable = false
-
     var identifier: String {
         "com.github.Aidoku/Aidoku/upscale"
     }

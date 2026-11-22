@@ -106,7 +106,7 @@ struct ReaderSettingsView: View {
                 if reader == .text {
                     textSection
                 } else {
-                    if UpscaleProcessor.isAvailable && !downsampleImages.value {
+                    if !downsampleImages.value {
                         Section {
                             SettingView(
                                 setting: .init(

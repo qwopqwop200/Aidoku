@@ -991,7 +991,6 @@
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 text recognition failed. Try again with another image or OCR model.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "The translation cache storage is invalid or unavailable.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "The translation cache could not be saved.";
-"ICLOUD_SYNC_RESTART_REQUIRED" = "Changes to iCloud Sync take effect the next time you fully close and reopen Aidoku. Until then, the current sync setting remains active.";
 "TRANSLATION_TARGETS" = "What to Translate";
 "PAGES_%i_OF_%i" = "Pages: %i / %i";
 "1_SERIES" = "1 series";

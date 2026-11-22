@@ -147,7 +147,7 @@ enum Settings {
                         AppSettings.flags.isSideloaded.get()
                             ? "ICLOUD_SYNC_TEXT_SIDELOADED"
                             : "ICLOUD_SYNC_TEXT_EXPERIMENTAL"
-                    ) + "\n\n" + NSLocalizedString("ICLOUD_SYNC_RESTART_REQUIRED")
+                    )
                 ))
             ),
             .init(
@@ -529,7 +529,6 @@ extension Settings {
                 )
             ]))
         ),
-    ] + (UpscaleProcessor.isAvailable ? [
         .init(
             title: NSLocalizedString("UPSCALING"),
             value: .group(.init(
@@ -570,7 +569,6 @@ extension Settings {
                 ]
             ))
         ),
-    ] : []) + [
         .init(
             title: NSLocalizedString("PAGED"),
             value: .group(.init(items: [
