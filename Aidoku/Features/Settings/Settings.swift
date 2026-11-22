@@ -66,14 +66,6 @@ enum Settings {
                 ))
             ),
             .init(
-                title: NSLocalizedString("IMPORT_SETTINGS"),
-                value: .page(.init(
-                    items: importSettings,
-                    inlineTitle: true,
-                    icon: .system(name: "square.and.arrow.down", color: "orange")
-                ))
-            ),
-            .init(
                 title: NSLocalizedString("READER"),
                 value: .page(.init(
                     items: readerSettings,
@@ -82,20 +74,6 @@ enum Settings {
                 ))
             )
         ] + {
-            if #available(iOS 17.0, *) {
-                [
-                    .init(
-                        key: "Network.httpsBypassPage",
-                        title: NSLocalizedString("HTTPS_BYPASS"),
-                        value: .page(.init(
-                            items: [],
-                            inlineTitle: true,
-                            icon: .system(name: "network.badge.shield.half.filled", color: "blue")
-                        ))
-                    )
-                ]
-            } else { [] }
-        }() + {
             if #available(iOS 18.0, *) {
                 [
                     .init(
@@ -321,7 +299,7 @@ extension Settings {
                 )
             ]))
         )
-    ] + libraryUpdateGroups
+    ] + libraryUpdateGroups + importSettings
 
     private static let libraryUpdateGroups: [Setting] = {
         var baseGroup: Setting = .init(
@@ -401,7 +379,7 @@ extension Settings {
     }()
 
     private static let importSettings: [Setting] = [
-        .init(value: .group(.init(items: [
+        .init(title: NSLocalizedString("IMPORT_SETTINGS"), value: .group(.init(items: [
             .init(key: AppSettings.reader.saveSharedImages.key,
                   title: NSLocalizedString("SAVE_SHARED_IMAGES"),
                   value: .toggle(.init(subtitle: NSLocalizedString("SAVE_SHARED_IMAGES_HELP"))))
@@ -880,7 +858,12 @@ extension Settings {
         )
     ]
 
-    private static let advancedSettings: [Setting] = [
+    private static let advancedSettings: [Setting] = {
+        guard #available(iOS 17.0, *) else { return [] }
+        return [.init(value: .group(.init(items: [
+            .init(key: "Network.httpsBypassPage", title: NSLocalizedString("HTTPS_BYPASS"), value: .page(.init(items: [], inlineTitle: true)))
+        ])))]
+    }() + [
         .init(
             title: NSLocalizedString("LOGGING"),
             value: .group(.init(items: [

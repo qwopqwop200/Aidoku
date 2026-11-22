@@ -8,6 +8,7 @@ struct ReaderTranslationSettingsView: View {
     @State private var cachedBytes: Int64 = 0
     @State private var clearingCache = false
     @StateObject private var connectionTest = ReaderTranslationConnectionTest()
+    @FocusState private var keyFocused: Bool
     @State private var pendingChange: Task<Void, Never>?
 
     private let languages: [(String, String)] = [
@@ -18,10 +19,10 @@ struct ReaderTranslationSettingsView: View {
 
     var body: some View {
         List {
+            providerSection
             languageSection
             pageTranslationSection
             translationTargetsSection
-            providerSection
             translationOptionsSection
             cacheSection
         }
@@ -30,6 +31,7 @@ struct ReaderTranslationSettingsView: View {
         .onAppear { refreshCredential() }
         .task { cachedBytes = (try? await ReaderTranslationDiskCache.shared.statistics().bytes) ?? 0 }
         .onDisappear {
+            saveKey()
             publishPendingChange()
             connectionTest.reset()
         }
@@ -37,6 +39,8 @@ struct ReaderTranslationSettingsView: View {
         .onChange(of: settings.sourceLanguage) { _ in connectionTest.reset() }
         .onChange(of: settings.targetLanguage) { _ in connectionTest.reset() }
         .onChange(of: apiKey) { _ in connectionTest.reset() }
+        // Like Aidoku text settings, save the key when the field loses focus.
+        .onChange(of: keyFocused) { focused in if !focused { saveKey() } }
         .alert(NSLocalizedString("TRANSLATION_TITLE"), isPresented: Binding(
             get: { message != nil }, set: { if !$0 { message = nil } }
         )) {
@@ -91,8 +95,10 @@ struct ReaderTranslationSettingsView: View {
                        filter: "TRANSLATION_DESCRIPTION_FILTER", \.mangaDescriptionSourceLanguages, filterID: "translation.descriptionFilter")
             targetRows("TRANSLATION_SOURCE_LABELS", \.translateSourceLabels, id: "translation.sourceLabels",
                        filter: "TRANSLATION_SOURCE_LABEL_FILTER", \.sourceLabelSourceLanguages, filterID: "translation.sourceLabelFilter")
-            Toggle(NSLocalizedString("TRANSLATION_LARGE_FILTER_OPTIONS"), isOn: persistedSettings.translateLargeFilterOptions)
-                .accessibilityIdentifier("translation.largeFilterOptions")
+            if settings.translateSourceLabels {
+                Toggle(NSLocalizedString("TRANSLATION_LARGE_FILTER_OPTIONS"), isOn: persistedSettings.translateLargeFilterOptions)
+                    .accessibilityIdentifier("translation.largeFilterOptions")
+            }
         } header: {
             Text(NSLocalizedString("TRANSLATION_TARGETS"))
         } footer: {
@@ -129,12 +135,20 @@ struct ReaderTranslationSettingsView: View {
                 }
             }
             .accessibilityIdentifier("translation.reasoning")
-            Picker(NSLocalizedString("TRANSLATION_CONCURRENCY"), selection: persistedSettings.maximumConcurrentRequests) {
-                ForEach([1, 2, 4, 8, 16], id: \.self) { Text(String($0)).tag($0) }
+            Picker(NSLocalizedString("TRANSLATION_CONCURRENCY"), selection: concurrency) {
+                ForEach(concurrencyChoices, id: \.self) { Text(String($0)).tag($0) }
             }
         } header: {
             Text(NSLocalizedString("TRANSLATION_ADVANCED"))
         }
+    }
+
+    private var concurrencyChoices: [Int] { Array(1...V2PerformanceProfile.current.providerConcurrencyCap) }
+
+    // Shows the effective value; larger saved values are capped by the device anyway.
+    private var concurrency: Binding<Int> {
+        Binding(get: { min(settings.maximumConcurrentRequests, concurrencyChoices.last ?? 1) },
+                set: { persistedSettings.wrappedValue.maximumConcurrentRequests = $0 })
     }
 
     private func reasoningTitle(_ effort: OpenAIReasoningEffort) -> String {
@@ -157,13 +171,13 @@ struct ReaderTranslationSettingsView: View {
     ) -> some View {
         Toggle(NSLocalizedString(key), isOn: persistedSettings[dynamicMember: isOn]).accessibilityIdentifier(id)
         let selection = persistedSettings[dynamicMember: languages]
-        NavigationLink {
+        if settings[keyPath: isOn] { NavigationLink {
             ReaderTranslationLanguageFilterView(selection: selection, title: NSLocalizedString(filterKey),
                 help: NSLocalizedString("TRANSLATION_METADATA_FILTER_HELP"), accessibilityPrefix: filterID)
         } label: {
             filterLabel(filterKey, selection.wrappedValue, allTitle: NSLocalizedString("TRANSLATION_FILTER_ALL"))
         }
-        .accessibilityIdentifier(filterID)
+        .accessibilityIdentifier(filterID) }
     }
 
     private func filterLabel(_ key: String, _ codes: [String], allTitle: String) -> some View {
@@ -175,9 +189,29 @@ struct ReaderTranslationSettingsView: View {
     }
 
     private func toggleWithHelp(_ key: String, isOn: Binding<Bool>, id: String, help: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle(NSLocalizedString(key), isOn: isOn).accessibilityIdentifier(id)
-            Text(NSLocalizedString(help)).font(.footnote).foregroundStyle(.secondary)
+        HStack {
+            VStack(alignment: .leading) {
+                Text(NSLocalizedString(key))
+                Text(NSLocalizedString(help)).font(.footnote).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Toggle(isOn: isOn) { EmptyView() }.labelsHidden().accessibilityLabel(NSLocalizedString(key))
+        }
+        .accessibilityIdentifier(id)
+    }
+
+    /// Aidoku text row: title on the left, value field right-aligned in the secondary color.
+    private func textRow(_ key: String, text: Binding<String>, placeholder: String, id: String, url: Bool = false) -> some View {
+        HStack {
+            Text(NSLocalizedString(key)).lineLimit(1)
+            Spacer()
+            TextField(placeholder, text: text)
+                .foregroundStyle(Color.secondaryLabel)
+                .multilineTextAlignment(.trailing)
+                .keyboardType(url ? .URL : .default)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier(id)
         }
     }
 
@@ -216,6 +250,7 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
+    @ViewBuilder
     private var providerSection: some View {
         Section {
             Picker(NSLocalizedString("TRANSLATION_PROVIDER"), selection: persistedSettings.provider) {
@@ -224,37 +259,31 @@ struct ReaderTranslationSettingsView: View {
             }
             .accessibilityIdentifier("translation.provider")
             if settings.provider == .custom {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(NSLocalizedString("TRANSLATION_BASE_URL")).font(.caption).foregroundStyle(.secondary)
-                    TextField("https://example.com/v1", text: persistedSettings.custom.baseURL)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .accessibilityIdentifier("translation.baseURL")
-                }
+                textRow("TRANSLATION_BASE_URL", text: persistedSettings.custom.baseURL,
+                        placeholder: "https://example.com/v1", id: "translation.baseURL", url: true)
                 Picker(NSLocalizedString("TRANSLATION_API_FORMAT"), selection: persistedSettings.custom.apiProtocol) {
                     Text("Responses").tag(RemoteTranslationProtocol.responses)
                     Text("Chat Completions").tag(RemoteTranslationProtocol.chatCompletions)
                 }
                 .accessibilityIdentifier("translation.apiProtocol")
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text(NSLocalizedString("TRANSLATION_MODEL")).font(.caption).foregroundStyle(.secondary)
-                TextField(NSLocalizedString("TRANSLATION_MODEL"), text: persistedSettings.model)
+            textRow("TRANSLATION_MODEL", text: persistedSettings.model, placeholder: settings.provider == .openAI ? "gpt-5-mini" : "", id: "translation.model")
+            HStack {
+                Text(NSLocalizedString("TRANSLATION_KEY")).lineLimit(1)
+                Spacer()
+                SecureField(hasKey ? NSLocalizedString("TRANSLATION_KEY_SAVED") : (settings.provider == .openAI ? "sk-…" : ""), text: persistedAPIKey)
+                    .foregroundStyle(Color.secondaryLabel)
+                    .multilineTextAlignment(.trailing)
+                    .textContentType(.password)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .accessibilityIdentifier("translation.model")
+                    .focused($keyFocused)
+                    .onSubmit(saveKey)
+                    .accessibilityIdentifier("translation.apiKey")
             }
-            SecureField(NSLocalizedString(hasKey ? "TRANSLATION_KEY_REPLACE" : "TRANSLATION_KEY"), text: persistedAPIKey)
-                .textContentType(.password)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("translation.apiKey")
             if hasKey {
-                Label(NSLocalizedString("TRANSLATION_KEY_SAVED"), systemImage: "checkmark.shield")
                 Button(NSLocalizedString("TRANSLATION_KEY_DELETE"), role: .destructive, action: deleteKey)
             }
-            connectionTestRows
             if settings.provider == .openAI {
                 Link(NSLocalizedString("TRANSLATION_GET_KEY"), destination: URL(string: "https://platform.openai.com/api-keys")!)
             }
@@ -269,6 +298,11 @@ struct ReaderTranslationSettingsView: View {
                     }
                 }
             }
+        }
+        Section {
+            connectionTestRows
+        } footer: {
+            Text(NSLocalizedString("TRANSLATION_TEST_HELP"))
         }
     }
 
@@ -301,11 +335,10 @@ struct ReaderTranslationSettingsView: View {
         case .idle, .running:
             EmptyView()
         }
-        Text(NSLocalizedString("TRANSLATION_TEST_HELP"))
-            .font(.footnote).foregroundStyle(.secondary)
     }
 
     private func testConnection() {
+        saveKey()
         let testedSettings = settings
         publishPendingChange()
         connectionTest.start(settings: testedSettings, apiKey: "")
@@ -326,10 +359,12 @@ struct ReaderTranslationSettingsView: View {
     }
 
     private var persistedAPIKey: Binding<String> {
-        Binding(get: { apiKey }, set: { value in
-            apiKey = value
-            autosave(apiKey: value)
-        })
+        Binding(get: { apiKey }, set: { apiKey = $0 })
+    }
+
+    private func saveKey() {
+        guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        autosave(apiKey: apiKey)
     }
 
     private func autosave(apiKey: String = "") {

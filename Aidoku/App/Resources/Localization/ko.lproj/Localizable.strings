@@ -537,10 +537,9 @@
 "CLOSE_READER" = "리더 닫기";
 
 // OCR and translation
-"TRANSLATION_TITLE" = "OCR 및 번역";
-"TRANSLATION_KEY_REPLACE" = "저장된 API 키 교체 (선택 사항)";
+"TRANSLATION_TITLE" = "번역";
 "TRANSLATION_KEY" = "API 키";
-"TRANSLATION_KEY_SAVED" = "Keychain에 API 키 저장됨";
+"TRANSLATION_KEY_SAVED" = "저장됨";
 "TRANSLATION_KEY_DELETE" = "API 키 삭제";
 "TRANSLATION_MODEL" = "모델 ID";
 "TRANSLATION_GET_KEY" = "OpenAI API 키 관리 열기";

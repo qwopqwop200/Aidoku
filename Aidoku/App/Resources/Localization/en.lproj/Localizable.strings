@@ -880,10 +880,9 @@
 "TOGGLE_PAGE_OFFSET" = "Toggle page offset";
 
 // OCR and translation
-"TRANSLATION_TITLE" = "OCR & Translation";
-"TRANSLATION_KEY_REPLACE" = "Replace saved API key (optional)";
+"TRANSLATION_TITLE" = "Translation";
 "TRANSLATION_KEY" = "API key";
-"TRANSLATION_KEY_SAVED" = "API key saved in Keychain";
+"TRANSLATION_KEY_SAVED" = "Saved";
 "TRANSLATION_KEY_DELETE" = "Delete API Key";
 "TRANSLATION_MODEL" = "Model ID";
 "TRANSLATION_GET_KEY" = "Open OpenAI API Keys";
