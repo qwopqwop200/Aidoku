@@ -70,6 +70,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         UIApplication.shared.appDelegate?.importPendingSharedImages()
         Task { await DownloadManager.shared.applicationDidBecomeActive() }
         Task { await MangaManager.shared.refreshLibraryIfOverdue() }
+#if AIDOKU_DEVELOPER_PERFORMANCE
+        DeveloperAutoRead.startIfRequested()
+#endif
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {

@@ -33,4 +33,29 @@ struct ReaderTranslationPageIdentityTests {
         let expected = SHA256.hash(data: try JSONEncoder().encode(originalParts)).map { String(format: "%02x", $0) }.joined()
         #expect(first.translationCacheKey == expected)
     }
+
+    @available(iOS 18.0, *)
+    @Test func downloadUsesTheReaderKeyOnlyForTheSameRaster() throws {
+        let defaults = try #require(UserDefaults(suiteName: "download-cache-key-\(UUID().uuidString)"))
+        let settings = ReaderTranslationSettings()
+        let readerKey = ReaderTranslationV2Service.cacheKey(page: page().translationCacheKey,
+                                                            crop: ReaderTranslationSplitGeometry.unit, settings: settings)
+        let key = { (page: Page, processes: Bool) in
+            DownloadImageTranslator.readerCacheKey(for: page, processesPages: processes, settings: settings, defaults: defaults)
+        }
+        #expect(key(page(), false) == readerKey)
+        #expect(key(page(), true) == nil)
+        var local = page(), temporary = page(), empty = page()
+        local.imageURL = "file:///tmp/page.png"
+        temporary.sourceId = TemporarySharedImageSession.sourcePrefix + "session"
+        empty.imageURL = nil
+        #expect(key(local, false) == nil)
+        #expect(key(temporary, false) == nil)
+        #expect(key(empty, false) == nil)
+        for processor in ["Reader.cropBorders", "Reader.downsampleImages", "Reader.upscaleImages"] {
+            defaults.set(true, forKey: processor)
+            #expect(key(page(), false) == nil)
+            defaults.removeObject(forKey: processor)
+        }
+    }
 }

@@ -110,6 +110,45 @@ def install_dynamic_pad():
         context.add(mb.pad(x=x, pad=vector, mode='constant', constant_val=float(value or 0), name=node.name))
 
 
+def finite_pool_padding(package):
+    """Pads the stem max-pool with 0 instead of -inf. Its input is a ReLU (>= 0) and every 2x2 window keeps a
+    source cell, so the output is unchanged, but the Core ML CPU backend turns -inf padding into nonfinite
+    probability cells (the GPU does not). CPU then matches GPU to fp16 tolerance and runs about 4x faster."""
+    spec = ct.utils.load_spec(str(package))
+    function = spec.mlProgram.functions['main']; operations = function.block_specializations[function.opset].operations
+    consts = {op.outputs[0].name: op for op in operations if op.type == 'const'}
+    producers = {output.name: op for op in operations for output in op.outputs}
+    consumers = {}
+    for op in operations:
+        for argument in op.inputs.values():
+            for binding in argument.arguments:
+                consumers.setdefault(binding.name, []).append(op)
+    patched = 0
+    for op in operations:
+        if op.type != 'pad':
+            continue
+        value = consts[op.inputs['constant_val'].arguments[0].name].attributes['val'].immediateValue.tensor
+        if not np.isinf(np.frombuffer(value.bytes.values, np.float16)).any():
+            continue
+        source = producers[op.inputs['x'].arguments[0].name]
+        users = consumers.get(op.outputs[0].name, [])
+        if source.type != 'relu' or not users or any(user.type != 'max_pool' for user in users):
+            raise ValueError('Unexpected -inf padding')
+        value.bytes.values = np.zeros(1, np.float16).tobytes(); patched += 1
+    if patched != 1:
+        raise ValueError('Expected one -inf max-pool padding')
+    # Protobuf re-serialization reorders maps, so edit the one fp16 -inf payload in place and verify it.
+    path = package / 'Data/com.apple.CoreML/model.mlmodel'; data = path.read_bytes()
+    infinity = b'\x0a\x02' + np.array([-np.inf], np.float16).tobytes()
+    if data.count(infinity) != 1:
+        raise ValueError('Expected one -inf payload')
+    data = data.replace(infinity, b'\x0a\x02' + np.zeros(1, np.float16).tobytes())
+    check = type(spec)(); check.ParseFromString(data)
+    if check != spec:
+        raise ValueError('Byte patch differs from the padding edit')
+    path.write_bytes(data)
+
+
 class CompactRecognizer(nn.Module):
     def __init__(self, model):
         super().__init__(); self.model = model
@@ -192,6 +231,8 @@ def main():
     converted.user_defined_metadata.update({'source_revision': REVISION, 'source_model_version': 'v0.3',
         'source_onnx_sha256': expected[args.component], 'ngram_alternatives': '4' if args.component == 'rec' else 'none'})
     converted.save(str(out / name))
+    if args.component == 'det':
+        finite_pool_padding(out / name)
     report.update(phase='converted-candidate', package=str(out / name), seconds=time.monotonic() - start,
                   productionDeployed=False, dynamicTraceParity=True)
     save(); print(json.dumps(report), flush=True)

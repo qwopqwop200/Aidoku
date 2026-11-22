@@ -14,7 +14,7 @@ actor ReaderTranslationV2Service {
     /// Bump when the translated blocks (S1-S5) can change; keys both cache rows.
     static let version = "v2-pipeline-1"
     /// Bump when only rendering (S4b boxes, S6-S10) can change; re-renders from stored blocks.
-    static let renderVersion = "v2-render-3"
+    static let renderVersion = "v2-render-4"
 
     enum Failure: Error { case imageUnavailable }
 
@@ -138,8 +138,10 @@ actor ReaderTranslationV2Service {
     /// Reader-open warm-up; failures surface on the first page instead.
     func prewarm() async { _ = try? await residentModels() }
 
-    /// Memory pressure: drop the resident set; running pages keep their reference.
+    /// Memory pressure: drop the resident set; running pages keep their reference, but the
+    /// recognizer they share sheds to one handle (about 130-150 MB each) right away.
     func releaseModels() {
+        (models ?? retiredModels)?.recognition.shed()
         modelGeneration &+= 1
         if let models { retiredModels = models }
         models = nil
@@ -207,12 +209,17 @@ actor ReaderTranslationV2Service {
 
     /// Translates one upright page into a rendered bitmap. Calls for the same key share
     /// one computation (foreground promotes a look-ahead), cancelled with its last consumer.
+    /// `reusesImage: false` (downloads) never returns a cached (lossy) bitmap: stored translations are
+    /// replayed through the pipeline and results are still stored, outside the shared memory cache.
     func translatePage(
         _ source: CGImage, cacheKey key: String?, persists: Bool = true, settings: ReaderTranslationSettings,
-        priority: TranslationRequestPriority = .foreground
+        priority: TranslationRequestPriority = .foreground, reusesImage: Bool = true
     ) async throws -> PageOutput {
         try Task.checkCancellation()
         guard let key else { return try await compute(source, key: nil, persists: false, settings: settings, priority: priority) }
+        guard reusesImage else {
+            return try await compute(source, key: key, persists: persists, settings: settings, priority: priority, reusesImage: false)
+        }
         if let image = memory.image(for: key) { return PageOutput(image: image, timings: nil, fromCache: true) }
         let flight: Flight
         let consumer = UUID()
@@ -259,11 +266,12 @@ actor ReaderTranslationV2Service {
     func consumerCount(_ key: String) -> Int { inflight[key]?.consumers ?? 0 }
 
     private func compute(
-        _ source: CGImage, key: String?, persists: Bool, settings: ReaderTranslationSettings, priority: TranslationRequestPriority
+        _ source: CGImage, key: String?, persists: Bool, settings: ReaderTranslationSettings, priority: TranslationRequestPriority,
+        reusesImage: Bool = true
     ) async throws -> PageOutput {
         try Task.checkCancellation()
         let cache = key == nil || !persists ? nil : diskCache
-        if let key, let cache, let image = await storedPage(key, cache: cache) {
+        if reusesImage, let key, let cache, let image = await storedPage(key, cache: cache) {
             try Task.checkCancellation()
             return PageOutput(image: image, timings: nil, fromCache: true)
         }
@@ -342,7 +350,8 @@ actor ReaderTranslationV2Service {
                 }
                 return Self.eligibleForTranslation(blocks, settings: settings)
             },
-            recognitionRank: { priority.schedulingRank })
+            recognitionRank: { priority.schedulingRank },
+            isForeground: { priority.isForeground })
         let result = await V2Pipeline.run(page, models: models, translate: translator, hooks: hooks)
         hold.releaseAll()
         try Task.checkCancellation()
@@ -673,6 +682,10 @@ struct V2PerformanceProfile: Equatable, Sendable {
         let cacheCeiling = Int(clamping: max(UInt64(normal.pageCacheMaximumBytes), physicalMemory / 16))
         profile.pageCacheMaximumBytes = min(profile.pageCacheMaximumBytes, cacheCeiling)
         profile.pageCacheMinimumBytes = min(profile.pageCacheMinimumBytes, profile.pageCacheMaximumBytes)
+        // On-device A/B (DeveloperAutoRead): launch-argument overrides.
+        let defaults = UserDefaults.standard
+        if defaults.integer(forKey: "AidokuPerfLookaheadExtra") > 0 { profile.lookaheadExtraPages = defaults.integer(forKey: "AidokuPerfLookaheadExtra") }
+        if defaults.integer(forKey: "AidokuPerfProviderCap") > 0 { profile.providerConcurrencyCap = defaults.integer(forKey: "AidokuPerfProviderCap") }
         return profile
     }
 

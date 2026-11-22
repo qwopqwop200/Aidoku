@@ -42,6 +42,7 @@
           { "name" : "PartialDownloadTests" },
           { "name" : "ReaderPageIdentityTests" },
           { "name" : "ReaderTranslationLanguageFilterTests" },
+          { "name" : "ReaderTranslationLookaheadPaceTests" },
           { "name" : "ReaderTranslationPageIdentityTests" },
           { "name" : "ReaderTranslationPanelOrderTests" },
           { "name" : "ReaderTranslationProviderTests" },

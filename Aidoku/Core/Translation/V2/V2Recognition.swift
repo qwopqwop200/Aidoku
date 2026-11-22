@@ -36,10 +36,17 @@ final class V2RecognitionEngine: @unchecked Sendable {
 
     let dictionary: [String]
     let languageModel: NativeMangaNGram?
+    /// The normal (full) handle count; idle time and memory warnings shrink the pool below it.
     let handleCount: Int
-    /// Every resident handle, for `V2Recognition.warmUp`; pages check handles out of `pool`.
-    let handles: [MLModel]
-    private let pool: HandlePool
+    /// Resident handles, checked out per crop. Holds the only strong references, so a shed
+    /// handle is freed once it is free (never while a crop is using it).
+    let pool: V2HandlePool<MLModel>
+    /// iOS sheds to one handle after this much time without page work; the Mac host keeps its count.
+#if os(macOS)
+    static let idleSeconds: Double? = nil
+#else
+    static let idleSeconds: Double? = 45
+#endif
 
     /// `modelURL` is a compiled `.mlmodelc` (or an `.mlpackage`, compiled here).
     init(modelURL: URL, dictionaryURL: URL, languageModelURL: URL?) throws {
@@ -71,8 +78,17 @@ final class V2RecognitionEngine: @unchecked Sendable {
         DispatchQueue.concurrentPerform(iterations: count) { index in
             slots.store(index, Result { try MLModel(contentsOf: compiledURL, configuration: configuration) })
         }
-        handles = try slots.models()
-        pool = HandlePool(handles)
+        pool = V2HandlePool(try slots.models(), idleSeconds: Self.idleSeconds) {
+            // Same URL and configuration as the initial handles, so a regrown handle reads identically.
+            let model: MLModel? = await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(returning: try? MLModel(contentsOf: compiledURL, configuration: configuration))
+                }
+            }
+            guard let model else { return nil }
+            try? await V2Recognition.warmUp(model)
+            return model
+        }
         handleCount = count
     }
 
@@ -89,6 +105,9 @@ final class V2RecognitionEngine: @unchecked Sendable {
         return try V2RecognitionEngine(modelURL: model, dictionaryURL: dictionary,
             languageModelURL: find(languageModelResourceName, ["bin"]))
     }
+
+    /// Memory warning: drop to one handle now and do not regrow for a while.
+    func shed() { Task { await pool.shrink(cooldownSeconds: 60) } }
 
     /// `rank` (lower first, read when a handle frees) orders pages that wait for a handle.
     func withHandle<T>(rank: @escaping @Sendable () -> Int = { 0 }, _ body: (MLModel) async throws -> T) async throws -> T {
@@ -144,24 +163,127 @@ final class V2RecognitionEngine: @unchecked Sendable {
         }
         func models() throws -> [MLModel] { try results.map { try $0!.get() } }
     }
+}
 
-    /// Exclusive handle checkout shared by concurrent pages: a freed handle goes to the
-    /// best-ranked waiter, FIFO within a rank.
-    private actor HandlePool {
-        private var free: [MLModel]
-        private var waiters: [(rank: @Sendable () -> Int, continuation: CheckedContinuation<MLModel, Never>)] = []
-        init(_ models: [MLModel]) { free = models }
-        func acquire(rank: @escaping @Sendable () -> Int) async -> MLModel {
-            if let model = free.popLast() { return model }
-            return await withCheckedContinuation { waiters.append((rank, $0)) }
+/// Exclusive handle checkout shared by concurrent pages: a freed handle goes to the best-ranked
+/// waiter, FIFO within a rank. `shrink` (idle or memory pressure) keeps one handle: free extras
+/// go at once, checked-out ones when they come back. The next checkout regrows the pool to its
+/// capacity in the background (one load per missing handle) while pages run on what stayed.
+actor V2HandlePool<Element: AnyObject> {
+    let capacity: Int
+    private var free: [Element]
+    private var waiters: [(rank: @Sendable () -> Int, continuation: CheckedContinuation<Element, Never>)] = []
+    /// Handles alive (free or checked out), loads in flight, and the current allowed count.
+    private(set) var resident: Int
+    private(set) var loading = 0
+    private var limit: Int
+    /// Checkouts held or awaited; idle means zero.
+    private var busy = 0
+    private var idleSince = DispatchTime.now().uptimeNanoseconds
+    private var growAfter: UInt64 = 0
+    private var idleTask: Task<Void, Never>?
+    private let idleNanoseconds: UInt64?
+    private let load: @Sendable () async -> Element?
+
+    init(_ elements: [Element], idleSeconds: Double?, load: @escaping @Sendable () async -> Element?) {
+        precondition(!elements.isEmpty)
+        free = elements
+        capacity = elements.count
+        resident = elements.count
+        limit = elements.count
+        idleNanoseconds = idleSeconds.map { UInt64($0 * 1_000_000_000) }
+        self.load = load
+    }
+
+    func acquire(rank: @escaping @Sendable () -> Int) async -> Element {
+        busy += 1
+        grow()
+        if let element = free.popLast() { return element }
+        return await withCheckedContinuation { waiters.append((rank, $0)) }
+    }
+
+    func release(_ element: Element) {
+        busy -= 1
+        if resident > limit {
+            // Shed: dropping it frees the handle; the others serve any waiter.
+            resident -= 1
+        } else {
+            give(element)
         }
-        func release(_ model: MLModel) {
-            guard !waiters.isEmpty else { free.append(model); return }
-            let ranks = waiters.map { $0.rank() }
-            let best = ranks.indices.min { ranks[$0] == ranks[$1] ? $0 < $1 : ranks[$0] < ranks[$1] } ?? 0
-            waiters.remove(at: best).continuation.resume(returning: model)
+        if busy == 0 { becameIdle() }
+    }
+
+    /// Free handles right now (the initial warm-up runs before any page checks one out).
+    func freeElements() -> [Element] { free }
+
+    /// Down to one handle; `cooldownSeconds` keeps checkouts from regrowing it that long.
+    func shrink(cooldownSeconds: Double = 0) {
+        limit = 1
+        let drop = min(free.count, resident - limit)
+        if drop > 0 {
+            free.removeLast(drop)
+            resident -= drop
+        }
+        growAfter = max(growAfter, now() + UInt64(cooldownSeconds * 1_000_000_000))
+    }
+
+    private func grow() {
+        if limit < capacity, now() >= growAfter { limit = capacity }
+        let missing = limit - resident - loading
+        guard missing > 0 else { return }
+        loading += missing
+        for _ in 0..<missing {
+            Task.detached(priority: .userInitiated) { [load] in
+                let element = await load()
+                await self.loaded(element)
+            }
         }
     }
+
+    private func loaded(_ element: Element?) {
+        loading -= 1
+        guard let element else {
+            // A failed load waits a minute instead of retrying on every crop.
+            growAfter = now() + 60_000_000_000
+            return
+        }
+        guard resident < limit else { return }
+        resident += 1
+        give(element)
+    }
+
+    private func give(_ element: Element) {
+        guard !waiters.isEmpty else { free.append(element); return }
+        let ranks = waiters.map { $0.rank() }
+        let best = ranks.indices.min { ranks[$0] == ranks[$1] ? $0 < $1 : ranks[$0] < ranks[$1] } ?? 0
+        waiters.remove(at: best).continuation.resume(returning: element)
+    }
+
+    private func becameIdle() {
+        idleSince = now()
+        guard let idle = idleNanoseconds, idleTask == nil, resident > 1 else { return }
+        idleTask = Task { [weak self] in
+            var wait = idle
+            while true {
+                try? await Task.sleep(nanoseconds: wait)
+                guard let self, let next = await self.idleCheck(idle) else { return }
+                wait = next
+            }
+        }
+    }
+
+    /// Nil ends the timer (shrunk, or busy again: the next idle restarts it); else the time left.
+    private func idleCheck(_ idle: UInt64) -> UInt64? {
+        let elapsed = now() - idleSince
+        guard busy == 0, elapsed < idle else {
+            if busy == 0 { shrink() }
+            idleTask = nil
+            return nil
+        }
+        return idle - elapsed
+    }
+
+    private func now() -> UInt64 { DispatchTime.now().uptimeNanoseconds }
 }
 
 @available(iOS 18.0, *)
@@ -232,7 +354,7 @@ enum V2Recognition {
             throw V2RecognitionEngine.Failure.imageConversionFailed
         }
         try await withThrowingTaskGroup(of: Void.self) { group in
-            for model in engine.handles {
+            for model in await engine.pool.freeElements() {
                 group.addTask { _ = try await predict(plan, frame: frame, model: model, engine: engine) }
             }
             try await group.waitForAll()
@@ -273,6 +395,14 @@ enum V2Recognition {
             output: compact, dictionary: engine.dictionary, expectedShape: [1, tensor.bucket.timeSteps],
             languageModel: engine.languageModel)
         return Read(text: decoded.text, confidence: decoded.confidence)
+    }
+
+    /// A regrown handle's first (cold, about 0.3 s) prediction, on a blank 32 x 300 vertical line.
+    static func warmUp(_ model: MLModel) async throws {
+        let polygon = [CGPoint(x: 16, y: 50), CGPoint(x: 48, y: 50), CGPoint(x: 48, y: 350), CGPoint(x: 16, y: 350)]
+        guard let plan = plan(polygon) else { return }
+        let input = try MLMultiArray(shape: [1, 3, 48, NSNumber(value: plan.bucket.width)], dataType: .float32)
+        _ = try await model.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x": MLFeatureValue(multiArray: input)]))
     }
 
     /// Legacy compact layout: row 0 indices, row 1 scores, then four

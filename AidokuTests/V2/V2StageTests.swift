@@ -213,36 +213,15 @@ struct V2StageTests {
         #expect(V2RemovalMask.build(rgba: [], width: -3, height: 5, blocks: blocks, layout: []).isEmpty)
     }
 
-    @Test func aotMosaicPacksMaskRegionsAtNativeResolution() {
+    @Test func aotFitsTheWholePageIntoTheModelSide() throws {
         let width = 3000, height = 2000
         var mask = [UInt8](repeating: 0, count: width * height)
-        let spots = [(100, 100), (700, 200), (2800, 1800), (1500, 1000)]
-        for (sx, sy) in spots { for y in sy..<(sy + 30) { for x in sx..<(sx + 40) { mask[y * width + x] = 255 } } }
-        let patches = V2AOTModel.mosaic(mask, width: width, height: height)
-        for (sx, sy) in spots {
-            let owners = patches.filter { $0.rect.0 <= sx && $0.rect.1 <= sy && $0.rect.2 >= sx + 40 && $0.rect.3 >= sy + 30 }
-            #expect(owners.count == 1)
-        }
-        for (i, a) in patches.enumerated() {
-            // Native resolution, inside the canvas with its pad border, and disjoint from the others.
-            let native = a.size == (a.rect.2 - a.rect.0, a.rect.3 - a.rect.1)
-            #expect(native)
-            #expect(a.origin.0 >= V2AOTModel.pad && a.origin.0 + a.size.0 + V2AOTModel.pad <= 1024)
-            #expect(a.origin.1 >= V2AOTModel.pad && a.origin.1 + a.size.1 + V2AOTModel.pad <= 1024)
-            for b in patches[(i + 1)...] {
-                #expect(a.origin.0 + a.size.0 + V2AOTModel.pad <= b.origin.0 - V2AOTModel.pad
-                        || b.origin.0 + b.size.0 + V2AOTModel.pad <= a.origin.0 - V2AOTModel.pad
-                        || a.origin.1 + a.size.1 + V2AOTModel.pad <= b.origin.1 - V2AOTModel.pad
-                        || b.origin.1 + b.size.1 + V2AOTModel.pad <= a.origin.1 - V2AOTModel.pad)
-            }
-        }
-        // A mask too large to pack is one downscaled patch: the union at the origin.
-        let full = [UInt8](repeating: 255, count: width * height)
-        let union = V2AOTModel.mosaic(full, width: width, height: height)
-        let whole = union.count == 1 && union[0].rect == (0, 0, width, height) && union[0].origin == (0, 0)
-        let downscaled = union.count == 1 && union[0].size == (1024, 683)
-        #expect(whole && downscaled)
-        #expect(V2AOTModel.mosaic([UInt8](repeating: 0, count: 100), width: 10, height: 10).isEmpty)
+        mask[1000 * width + 1500] = 255
+        let patch = try #require(V2AOTModel.wholePage(mask, width: width, height: height))
+        #expect(patch.rect == (0, 0, width, height) && patch.origin == (0, 0) && patch.size == (1024, 683))
+        let small = try #require(V2AOTModel.wholePage([UInt8](repeating: 1, count: 100), width: 10, height: 10))
+        #expect(small.size == (10, 10))
+        #expect(V2AOTModel.wholePage([UInt8](repeating: 0, count: 100), width: 10, height: 10) == nil)
     }
 
     @Test func aotScatterChangesOnlyMaskPixels() throws {
@@ -585,6 +564,19 @@ struct V2StageTests {
         #expect(narration[0].role == .narration && V2Layout.isPaintable(narration[0]))
     }
 
+    @Test func sfxAndShortLatinKeepTheirSource() {
+        func painted(_ source: String, _ role: RemoteTranslationTextRole) -> Bool {
+            let block = V2Block(id: 0, lines: [], bounds: .zero, polygon: [], vertical: true, readingOrder: 0, sourceText: source)
+            return V2Layout.isPaintable(V2Translation.apply([block]) { _ in RemoteTranslatedSegment(id: "x", text: "번역", textRole: role) }[0])
+        }
+        #expect(!painted("ドキッ", .sfx))
+        #expect(painted("「……ゴクリッ」", .sfx))
+        #expect(painted("どちゃっ頭っまた真っ白になるっやだこれ怖いっ", .sfx))
+        #expect(!painted("1098", .dialogue))
+        #expect(painted("あっ", .dialogue))
+        #expect(painted("…!", .dialogue))
+    }
+
     @Test func pageRequestsUseThePageLetteringContract() {
         let block = V2Block(id: 0, lines: [], bounds: CGRect(x: 10, y: 10, width: 50, height: 50), polygon: [], vertical: true,
                             readingOrder: 0, sourceText: "こんにちは")
@@ -651,5 +643,76 @@ struct V2StageTests {
                       block(2, "無関係", CGRect(x: 300, y: 300, width: 20, height: 20))]
         let result = V2TranslationReplay.apply(entries, to: blocks)
         #expect(result.map(\.translation) == ["오~", "앞 뒤", nil])
+    }
+
+    private final class PoolHandle {}
+    private final class LoadCount: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = 0
+        func add() { lock.withLock { value += 1 } }
+        var count: Int { lock.withLock { value } }
+    }
+
+    /// Polls (up to 2 s) until the pool's resident and loading counts satisfy `done`.
+    private func settle(_ pool: V2HandlePool<PoolHandle>, until done: (Int, Int) -> Bool) async throws {
+        for _ in 0..<200 {
+            if done(await pool.resident, await pool.loading) { return }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    @Test func recognizerPoolShedsOnlyFreeHandlesAndHoldsAfterAWarning() async throws {
+        let loads = LoadCount()
+        let pool = V2HandlePool([PoolHandle(), PoolHandle(), PoolHandle()], idleSeconds: nil) {
+            loads.add()
+            return PoolHandle()
+        }
+        let held = await pool.acquire(rank: { 0 })
+        await pool.shrink(cooldownSeconds: 60)
+        // The checked-out handle stays until it comes back; the free ones go at once.
+        #expect(await pool.resident == 1)
+        await pool.release(held)
+        await pool.release(await pool.acquire(rank: { 0 }))
+        #expect(await pool.resident == 1)
+        #expect(loads.count == 0)
+    }
+
+    @Test func recognizerPoolRegrowsOncePerMissingHandle() async throws {
+        let loads = LoadCount()
+        let pool = V2HandlePool([PoolHandle(), PoolHandle(), PoolHandle()], idleSeconds: nil) {
+            loads.add()
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            return PoolHandle()
+        }
+        let first = await pool.acquire(rank: { 0 })
+        await pool.shrink()
+        #expect(await pool.resident == 1)
+        // Concurrent checkouts run on the remaining handle while one load per missing handle runs.
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<6 {
+                group.addTask {
+                    let handle = await pool.acquire(rank: { 0 })
+                    try? await Task.sleep(nanoseconds: 5_000_000)
+                    await pool.release(handle)
+                }
+            }
+            await pool.release(first)
+        }
+        try await settle(pool) { resident, loading in resident == 3 && loading == 0 }
+        #expect(await pool.resident == 3)
+        #expect(loads.count == 2)
+    }
+
+    @Test func recognizerPoolShrinksAfterIdleTimeAndRegrowsOnDemand() async throws {
+        let pool = V2HandlePool([PoolHandle(), PoolHandle()], idleSeconds: 0.2) { PoolHandle() }
+        await pool.release(await pool.acquire(rank: { 0 }))
+        #expect(await pool.resident == 2)
+        try await settle(pool) { resident, _ in resident == 1 }
+        #expect(await pool.resident == 1)
+        // Held, so the idle timer cannot shrink it again while it regrows.
+        let held = await pool.acquire(rank: { 0 })
+        try await settle(pool) { resident, loading in resident == 2 && loading == 0 }
+        #expect(await pool.resident == 2)
+        await pool.release(held)
     }
 }

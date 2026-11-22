@@ -1668,6 +1668,16 @@ extension ReaderViewController: UIPencilInteractionDelegate {
 
     }
 
+#if AIDOKU_DEVELOPER_PERFORMANCE
+    func developerAdvancePage() {
+        // At the last page a reader taps "next chapter"; turning further only reaches the transition page.
+        let total = toolbarView.totalPages ?? 0
+        ReaderTranslationDiagnostics.record("autoread_position", page: currentPage, count: total,
+                                            code: getNextChapter() == nil ? 0 : 1, outcome: chapterList.count)
+        if total > 0, currentPage >= total { nextChapter() } else { nextPage() }
+    }
+#endif
+
     private func nextPage() {
         switch readingMode {
             case .rtl: reader?.moveLeft()

@@ -25,6 +25,9 @@ struct V2PipelineHooks: Sendable {
     var predictTranslated: (@Sendable (_ blocks: [V2Block]) -> Set<Int>)?
     /// The page's current scheduling rank (lower first) for shared S3 recognizer handles.
     var recognitionRank: @Sendable () -> Int = { 0 }
+    /// Whether the page is visible now: its tail skips the back slot when S5 changed nothing
+    /// S6-S8 read (S9/S10 only, ~5 ms, on buffers it already holds).
+    var isForeground: @Sendable () -> Bool = { false }
 }
 
 @available(iOS 18.0, macOS 15.0, *)
@@ -191,8 +194,15 @@ enum V2Pipeline {
 
         let tailStart = DispatchTime.now().uptimeNanoseconds
         var admitted = false
-        // Nothing to erase or paint (no text, or S5 failed): the cheap rest needs no back slot.
-        if blocks.contains(where: V2Layout.isPaintable) {
+        // S8 and S6/S7 results stay valid when S5 changed nothing they read (style is read by neither check).
+        let styleReused = back.styled.map { styled in
+            styled.count == blocks.count && zip(styled, blocks).allSatisfy { styleInput($0) == styleInput($1) }
+        } ?? false
+        let paintableBlocks = blocks.filter(V2Layout.isPaintable)
+        let speculationHit = back.erased != nil && back.paintable.map(eraseInput) == paintableBlocks.map(eraseInput)
+        // Nothing to erase or paint (no text, or S5 failed), or a visible page whose S6-S8 results
+        // all stand: the cheap rest needs no back slot, so it never queues behind another page's S6/S7.
+        if !paintableBlocks.isEmpty, !(styleReused && speculationHit && hooks.isForeground()) {
             do {
                 try await hooks.acquireBack()
                 admitted = true
@@ -208,8 +218,7 @@ enum V2Pipeline {
         }
 
         // S8 result: reused when S5 changed nothing S8 reads.
-        if let styled = back.styled, styled.count == blocks.count,
-           zip(styled, blocks).allSatisfy({ styleInput($0) == styleInput($1) }) {
+        if styleReused, let styled = back.styled {
             blocks = zip(blocks, styled).map { block, measured in
                 var block = block
                 block.style = measured.style
@@ -230,7 +239,7 @@ enum V2Pipeline {
         }()
         var erased: Erased?
         if !paintable.isEmpty {
-            if let speculative = back.erased, back.paintable.map(eraseInput) == paintable.map(eraseInput) {
+            if speculationHit, let speculative = back.erased {
                 erased = speculative
             } else {
                 timings.stages[Stage.speculationMiss] = 1

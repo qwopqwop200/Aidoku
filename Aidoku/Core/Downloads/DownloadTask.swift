@@ -228,6 +228,8 @@ extension DownloadTask {
         let targetPath: URL
         /// The page's position in the chapter, one-based, which is the number it is stored under.
         let pageNumber: Int
+        /// The reader's translation cache key, when the download decodes the same page raster.
+        var cacheKey: String?
     }
 
     /// A finished page download, carrying the page it belongs to.
@@ -284,6 +286,10 @@ extension DownloadTask {
             guard !Task.isCancelled, running, downloads.first == download else { return false }
             let pageNumber = String(format: "%03d", i + 1)
             let targetPath = tmpDirectory.appendingPathComponent(pageNumber)
+            // The reader's cache key: a page read translated needs no provider call, and this one is cached for it.
+            let cacheKey = translationSettings.flatMap {
+                DownloadImageTranslator.readerCacheKey(for: page, processesPages: source.features.processesPages, settings: $0)
+            }
 
             if let urlString = page.imageURL, let url = URL(string: urlString) {
                 // add pages that require network requests to a concurrent queue
@@ -291,13 +297,14 @@ extension DownloadTask {
                     url: url,
                     context: page.context,
                     targetPath: targetPath,
-                    pageNumber: i + 1
+                    pageNumber: i + 1,
+                    cacheKey: cacheKey
                 ))
             } else {
                 currentPage += 1
                 do {
                     if let base64 = page.base64, let data = Data(base64Encoded: base64) {
-                        try await writeImage(data, to: targetPath, settings: translationSettings)
+                        try await writeImage(data, to: targetPath, settings: translationSettings, cacheKey: cacheKey)
                     } else if let text = page.text, let data = text.data(using: .utf8) {
                         guard translationSettings == nil else { throw DownloadError.pageProcessorFailed }
                         try data.write(to: targetPath.appendingPathExtension("txt"))
@@ -438,7 +445,8 @@ extension DownloadTask {
                 fileExtension = guessFileExtension(response: response, defaultValue: "png")
             }
             if let translationSettings {
-                let output = try await DownloadImageTranslator.translate(fileURL: staged, settings: translationSettings)
+                let output = try await DownloadImageTranslator.translate(fileURL: staged, settings: translationSettings,
+                                                                               cacheKey: page.cacheKey)
                 try Task.checkCancellation()
                 try output.write(to: staged, options: .atomic)
                 if output.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) { fileExtension = "png" }
@@ -452,8 +460,11 @@ extension DownloadTask {
         }
     }
 
-    private func writeImage(_ data: Data, to targetPath: URL, settings: ReaderTranslationSettings?) async throws {
-        let output = if let settings { try await DownloadImageTranslator.translate(data, settings: settings) } else { data }
+    private func writeImage(_ data: Data, to targetPath: URL, settings: ReaderTranslationSettings?,
+                            cacheKey: String? = nil) async throws {
+        let output = if let settings {
+            try await DownloadImageTranslator.translate(data, settings: settings, cacheKey: cacheKey)
+        } else { data }
         try Task.checkCancellation()
         try output.write(to: targetPath.appendingPathExtension(DownloadImageTranslator.fileExtension(for: output)), options: .atomic)
     }

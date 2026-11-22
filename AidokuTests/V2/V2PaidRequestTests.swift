@@ -56,6 +56,34 @@ struct V2PaidRequestTests {
         #expect(admitted.value)
     }
 
+    /// A visible page's tail queued after a look-ahead page gets the next free slot; look-ahead never takes the last one.
+    @Test func computeSlotsAdmitAVisibleTailBeforeQueuedLookahead() async throws {
+        let slots = V2ComputeSlots(count: 2)
+        try await slots.acquire(priority: .foreground)
+        try await slots.acquire(priority: .foreground)
+        let lookaheadAdmitted = Box(), tailAdmitted = Box()
+        let lookahead = Task {
+            try await slots.acquire(priority: .prefetch)
+            lookaheadAdmitted.set()
+        }
+        try await Task.sleep(nanoseconds: 20_000_000)
+        let tail = Task {
+            try await slots.acquire(priority: .foreground)
+            tailAdmitted.set()
+        }
+        try await Task.sleep(nanoseconds: 20_000_000)
+        slots.release()
+        try await tail.value
+        #expect(tailAdmitted.value)
+        #expect(!lookaheadAdmitted.value)
+        slots.release()
+        try await Task.sleep(nanoseconds: 20_000_000)
+        #expect(!lookaheadAdmitted.value)            // one free slot stays reserved for a visible page
+        slots.release()
+        try await lookahead.value
+        #expect(lookaheadAdmitted.value)
+    }
+
     /// Look-ahead holds at most cap - 1 provider permits, so a visible page's request starts at once.
     @Test func providerLimiterKeepsOnePermitForTheVisiblePage() async throws {
         let limiter = TranslationProviderRequestLimiter(maximumConcurrentRequests: 2, foregroundReserve: 1)

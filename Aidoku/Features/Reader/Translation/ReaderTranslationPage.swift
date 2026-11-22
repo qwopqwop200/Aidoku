@@ -110,11 +110,16 @@ extension ReaderTranslationPage {
         let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
         let key = ReaderTranslationV2Service.cacheKey(page: sourcePage.translationCacheKey, crop: crop, settings: settings)
         if v2Identity == key, v2Source === image {
-            if isPresentingV2 { cachedOverlay?.setPresentationHidden(!settings.overlay.visible) }
+            if isPresentingV2 {
+                cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
+                // Already translated when it became visible (cache or look-ahead): no wait.
+                ReaderTranslationDiagnostics.record("v2_visible_ready", page: sourcePage.index + 1, elapsedMilliseconds: 0, outcome: 2)
+            }
             return
         }
         begin(key: key, source: image)
         let issued = generation
+        let visibleStart = ProcessInfo.processInfo.systemUptime
         v2Task = Task { [weak self] in
             do {
                 let pixels = await Task.detached(priority: .userInitiated) {
@@ -130,7 +135,14 @@ extension ReaderTranslationPage {
                 if let timings = output.timings {
                     ReaderTranslationDiagnostics.record("v2_page", page: sourcePage.index + 1,
                         elapsedMilliseconds: timings.stages[V2Pipeline.Stage.nonLLM])
+                    for (stage, ms) in timings.stages {
+                        ReaderTranslationDiagnostics.record("v2s_" + stage, page: sourcePage.index + 1, elapsedMilliseconds: ms)
+                    }
                 }
+                // Visible request to presented bitmap: the wait a reader actually sees (0 work = cache/look-ahead join).
+                ReaderTranslationDiagnostics.record("v2_visible_ready", page: sourcePage.index + 1,
+                    elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - visibleStart) * 1000,
+                    outcome: output.timings == nil ? 1 : 0)
                 displayV2(UIImage(cgImage: output.image, scale: image.scale, orientation: .up), source: image, settings: settings)
                 onPresented()
             } catch {

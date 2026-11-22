@@ -48,10 +48,15 @@ private actor NativeCoreMLDetectorModelPredictor {
         if load == nil {
             let asset = self.asset
             load = Task {
-                // Both the device and the simulator run the Manga graph on CPU and GPU: its dynamic
-                // padding produces nonfinite source cells on the simulator CPU backend.
+                // The stem max-pool pads with 0 (not -inf, which the CPU backend turned into nonfinite
+                // cells), so devices run the graph on CPU: about 4x faster than GPU. The Mac host and the
+                // simulator stay on CPU and GPU, which keeps replay output byte-identical.
                 let configuration = MLModelConfiguration()
+                #if os(iOS) && !targetEnvironment(simulator)
+                configuration.computeUnits = .cpuOnly
+                #else
                 configuration.computeUnits = .cpuAndGPU
+                #endif
                 configuration.modelDisplayName = "PP-OCRv6 Dynamic"
                 configuration.optimizationHints.reshapeFrequency = .frequent
                 configuration.optimizationHints.specializationStrategy = .fastPrediction

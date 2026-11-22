@@ -2,9 +2,9 @@ import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
 
-// S7: AOT-GAN 1024 FP16 restoration of the S6 removal mask, one prediction per page. Mask regions
-// are packed as a mosaic into the 1024 canvas (native resolution when they fit), and the bilinear
-// upsampled prediction is written only at mask pixels; every other pixel is unchanged.
+// S7: AOT-GAN 1024 FP16 restoration of the S6 removal mask, one prediction per page. The whole page
+// is fitted into the 1024 canvas (global context keeps fills natural), and the bilinear upsampled
+// prediction is written only at mask pixels; every other pixel is unchanged.
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2AOTModel: @unchecked Sendable {
@@ -27,6 +27,9 @@ final class V2AOTModel: @unchecked Sendable {
         let configuration = MLModelConfiguration()
 #if targetEnvironment(simulator)
         configuration.computeUnits = .cpuOnly
+#elseif os(iOS)
+        // iPhone Neural Engine: 3.3x the GPU (332 vs 1098 ms per page), drift confined to erased pixels.
+        configuration.computeUnits = .cpuAndNeuralEngine
 #else
         configuration.computeUnits = .cpuAndGPU
 #endif
@@ -45,25 +48,19 @@ final class V2AOTModel: @unchecked Sendable {
         guard removal.count == raster.width * raster.height else { throw Failure.maskSize }
         let width = raster.width, height = raster.height
         var data = raster.rgba.withUnsafeBytes { Data($0) }
-        let patches = Self.mosaic(removal, width: width, height: height)
-        guard let first = patches.first else { return try V2PageRaster.image(data, width: width, height: height) }
-        // The single unpacked patch at the origin needs no `pad` border.
-        let pad = first.origin == (0, 0) ? 0 : Self.pad
-        let cw = patches.map { $0.origin.0 + $0.size.0 }.max()! + pad
-        let ch = patches.map { $0.origin.1 + $0.size.1 }.max()! + pad
+        guard let patch = Self.wholePage(removal, width: width, height: height) else {
+            return try V2PageRaster.image(data, width: width, height: height)
+        }
+        let cw = patch.size.0, ch = patch.size.1
         var canvas = [UInt8](repeating: 255, count: cw * ch * 4)
         var canvasMask = [UInt8](repeating: 0, count: cw * ch)
-        for patch in patches {
-            Self.downscale(raster.rgba, mask: removal, width: width, patch: patch, pad: pad,
-                           into: &canvas, canvasMask: &canvasMask, canvasWidth: cw)
-        }
+        Self.downscale(raster.rgba, mask: removal, width: width, patch: patch, pad: 0,
+                       into: &canvas, canvasMask: &canvasMask, canvasWidth: cw)
         let content = try predict(rgba: canvas, removal: canvasMask, width: cw, height: ch)
         guard content == (cw, ch) else { throw Failure.modelContract }
         try data.withUnsafeMutableBytes { bytes in
-            for patch in patches {
-                try Self.scatter(into: bytes.bindMemory(to: UInt8.self), mask: removal, width: width, height: height,
-                                 raw: output, content: patch.size, region: patch.rect, origin: patch.origin)
-            }
+            try Self.scatter(into: bytes.bindMemory(to: UInt8.self), mask: removal, width: width, height: height,
+                             raw: output, content: patch.size, region: patch.rect, origin: patch.origin)
         }
         return try V2PageRaster.image(data, width: width, height: height)
     }
@@ -75,9 +72,6 @@ final class V2AOTModel: @unchecked Sendable {
         var size: (Int, Int)
     }
 
-    /// Context margins tried, widest first, and the replicated border around each packed patch.
-    static let margins = [384, 256, 160, 96, 64]
-    static let pad = 16
 
     /// Integer-area downscale of `patch.rect` into the canvas (any-hit mask), edges replicated `pad` px.
     static func downscale(_ rgba: [UInt8], mask: [UInt8], width: Int, patch: Patch, pad: Int,
@@ -135,78 +129,12 @@ final class V2AOTModel: @unchecked Sendable {
         }
     }
 
-    /// Merged 16-px mask cells plus a context margin, shelf-packed into one model side at native
-    /// resolution (widest margin that fits), else at the largest 0.9-step scale, else the union.
-    static func mosaic(_ mask: [UInt8], width: Int, height: Int) -> [Patch] {
-        let cell = 16
-        let columns = (width + cell - 1) / cell, rows = (height + cell - 1) / cell
-        var occupied: [Int] = []
-        var seen = [Bool](repeating: false, count: columns * rows)
-        // Same discovery order as a per-pixel scan: zero 8-byte words are skipped, and the rest of a
-        // cell is skipped once it is seen.
-        mask.withUnsafeBytes { bytes in
-            for y in 0..<height {
-                let row = y * width, cellRow = (y / cell) * columns
-                var x = 0
-                while x < width {
-                    if x + 8 <= width && bytes.loadUnaligned(fromByteOffset: row + x, as: UInt64.self) == 0 {
-                        x += 8
-                        continue
-                    }
-                    let c = cellRow + x / cell
-                    if seen[c] {
-                        x = (x / cell + 1) * cell
-                    } else if bytes[row + x] != 0 {
-                        seen[c] = true
-                        occupied.append(c)
-                        x = (x / cell + 1) * cell
-                    } else {
-                        x += 1
-                    }
-                }
-            }
-        }
-        guard !occupied.isEmpty else { return [] }
-        func merged(_ margin: Int) -> [(Int, Int, Int, Int)] {
-            var merged: [(Int, Int, Int, Int)] = []
-            for c in occupied {
-                let x = (c % columns) * cell, y = (c / columns) * cell
-                var r = (max(0, x - margin), max(0, y - margin), min(width, x + cell + margin), min(height, y + cell + margin))
-                while let i = merged.firstIndex(where: { r.0 < $0.2 && $0.0 < r.2 && r.1 < $0.3 && $0.1 < r.3 }) {
-                    let m = merged.remove(at: i)
-                    r = (min(m.0, r.0), min(m.1, r.1), max(m.2, r.2), max(m.3, r.3))
-                }
-                merged.append(r)
-            }
-            return merged
-        }
-        func size(_ r: (Int, Int, Int, Int), _ scale: Double) -> (Int, Int) {
-            (min(side, max(1, Int(ceil(Double(r.2 - r.0) * scale)))), min(side, max(1, Int(ceil(Double(r.3 - r.1) * scale)))))
-        }
-        func pack(_ rects: [(Int, Int, Int, Int)], _ scale: Double) -> [Patch]? {
-            var patches: [Patch] = []
-            var x = 0, y = 0, shelf = 0
-            for r in rects.sorted(by: { $0.3 - $0.1 > $1.3 - $1.1 }) {
-                let s = size(r, scale), w = s.0 + 2 * pad, h = s.1 + 2 * pad
-                if x + w > side { x = 0; y += shelf; shelf = 0 }
-                guard y + h <= side, w <= side else { return nil }
-                patches.append(Patch(rect: r, origin: (x + pad, y + pad), size: s))
-                x += w; shelf = max(shelf, h)
-            }
-            return patches
-        }
-        for margin in margins {
-            if let patches = pack(merged(margin), 1) { return patches }
-        }
-        let rects = merged(margins.last!)
-        let union = rects.dropFirst().reduce(rects[0]) { (min($0.0, $1.0), min($0.1, $1.1), max($0.2, $1.2), max($0.3, $1.3)) }
-        let unionScale = min(1, Double(side) / Double(max(union.2 - union.0, union.3 - union.1)))
-        var scale = 0.9
-        while scale > unionScale && rects.count > 1 {
-            if let patches = pack(rects, scale) { return patches }
-            scale *= 0.9
-        }
-        return [Patch(rect: union, origin: (0, 0), size: size(union, unionScale))]
+    /// The whole page at the largest scale that fits the model side, or nil for an empty mask.
+    static func wholePage(_ mask: [UInt8], width: Int, height: Int) -> Patch? {
+        guard mask.contains(where: { $0 != 0 }) else { return nil }
+        let scale = min(1, Double(side) / Double(max(width, height)))
+        return Patch(rect: (0, 0, width, height), origin: (0, 0),
+                     size: (min(side, max(1, Int(ceil(Double(width) * scale)))), min(side, max(1, Int(ceil(Double(height) * scale))))))
     }
 
     /// Fill + prediction into `output`. Returns the content size.

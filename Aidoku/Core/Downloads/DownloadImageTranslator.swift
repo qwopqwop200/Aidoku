@@ -13,16 +13,35 @@ enum DownloadImageTranslator {
         max(2, V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests) - 1)
     }
 
-    static func translate(_ data: Data, settings: ReaderTranslationSettings) async throws -> Data {
+    /// The reader's V2 cache key for `page` (whole page), when the reader translates the same raster:
+    /// no reader image processors or source page processing, a remote URL or base64 page, and not a
+    /// temporary shared-image session (never persisted). Nil translates without the cache.
+    nonisolated static func readerCacheKey(
+        for page: Page, processesPages: Bool, settings: ReaderTranslationSettings, defaults: UserDefaults = .standard
+    ) -> String? {
+        guard #available(iOS 18.0, *), !processesPages, page.image == nil, page.zipURL == nil,
+              !page.sourceId.hasPrefix(TemporarySharedImageSession.sourcePrefix),
+              !["Reader.cropBorders", "Reader.downsampleImages", "Reader.upscaleImages"].contains(where: defaults.bool(forKey:))
+        else { return nil }
+        if let address = page.imageURL {
+            guard let url = URL(string: address), !url.isFileURL else { return nil }
+        } else if page.base64 == nil {
+            return nil
+        }
+        return ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: ReaderTranslationSplitGeometry.unit,
+                                                   settings: settings)
+    }
+
+    static func translate(_ data: Data, settings: ReaderTranslationSettings, cacheKey: String? = nil) async throws -> Data {
         await pipelineGate.setMaximumConcurrentRequests(pipelineWidth(settings: settings))
         let output = try await pipelineGate.withPermit(priority: .prefetch) {
-            try await translateAdmitted(data, settings: settings)
+            try await translateAdmitted(data, settings: settings, cacheKey: cacheKey)
         }
         return try await encode(output)
     }
 
     /// Waiting downloads hold only file URLs; bytes are read after admission.
-    static func translate(fileURL url: URL, settings: ReaderTranslationSettings) async throws -> Data {
+    static func translate(fileURL url: URL, settings: ReaderTranslationSettings, cacheKey: String? = nil) async throws -> Data {
         await pipelineGate.setMaximumConcurrentRequests(pipelineWidth(settings: settings))
         let output = try await pipelineGate.withPermit(priority: .prefetch) {
             try Task.checkCancellation()
@@ -36,18 +55,25 @@ enum DownloadImageTranslator {
                 try await reading.value
             } onCancel: { reading.cancel() }
             try Task.checkCancellation()
-            return try await translateAdmitted(data, settings: settings)
+            return try await translateAdmitted(data, settings: settings, cacheKey: cacheKey)
         }
         return try await encode(output)
     }
 
-    /// The V2 page pipeline: the rendered page needs no reader host or overlay renderer.
-    private nonisolated static func translateAdmitted(_ data: Data, settings: ReaderTranslationSettings) async throws -> CGImage {
+    /// The V2 page pipeline: the rendered page needs no reader host or overlay renderer. With the
+    /// reader's key, stored translations are replayed (no provider call, pixels as a fresh
+    /// translation) and new results are stored for the reader.
+    private nonisolated static func translateAdmitted(
+        _ data: Data, settings: ReaderTranslationSettings, cacheKey: String?
+    ) async throws -> CGImage {
         guard #available(iOS 18.0, *) else { throw ReaderTranslationImageExporter.ExportError.unavailable }
+        // An over-cap page is decoded differently by the reader (Nuke) and here: never share its rows.
+        let key = ImagePixelCap.pixelSize(of: data).map { ImagePixelCap.exceeds(width: $0.width, height: $0.height) } == false
+            ? cacheKey : nil
         let image = try await decode(data)
         guard let pixels = image.cgImage else { throw ReaderTranslationImageExporter.ExportError.unavailable }
         let output = try await ReaderTranslationV2Service.shared.translatePage(
-            pixels, cacheKey: nil, settings: settings, priority: .prefetch)
+            pixels, cacheKey: key, settings: settings, priority: .prefetch, reusesImage: false)
         try Task.checkCancellation()
         return output.image
     }

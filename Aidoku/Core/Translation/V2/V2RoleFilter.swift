@@ -18,6 +18,21 @@ enum V2RoleFilter {
     static let fragmentConfidence: Float = 0.6
     static let fragmentCharacters = 4
 
+    /// Paint precision rule (CV-fit on train folds against GT text regions): SFX keeps its source
+    /// pixels unless quoted or at least `sfxSpeechLetters` letters long (speech the LLM over-flags),
+    /// and so does text without kana/kanji of 1...`latinLetters` letters (page numbers, art labels).
+    static let sfxSpeechLetters = 16
+    static let latinLetters = 8
+
+    static func keepsSource(_ block: V2Block) -> Bool {
+        let text = block.sourceText
+        let letters = text.filter { $0.isLetter || $0.isNumber }.count
+        if block.role == .sfx, letters < sfxSpeechLetters, !text.contains(where: "「」『』".contains) { return true }
+        return (1...latinLetters).contains(letters) && !text.unicodeScalars.contains {
+            V2ReplyText.isKana($0) || (0x3400...0x9FFF).contains($0.value)
+        }
+    }
+
     static func classify(_ blocks: [V2Block], layout: [V2LayoutRegion]) -> [V2Block] {
         blocks.map { block in
             var result = block

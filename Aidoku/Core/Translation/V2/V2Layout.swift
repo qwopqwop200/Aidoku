@@ -163,7 +163,7 @@ enum V2Layout {
     }
 
     static func isPaintable(_ block: V2Block) -> Bool {
-        guard block.role != .background, let text = block.translation else { return false }
+        guard block.role != .background, !V2RoleFilter.keepsSource(block), let text = block.translation else { return false }
         // As painted: markup-only text ("<br>", zero-width space) would erase the source and paint nothing.
         return !displayText(text).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
