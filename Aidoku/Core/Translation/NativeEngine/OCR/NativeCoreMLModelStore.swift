@@ -104,8 +104,8 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         return published
     }
 
-    /// Run on a utility task at launch, before OCR. All production model loads
-    /// use this same lock, so cleanup cannot race a bundled-model load.
+    /// Run on a utility task at launch. Detector model publication uses this
+    /// same lock, so cleanup cannot race it.
     func reclaimLegacyExecutionCache() {
         lock.lock()
         defer { lock.unlock() }

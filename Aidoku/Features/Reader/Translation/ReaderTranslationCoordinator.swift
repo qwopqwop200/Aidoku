@@ -47,7 +47,7 @@ struct ReaderTranslationNavigationDebounce {
 }
 
 /// Reader page translation: every visible page renders through
-/// `ReaderTranslationV2Service` (see Docs/translation-v2.md), and the next
+/// `ReaderTranslationV2Service`, and the next
 /// pages are pre-translated into the V2 caches.
 @MainActor
 final class ReaderTranslationCoordinator {
@@ -394,8 +394,9 @@ final class ReaderTranslationCoordinator {
 
 extension ReaderTranslationCoordinator {
     /// One page after the viewport while visible pages are pending, two once they are presented
-    /// (or in background-only mode), bounded by the pretranslation limit. A page that becomes
-    /// visible joins its running computation. Wide pages shown as halves are translated per half.
+    /// (or in background-only mode), plus the performance profile's extra pages, bounded by the
+    /// pretranslation limit. A page that becomes visible joins its running computation. Wide
+    /// pages shown as halves are translated per half.
     private func updateV2Lookahead() {
         guard #available(iOS 18.0, *), let owner, isVisible, owner.translationPersistsCache else {
             cancelV2Lookahead()

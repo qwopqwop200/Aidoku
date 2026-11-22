@@ -1,5 +1,3 @@
-// OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
-
 /// One translated segment, identified by the exact cache key of its request. The
 /// whole ordered batch is part of the identity: neighbors can change a translation.
 struct NativeTranslationReuseIdentity: Hashable, Sendable {

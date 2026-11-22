@@ -4,7 +4,7 @@ import ImageIO
 import UIKit
 import UniformTypeIdentifiers
 
-/// App-side owner of the V2 page pipeline (Docs/translation-v2.md): iOS resource
+/// App-side owner of the V2 page pipeline: iOS resource
 /// policy, the live provider call, page admission and the durable cache.
 @available(iOS 18.0, *)
 actor ReaderTranslationV2Service {
@@ -550,11 +550,11 @@ struct V2PerformanceProfile: Equatable, Sendable {
     var minimumHeadroom: UInt64
     var decodeWorkingMultiplier: UInt64
     var decodeReserve: UInt64
-    /// Finished-page LRU: max(minimum, min(maximum, spare / divisor)).
+    /// Finished-page LRU: max(minimum, min(maximum, spare / divisor + current / divisor)).
     var pageCacheMinimumBytes: Int
     var pageCacheMaximumBytes: Int
     var pageCacheSpareDivisor: Int
-    /// V2 compute slots before (S1-S4) and after (S6-S10) the provider call.
+    /// V2 compute slots for S1-S4 (front) and S6-S10 (back); S6-S8 overlap the provider call.
     var frontSlots: Int
     var backSlots: Int
     /// Pages added to the reader's automatic look-ahead count.

@@ -484,6 +484,9 @@
 "UPSCALING_MODELS" = "업스케일링 모델";
 "UPSCALE_MAX_IMAGE_HEIGHT" = "최대 이미지 높이";
 "UPSCALE_MAX_IMAGE_HEIGHT_TEXT" = "최대 이미지 높이를 초과하는 이미지는 업스케일되지 않습니다.";
+"UPSCALE_QUALITY" = "업스케일 품질";
+"UPSCALE_QUALITY_BEST" = "최고 품질";
+"UPSCALE_QUALITY_FAST" = "빠름";
 "ENABLED_MODEL" = "활성화된 모델";
 "AVAILABLE_MODELS" = "사용할 수 있는 모델";
 "NO_AVAILABLE_MODELS" = "사용할 수 있는 모델 없음";
@@ -546,7 +549,6 @@
 "TRANSLATION_AUTO" = "자동 감지";
 "TRANSLATION_CLEAR_CACHE" = "번역 캐시 지우기";
 "TRANSLATION_CACHE_CLEARED" = "번역 캐시를 지웠습니다.";
-"TRANSLATION_NOTICES" = "OCR 및 번역 라이선스";
 "TRANSLATION_ADVANCED" = "번역 옵션";
 "TRANSLATION_REASONING" = "추론 강도";
 "TRANSLATION_MODEL_DEFAULT" = "모델 기본값";

@@ -892,7 +892,6 @@
 "TRANSLATION_AUTO" = "Detect Automatically";
 "TRANSLATION_CLEAR_CACHE" = "Clear Translation Cache";
 "TRANSLATION_CACHE_CLEARED" = "Translation cache cleared.";
-"TRANSLATION_NOTICES" = "OCR & Translation Licenses";
 "TRANSLATION_ADVANCED" = "Translation Options";
 "TRANSLATION_REASONING" = "Reasoning Effort";
 "TRANSLATION_MODEL_DEFAULT" = "Model Default";

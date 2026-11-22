@@ -1,5 +1,5 @@
 #!/usr/bin/env swift
-// macOS launcher for the V2 page-translation host (Docs/translation-v2.md).
+// macOS launcher for the V2 page-translation host.
 // Compiles Aidoku/Core/Translation/V2, its explicit production compile closure and
 // Scripts/image-translation-v2 into one incremental binary, then forwards the CLI
 // arguments. Usage: swift Scripts/image-translation.swift --help

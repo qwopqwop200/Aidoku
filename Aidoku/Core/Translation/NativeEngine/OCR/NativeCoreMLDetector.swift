@@ -1,4 +1,3 @@
-// OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
@@ -129,7 +128,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
             try check()
             let prepared = try await NativeCoreMLDetectionPreprocessor.prepareArray(frame: frame, cancellationCheck: check)
             try check()
-            // A first call publishes and loads the model under `resourceLock`; keep that blocking
+            // A first call hashes and publishes the model copy under `resourceLock`; keep that blocking
             // work off the cooperative pool so concurrent pages cannot starve it.
             let predictor = try await Task.detached(priority: .userInitiated) { [self] in
                 try loadPredictor(cancellationCheck: check)

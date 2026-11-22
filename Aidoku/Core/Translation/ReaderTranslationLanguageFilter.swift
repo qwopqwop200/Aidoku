@@ -1,7 +1,7 @@
 import Foundation
 import NaturalLanguage
 
-/// Apply the source-language policy after raw OCR caching, before requests or overlays.
+/// Apply the source-language policy before provider requests; excluded text keeps its source.
 enum ReaderTranslationLanguageFilter {
     private static func isKana(_ scalar: Unicode.Scalar) -> Bool {
         (0x3040...0x30FF).contains(scalar.value) || (0xFF66...0xFF9D).contains(scalar.value)
@@ -56,7 +56,7 @@ enum ReaderTranslationLanguageFilter {
         let language: String
     }
 
-    /// `apply` runs when OCR is cached and again before requests.
+    /// The same text is rechecked (V2 paint prediction and request; metadata lookup and `apply`).
     private static let targetLanguageCache = LanguageDetectionLRUCache<TargetLanguageKey, Bool>(capacity: 512)
 
     private static func isConfidentlyUnmixed(_ text: String, language: String) -> Bool {

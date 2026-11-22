@@ -1,12 +1,13 @@
 import CoreGraphics
 import Foundation
 
-// V2 orchestrator for one page (see Docs/translation-v2.md):
+// V2 orchestrator for one page:
 //   decode -> S1 layout || S2 detect -> S2b assemble -> S3 recognize -> S4 group + roles
 //   -> S5 translate || (S8 style -> S6 mask -> S7 inpaint) -> S9 layout -> S10 paint
-// S8/S6/S7 do not read translations, so they run during the LLM call on the predicted
-// paint set and are recomputed when S5 paints a different set. A failed stage keeps the
-// original pixels of the blocks it affects and is reported in `V2PageResult.failure`.
+// S8/S6/S7 do not read translations, so they run during the LLM call (S8 on every S4 block,
+// S6/S7 on the predicted paint set); S6/S7 are recomputed when S5 paints a different set,
+// S8 when S5 changed a field it reads. A failed stage keeps the original pixels of the blocks
+// it affects and is reported in `V2PageResult.failure`.
 
 /// Fills `translation` (and may refine `role`): live `V2Translation.translate` or a replay.
 typealias V2Translator = @Sendable (_ page: V2Page, _ blocks: [V2Block]) async throws -> [V2Block]
@@ -130,7 +131,7 @@ enum V2Pipeline {
         front.gray = nil
         let shared = front
 
-        // S5 (LLM or replay) || S8 -> S6 -> S7 on the predicted paint set.
+        // S5 (LLM or replay) || S8 -> S6 -> S7 (S6/S7 on the predicted paint set).
         let candidates = blocks
         let predicted = hooks.predictTranslated?(candidates)
         async let overlapped = runBack(page, blocks: candidates, predicted: predicted, front: shared,
@@ -336,7 +337,7 @@ enum V2Pipeline {
     // MARK: - Shared page pixels
 
     /// Decodes the page once: for an opaque sRGB page the detector frame and the canonical
-    /// raster are the same bytes, so one buffer serves S1-S6; others pay a second conversion.
+    /// raster are the same bytes, so one buffer serves S1-S7; others pay a second conversion.
     static func decodePixels(_ image: CGImage)
         -> (raster: V2PageRaster?, frame: NativeOCRRGBAFrame?, conversions: Int) {
         let frame = NativeOCRCGImageAdapter.makeRGBAFrame(from: image)

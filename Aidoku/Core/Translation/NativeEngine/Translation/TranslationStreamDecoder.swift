@@ -1,4 +1,3 @@
-// OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 
 /// Incremental decoder for an OpenAI-compatible Chat Completions SSE body.

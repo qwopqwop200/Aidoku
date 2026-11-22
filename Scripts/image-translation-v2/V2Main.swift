@@ -5,7 +5,7 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-// Mac host entry for the V2 page-translation pipeline (Docs/translation-v2.md):
+// Mac host entry for the V2 page-translation pipeline:
 //   swift Scripts/image-translation.swift [options] <image|folder ...> [--list FILE]
 // Options and settings: Scripts/image-translation/help.txt and V2HostSettings.swift.
 // Modes: live (default; real provider through V2Translation), --replay-translations
@@ -189,7 +189,6 @@ enum V2Main {
             .appendingPathComponent("output/image-translation/run-\(UUID().uuidString)")
         let pagesDirectory = output.appendingPathComponent("pages")
         try FileManager.default.createDirectory(at: pagesDirectory, withIntermediateDirectories: true)
-        V2Layout.registerFonts(in: root.appendingPathComponent("Aidoku/Resources/Translation"))
         let replay = try settings.replay.map { try V2HostReplay(root: $0) }
         let direction = V2ReadingDirection(rawValue: settings.readingDirection) ?? .rightToLeft
 

@@ -1,4 +1,3 @@
-// OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 
 /// Immutable, tightly described RGBA pixels. Row padding is accepted but is never

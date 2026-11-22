@@ -11,15 +11,6 @@
       }
     },
     {
-      "identity" : "cocoalumberjack",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/CocoaLumberjack/CocoaLumberjack.git",
-      "state" : {
-        "revision" : "c5f2ed4d219866117e135cf648180dc7b66739d3",
-        "version" : "3.9.1"
-      }
-    },
-    {
       "identity" : "gifu",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kaishin/Gifu.git",
@@ -56,29 +47,12 @@
       }
     },
     {
-      "identity" : "svgkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SVGKit/SVGKit.git",
-      "state" : {
-        "revision" : "6002a0ff6b2d4405805395959b92b38aa24662cb"
-      }
-    },
-    {
       "identity" : "swift-cmark",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-cmark",
       "state" : {
         "revision" : "924936d0427cb25a61169739a7660230bffa6ea6",
         "version" : "0.8.0"
-      }
-    },
-    {
-      "identity" : "swift-log",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-log",
-      "state" : {
-        "revision" : "9c6fb14227f55d8f711ce3847dc2f419fb0ecacb",
-        "version" : "1.15.1"
       }
     },
     {

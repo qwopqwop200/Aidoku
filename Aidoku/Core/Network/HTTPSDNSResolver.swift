@@ -75,7 +75,7 @@ actor HTTPSDNSResolver {
         async let ipv4 = try? Self.query(host: host, type: "A", session: session)
         async let ipv6 = try? Self.query(host: host, type: "AAAA", session: session)
         let answers = await [ipv4, ipv6].compactMap { $0 }.flatMap { $0.Answer ?? [] }
-        // A disconnected tunnel can be replaced while its transport is unwinding.
+        // A cancelled lookup may already be replaced by a newer one for the same host.
         guard pending[host]?.id == id, let lookup = pending.removeValue(forKey: host) else { return }
         let addresses = Self.validAddresses(answers)
         guard !addresses.isEmpty else {

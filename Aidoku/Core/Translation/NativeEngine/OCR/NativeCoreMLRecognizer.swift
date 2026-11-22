@@ -1,4 +1,3 @@
-// OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import CoreGraphics
 @preconcurrency import CoreML
 import Foundation

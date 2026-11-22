@@ -223,7 +223,7 @@ enum V2Painter {
                 let shaped = line(text, font: font, color: color)
                 let width = CGFloat(CTLineGetTypographicBounds(shaped, nil, nil, nil))
                 let top = item.frame.minY + stroke + CGFloat(index) * lineHeight   // this line's ink top
-                // Narration starts at the frame's left edge (before the condense); other text is centred.
+                // Leading lines start at the frame's left edge (before the condense); other text is centred.
                 let x = leading ? item.frame.midX - (item.frame.width / 2 - stroke) / (item.condense ?? 1) : item.frame.midX - width / 2
                 result.append((text, CGPoint(x: x, y: top + size * V2Layout.inkAscentEm), shaped))
             }

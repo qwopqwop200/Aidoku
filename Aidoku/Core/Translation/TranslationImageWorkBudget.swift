@@ -80,7 +80,7 @@ final class TranslationImageWorkBudget: Sendable {
                 }
             } catch AdmissionError.insufficientMemory {
                 try Task.checkCancellation()
-                // Caches go first; OCR models only once caches alone were insufficient.
+                // Caches go first; V2 models only once caches alone were insufficient.
                 if !purgedModels { purgedModels = await Self.reclaimIdleResources(requiredHeadroom: required) }
                 try Task.checkCancellation()
                 // Re-enter the priority-aware gate at once after a successful reclamation.

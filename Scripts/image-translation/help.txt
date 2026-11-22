@@ -3,7 +3,7 @@ Aidoku page translation host (V2 pipeline, Apple Silicon macOS 15+)
 Usage:
   swift Scripts/image-translation.swift [options] IMAGE|FOLDER ... [--list FILE]
 
-Runs the app's V2 pipeline (Aidoku/Core/Translation/V2, Docs/translation-v2.md)
+Runs the app's V2 pipeline (Aidoku/Core/Translation/V2)
 on Mac: S1 layout || S2 detect, S3 recognize, S4 group, S5 translate,
 S6 mask, S7 inpaint, S8 style, S9 layout, S10 paint.
 
@@ -13,12 +13,14 @@ Modes (default: live)
                                (page image attached, SFX and background filtering on).
   --replay-translations DIR    S5 reads saved translations: a legacy run with
                                page-index.json, or a V2 run with pages/*.json. No LLM.
-  --ocr-only                   S1-S4 only; writes recognized blocks. No LLM, no render.
+  --ocr-only                   S1-S4 (plus the S8 style estimate); writes recognized
+                               blocks. No LLM, no render.
 
 Inputs
   IMAGE|FOLDER                 images or folders (non-recursive; png/jpg/webp/heic/...)
   --list FILE                  JSON array of paths or {"page_id","image_path"} objects,
-                               or a text file with one path per line (relative to FILE)
+                               or a text file with one path per line (relative paths
+                               resolve against FILE's folder)
   --split dev|train|test       pages of the canonical grouped-source split
                                (test: run once at the end, never for selection)
   --manifest FILE              split manifest (default: the canonical manifest)
@@ -35,14 +37,14 @@ Output
   --print-settings             print the resolved non-secret settings and exit
   Writes DIR/pages/<page>.json (blocks, lines, placement, timings, failure),
   DIR/pages/<page>.png (final page; not in --ocr-only) and DIR/summary.json.
-  Exit status: 0 all pages finished, 1 a page failed, 2 invalid settings.
+  Exit status: 0 all pages finished, 1 a page failed, 2 invalid settings or another error.
 
 Provider (live mode)
   --base-url URL               AIDOKU_TRANSLATION_BASE_URL
   --model NAME                 AIDOKU_TRANSLATION_MODEL
   --protocol P                 responses | chatCompletions (AIDOKU_TRANSLATION_PROTOCOL;
                                default chatCompletions)
-  --reasoning R                modelDefault|none|minimal|low|medium|high
+  --reasoning R                modelDefault|none|minimal|low|medium|high|xhigh|max
                                (AIDOKU_TRANSLATION_REASONING)
   --timeout SECONDS            AIDOKU_TRANSLATION_TIMEOUT (default 60)
   --source LANG                auto|ja|zh-Hans|zh-Hant (AIDOKU_TRANSLATION_SOURCE; default auto)

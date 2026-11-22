@@ -1,4 +1,3 @@
-// OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 
 protocol RemoteTranslating: Sendable {

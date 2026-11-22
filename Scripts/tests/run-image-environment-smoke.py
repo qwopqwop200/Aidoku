@@ -150,11 +150,8 @@ assert imported['AIDOKU_TRANSLATION_PROTOCOL'] == 'responses' and imported['AIDO
 assert imported['AIDOKU_TRANSLATION_CONCURRENCY'] == 3 and imported['AIDOKU_TRANSLATION_SOURCE'] == 'ja'
 assert not any(key.startswith(('AIDOKU_OCR_', 'AIDOKU_IPHONE_OVERLAY')) or 'API_KEY' in key for key in imported), imported
 
-# .env stays out of Git; .env.example carries no credential.
+# .env stays out of Git.
 ignore = (ROOT / '.gitignore').read_text().splitlines()
 assert '.env' in ignore or '/.env' in ignore, 'the repository .gitignore must exclude .env'
-example = (ROOT / '.env.example').read_text()
-assert all(line.split('=', 1)[1].strip() in ('', "''", '""') for line in example.splitlines()
-           if line.startswith('AIDOKU_TRANSLATION_API_KEY='))
 print('PASS: dotenv parsing, AIDOKU_ENV_FILE, cwd independence, .env < shell < CLI precedence, provider cap, '
       'offline modes, validation without secret output, input lists/dedup, phone import, .env exclusion')

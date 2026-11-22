@@ -2,11 +2,10 @@ import CoreGraphics
 import CoreText
 import Foundation
 
-// S9 (Docs/translation-v2.md): per block, binary-search the largest size whose wrapped text fits
+// S9: per block, binary-search the largest size whose wrapped text fits
 // the balloon interior (else the block bounds plus a margin); below the floor the box grows, then
 // the text may overflow it (clamped to the page). Words are shaped once, so fit probes are arithmetic.
 enum V2Layout {
-    static let fontNames = ["AidokuSerifKR-Regular", "AidokuSerifKR-Bold"]
     /// Smallest size the fit search may choose before the box is allowed to grow.
     static let floorPixels: CGFloat = 10
     /// Fit-search cap relative to the source lettering size (legacy hold: 1.05x in a balloon).
@@ -171,20 +170,6 @@ enum V2Layout {
     struct FontMetrics: Sendable {
         let ascent: CGFloat
         let descent: CGFloat
-    }
-
-    private static func registered(_ name: String) -> Bool {
-        CTFontCopyPostScriptName(CTFontCreateWithName(name as CFString, 12, nil)) as String == name
-    }
-
-    /// Registers the bundled faces from an explicit folder (host harness).
-    @discardableResult
-    static func registerFonts(in folder: URL) -> Bool {
-        fontNames.allSatisfy { name in
-            if registered(name) { return true }
-            _ = CTFontManagerRegisterFontsForURL(folder.appendingPathComponent("\(name).woff2") as CFURL, .process, nil)
-            return registered(name)
-        }
     }
 
     static let referenceSize: CGFloat = 100

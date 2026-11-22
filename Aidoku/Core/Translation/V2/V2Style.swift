@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-// S8 (Docs/translation-v2.md): model-free style per block on a bounded crop. Font px is a geometric
+// S8: model-free style per block on a bounded crop. Font px is a geometric
 // rule with grouping; the fill is the k-means colour candidate that TRAIN-fit boosted trees
 // (V2StyleParameters) pick; the outline comes from colour rings around the fill mask.
 
@@ -496,7 +496,8 @@ enum V2StyleEstimator {
     static let enclosedExteriorMinimum = 0.3
 
     /// Candidate j < k: cluster j pixels within 2 working px of the line polygons;
-    /// candidate k + j: the same minus pixels connected to the surroundings.
+    /// candidate k + j: the same minus pixels connected to the surroundings; candidate 2k + j:
+    /// interior re-cluster j.
     static func candidateMask(_ crop: Crop, candidate: Int) -> [Bool] {
         let n = crop.width * crop.height
         if candidate >= 2 * clusterCount {
@@ -763,7 +764,7 @@ enum V2StyleEstimator {
     }
 }
 
-// MARK: - Decisions (TRAIN-fit trees/constants in V2StyleParameters.swift)
+// MARK: - Decisions (TRAIN-fit trees/constants in V2StyleParameters, V2Weights.swift)
 
 /// Flattened gradient-boosted trees (sklearn GradientBoostingClassifier export).
 struct V2StyleForest: Sendable {

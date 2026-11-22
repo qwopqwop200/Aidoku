@@ -24,7 +24,6 @@ struct ReaderTranslationSettingsView: View {
             providerSection
             translationOptionsSection
             cacheSection
-            aboutSection
         }
         .navigationTitle(NSLocalizedString("TRANSLATION_TITLE"))
         .navigationBarTitleDisplayMode(.inline)
@@ -135,17 +134,6 @@ struct ReaderTranslationSettingsView: View {
             }
         } header: {
             Text(NSLocalizedString("TRANSLATION_ADVANCED"))
-        }
-    }
-
-    private var aboutSection: some View {
-        Section(NSLocalizedString("ABOUT")) {
-            NavigationLink(NSLocalizedString("TRANSLATION_NOTICES")) {
-                ScrollView {
-                    Text(notices).font(.footnote).textSelection(.enabled).padding()
-                }
-                .navigationTitle(NSLocalizedString("TRANSLATION_NOTICES"))
-            }
         }
     }
 
@@ -321,13 +309,6 @@ struct ReaderTranslationSettingsView: View {
         let testedSettings = settings
         publishPendingChange()
         connectionTest.start(settings: testedSettings, apiKey: "")
-    }
-
-    private var notices: String {
-        guard let url = Bundle.main.url(forResource: "OCR-TRANSLATION-NOTICES", withExtension: "txt") else {
-            return "OCR and translation engine (MIT), PaddleOCR (Apache 2.0)"
-        }
-        return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
 
     // Persist in the binding setter, including edits made in pushed filter views.

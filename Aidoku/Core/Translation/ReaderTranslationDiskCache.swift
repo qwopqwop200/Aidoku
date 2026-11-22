@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 import SQLite3
 
-/// Durable, byte-bounded LRU for OCR, translations and layout instructions.
+/// Durable, byte-bounded LRU for page translations, metadata and rendered page images.
 /// File I/O, metadata decoding and eviction run on this actor, never on UIKit.
 actor ReaderTranslationDiskCache {
     enum Kind: String, CaseIterable, Sendable { case ocr, translation, metadata, layout, snapshot }

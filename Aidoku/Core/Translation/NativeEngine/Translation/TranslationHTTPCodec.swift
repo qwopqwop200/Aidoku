@@ -1,4 +1,3 @@
-// OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
 
 enum TranslationHTTPCodec {
@@ -549,8 +548,8 @@ enum TranslationHTTPCodec {
 
 extension TranslationHTTPCodec {
     /// Decodes JSON escapes a model double-encoded into literal text ("\\uae68" -> "깨", "\\n" -> newline).
-    /// Only a single backslash escapes; `\u` must name a visible non-ASCII scalar, `\n` must not continue
-    /// an ASCII word, and an escape the source itself contains is kept.
+    /// Only a single backslash escapes; `\u` must name a visible non-ASCII scalar, `\n` must not be followed
+    /// by an ASCII letter or digit, and an escape the source itself contains is kept.
     static func decodingLeakedEscapes(in text: String, source: String? = nil) -> String {
         guard text.contains("\\") else { return text }
         let scalars = Array(text.unicodeScalars)

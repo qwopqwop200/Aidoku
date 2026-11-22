@@ -1,5 +1,3 @@
-// OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
-
 struct NativeTranslationBatchCandidate: Hashable, Sendable {
     let inputIndex: Int
     let segment: RemoteTranslationSegment

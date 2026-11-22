@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-// Plain values shared by the V2 stages (contracts: Docs/translation-v2.md).
+// Plain values shared by the V2 stages.
 
 /// One input page in original-image pixel coordinates (top-left origin).
 struct V2Page: Sendable {

@@ -6,7 +6,7 @@ import Foundation
 // 1. Key: orientation and bold (colour and S8 outline presence are too noisy).
 // 2. Snap: within a key, sources within 1.08x of a band's first value take the band median.
 // 3. Families: same key, chained while max/min <= 1.22, >= 2 members; a lone block joins the
-//    nearest family of its key within 1.08x. Members share the cap median source x cap ratio.
+//    nearest family of its key within 1.08x. Members share the cap median source x largest cap ratio.
 // 4. After the fits, a family takes the largest cap step (1 ... 0.65, >= 12 px) every member
 //    reached (members below the last step keep their fit); the page takes the smallest family
 //    step, and a lower re-fit pulls its family down. Members only shrink.

@@ -201,7 +201,7 @@ enum V2Interior {
     }
 
     /// Balloon lobes: the paper connected to the source is split at its distance cores; the lobe
-    /// holding >= 70% of the source yields the widest centred rectangle inscribed in its rows.
+    /// holding >= 70% of the source yields the largest centred rectangle inscribed in its rows.
     static func lobeRect(_ box: Box, source: Box, dirty: (Int, Int) -> Bool) -> Box? {
         let w = box.x1 - box.x0, h = box.y1 - box.y0
         guard w > 4, h > 4 else { return nil }

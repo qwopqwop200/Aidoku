@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-        A1D0C0000000000000000030 /* SVGKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1D0C0000000000000000031 /* SVGKit */; };
 		EE7A41CB2F5CF7710044AF4C /* CHoshiDicts in Frameworks */ = {isa = PBXBuildFile; productRef = EE7A41CA2F5CF7710044AF4C /* CHoshiDicts */; };
 		FB17114B296770CC00AD523D /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = FB17114A296770CC00AD523D /* NukeUI */; };
 		FB2C83992E43F074003CA85F /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = FB2C83982E43F074003CA85F /* SwiftSoup */; };
@@ -69,7 +68,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-                A1D0C0000000000000000030 /* SVGKit in Frameworks */,
 				FB17114B296770CC00AD523D /* NukeUI in Frameworks */,
 				FB662EDE2DA816CF00007514 /* MarkdownUI in Frameworks */,
 				FB3737D12D17458400AB1551 /* AidokuRunner in Frameworks */,
@@ -159,7 +157,6 @@
 			);
 			name = Aidoku;
 			packageProductDependencies = (
-                A1D0C0000000000000000031 /* SVGKit */,
 				FB7B7ED7278CE949001E6EAF /* ZIPFoundation */,
 				FB17114A296770CC00AD523D /* NukeUI */,
 				FBE53F0B29CC015E00899601 /* AsyncDisplayKit */,
@@ -269,7 +266,6 @@
 			);
 			mainGroup = FB1B4825277CE18D0056D02C;
 			packageReferences = (
-                A1D0C0000000000000000032 /* SVGKit */,
 				FB7B7ED6278CE949001E6EAF /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */,
 				FBE53F0A29CC015E00899601 /* XCRemoteSwiftPackageReference "Texture" */,
@@ -708,11 +704,6 @@
 				kind = branch;
 			};
 		};
-        A1D0C0000000000000000032 /* SVGKit */ = {
-            isa = XCRemoteSwiftPackageReference;
-            repositoryURL = "https://github.com/SVGKit/SVGKit.git";
-            requirement = { kind = revision; revision = 6002a0ff6b2d4405805395959b92b38aa24662cb; };
-        };
 		FB2C83972E43F074003CA85F /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/scinfu/SwiftSoup";
@@ -772,11 +763,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-        A1D0C0000000000000000031 /* SVGKit */ = {
-            isa = XCSwiftPackageProductDependency;
-            package = A1D0C0000000000000000032 /* SVGKit */;
-            productName = SVGKit;
-        };
 		EE7A41CA2F5CF7710044AF4C /* CHoshiDicts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = EE7A41EF2F5D20000044AF4C /* XCRemoteSwiftPackageReference "hoshidicts" */;
