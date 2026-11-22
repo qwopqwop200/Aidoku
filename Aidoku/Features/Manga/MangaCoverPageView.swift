@@ -59,7 +59,7 @@ struct MangaCoverPageView: View {
                         Button {
                             showImagePicker = true
                         } label: {
-                            Text(NSLocalizedString("CHOOSE_CUSTOM_COVER"))
+                            Text(NSLocalizedString("UPLOAD_CUSTOM_COVER"))
                         }
                         .buttonStyle(.bordered)
 

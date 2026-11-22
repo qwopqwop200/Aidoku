@@ -57,7 +57,6 @@
 "DOWNLOADED_CHAPTERS" = "Downloaded Chapters";
 "DOWNLOAD_INCOMPLETE" = "Incomplete Download";
 "TOTAL_DOWNLOADS" = "Total Downloads";
-"DOWNLOAD_STORAGE_USED" = "Download Storage Used";
 "%i_SERIES" = "%i series";
 "IN_LIBRARY" = "In Library";
 "VIEW_SERIES" = "View Series";
@@ -89,7 +88,7 @@
 "AND_MORE" = "and more";
 "NOT_%@" = "Not %@";
 "FILTER_SEPARATOR" = ", ";
-"IS_TRACKING" = "Tracked";
+"IS_TRACKING" = "Tracking";
 "FILTER_HAS_UNREAD" = "Unread";
 "FILTER_STARTED" = "Started";
 "ASCENDING" = "Ascending";
@@ -109,9 +108,9 @@
 "PROCESSING_ENTRIES" = "Processing Entries…";
 "REFRESH_NO_WIFI" = "Not Connected to Wi-Fi";
 "REFRESH_NO_WIFI_TEXT" = "The \"Only Update on Wi-Fi\" setting is enabled, so the library cannot be refreshed until a Wi-Fi connection is available.";
-"REFRESH_ANYWAY" = "Refresh Anyway";
+"REFRESH_ANYWAYS" = "Refresh Anyways";
 "REMOVE_FROM_LIBRARY_CONFIRM" = "Remove from Library?";
-"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Removing this series from your library will also remove its tracker links. Are you sure you want to proceed?";
+"REMOVE_FROM_LIBRARY_CONFIRM_TEXT" = "Removing this series from your library will also remove all linked trackers. Are you sure you want to proceed?";
 "LIBRARY_REFRESH_INTERRUPTED" = "Library Refresh Interrupted";
 "LIBRARY_REFRESH_INTERRUPTED_TEXT" = "The last library refresh was interrupted before it was completed. Would you like to resume?";
 
@@ -163,7 +162,7 @@
 "PRIMARILY_NSFW" = "Primarily NSFW";
 "REMOVE_LOCAL_SOURCE" = "Remove Local Source?";
 "REMOVE_LOCAL_SOURCE_TEXT" = "This will remove all imported local files.";
-"MISSING_SOURCE_LIST" = "Not in Source Lists";
+"MISSING_SOURCE_LIST" = "Missing Source List";
 "MISSING_SOURCE_LIST_INFO" = "This external source is not available on any configured source lists. This means that it will not receive updates and may break in the future.";
 
 // Source
@@ -218,13 +217,13 @@
 "NAME_SAVED_SEARCH_INFO" = "Saving this search will store the currently configured filters and search text.";
 "SAVED_SEARCH_NAME" = "Name";
 "SAVE_SEARCH_FAIL" = "Save Failed";
-"SAVE_SEARCH_FAIL_INFO" = "A saved search with this name already exists. Please choose a unique name.";
+"SAVE_SEARCH_FAIL_INFO" = "An existing saved search with this name already exists. Please choose a unique name.";
 "INCOGNITO_FILTERS_NOTICE" = "Modified filters do not persist in Incognito Mode.";
 
 // Local Source
 "LOCAL_FILES" = "Local Files";
 "LOCAL_FILES_TAGLINE" = "Read from local files";
-"LOCAL_FILES_INFO" = "The local files source allows you to import and manage your own reading library directly within Aidoku.";
+"LOCAL_FILES_INFO" = "The local files source allows you to upload and manage your own reading library directly within Aidoku.";
 "LOCAL_FILES_SETUP" = "Local Files Setup";
 "IMPORT" = "Import";
 "IMPORT_SETTINGS" = "Import";
@@ -258,7 +257,7 @@
 "DEMO_KOMGA_SERVER" = "Demo Komga Server";
 "DEMO_KOMGA_SERVER_INFO" = "You can log in to the demo Komga server using the email `demo@komga.org` and password `komga-demo`.";
 "SOURCE_NAME" = "Source Name";
-"SOURCE_NAME_INFO" = "The name shown for this source in the Browse tab.";
+"SOURCE_NAME_INFO" = "The name the source will show in the browse tab.";
 "SOURCE_NAME_UNIQUE_ERROR" = "Please choose a unique source name.";
 "SERVER_URL" = "Server URL";
 "SERVER_URL_INFO" = "The base URL of a server to connect to.";
@@ -310,8 +309,8 @@
 "KAVITA_SETUP" = "Kavita Setup";
 "DEMO_KAVITA_SERVER" = "Demo Kavita Server";
 "DEMO_KAVITA_SERVER_INFO" = "You can log in to the demo Kavita server using the username `demouser` and password `Demouser64`.";
-"MORE_IN_%@" = "More in %@";
-"SORT_CHAPTER_ADDED" = "Date Chapter Added";
+"MORE_IN_%@" = "More In %@";
+"SORT_CHAPTER_ADDED" = "Chapter Added";
 "SORT_TIME_TO_READ" = "Time to Read";
 "SORT_AVERAGE_RATING" = "Average Rating";
 "STATUS_ENDED" = "Ended";
@@ -345,10 +344,10 @@
 "STATUS_HIATUS" = "Hiatus";
 "SUGGESTIVE" = "Suggestive";
 "NSFW" = "NSFW";
-"MORE" = "More";
+"MORE" = "more";
 "SOURCE_ORDER" = "Source Order";
 "MISSING_SOURCE" = "Missing Source";
-"MISSING_SOURCE_TEXT" = "The original source for this manga could not be found. Please reinstall the source or remove this title from your library.";
+"MISSING_SOURCE_TEXT" = "The original source seems to be missing for this Manga. Please redownload it or remove this title from your library.";
 "SELECT_CHAPTERS" = "Select Chapters";
 "SELECT_ALL" = "Select All";
 "DESELECT_ALL" = "Deselect All";
@@ -378,7 +377,7 @@
 "UNREAD" = "Unread";
 "MARK" = "Mark";
 "MARK_ALL" = "Mark All";
-"MARK_PREVIOUS" = "Mark Previous Chapters";
+"MARK_PREVIOUS" = "Mark Previous";
 "MARK_READ" = "Mark as Read";
 "MARK_UNREAD" = "Mark as Unread";
 "PREVIOUS_COLON" = "Previous:";
@@ -387,7 +386,7 @@
 "CURRENT_COLON" = "Current:";
 "NO_NEXT_CHAPTER" = "There is no next chapter";
 "NO_PREVIOUS_CHAPTER" = "There is no previous chapter";
-"SKIPPING_CHAPTERS" = "Skipping %i chapters because they are missing from the source or have been filtered out";
+"SKIPPING_CHAPTERS" = "Skipping %i chapters, either the source is missing them or they have been filtered out";
 "READER_SETTINGS" = "Reader Settings";
 "READING_MODE" = "Reading Mode";
 "DEFAULT" = "Default";
@@ -401,7 +400,6 @@
 "OPEN_WEBSITE" = "Open Website";
 "SET_COVER_IMAGE" = "Set Cover Image";
 "UPLOAD_CUSTOM_COVER" = "Upload Custom Cover";
-"CHOOSE_CUSTOM_COVER" = "Choose Custom Cover";
 "RESET_COVER" = "Reset Cover";
 
 // History
@@ -409,7 +407,7 @@
 "%@_AGO" = "%@ ago";
 "PAGE_X" = "Page %i";
 "REMOVE_CHAPTER_HISTORY_TEXT" = "This will remove history for this chapter. Are you sure you want to continue?";
-"REMOVE_ALL_MANGA_HISTORY" = "Remove All History for This Manga";
+"REMOVE_ALL_MANGA_HISTORY" = "Remove All Manga History";
 "HISTORY_LOCKED" = "History is locked.";
 "VIEW_HISTORY" = "View History";
 "AUTH_FOR_HISTORY" = "Authenticate to view reading history.";
@@ -438,14 +436,14 @@
 "USERNAME" = "Username";
 "EMAIL" = "Email";
 "PASSWORD" = "Password";
-"LOGIN_FAILED" = "Login Failed";
+"LOGIN_FAILED" = "Log In Failed";
 "LOGIN_FAILED_TEXT" = "Failed to log in to the source. Make sure your credentials are entered correctly.";
 "LOGIN_BASIC_TEXT" = "Any credentials entered will be given directly to the source. Do not log in to any source you do not trust.";
 "LOGIN_WEBVIEW_WARNING" = "Log in via web view?";
 "LOGIN_WEBVIEW_WARNING_TEXT" = "All cookies set in the presented web view will be given to the source. Do not log in to any source you do not trust.";
 "REFRESH_LOGIN" = "Refresh Login";
 "LOGIN_METHOD" = "Login Method";
-"BASIC" = "Username & Password";
+"BASIC" = "Basic";
 
 // Settings
 "SETTINGS" = "Settings";
@@ -469,21 +467,21 @@
 "STANDARD" = "Standard";
 "COMPACT" = "Compact";
 "CUSTOM" = "Custom";
-"PORTRAIT_COLUMNS" = "Columns in Portrait";
-"LANDSCAPE_COLUMNS" = "Columns in Landscape";
+"PORTRAIT_ROWS" = "Columns in Portrait";
+"LANDSCAPE_ROWS" = "Columns in Landscape";
 "PORTRAIT" = "Portrait";
 "LANDSCAPE" = "Landscape";
 "READER" = "Reader";
 "OPEN_READER_VIEW" = "Open Reader View";
 "RESUME_LAST_OPENED_CHAPTER" = "Resume Last Opened Chapter";
-"CONTINUE_READING_ON_RESELECT" = "Tap History Again to Resume Reading";
+"CONTINUE_READING_ON_RESELECT" = "History Tab Double Tap Resumes";
 "UNREAD_CHAPTER_BADGES" = "Unread Chapter Badges";
 "DOWNLOADED_CHAPTER_BADGES" = "Downloaded Chapter Badges";
 "PIN_TITLES" = "Pin Titles";
 "PIN_DISABLED" = "Disabled";
 "PIN_UNREAD" = "Unread";
 "PIN_UPDATED_CHAPTERS" = "Updated Chapters";
-"LIBRARY_UPDATING" = "Library Updates";
+"LIBRARY_UPDATING" = "Library Updating";
 "UPDATE_INTERVAL" = "Update Interval";
 "SKIP_TITLES" = "Skip Titles";
 "ONLY_UPDATE_ON_WIFI" = "Only Update on Wi-Fi";
@@ -508,7 +506,6 @@
 "WITH_UNREAD_CHAPTERS" = "With unread chapters";
 "WITH_COMPLETED_STATUS" = "With completed status";
 "THAT_HAVENT_BEEN_READ" = "That haven't been read";
-"WITH_NO_CHAPTERS_READ" = "With no chapters marked as read";
 "NO_RESULTS_FOR_%@" = "No Results for “%@”";
 "NO_RESULTS_TEXT" = "Check the spelling or try a new search.";
 "LEARN_MORE" = "Learn more…";
@@ -530,7 +527,7 @@
 "SERIES_SINGULAR" = "Series";
 "HOUR_PLURAL" = "Hours";
 "HOUR_SINGULAR" = "Hour";
-"ALL_TIME" = "All Time";
+"ALL_TIME" = "All-time";
 "THIS_MONTH" = "This Month";
 "THIS_YEAR" = "This Year";
 
@@ -610,7 +607,7 @@
 "LONG_PRESS" = "Long Press";
 "LOOKUP_GESTURE_SINGLE_TAP_INFO" = "Tapping on the start of a word will activate the popup. This disables double tap to zoom when enabled.";
 "LOOKUP_GESTURE_LONG_PRESS_INFO" = "Holding down on the start of a word will highlight it, and releasing will activate the popup. This disables page quick actions when enabled.";
-"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Locked by Lookup Gesture: Single Tap.";
+"LOOKUP_GESTURE_LOCKS_DOUBLE_TAP" = "Locked by Lookup Gesture: Single Press.";
 "LOOKUP_GESTURE_LOCKS_QUICK_ACTIONS" = "Locked by Lookup Gesture: Long Press.";
 "DICTIONARY_TEXT_OVERLAY_MODE" = "OCR Text Overlay";
 "DICTIONARY_TEXT_OVERLAY_MODE_INFO" = "Shows text boxes on image regions when a lookup is activated. This can be helpful to determine which text has been recognized properly by OCR.";
@@ -642,7 +639,7 @@
 "KANJI_META_COUNT" = "Kanji Meta Count";
 "TAG_COUNT" = "Tag Count";
 "MEDIA_COUNT" = "Media Count";
-"IS_UPDATABLE" = "Updatable";
+"IS_UPDATABLE" = "Is Updatable";
 "SIZE" = "Size";
 "REMOVE_DICTIONARY" = "Remove Dictionary";
 "REMOVE_WORD" = "Remove Word";
@@ -662,7 +659,7 @@
 "MONTHLY" = "Monthly";
 "GET_RECOMMENDED_DICTIONARIES" = "Get Recommended Dictionaries";
 "RECOMMENDED_DICTIONARIES" = "Recommended Dictionaries";
-"RECOMMENDED_DICTIONARIES_NOTE" = "The dictionaries below are all Japanese–English dictionaries. For other languages, check the list of Wiktionary dictionaries.";
+"RECOMMENDED_DICTIONARIES_NOTE" = "The Dictionaries below are all Japanese-English language. For other languages, you can check the list of Wiktionary dictionaries.";
 
 // Backups
 "BACKUPS" = "Backups";
@@ -678,7 +675,7 @@
 "RESTORE_MISSING_SOURCES_TEXT" = "Would you like to search for and install missing sources?";
 "INSTALL_SOURCES" = "Install Sources";
 "INSTALLING_SOURCES" = "Installing sources…";
-"RESTORE_BACKUP" = "Restore This Backup?";
+"RESTORE_BACKUP" = "Restore to this backup?";
 "RESTORE_BACKUP_TEXT" = "All current data will be removed and replaced by the data from this backup.";
 "BACKUP_IMPORT_SUCCESS" = "Backup Imported";
 "BACKUP_IMPORT_SUCCESS_TEXT" = "To restore to this backup, find it in the backups page in settings.";
@@ -755,8 +752,8 @@
 "TRACK_PAUSED" = "Paused";
 "TRACK_DROPPED" = "Dropped";
 "TRACK_REREADING" = "Rereading";
-"STARTED" = "Start Date";
-"FINISHED" = "Finish Date";
+"STARTED" = "Started";
+"FINISHED" = "Finished";
 "STOP_TRACKING" = "Stop Tracking";
 "SET_TRACK_CHAPTER_OFFSET" = "Set Chapter Offset";
 "TRACK_CHAPTER_OFFSET_TEXT" = "Adjust automatic tracker chapter updates for this title when source chapter numbers differ from tracker chapter numbers.";
@@ -773,15 +770,15 @@
 "TRACK" = "Track";
 "STATUS_COLON_%@" = "Status: %@";
 "TYPE_COLON_%@" = "Type: %@";
-"VIEW_ON_WEBSITE" = "View on Website";
-"CLEAR_TRACKED_MANGA" = "Remove All Tracker Links";
-"CLEAR_TRACKED_MANGA_TEXT" = "This action is irreversible. All tracker links added to manga will be removed.";
+"VIEW_ON_WEBSITE" = "View On Website";
+"CLEAR_TRACKED_MANGA" = "Clear Tracked Manga";
+"CLEAR_TRACKED_MANGA_TEXT" = "This action is irreversible. Tracking for all trackers added to manga will be removed.";
 "SEARCH_OPTIONS" = "Search Options";
 "SHOW_NSFW_RESULTS" = "Show NSFW Results";
 "UPDATE_AFTER_READING" = "Update After Reading";
 "UPDATE_AFTER_READING_INFO" = "After reading a chapter, update the tracker to match the currently read chapter and/or volume.";
 "AUTO_SYNC_HISTORY" = "Automatically Sync History";
-"AUTO_SYNC_HISTORY_INFO" = "When the tracker records further chapter and/or volume reading progress, update local reading history to match.";
+"AUTO_SYNC_HISTORY_INFO" = "When a newer chapter and/or volume is detected on the tracker, update the local history to match.";
 "SYNC_WITH_TRACKER" = "Sync with Tracker";
 "SYNC_WITH_TRACKER_INFO_%i" = "%i chapters were determined to be already read by the tracker. Would you like to mark these chapters as read?";
 "SYNC_WITH_TRACKER_INFO_1" = "1 chapter was determined to be already read by the tracker. Would you like to mark this chapter as read?";
@@ -789,14 +786,14 @@
 "UNAVAILABLE_TRACKER_ITEM_INFO" = "This linked tracker item is associated with a tracker that is no longer available. You should either remove this item or log in to the associated tracker again.";
 "ENHANCED_TRACKERS" = "Enhanced Trackers";
 "ENHANCED_TRACKERS_INFO" = "Enhanced trackers can automatically link to items added to your library from supported sources, tracking two-way reading history.";
-"ENHANCED_TRACKERS_TOGGLE_INFO" = "Disabling tracking for a source removes its tracker links. Enabling it automatically links library items from that source.";
+"ENHANCED_TRACKERS_TOGGLE_INFO" = "Disabling tracking for a source will remove all linked trackers, and enabling will automatically link all items in your library.";
 "TRACKER_LOGOUT_INFO" = "Logging out will remove linked tracking info from this tracker for all series.";
 
 "CACHE_SIZE_%@" = "Cache size: %@";
-"SUPPORT_VIA_KOFI" = "Support via Ko-fi";
+"SUPPORT_VIA_KOFI" = "Support via Ko-Fi";
 "SORT_UNREAD_CHAPTERS" = "Unread Chapters";
 "SET_AS_SINGLE_PAGE" = "Set as Single Page";
-"UNSET_AS_SINGLE_PAGE" = "Remove Single Page Setting";
+"UNSET_AS_SINGLE_PAGE" = "Unset as Single Page";
 "RELOAD" = "Reload";
 "RELOAD_FAILED" = "Reload Failed";
 "RELOAD_FAILED_TEXT" = "Failed to reload the image. Please try again.";
@@ -850,15 +847,15 @@
 "PILLARBOX" = "Pillarbox";
 "PILLARBOX_AMOUNT" = "Pillarbox Amount";
 "PILLARBOX_ORIENTATION" = "Pillarbox Orientation";
-"PILLARBOX_ORIENTATION_INFO" = "Choose which device orientations use pillarboxing.";
+"PILLARBOX_ORIENTATION_INFO" = "Pillarbox Orientation determines which orientations pillarboxing should be enabled for.";
 "AUTO_SCROLL" = "Auto Scroll";
 "AUTO_SCROLL_SPEED" = "Auto Scroll Speed";
-"AUTO_SCROLL_POSITION" = "Auto Scroll Button Position";
+"AUTO_SCROLL_POSITION" = "Auto Scroll Position";
 "POSITION_LEFT" = "Left";
 "POSITION_RIGHT" = "Right";
 "BOTH" = "Both";
 "%@_TRACKER_LOGIN_NEEDED" = "%@ Login Needed";
-"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Your %@ token has expired, so the associated tracker will stop working until you log in again in Settings.";
+"%@_TRACKER_LOGIN_NEEDED_TEXT" = "Your %@ token has expired, so the associated tracker will stop working until you re-login in settings.";
 "BACKUP_ERROR" = "Backup Error";
 "BACKUP_ERROR_TEXT" = "An error occurred while restoring: %@. The backup may be invalid.";
 "READER_ORIENTATION" = "Orientation";
@@ -926,7 +923,7 @@
 "HTTPS_BYPASS_INVALID_URL" = "Enter an HTTPS URL without a username or password.";
 "HTTPS_BYPASS_TEST_RESULT" = "HTTP %d received · TLS fragmentation applied";
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d received · TLS fragmentation not confirmed";
-"HTTPS_BYPASS_TEST_FAILED" = "Could not connect through the HTTPS bypass.";
+"HTTPS_BYPASS_TEST_FAILED" = "Unable to connect through the HTTPS bypass.";
 "TRANSLATION_MANGA_TITLES" = "Translate Manga Titles";
 "TRANSLATION_CHAPTER_TITLES" = "Translate Chapter Titles";
 "TRANSLATION_TITLES_HELP" = "Uses your translation API and target language independently of automatic page translation. Turn off an option to show its original text. Originals remain visible while loading or if translation fails.";
@@ -952,7 +949,7 @@
 "IMPORT_PHOTO" = "Import Photos";
 "LOCAL_IMAGE_IMPORT_TEXT" = "Import photos, image files, or a CBZ or ZIP archive to read.";
 "SAVE_TRANSLATED_IMAGE" = "Save Translated Image";
-"TRANSLATED_IMAGE_SAVE_FAILED" = "Could not render the translated image. Wait for translation to finish and try again.";
+"TRANSLATED_IMAGE_SAVE_FAILED" = "Failed to render the translated image. Wait for translation to finish and try again.";
 "TRANSLATION_AUTHORS" = "Translate Author Names";
 "TRANSLATION_AUTHOR_FILTER" = "Author Name Languages";
 "TRANSLATION_SOURCE_LABEL_FILTER" = "Source Menu and Section Languages";
@@ -994,12 +991,12 @@
 "TRANSLATION_TARGETS" = "What to Translate";
 "PAGES_%i_OF_%i" = "Pages: %i / %i";
 "1_SERIES" = "1 series";
-"SKIPPING_ONE_CHAPTER" = "Skipping 1 chapter because it is missing from the source or has been filtered out";
-"BACKUP_CREATE_ERROR_TEXT" = "The backup could not be created. Please try again.";
+"SKIPPING_ONE_CHAPTER" = "Skipping 1 chapter, either the source is missing it or it has been filtered out";
+"BACKUP_CREATE_ERROR_TEXT" = "Failed to create backup. Please try again.";
 "YES" = "Yes";
 "NO" = "No";
 "CHAPTERS_%i_OF_%i" = "Chapters: %i / %i";
-"TRACKING_REGISTRATION_FAILED" = "The title could not be added to tracking. Please try again.";
+"TRACKING_REGISTRATION_FAILED" = "Failed to add the title to tracking. Please try again.";
 "SORT_READ_PROGRESS" = "Reading Progress";
 "SORT_RELEASE_YEAR" = "Release Year";
 "SOURCE_INVALID_PAGE_COUNT" = "Invalid page count";
@@ -1007,12 +1004,11 @@
 "SOURCE_INVALID_LISTING" = "Invalid listing";
 "SOURCE_INVALID_LISTING_TYPE" = "Invalid listing type";
 "SOURCE_INVALID_ITEM_TYPE" = "Invalid item type";
-"DICTIONARY_ERROR" = "Dictionary Error";
-"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Could not save dictionary settings: %@";
-"DICTIONARY_IMPORT_ERRORS_%@" = "Could not import the selected dictionaries:\n%@";
+"DICTIONARY_CONFIG_SAVE_ERROR_%@" = "Failed to save dictionary settings: %@";
+"DICTIONARY_IMPORT_ERRORS_%@" = "Failed to import the selected dictionaries:\n%@";
 "DICTIONARY_PARTIAL_IMPORT_ERRORS_%@" = "Some dictionaries could not be imported:\n%@";
 "DICTIONARY_IMPORT_FAILED" = "Dictionary import failed.";
-"RECOMMENDED_JMDICT_DESCRIPTION" = "A comprehensive Japanese–English dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
+"RECOMMENDED_JMDICT_DESCRIPTION" = "A comprehensive Japanese-English dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "A Japanese proper-name dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "A frequency dictionary based on the media corpus at https://jiten.moe.";
 "TRANSLATION_BACKGROUND" = "Translate While Showing Originals";

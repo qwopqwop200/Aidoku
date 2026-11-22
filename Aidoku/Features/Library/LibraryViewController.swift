@@ -676,7 +676,7 @@ extension LibraryViewController {
                     message: NSLocalizedString("REFRESH_NO_WIFI_TEXT"),
                     actions: [
                         UIAlertAction(title: NSLocalizedString("OK"), style: .cancel),
-                        UIAlertAction(title: NSLocalizedString("REFRESH_ANYWAY"), style: .default) { _ in
+                        UIAlertAction(title: NSLocalizedString("REFRESH_ANYWAYS"), style: .default) { _ in
                             Task {
                                 await MangaManager.shared.backgroundRefreshLibrary(
                                     category: self.viewModel.isInRealCategory ? self.viewModel.currentCategory : nil,

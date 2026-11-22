@@ -16,7 +16,7 @@ struct DownloadsView: View {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(NSLocalizedString("DOWNLOAD_STORAGE_USED"))
+                        Text(NSLocalizedString("TOTAL_DOWNLOADS"))
                             .font(.headline)
                         Spacer()
                         if viewModel.isLoading {

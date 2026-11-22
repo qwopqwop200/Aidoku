@@ -126,7 +126,7 @@ struct DictionaryListView: View {
         .sheet(isPresented: $showSafari) {
             SafariView(url: .constant(URL(string: "https://yomitan.wiki/dictionaries/")))
         }
-        .alert(NSLocalizedString("DICTIONARY_ERROR"), isPresented: $dictionaryManager.shouldShowError) {
+        .alert(NSLocalizedString("IMPORT_ERROR"), isPresented: $dictionaryManager.shouldShowError) {
             Button(NSLocalizedString("OK"), role: .cancel) {}
         } message: {
             Text(verbatim: dictionaryManager.errorMessage)

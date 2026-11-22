@@ -351,7 +351,7 @@ extension Settings {
                             titles: [
                                 NSLocalizedString("WITH_UNREAD_CHAPTERS"),
                                 NSLocalizedString("WITH_COMPLETED_STATUS"),
-                                NSLocalizedString("WITH_NO_CHAPTERS_READ")
+                                NSLocalizedString("THAT_HAVENT_BEEN_READ")
                             ]
                         ))
                     ),
