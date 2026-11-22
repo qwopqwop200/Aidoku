@@ -87,8 +87,7 @@ class DownloadCache {
         return result
     }
 
-    // Synchronous UI lookups never trigger a scan of the entire download tree.
-    // Until background discovery finishes, inspect just the requested manga.
+    // Until the background scan finishes, synchronous lookups scan only the requested manga.
     private func loadIfNeeded(_ manga: MangaIdentifier) {
         let url = directory(for: manga)
         guard !loaded, !touchedManga.contains(url.path), isSafe(manga: manga) else { return }
@@ -189,8 +188,7 @@ extension DownloadCache {
 
 // MARK: Directory Provider
 extension DownloadCache {
-    /// Keep the existing sanitized names, but never accept navigation names or
-    /// filesystem aliases that redirect a download outside its own hierarchy.
+    /// Rejects navigation names and symlinks that redirect a download outside its hierarchy.
     nonisolated static func isSafeDownloadPath(components: [String], root: URL = DownloadManager.directory) -> Bool {
         !components.isEmpty && safeDirectory(components: components, root: root) != nil
     }
@@ -226,8 +224,7 @@ extension DownloadCache {
         Self.isSafeChapterPath(source: chapter.sourceKey, manga: chapter.mangaKey, chapter: chapter.chapterKey, root: directoryURL)
     }
 
-    /// Batch variant: verifies the manga directory's stored identities once, then checks
-    /// each chapter path without reopening every sibling archive per chapter.
+    /// Batch variant: checks each manga's stored identities once, not once per chapter.
     nonisolated func safeChapters(_ chapters: [ChapterIdentifier]) -> Set<ChapterIdentifier> {
         var mangaVerdicts: [MangaIdentifier: Bool] = [:]
         var safe = Set<ChapterIdentifier>()
@@ -259,9 +256,7 @@ extension DownloadCache {
             }
     }
 
-    /// Sanitized folder names are not proof of identity. Honor the exact IDs
-    /// already saved in ComicInfo before reading, replacing or deleting a path.
-    /// Old downloads without Aidoku metadata retain their legacy behavior.
+    /// Sanitized names can collide; IDs saved in ComicInfo (if any) decide ownership.
     private nonisolated static func storedIdentity(at url: URL) -> StoredIdentity? {
         guard let value = DownloadedChapterFile.comicInfo(in: url)?.extraData() else { return nil }
         return StoredIdentity(source: value.sourceKey, manga: value.mangaKey, chapter: value.chapterKey)

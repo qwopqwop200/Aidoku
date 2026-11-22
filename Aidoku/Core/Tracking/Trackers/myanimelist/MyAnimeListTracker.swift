@@ -161,4 +161,5 @@ private extension MyAnimeListTracker {
 
 enum MyAnimeListTrackerError: Error {
     case invalidId
+    case getStateFailed
 }

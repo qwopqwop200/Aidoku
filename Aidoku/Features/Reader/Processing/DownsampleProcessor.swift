@@ -45,8 +45,7 @@ struct DownsampleProcessor: ImageProcessing {
             height: max(1 / scaleFactor, round(image.size.height * scale * scaleFactor) / scaleFactor)
         )
 
-        // Resample the processed pixels directly. Encoding the full image as PNG
-        // first duplicates a large page and performs a needless encode/decode cycle.
+        // Resample directly instead of a full-page PNG encode/decode cycle.
         return autoreleasepool {
             let format = UIGraphicsImageRendererFormat()
             format.scale = scaleFactor
@@ -60,14 +59,10 @@ struct DownsampleProcessor: ImageProcessing {
 }
 
 extension DownsampleProcessor {
-    /// Decode-time counterpart of `init(width:)`. ImageIO then never allocates
-    /// the full-resolution bitmap (a 20 MP page is 80 MB) before this processor
-    /// shrinks it. Pixel dimensions match the processor, which stays in the chain
-    /// and only normalizes the image scale. Never upscales. Only use it when no
-    /// earlier processor (crop borders, source page processing) needs full pixels.
+    /// Decode-time counterpart of `init(width:)`, so the full-resolution bitmap is never
+    /// allocated. Only use it when no earlier processor needs full pixels.
     static func decodeThumbnail(width: CGFloat) -> ImageRequest.ThumbnailOptions? {
         guard width.isFinite, width > 0 else { return nil }
-        // A finite height keeps the target bounded if ImageIO reports no size.
         return ImageRequest.ThumbnailOptions(
             size: CGSize(width: width, height: 1_000_000),
             unit: .points,

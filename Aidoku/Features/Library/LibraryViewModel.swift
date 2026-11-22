@@ -251,8 +251,7 @@ extension LibraryViewModel {
         }
     }
 
-    /// One drain owns publication. New events replace pending demand instead of
-    /// creating concurrent fetch/enrichment chains over shared mutable arrays.
+    /// A single drain task publishes snapshots; new requests replace pending demand.
     func loadLibrary() async {
         loadRevision &+= 1
         downloadCountRequests.removeAll()
@@ -271,8 +270,7 @@ extension LibraryViewModel {
                 if let snapshotLoader { snapshot = await snapshotLoader(request) }
                 else { snapshot = await Self.makeSnapshot(request, isCurrent: { self.loadRevision == issued }) }
                 guard !Task.isCancelled else { break }
-                // A newer notification or category/filter change owns the next
-                // snapshot. Never expose an obsolete partially enriched list.
+                // A newer request owns the next snapshot; never publish an obsolete one.
                 guard issued == loadRevision else { continue }
                 if let snapshot {
                     publishedCategoryRevision = categoryRevision
@@ -494,19 +492,18 @@ extension LibraryViewModel {
                         sourceKeys: sourceKeys.sorted(), actuallyEmpty: actuallyEmpty)
     }
 
-    /// All incremental changes update the canonical (unsearched) value first.
-    /// A pending full snapshot must re-read after this newer data revision.
-    private func mutateLibrary<Result>(_ body: () -> Result) -> Result {
+    /// Incremental changes apply to the unsearched lists and invalidate pending snapshots.
+    private func beginLibraryMutation() {
         loadRevision &+= 1
         if let storedManga { manga = storedManga }
         if let storedPinnedManga { pinnedManga = storedPinnedManga }
-        let result = body()
-        if !searchQuery.isEmpty {
-            storedManga = manga
-            storedPinnedManga = pinnedManga
-            applySearchFilter(query: searchQuery)
-        }
-        return result
+    }
+
+    private func endLibraryMutation() {
+        guard !searchQuery.isEmpty else { return }
+        storedManga = manga
+        storedPinnedManga = pinnedManga
+        applySearchFilter(query: searchQuery)
     }
 
     func updateHistory(for mangaIds: Set<MangaIdentifier>, read: Bool) async {
@@ -529,25 +526,25 @@ extension LibraryViewModel {
             return
         }
 
-        mutateLibrary {
-            let moveRead = read && sortMethod == .lastRead
-            let ascending = sortAscending
-            func update(_ rows: inout [MangaInfo]) {
-                var moved: [MangaInfo] = []
-                for index in rows.indices {
-                    guard let count = unreadCounts[rows[index].id] else { continue }
-                    rows[index].unread = count
-                    if moveRead { moved.append(rows[index]) }
-                }
-                guard !moved.isEmpty else { return }
-                rows.removeAll { unreadCounts[$0.id] != nil }
-                if ascending { rows.append(contentsOf: moved) }
-                else { rows.insert(contentsOf: moved, at: 0) }
+        beginLibraryMutation()
+        let moveRead = read && sortMethod == .lastRead
+        let ascending = sortAscending
+        func update(_ rows: inout [MangaInfo]) {
+            var moved: [MangaInfo] = []
+            for index in rows.indices {
+                guard let count = unreadCounts[rows[index].id] else { continue }
+                rows[index].unread = count
+                if moveRead { moved.append(rows[index]) }
             }
-            update(&manga)
-            update(&pinnedManga)
-            if sortMethod == .unreadChapters { sortCanonicalLibrary() }
+            guard !moved.isEmpty else { return }
+            rows.removeAll { unreadCounts[$0.id] != nil }
+            if ascending { rows.append(contentsOf: moved) }
+            else { rows.insert(contentsOf: moved, at: 0) }
         }
+        update(&manga)
+        update(&pinnedManga)
+        if sortMethod == .unreadChapters { sortCanonicalLibrary() }
+        endLibraryMutation()
     }
 
     func fetchUnreads(for identifier: MangaIdentifier) async {
@@ -573,19 +570,19 @@ extension LibraryViewModel {
             return
         }
         var didUpdate = false
-        mutateLibrary {
-            if let index = self.manga.firstIndex(where: { $0.id == identifier }) {
-                if self.manga[index].unread != unreadCount {
-                    didUpdate = true
-                    self.manga[index].unread = unreadCount
-                }
-            } else if let index = self.pinnedManga.firstIndex(where: { $0.id == identifier }) {
-                if self.pinnedManga[index].unread != unreadCount {
-                    didUpdate = true
-                    self.pinnedManga[index].unread = unreadCount
-                }
+        beginLibraryMutation()
+        if let index = self.manga.firstIndex(where: { $0.id == identifier }) {
+            if self.manga[index].unread != unreadCount {
+                didUpdate = true
+                self.manga[index].unread = unreadCount
+            }
+        } else if let index = self.pinnedManga.firstIndex(where: { $0.id == identifier }) {
+            if self.pinnedManga[index].unread != unreadCount {
+                didUpdate = true
+                self.pinnedManga[index].unread = unreadCount
             }
         }
+        endLibraryMutation()
         // re-sort library if needed
         if didUpdate {
             if pinType == .unread {
@@ -607,26 +604,27 @@ extension LibraryViewModel {
         let downloads = await DownloadManager.shared.downloadsCount(for: identifier)
         guard downloadCountRequests[identifier] == request else { return }
         downloadCountRequests[identifier] = nil
-        mutateLibrary {
-            for index in pinnedManga.indices where pinnedManga[index].id == identifier {
-                pinnedManga[index].downloads = downloads
-            }
-            for index in manga.indices where manga[index].id == identifier {
-                manga[index].downloads = downloads
-            }
+        beginLibraryMutation()
+        for index in pinnedManga.indices where pinnedManga[index].id == identifier {
+            pinnedManga[index].downloads = downloads
         }
+        for index in manga.indices where manga[index].id == identifier {
+            manga[index].downloads = downloads
+        }
+        endLibraryMutation()
     }
 
     @MainActor
     func sortLibrary() async {
-        // A pending snapshot captured the previous sort. Local reordering alone
-        // would be overwritten when it finishes; queue a current snapshot instead.
+        // A pending snapshot captured the previous sort and would overwrite a local reorder.
         if libraryLoadTask != nil {
             await loadLibrary()
             return
         }
         if sortMethod == .alphabetical || sortMethod == .unreadChapters {
-            mutateLibrary { sortCanonicalLibrary() }
+            beginLibraryMutation()
+            sortCanonicalLibrary()
+            endLibraryMutation()
         } else {
             await loadLibrary()
         }
@@ -727,8 +725,7 @@ extension LibraryViewModel {
         applySearchFilter(query: query)
     }
 
-    // Synchronous final projection: snapshot publication must not suspend after
-    // its revision check and allow a new pending demand to be lost.
+    // Synchronous so snapshot publication cannot suspend after its revision check.
     private func applySearchFilter(query: String) {
         if storedManga == nil {
             storedManga = manga
@@ -751,37 +748,36 @@ extension LibraryViewModel {
     func mangaOpened(mangaId: MangaIdentifier) async -> Bool {
         guard sortMethod == .lastOpened || pinType.needsUpdateOnContentOpen else { return false }
 
-        let libraryReloaded = mutateLibrary {
-            var libraryReloaded = false
+        beginLibraryMutation()
+        var libraryReloaded = false
 
-            let pinnedIndex = pinnedManga.firstIndex(where: { $0.id == mangaId })
-            if let pinnedIndex {
-                if sortMethod == .lastOpened {
-                    let manga = pinnedManga.remove(at: pinnedIndex)
-                    if pinType.needsUpdateOnContentOpen {
-                        self.manga.insert(manga, at: sortAscending ? self.manga.count : 0)
-                    } else {
-                        pinnedManga.insert(manga, at: sortAscending ? pinnedManga.count : 0)
-                    }
+        let pinnedIndex = pinnedManga.firstIndex(where: { $0.id == mangaId })
+        if let pinnedIndex {
+            if sortMethod == .lastOpened {
+                let manga = pinnedManga.remove(at: pinnedIndex)
+                if pinType.needsUpdateOnContentOpen {
+                    self.manga.insert(manga, at: sortAscending ? self.manga.count : 0)
                 } else {
-                    libraryReloaded = true
+                    pinnedManga.insert(manga, at: sortAscending ? pinnedManga.count : 0)
                 }
-            } else if sortMethod == .lastOpened {
-                let index = manga.firstIndex(where: { $0.id == mangaId })
-                if let index {
-                    let manga = manga.remove(at: index)
-                    if sortAscending {
-                        // add to end
-                        self.manga.append(manga)
-                    } else {
-                        // add to start
-                        self.manga.insert(manga, at: 0)
-                    }
+            } else {
+                libraryReloaded = true
+            }
+        } else if sortMethod == .lastOpened {
+            let index = manga.firstIndex(where: { $0.id == mangaId })
+            if let index {
+                let manga = manga.remove(at: index)
+                if sortAscending {
+                    // add to end
+                    self.manga.append(manga)
+                } else {
+                    // add to start
+                    self.manga.insert(manga, at: 0)
                 }
             }
-
-            return libraryReloaded
         }
+
+        endLibraryMutation()
         if libraryReloaded { await loadLibrary() }
         return libraryReloaded
     }
@@ -803,36 +799,36 @@ extension LibraryViewModel {
         }
         guard sortMethod == .lastRead else { return false }
 
-        mutateLibrary {
-            if let pinnedIndex = pinnedManga.firstIndex(where: { $0.id == mangaId }) {
-                let manga = pinnedManga.remove(at: pinnedIndex)
-                if pinType.needsUpdateOnContentOpen {
-                    self.manga.insert(manga, at: sortAscending ? self.manga.count : 0)
-                } else {
-                    pinnedManga.insert(manga, at: sortAscending ? pinnedManga.count : 0)
-                }
-            } else if let index = manga.firstIndex(where: { $0.id == mangaId }) {
-                let manga = manga.remove(at: index)
+        beginLibraryMutation()
+        if let pinnedIndex = pinnedManga.firstIndex(where: { $0.id == mangaId }) {
+            let manga = pinnedManga.remove(at: pinnedIndex)
+            if pinType.needsUpdateOnContentOpen {
                 self.manga.insert(manga, at: sortAscending ? self.manga.count : 0)
+            } else {
+                pinnedManga.insert(manga, at: sortAscending ? pinnedManga.count : 0)
             }
+        } else if let index = manga.firstIndex(where: { $0.id == mangaId }) {
+            let manga = manga.remove(at: index)
+            self.manga.insert(manga, at: sortAscending ? self.manga.count : 0)
         }
+        endLibraryMutation()
         return true
     }
 
     func removeFromLibrary(manga: MangaInfo) async {
-        mutateLibrary {
-            pinnedManga.removeAll { $0.id == manga.id }
-            self.manga.removeAll { $0.id == manga.id }
-        }
+        beginLibraryMutation()
+        pinnedManga.removeAll { $0.id == manga.id }
+        self.manga.removeAll { $0.id == manga.id }
+        endLibraryMutation()
         await MangaManager.shared.removeFromLibrary(mangaId: manga.id)
     }
 
     func removeFromLibrary(mangaIds: [MangaIdentifier]) async {
         let set = Set(mangaIds)
-        mutateLibrary {
-            pinnedManga.removeAll { set.contains($0.id) }
-            self.manga.removeAll { set.contains($0.id) }
-        }
+        beginLibraryMutation()
+        pinnedManga.removeAll { set.contains($0.id) }
+        self.manga.removeAll { set.contains($0.id) }
+        endLibraryMutation()
         await MangaManager.shared.removeFromLibrary(mangaIds: mangaIds)
     }
 

@@ -1,14 +1,9 @@
 import CoreGraphics
 import Foundation
 
-/// Pre-LLM role split. Dialogue recall must stay 1.0, so a block is marked
-/// `.sfx` only on unambiguous layout evidence; everything else stays
-/// `.dialogue` and the LLM classifies it (including background text).
-///
-/// Rule (fit on train GT text_role, 0 dialogue/narration lost on train and
-/// dev): at least half of the block lies inside a confident RF sound-effect
-/// region, less than half inside any confident balloon, and less than 30%
-/// inside any RF text region.
+/// Pre-LLM role split that never loses dialogue: `.sfx` only when at least half of the block
+/// is inside a confident RF SFX region, under half inside any balloon and under 30% inside
+/// any RF text region (fit on train GT); everything else is left for the LLM.
 enum V2RoleFilter {
     static let sfxScore: Float = 0.8
     static let sfxCoverage: CGFloat = 0.5
@@ -17,12 +12,9 @@ enum V2RoleFilter {
     static let textScore: Float = 0.25
     static let textCoverage: CGFloat = 0.3
 
-    /// Fragment rule (fit on train with replayed V2 blocks against GT merged text regions,
-    /// checked on dev and the train folds): outside any detected balloon, a block of at most
-    /// `fragmentCharacters` non-space characters read with mean confidence below
-    /// `fragmentConfidence` is noise or art (rejects 336 non-text blocks on train for 4 lost
-    /// one-character fragments of 2333 text blocks; dev 176 of 777 for 3 of 749). It stays
-    /// as source pixels: no provider request, no erase, no paint.
+    /// Fragment rule (fit on train, checked on dev): outside any balloon, a block of at most
+    /// `fragmentCharacters` non-space characters with mean confidence below `fragmentConfidence`
+    /// is noise or art and keeps its source pixels (no request, erase or paint).
     static let fragmentConfidence: Float = 0.6
     static let fragmentCharacters = 4
 

@@ -5,7 +5,6 @@ import Foundation
 /// only capability metadata, never credentials, images or provider error bodies.
 final class TranslationImageSupport: @unchecked Sendable {
     static let shared = TranslationImageSupport()
-    static let changed = Notification.Name("TranslationImageSupport.changed")
 
     enum Status: String, Sendable { case unknown, supported, unsupported }
     private let defaults: UserDefaults
@@ -26,19 +25,16 @@ final class TranslationImageSupport: @unchecked Sendable {
     }
 
     func record(_ status: Status, for configuration: RemoteTranslationConfiguration) {
-        lock.lock()
-        let key = key(configuration)
-        let old = storedStatus(key)
-        guard old != status else { lock.unlock(); return }
-        // Reject text-only fallback caches when an explicit retest restores
-        // image support. Unknown -> supported does not change request semantics.
-        if old == .unsupported || status == .unsupported {
-            defaults.set(defaults.integer(forKey: key + ".revision") + 1, forKey: key + ".revision")
-        }
-        defaults.set(status.rawValue, forKey: key)
-        lock.unlock()
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: Self.changed, object: nil)
+        lock.withLock {
+            let key = key(configuration)
+            let old = storedStatus(key)
+            guard old != status else { return }
+            // Reject text-only fallback caches when an explicit retest restores
+            // image support. Unknown -> supported does not change request semantics.
+            if old == .unsupported || status == .unsupported {
+                defaults.set(defaults.integer(forKey: key + ".revision") + 1, forKey: key + ".revision")
+            }
+            defaults.set(status.rawValue, forKey: key)
         }
     }
 

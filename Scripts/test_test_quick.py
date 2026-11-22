@@ -78,13 +78,16 @@ class QuickIOSRunnerTests(unittest.TestCase):
                 self.assertFalse(tree_path.exists())
         return code, commands, timeouts
 
-    def test_ios_compilation_and_tests_have_no_default_deadline(self):
+    def test_explicit_suite_runs_from_full_plan_without_default_deadline(self):
         code, commands, timeouts = self.run_ios()
         self.assertEqual(code, 0)
         self.assertEqual(timeouts, [None])
-        self.assertEqual(commands[0][1], 'test')
-        self.assertIn('ONLY_ACTIVE_ARCH=YES', commands[0])
-        self.assertIn('SWIFT_COMPILATION_MODE=singlefile', commands[0])
+        command = commands[0]
+        self.assertEqual(command[1], 'test')
+        self.assertIn('ONLY_ACTIVE_ARCH=YES', command)
+        self.assertIn('SWIFT_COMPILATION_MODE=singlefile', command)
+        self.assertEqual(command[command.index('-testPlan') + 1], 'AidokuFull')
+        self.assertIn('-only-testing:AidokuTests/ExampleTests', command)
 
     def test_fast_ios_uses_default_plan_without_narrowing_it(self):
         code, commands, timeouts = self.run_ios(selection=('--fast-ios',))
@@ -110,31 +113,21 @@ class QuickIOSRunnerTests(unittest.TestCase):
         self.assertEqual(command[command.index('-maximum-concurrent-test-simulator-destinations') + 1], '1')
         self.assertEqual(timeouts, [None])
 
-    def test_explicit_suite_can_run_outside_fast_plan(self):
-        code, commands, _ = self.run_ios()
-        self.assertEqual(code, 0)
-        command = commands[0]
-        self.assertEqual(command[command.index('-testPlan') + 1], 'AidokuFull')
-        self.assertIn('-only-testing:AidokuTests/ExampleTests', command)
-
     def test_multiple_bare_suites_are_each_selected(self):
         code, commands, _ = self.run_ios(selection=('--ios', 'FirstTests', 'SecondTests'))
         self.assertEqual(code, 0)
         self.assertEqual([arg for arg in commands[0] if arg.startswith('-only-testing:')],
                          ['-only-testing:AidokuTests/FirstTests', '-only-testing:AidokuTests/SecondTests'])
 
-    def test_missing_suite_cannot_hide_behind_another_passing_suite(self):
-        code, _, _ = self.run_ios(selection=('--ios', 'FirstTests', 'TypoTests'),
-                                  tree=passed_tree('FirstTests'))
-        self.assertNotEqual(code, 0)
+    def test_missing_or_empty_suite_cannot_hide_behind_another_passing_suite(self):
         problem = test_quick.selected_suite_execution_error(passed_tree('FirstTests'), ['FirstTests', 'TypoTests'])
         self.assertIn("'TypoTests'", problem)
         self.assertIn('found 0', problem)
-
-    def test_empty_suite_cannot_hide_behind_another_passing_suite(self):
-        tree = passed_tree('FirstTests', 'EmptyTests')
-        tree['testNodes'][1]['children'] = []
-        self.assertNotEqual(self.run_ios(selection=('--ios', 'FirstTests', 'EmptyTests'), tree=tree)[0], 0)
+        empty = passed_tree('FirstTests', 'EmptyTests')
+        empty['testNodes'][1]['children'] = []
+        for name, tree in (('TypoTests', passed_tree('FirstTests')), ('EmptyTests', empty)):
+            with self.subTest(name=name):
+                self.assertNotEqual(self.run_ios(selection=('--ios', 'FirstTests', name), tree=tree)[0], 0)
 
     def test_nonpassing_parameter_execution_cannot_hide_in_passed_suite(self):
         for status in ('Skipped', 'Failed', 'Expected Failure', None):
@@ -193,21 +186,17 @@ class QuickIOSRunnerTests(unittest.TestCase):
         self.assertGreater(timeouts[0], 55)
         self.assertLessEqual(timeouts[0], 120)
 
-    def test_xcresult_execution_count_is_required_even_when_log_claims_success(self):
-        summary = passed_summary()
-        summary.update(totalTestCount=0, passedTests=0)
-        code, _, _ = self.run_ios(summary=summary)
-        self.assertNotEqual(code, 0)
-
-    def test_xcresult_skips_and_expected_failures_are_not_passes(self):
+    def test_missing_zero_skipped_or_failed_results_are_not_passes(self):
+        zero = passed_summary()
+        zero.update(totalTestCount=0, passedTests=0)
+        summaries = [zero, {'result': 'Passed'}]
         for field in ('skippedTests', 'expectedFailures', 'failedTests'):
-            with self.subTest(field=field):
-                summary = passed_summary()
-                summary.update({field: 1, 'totalTestCount': 2})
+            summary = passed_summary()
+            summary.update({field: 1, 'totalTestCount': 2})
+            summaries.append(summary)
+        for summary in summaries:
+            with self.subTest(summary=summary):
                 self.assertNotEqual(self.run_ios(summary=summary)[0], 0)
-
-    def test_missing_result_counts_and_xcode_failure_are_not_passes(self):
-        self.assertNotEqual(self.run_ios(summary={'result': 'Passed'})[0], 0)
         self.assertNotEqual(self.run_ios(exit_code=65)[0], 0)
 
     def test_success_does_not_depend_on_swift_testing_console_format(self):
@@ -246,7 +235,7 @@ class QuickHostRunnerTests(unittest.TestCase):
             code = test_quick.run_commands([['host']], 1, time.monotonic(), None, False)
         self.assertEqual(code, 124)
 
-    def run_host(self, full=False, statuses=(0, 0), output=b'host checks passed\n', extra=()):
+    def run_host(self, full=False, statuses=(0, 0), output=b'host checks passed\n'):
         commands, timeouts = [], []
 
         def start(command, **kwargs):
@@ -261,7 +250,7 @@ class QuickHostRunnerTests(unittest.TestCase):
 
             return Process()
 
-        argv = ['test_quick.py'] + (['--full-host'] if full else []) + list(extra)
+        argv = ['test_quick.py'] + (['--full-host'] if full else [])
         with patch('sys.argv', argv), patch.object(test_quick.subprocess, 'Popen', side_effect=start):
             with patch.object(test_quick, 'host_commands', return_value=[['host-one'], ['host-two']]):
                 with patch.object(test_quick, 'full_host_commands', return_value=[['full-one'], ['full-two']]):
@@ -279,19 +268,6 @@ class QuickHostRunnerTests(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertEqual(len(commands), 2)
         self.assertEqual(timeouts, [None, None])
-
-    def test_opt_in_host_results_preserve_each_success_and_failure_log(self):
-        with tempfile.TemporaryDirectory() as directory:
-            results = Path(directory) / 'results'
-            code, _, _ = self.run_host(full=True, statuses=(0, 1),
-                                        extra=('--host-result-directory', str(results)))
-            self.assertNotEqual(code, 0)
-            report = json.loads((results / 'results.json').read_text())
-            self.assertEqual(report['recordedCommands'], 2)
-            self.assertEqual(report['passedCommands'], 1)
-            self.assertEqual([item['status'] for item in report['commands']], ['passed', 'failed'])
-            self.assertEqual((results / '001.log').read_bytes(), b'host checks passed\n')
-            self.assertEqual((results / '002.log').read_bytes(), b'host checks passed\n')
 
     def test_unittest_and_tap_skips_fail_host_checks(self):
         for output in (b'OK (skipped=2)\n', b'# skipped 1\n', b"test_case ... skipped 'not available'\n"):

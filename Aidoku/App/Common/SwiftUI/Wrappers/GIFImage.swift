@@ -29,8 +29,7 @@ struct GIFImage: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: GIFImageView, context: Context) {
-        // SwiftUI also updates this view for layout and theme changes. Restarting
-        // the decoder on each update resets the animation and repeats frame work.
+        // Restart the decoder only for new data, not on every layout/theme update.
         if context.coordinator.data != data {
             context.coordinator.data = data
             context.coordinator.image = image
@@ -47,8 +46,7 @@ struct GIFImage: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: GIFImageView, coordinator: Coordinator) {
-        // A dismantled representable is no longer displayed. Pausing alone
-        // retains Gifu's decoded frame buffer until UIKit releases the view.
+        // Free Gifu's frame buffer; pausing alone keeps it until UIKit releases the view.
         uiView.prepareForReuse()
         uiView.image = nil
         coordinator.data = nil

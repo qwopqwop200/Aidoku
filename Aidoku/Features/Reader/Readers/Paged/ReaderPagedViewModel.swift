@@ -8,8 +8,7 @@
 import Foundation
 import AidokuRunner
 
-/// Owns a transferred page-list operation until the foreground load finishes.
-/// Dropping an unused handoff cancels it; it is never a completed-image cache.
+/// Owns a transferred page-list load until the foreground load finishes; dropping it cancels.
 final class ReaderChapterPageHandoff: Sendable {
     let chapter: AidokuRunner.Chapter
     fileprivate let owner: UUID

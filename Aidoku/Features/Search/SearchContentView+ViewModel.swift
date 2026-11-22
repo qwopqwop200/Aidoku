@@ -225,8 +225,7 @@ extension SearchContentView.ViewModel {
 
     private func startAvailableRequests() {
         guard isLoading, debounceTask == nil else { return }
-        // A runner can finish after cancellation. Keep its slot occupied until it returns,
-        // even when the tab has reopened or the query has already changed.
+        // A cancelled runner keeps its slot until it actually returns.
         while activeRequests.count < 3, let source = pendingSources.popFirst() {
             let id = UUID()
             let requestGeneration = generation

@@ -431,8 +431,7 @@ class DictionaryManager {
             await MainActor.run { [failure, installed] in
                 self.isImporting = false
 
-                // Reconcile an atomic install that may have committed just before
-                // cancellation. Cancellation suppresses alerts, not committed data.
+                // An install may commit just before cancellation; cancellation only suppresses alerts.
                 if installed {
                     self.loadDictionaries()
                     self.saveDictionaryConfig()

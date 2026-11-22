@@ -19,8 +19,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     // nil means the whole chapter; zero prepares only visible pages.
     var maximumPretranslatedPages: Int?
     var shouldProcessReaderPages: Bool { automaticallyTranslate || translateInBackground }
-    // Page translation always uses image-backed role classification. Metadata
-    // translation explicitly overrides these internal values in TitleTranslation.
+    // Internal; metadata translation overrides these in TitleTranslation.
     var includePageImage = true
     var filterBackgroundWithLLM = true
     var filterSFXWithLLM = true
@@ -47,18 +46,14 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         }
     }
     var reasoningEffort: OpenAIReasoningEffort {
-        get {
-            if provider == .openAI { return openAIReasoningEffort }
-            return custom.reasoningEffort
-        }
+        get { provider == .openAI ? openAIReasoningEffort : custom.reasoningEffort }
         set {
             if provider == .openAI { openAIReasoningEffort = newValue } else { custom.reasoningEffort = newValue }
         }
     }
     var selectedCredentialAccount: String {
         guard provider == .custom else { return Self.credentialAccount }
-        // Bind each custom key to the exact configured URL (including path).
-        // Changing servers cannot reuse OpenAI's key or another server's key.
+        // Bind each custom key to the exact configured URL, so servers never share a key.
         let address = custom.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let digest = SHA256.hash(data: Data(address.utf8)).map { String(format: "%02x", $0) }.joined()
         return "custom-" + digest
@@ -81,8 +76,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
             .filter { supportedOCRSourceLanguageCodes.contains($0) }
     }
 
-    /// Transient chapter direction, supplied by the reader coordinator (or the
-    /// manga's viewer for downloads). V2 orders blocks and panels by it.
+    /// Transient chapter direction from the reader; V2 orders blocks and panels by it.
     var readingDirection: V2ReadingDirection = .rightToLeft
     var overlay = IPhoneOverlaySettings(
         visible: true, mode: .translateOnly, colorMode: .white, opacity: 0.84,
@@ -93,8 +87,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var metadataInstructions = ""
     var credentialGeneration: UInt64 = 0
     var cacheLimitBytes: Int64 = ReaderTranslationDiskCache.defaultBytes
-    /// Preference keys of retired pipeline/OCR controls. Old backups may still
-    /// carry them; they are ignored on load and removed on save.
+    /// Retired preference keys: ignored on load and removed on save.
     static let retiredKeys = ["Reader.translationPipelineV2", keyPrefix + "ocr", keyPrefix + "modelTier",
                               keyPrefix + "includePageImage", keyPrefix + "filterSFXWithLLM",
                               keyPrefix + "filterBackgroundWithLLM"]
@@ -112,8 +105,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         if let limit = defaults.object(forKey: Self.keyPrefix + "pretranslationLimit") as? Int, limit >= 0 {
             maximumPretranslatedPages = limit
         }
-        // Retired toggles are ignored; old false preferences cannot downgrade
-        // reader-page requests to text-only or skip either role classification.
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
         translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
         translateAuthors = defaults.bool(forKey: Self.keyPrefix + "authors")
@@ -132,8 +123,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         targetLanguage = defaults.string(forKey: Self.keyPrefix + "targetLanguage") ?? targetLanguage
         sourceLanguage = defaults.string(forKey: Self.keyPrefix + "sourceLanguage") ?? sourceLanguage
         translationSourceLanguages = languages("translationSourceLanguages")
-        // The page pipeline has one fixed manga detector/recognizer; saved OCR
-        // tier and threshold preferences (`ocr`, `modelTier`) no longer apply.
         if let data = defaults.data(forKey: Self.keyPrefix + "overlay"),
            let value = try? JSONDecoder().decode(IPhoneOverlaySettings.self, from: data) { overlay = value }
         overlay.enforceSourceReplacement()
@@ -205,8 +194,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         try persist(defaults: defaults, apiKey: apiKey, credentialStore: credentialStore, notify: true)
     }
 
-    /// Preserve form edits even while an endpoint or model is incomplete.
-    /// Network requests still validate the configuration before sending anything.
+    /// Preserve form edits while incomplete; requests still validate before sending.
     func autosave(
         defaults: UserDefaults = .standard,
         apiKey: String = "",
@@ -259,10 +247,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(Int(clamping: generation), forKey: Self.keyPrefix + "credentialGeneration")
         let previousCacheLimit = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber
         defaults.set(cacheLimitBytes, forKey: Self.keyPrefix + "cacheLimitBytes")
-        if defaults === UserDefaults.standard, previousCacheLimit?.int64Value != cacheLimitBytes {
-            Task { try? await ReaderTranslationDiskCache.shared.setByteLimit(cacheLimitBytes) }
-        }
         if defaults === UserDefaults.standard {
+            if previousCacheLimit?.int64Value != cacheLimitBytes {
+                Task { try? await ReaderTranslationDiskCache.shared.setByteLimit(cacheLimitBytes) }
+            }
             Task { try? await ReaderTranslationDiskCache.shared.refreshSavedSettings() }
         }
         if notify { NotificationCenter.default.post(name: Self.changed, object: nil) }

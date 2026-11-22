@@ -32,13 +32,7 @@ struct FilterLabelView: View {
                 FilterBadgeView(count: badgeCount)
             }
 
-            Group {
-                if let translationKind {
-                    TranslatedTitleText(name, kind: translationKind)
-                } else {
-                    Text(name)
-                }
-            }
+            TranslatedTitleText(name, kind: translationKind ?? .sourceLabel, translating: translationKind == nil ? "" : nil)
                 .opacity(highlighted ? 1 : 0.6)
                 .foregroundColor(highlighted && colorScheme == .light ? .accentColor : .primary)
 

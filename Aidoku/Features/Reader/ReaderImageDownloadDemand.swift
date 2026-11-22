@@ -2,7 +2,6 @@ import Foundation
 import Nuke
 
 /// A visible, cold network image temporarily reduces bulk download admission.
-/// This lease follows image demand, not the lifetime of its reader/controller.
 @MainActor
 final class ReaderImageDownloadDemand {
     private let admission = BulkDownloadAdmission.shared
@@ -70,11 +69,9 @@ final class ReaderImageDownloadDemand {
     }
 }
 
-/// Nuke stores original bytes without processor/thumbnail keys. Consult both
-/// reusable disk forms without reading bytes or decoding them on MainActor.
+/// Checks both reusable disk forms (processed and original) without reading bytes.
 enum ReaderImageDownloadCache {
-    /// Processed images can be rebuilt from separately cached source bytes.
-    /// A user-requested reload must invalidate both identities.
+    /// A user-requested reload must invalidate both the processed and original image.
     static func removeCachedImageAndOriginal(for request: ImageRequest, pipeline: ImagePipeline) {
         pipeline.cache.removeCachedImage(for: request)
         var original = request

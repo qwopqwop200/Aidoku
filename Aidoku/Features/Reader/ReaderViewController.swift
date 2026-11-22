@@ -468,8 +468,7 @@ class ReaderViewController: BaseObservingViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        // A pull-to-dismiss calls viewWillDisappear even when it is cancelled.
-        // Keep translation work and the displayed image until departure completes.
+        // viewWillDisappear also fires for a cancelled pull-to-dismiss; suspend only on real departure.
         translationCoordinator.suspend()
     }
 

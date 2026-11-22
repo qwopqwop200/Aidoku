@@ -1,8 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Capture local file revisions once while loading a chapter, never in the hot
-/// translation-key getter. Archive entries share one metadata lookup per archive.
+/// Capture local file revisions once per chapter load (one lookup per archive), not in the hot key getter.
 enum ReaderLocalPageIdentity {
     static func prepare(_ pages: [Page]) async -> [Page] {
         var revisions: [URL: String] = [:]
@@ -13,8 +12,7 @@ enum ReaderLocalPageIdentity {
             let revision = revisions[url] ?? fileRevision(url)
             revisions[url] = revision
             var prepared = page
-            // Archive entry names remain distinct even when every page shares
-            // the same archive inode, timestamps and length.
+            // Entry names keep pages distinct within one archive.
             let parts = ["reader-local-file-v1", address, page.zipURL == nil ? "" : page.imageURL ?? "", revision]
             let data = (try? JSONEncoder().encode(parts)) ?? Data()
             prepared.imageContentIdentity = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -26,8 +24,7 @@ enum ReaderLocalPageIdentity {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
               let size = attributes[.size] as? NSNumber,
               let modified = attributes[.modificationDate] as? Date else {
-            // A missing/unreadable replacement must not hydrate old pixels or
-            // translated text merely because it occupies the same pathname.
+            // An unreadable replacement must never reuse old pixels or translations for the same path.
             return "unavailable-" + UUID().uuidString
         }
         let inode = (attributes[.systemFileNumber] as? NSNumber)?.stringValue ?? ""

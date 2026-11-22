@@ -1,14 +1,7 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 
-/// Identifies one translated segment using the exact cache identity of the
-/// remote request that produced it.
-///
-/// The cache key covers provider, protocol, endpoint, model, credential
-/// generation, languages, the complete ordered batch, instructions,
-/// reasoning effort. `segmentID` then selects
-/// one result from that batch. Keeping the complete batch in the identity is
-/// intentional: a model can translate the same text differently when its
-/// neighboring segments or batch position change.
+/// One translated segment, identified by the exact cache key of its request. The
+/// whole ordered batch is part of the identity: neighbors can change a translation.
 struct NativeTranslationReuseIdentity: Hashable, Sendable {
     let cacheKey: TranslationCacheKey
     let segmentID: String
@@ -28,25 +21,14 @@ struct NativeTranslationReuseIdentity: Hashable, Sendable {
         })
     }
 
-    /// Keeps the last translation visible while only the ordered batch
-    /// is refreshed. Cache reuse remains exact; this
-    /// weaker comparison is display-only and rejects provider, model,
-    /// credential, language, prompt, reasoning, and the selected
-    /// segment's own OCR-text changes.
+    /// Display-only: keeps the last translation visible while only its neighbors
+    /// change. Cache reuse stays exact; any other key or own-segment change rejects.
     func canRemainVisibleWhileRefreshing(expected: NativeTranslationReuseIdentity) -> Bool {
         guard let sourceSegment = cacheKey.segments.first(where: { $0.id == segmentID }),
               let expectedSegment = expected.cacheKey.segments.first(where: { $0.id == expected.segmentID }) else { return false }
         return sourceSegment.text == expectedSegment.text &&
             sourceSegment.bounds == expectedSegment.bounds &&
-            hasSameTranslationConfiguration(as: expected)
-    }
-
-    /// Geometry-only viewport changes may reorder or regroup an otherwise
-    /// identical set of OCR regions. The full cache identity deliberately
-    /// changes in that case, but an already translated stable region can still
-    /// move to its new coordinates without falling back to source text.
-    func hasSameTranslationConfiguration(as expected: NativeTranslationReuseIdentity) -> Bool {
-        cacheKey.imageDigest == expected.cacheKey.imageDigest &&
+            cacheKey.imageDigest == expected.cacheKey.imageDigest &&
             cacheKey.roleVerificationPolicy == expected.cacheKey.roleVerificationPolicy &&
             cacheKey.imageSupportRevision == expected.cacheKey.imageSupportRevision &&
             cacheKey.sfxPolicy == expected.cacheKey.sfxPolicy &&

@@ -16,26 +16,17 @@ enum ReaderTranslationLanguageFilter {
     }
 
     /// A Japanese sentence re-punctuated by the provider is not a Korean translation (`V2ReplyText`).
-    static func isUntranslatedJapaneseReply(source: String, translation: String, target: String,
-                                           preservesExactSource: Bool = true) -> Bool {
-        V2ReplyText.isUntranslatedJapaneseReply(source: source, translation: translation, target: canonical(target),
-            preservesExactSource: preservesExactSource)
+    static func isUntranslatedJapaneseReply(source: String, translation: String, target: String) -> Bool {
+        V2ReplyText.isUntranslatedJapaneseReply(source: source, translation: translation, target: canonical(target))
     }
 
-    /// Shared completed-provider check for the reader service and native host CLI.
-    /// Classifier-preserved effects and exact source copies keep their existing policy.
-    static func isWrongLanguage(_ segment: RemoteTranslatedSegment, source: String, target: String,
-                                preservesExactSource: Bool = true) -> Bool {
-        guard segment.isSFX != true else { return false }
-        let displayedText = TranslationHTTPCodec.decodingLeakedEscapes(in: segment.text, source: source)
-        return isUntranslatedJapaneseReply(source: source, translation: displayedText, target: target, preservesExactSource: preservesExactSource)
-    }
-
+    /// Completed-provider check; classifier-preserved effects keep their existing policy.
     static func containsWrongLanguage(_ translations: [RemoteTranslatedSegment], request: RemoteTranslationRequest) -> Bool {
         let sources = Dictionary(request.segments.map { ($0.id, $0.text) }, uniquingKeysWith: { first, _ in first })
         return translations.contains { segment in
-            guard let source = sources[segment.id] else { return false }
-            return isWrongLanguage(segment, source: source, target: request.targetLanguage)
+            guard segment.isSFX != true, let source = sources[segment.id] else { return false }
+            let displayedText = TranslationHTTPCodec.decodingLeakedEscapes(in: segment.text, source: source)
+            return isUntranslatedJapaneseReply(source: source, translation: displayedText, target: request.targetLanguage)
         }
     }
 
@@ -65,8 +56,7 @@ enum ReaderTranslationLanguageFilter {
         let language: String
     }
 
-    /// `apply` runs when OCR is cached and again before requests. The
-    /// NaturalLanguage decision is deterministic for the same text/target.
+    /// `apply` runs when OCR is cached and again before requests.
     private static let targetLanguageCache = LanguageDetectionLRUCache<TargetLanguageKey, Bool>(capacity: 512)
 
     private static func isConfidentlyUnmixed(_ text: String, language: String) -> Bool {
@@ -88,8 +78,7 @@ enum ReaderTranslationLanguageFilter {
 
     static func normalized(_ codes: [String]) -> [String] { Set(codes.map(canonical)).sorted() }
 
-    /// Nil preserves the existing all-language cache. Fixed sources with no Apple
-    /// classifier also keep the permissive fallback.
+    /// Nil preserves the all-language cache identity.
     static func identity(settings: ReaderTranslationSettings) -> [String]? {
         var language = languageIdentity(settings: settings)
         if settings.usesOCRLanguagePolicy {
@@ -110,16 +99,13 @@ enum ReaderTranslationLanguageFilter {
         return ["source-filter-v3-excluded-source-ownership", "fixed", source]
     }
 
-    /// Classify against the complete language set first. Never force text into
-    /// the model's list by constraining the classifier to it.
+    /// Classify against the complete language set, not just the model's list.
     static func allowsModelSource(_ text: String) -> Bool {
         if isLanguageNeutralSymbols(text) { return true }
         if let detected = AutomaticSourceLanguageDetector.detect(text) {
             return IPhoneOCRSettings.mangaSourceLanguageCodes.contains(detected)
         }
-        // Short shared Han names, interjections and Latin words ("OK", "Hey") are
-        // often unclassifiable. Retain scripts the recognizer can spell without
-        // admitting others (Hangul, Cyrillic).
+        // Unclassifiable short text: keep scripts the recognizer can spell (not Hangul/Cyrillic).
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
         func latin(_ scalar: Unicode.Scalar) -> Bool {
             (0x41...0x5A).contains(scalar.value) || (0x61...0x7A).contains(scalar.value) ||
@@ -128,8 +114,7 @@ enum ReaderTranslationLanguageFilter {
         return !letters.isEmpty && letters.allSatisfy { isKana($0) || isHan($0) || latin($0) }
     }
 
-    /// Punctuation and symbols have no source language to reject. They still
-    /// pass through the ordinary provider SFX/background classification.
+    /// Punctuation and symbols have no source language to reject.
     static func isLanguageNeutralSymbols(_ text: String) -> Bool {
         let scalars = text.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars
         return !scalars.isEmpty && scalars.allSatisfy {
@@ -155,10 +140,8 @@ enum ReaderTranslationLanguageFilter {
     /// V2 cache identity of `allowsV2Source` (manga recognizer, shared-Han recall).
     static let v2SourcePolicy = "v2-source-filter-v3-manga-latin-shared-han"
 
-    /// V2 block rule: the legacy per-text rule, plus recall for Han-only
-    /// dialogue (names, short replies) that NaturalLanguage cannot split
-    /// between Japanese and Chinese. Such text is admitted whenever any
-    /// Han-script language is allowed; other scripts follow the legacy rule.
+    /// The legacy rule, plus Han-only text (which NaturalLanguage cannot split
+    /// between Japanese and Chinese) whenever any Han-script language is allowed.
     static func allowsV2Source(_ text: String, settings: ReaderTranslationSettings) -> Bool {
         if allowsSource(text, settings: settings) { return true }
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
@@ -170,8 +153,7 @@ enum ReaderTranslationLanguageFilter {
             !isAlreadyTargetLanguage(text, target: settings.targetLanguage)
     }
 
-    /// Keep filtered-out lettering as an explicit source owner during composition.
-    /// Only eligible IDs receive provider text; excluded OCR geometry stays intact.
+    /// Filtered-out lettering keeps its source text; only eligible IDs receive provider text.
     static func preservingExcludedSource(
         original: [ReaderTranslationRegion], translated: [ReaderTranslationRegion], eligibleIDs: Set<String>
     ) -> [ReaderTranslationRegion] {

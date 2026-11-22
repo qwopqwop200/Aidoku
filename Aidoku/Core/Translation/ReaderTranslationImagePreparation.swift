@@ -2,8 +2,7 @@ import UIKit
 
 /// Source-image preparation shared by reader pages, look-ahead and the provider request.
 enum ReaderTranslationImagePreparation {
-    /// Source geometry and DB evidence are expressed in the displayed, upright raster.
-    /// Ordinary CG-backed images retain object identity and incur no redraw.
+    /// Redraws only non-upright or non-CG-backed images.
     nonisolated static func uprightSourceImage(_ image: UIImage) -> UIImage {
         guard image.imageOrientation != .up || image.cgImage == nil else { return image }
         let format = UIGraphicsImageRendererFormat()

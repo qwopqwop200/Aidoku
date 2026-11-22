@@ -1,6 +1,4 @@
 import UIKit
-import CoreGraphics
-import Foundation
 
 actor ReaderTranslationService {
     static let shared = ReaderTranslationService(warmsOCROnReaderOpen: true)
@@ -14,17 +12,13 @@ actor ReaderTranslationService {
     private var metadataTasks: [UUID: Task<[ReaderTranslationRegion], Error>] = [:]
     private var metadataWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
 
-    // Pause before reader OCR/debounce starts, and retain the pause between pages.
-    // Multiple reader owners cannot accidentally resume each other's metadata work.
-    // Readers mark themselves active while visible or background translation is on,
-    // so this is also the reader-open hook that warms the OCR models.
+    // Active readers pause metadata work (per owner) and warm the page models on open.
     func setReaderActive(_ active: Bool, owner: UUID) {
         if active {
             guard activeReaders.insert(owner).inserted else { return }
             metadataGeneration &+= 1
             for task in metadataTasks.values { task.cancel() }
             if warmsOCROnReaderOpen {
-                // The page pipeline owns its resident models (loaded once per session).
                 if #available(iOS 18.0, *), ReaderTranslationSettings().shouldProcessReaderPages {
                     Task(priority: .utility) { await ReaderTranslationV2Service.shared.prewarm() }
                 }
@@ -81,15 +75,13 @@ actor ReaderTranslationService {
             } catch {
                 metadataTasks.removeValue(forKey: id)
                 try Task.checkCancellation()
-                // Only reader preemption retries. A disappearing/cancelled caller
-                // exits immediately, and ordinary provider failures are preserved.
+                // Only reader preemption retries; other failures are thrown.
                 guard task.isCancelled, generation != metadataGeneration else { throw error }
             }
         }
     }
 
-    /// Metadata has no page image or visual roles. Keep its admission and
-    /// cancellation policy above, but never enter the mandatory page route.
+    /// Metadata has no page image, so it never enters the page route.
     private func translateMetadataText(
         regions: [ReaderTranslationRegion], settings: ReaderTranslationSettings,
         priority: MetadataTranslationPriority
@@ -131,7 +123,6 @@ actor ReaderTranslationService {
 
     private func translationService() throws -> TranslationService {
         if let service { return service }
-        // Request-level batch reuse stays in memory; the reader's durable cache stores completed pages separately.
         let service = TranslationService(client: client, cache: TranslationCache(), providerRequestLimiter: limiter)
         self.service = service
         return service
@@ -141,8 +132,7 @@ actor ReaderTranslationService {
         try await service?.purgeCache()
     }
 
-    /// V2 S5: one page request through the live provider client, sharing the
-    /// reader's provider concurrency limit. Page requests always attach the page image.
+    /// V2 S5: one page request through the live client, sharing the provider limit.
     @available(iOS 18.0, *)
     func translateV2(
         _ blocks: [V2Block], pageSize: CGSize, settings: ReaderTranslationSettings, imageJPEG: Data?,
@@ -154,8 +144,7 @@ actor ReaderTranslationService {
         let concurrency = V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
         await limiter.setMaximumConcurrentRequests(concurrency)
         let client = client
-        // Transient provider failures are retried twice (after 1 s and 3 s, as the legacy reader
-        // session did), outside the provider permit; an invalid response is retried once.
+        // Transient failures retry after 1 s and 3 s outside the permit; invalid responses once.
         var attempt = 0
         while true {
             do {
@@ -177,9 +166,7 @@ actor ReaderTranslationService {
 
     static let retryDelays: [UInt64] = [1_000_000_000, 3_000_000_000]
 
-    /// Provider failures worth an automatic retry: request timeouts, conflicts, rate limits and
-    /// server errors, dropped connections and timeouts, and (on the first attempt only) a
-    /// malformed response.
+    /// Provider failures worth an automatic retry (a malformed response only on the first attempt).
     static func isTransient(_ error: Error, attempt: Int) -> Bool {
         switch error as? RemoteTranslationError {
         case .httpStatus(let status, _)?:

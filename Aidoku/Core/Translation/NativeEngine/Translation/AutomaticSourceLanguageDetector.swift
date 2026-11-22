@@ -2,12 +2,8 @@
 import Foundation
 import NaturalLanguage
 
-/// Conservative, on-device source-language detection for OCR text.
-///
-/// Detection always compares against the complete on-device
-/// classification candidate set. The user's source-language filter is applied
-/// only after classification so a one-language filter cannot force unrelated
-/// text into its sole candidate.
+/// Conservative on-device source-language detection for OCR text. The user's
+/// filter applies after classification, so it cannot force text into its sole candidate.
 enum AutomaticSourceLanguageDetector {
     static let supportedLanguageCodes: Set<String> = [
         "zh", "zh-Hant", "en", "ja",
@@ -80,9 +76,7 @@ enum AutomaticSourceLanguageDetector {
         let sourceHint: String?
     }
 
-    /// `detect` is a pure function of its arguments. A page's regions are
-    /// filtered once when OCR is cached and again before requests, each time
-    /// creating NaturalLanguage recognizers, so recent results are reused.
+    /// `detect` is pure and runs repeatedly for the same page regions.
     private static let detectionCache = LanguageDetectionLRUCache<DetectionKey, String?>(capacity: 512)
 
     static func detect(_ untrimmedText: String, sourceHint: String? = nil) -> String? {
@@ -93,7 +87,7 @@ enum AutomaticSourceLanguageDetector {
         return detected
     }
 
-    static func detectUncached(_ untrimmedText: String, sourceHint: String? = nil) -> String? {
+    private static func detectUncached(_ untrimmedText: String, sourceHint: String? = nil) -> String? {
         let text = untrimmedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
 
@@ -271,8 +265,7 @@ enum AutomaticSourceLanguageDetector {
     }
 }
 
-/// A small lock-protected least-recently-used memo for deterministic language
-/// classification results.
+/// A small lock-protected LRU memo for deterministic classification results.
 final class LanguageDetectionLRUCache<Key: Hashable, Value>: @unchecked Sendable {
     private struct Entry {
         let value: Value

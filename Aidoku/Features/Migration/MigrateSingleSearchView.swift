@@ -144,8 +144,7 @@ struct MigrateSingleSearchView: View {
         }
         .onDisappear {
             if searchTask != nil {
-                // Resume interrupted matching if this route becomes visible again,
-                // including a search task queued before its first execution.
+                // Resume interrupted matching if this route becomes visible again.
                 searchTask?.cancel()
                 searchTask = nil
                 didFirstLoad = false

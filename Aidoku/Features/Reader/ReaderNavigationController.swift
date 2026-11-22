@@ -9,9 +9,11 @@ import SwiftUI
 import AidokuRunner
 
 class ReaderNavigationController: UINavigationController {
+    let readerViewController: ReaderViewController
     let mangaInfo: MangaInfo?
 
     init(readerViewController: ReaderViewController, mangaInfo: MangaInfo? = nil) {
+        self.readerViewController = readerViewController
         self.mangaInfo = mangaInfo
         super.init(rootViewController: readerViewController)
     }
@@ -127,8 +129,7 @@ private struct _SwiftUIReaderNavigationController: UIViewControllerRepresentable
             context.coordinator.chapterKey = chapter.key
             uiViewController.setViewControllers([newReader], animated: false)
         } else {
-            // updatePresentedChapter only follows chapters SwiftUI changed, keeping the reader
-            // on its current chapter when the series page refreshes.
+            // Follow only chapters SwiftUI changed, so a series page refresh keeps the current chapter.
             context.coordinator.chapterKey = chapter.key
             reader.updatePresentedChapter(chapter, chapters: manga.chapters)
         }

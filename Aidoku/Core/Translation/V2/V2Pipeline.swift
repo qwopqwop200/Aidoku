@@ -2,23 +2,16 @@ import CoreGraphics
 import Foundation
 
 // V2 orchestrator for one page (see Docs/translation-v2.md):
-//   decode (once) -> S1 layout || S2 detect -> S2b line assembly -> S3 recognize
-//   -> S4 group + role filter -> S5 translate || (S8 style -> S6 mask -> S7 inpaint)
-//   -> S9 layout -> S10 paint
-// S8, S6 and S7 do not read the translation text, so they start right after S4
-// and run during the LLM call; only S9/S10 wait for translations. S6/S7 run on
-// the blocks predicted to be painted; when S5's result paints a different set
-// they are recomputed after S5, so the output never depends on the overlap.
-// Every stage is timed in `V2Timings`. A page is never thrown away: a failed
-// stage degrades to "keep the original pixels" for the blocks it affects and
-// the failure is reported in `V2PageResult.failure`.
+//   decode -> S1 layout || S2 detect -> S2b assemble -> S3 recognize -> S4 group + roles
+//   -> S5 translate || (S8 style -> S6 mask -> S7 inpaint) -> S9 layout -> S10 paint
+// S8/S6/S7 do not read translations, so they run during the LLM call on the predicted
+// paint set and are recomputed when S5 paints a different set. A failed stage keeps the
+// original pixels of the blocks it affects and is reported in `V2PageResult.failure`.
 
-/// Fills `translation` (and may refine `role`) on blocks. Live mode wraps
-/// `V2Translation.translate`; evaluation replays saved legacy translations.
+/// Fills `translation` (and may refine `role`): live `V2Translation.translate` or a replay.
 typealias V2Translator = @Sendable (_ page: V2Page, _ blocks: [V2Block]) async throws -> [V2Block]
 
-/// Admission hooks around the non-LLM compute phases. The iOS service maps them
-/// to its compute slots; the defaults admit everything immediately.
+/// Admission hooks around the non-LLM compute phases; the defaults admit everything.
 struct V2PipelineHooks: Sendable {
     /// S1-S4 are done; called once, before S5 and the overlapped back work start.
     var frontFinished: @Sendable () -> Void = {}
@@ -95,9 +88,8 @@ enum V2Pipeline {
     static func run(_ source: V2Page, models: V2Models, translate: V2Translator,
                     hooks: V2PipelineHooks = V2PipelineHooks()) async -> V2PageResult {
         let started = DispatchTime.now().uptimeNanoseconds
-        // Every stage, the translator and the painted output use the capped page, so
-        // coordinates stay consistent; the reader presents the output aspect-fit in
-        // place of the source, so a smaller same-aspect bitmap displays the same.
+        // Every stage uses the capped page; the reader shows the output aspect-fit, so a
+        // smaller same-aspect bitmap displays the same.
         guard let page = cappedPage(source) else {
             return V2PageResult(pageID: source.id, blocks: [], placed: [], output: source.image,
                                 timings: V2Timings(), failure: "decode: page exceeds the pixel cap and could not be downscaled")
@@ -111,7 +103,7 @@ enum V2Pipeline {
         timings.stages.merge(front.stages) { $0 + $1 }
         failures += front.failures
         let layout = front.layout
-        let lines = timings.record(Stage.assemble) { V2LineAssembly.assemble(front.lines, layout: layout) }
+        let lines = await timings.record(Stage.assemble) { V2LineAssembly.assemble(front.lines, layout: layout) }
 
         // S3
         var read: [V2Line] = []
@@ -125,7 +117,7 @@ enum V2Pipeline {
         } catch { failures.append("s3: \(error)") }
 
         // S4
-        var blocks = timings.record(Stage.group) {
+        var blocks = await timings.record(Stage.group) {
             let grouped = V2Grouping.group(read, layout: layout, pageSize: pageSize, raster: front.gray,
                                            direction: page.readingDirection)
             let classified = V2RoleFilter.classify(grouped, layout: layout)
@@ -133,8 +125,7 @@ enum V2Pipeline {
         }
         timings.stages[Stage.front] = milliseconds(since: started)
         hooks.frontFinished()
-        // Only S2/S3 read the detector frame and S4 the gray raster. Drop them before the
-        // provider wait: for a non-shareable page the frame is a second full-page buffer.
+        // Only S2-S4 read the frame and gray raster; free them before the provider wait.
         front.frame = nil
         front.gray = nil
         let shared = front
@@ -159,8 +150,7 @@ enum V2Pipeline {
             admitted = false
             failures.append("back: \(error)")
         }
-        // A cancelled page (its result is discarded) skips the tail: otherwise a cancelled
-        // look-ahead, refused a back slot, would run S8/S6/S7/S10 outside back admission.
+        // A cancelled page (result discarded) skips the tail, which could run unadmitted.
         if Task.isCancelled {
             if admitted { hooks.releaseBack() }
             failures.append("cancelled")
@@ -179,7 +169,7 @@ enum V2Pipeline {
             }
         } else {
             let unstyled = blocks
-            blocks = timings.record(Stage.style) { V2Style.estimate(page, blocks: unstyled) }
+            blocks = await timings.record(Stage.style) { V2Style.estimate(page, blocks: unstyled) }
         }
 
         // (S6 -> S7, only when the prediction missed) || S9
@@ -213,7 +203,7 @@ enum V2Pipeline {
         var painted: [V2PlacedText] = []
         if let background = erased?.background {
             painted = placed
-            output = timings.record(Stage.paint) { V2Painter.paint(background: background, blocks: finalBlocks, placed: placed) }
+            output = await timings.record(Stage.paint) { V2Painter.paint(background: background, blocks: finalBlocks, placed: placed) }
             let placedIDs = Set(placed.map(\.blockID))
             let unplaced = paintable.filter { !placedIDs.contains($0.id) }.count
             if unplaced > 0 { failures.append("s9: \(unplaced) erased block(s) not placed") }
@@ -228,9 +218,8 @@ enum V2Pipeline {
                             failure: failures.isEmpty ? nil : failures.joined(separator: "; "))
     }
 
-    /// A page within `maxPixels` is returned unchanged (same image, so its output is
-    /// byte-identical to an uncapped run); a larger one is downscaled with its aspect
-    /// kept. Nil when the smaller raster cannot be allocated.
+    /// The same page within `maxPixels`, else downscaled with its aspect kept; nil when
+    /// the smaller raster cannot be allocated.
     static func cappedPage(_ page: V2Page, maxPixels: Int = ImagePixelCap.maxPixels) -> V2Page? {
         guard ImagePixelCap.exceeds(width: page.width, height: page.height, maxPixels: maxPixels) else { return page }
         guard let image = ImagePixelCap.downscaled(page.image, maxPixels: maxPixels) else { return nil }
@@ -267,7 +256,7 @@ enum V2Pipeline {
             return back
         }
         var timings = V2Timings()
-        let styled = timings.record(Stage.style) { V2Style.estimate(page, blocks: blocks) }
+        let styled = await timings.record(Stage.style) { V2Style.estimate(page, blocks: blocks) }
         back.styled = styled
         back.paintable = styled.filter { $0.role != .background && (predicted?.contains($0.id) ?? true) }
         if !back.paintable.isEmpty {
@@ -285,7 +274,7 @@ enum V2Pipeline {
                               raster: V2PageRaster?, models: V2Models) async -> Erased {
         var timings = V2Timings()
         var erased = Erased()
-        let removal = timings.record(Stage.mask) {
+        let removal = await timings.record(Stage.mask) {
             // The shared raster holds exactly the bytes V2RemovalMask would convert itself.
             if let raster {
                 return V2RemovalMask.build(rgba: raster.rgba, width: raster.width, height: raster.height,
@@ -346,9 +335,8 @@ enum V2Pipeline {
 
     // MARK: - Shared page pixels
 
-    /// Decodes the page once. The detector/recognizer frame (DeviceRGB, `.copy`) and the
-    /// canonical raster (sRGB on a white matte) are the same bytes for an opaque sRGB page, so
-    /// one buffer serves both (and S6); any other page pays a second conversion.
+    /// Decodes the page once: for an opaque sRGB page the detector frame and the canonical
+    /// raster are the same bytes, so one buffer serves S1-S6; others pay a second conversion.
     static func decodePixels(_ image: CGImage)
         -> (raster: V2PageRaster?, frame: NativeOCRRGBAFrame?, conversions: Int) {
         let frame = NativeOCRCGImageAdapter.makeRGBAFrame(from: image)

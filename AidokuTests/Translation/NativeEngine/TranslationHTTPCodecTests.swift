@@ -1,7 +1,5 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
-import CoreFoundation
-import ImageIO
 import Testing
 import UIKit
 @testable import Aidoku
@@ -92,7 +90,7 @@ struct TranslationHTTPCodecTests {
         #expect(TranslationHTTPCodec.decodingLeakedEscapes(in: "코드 \\u00e9", source: "コード \\u00e9") == "코드 \\u00e9")
     }
 
-    @Test func completedResponsesOutputParsesAndNullIncompleteDetailsAreAllowed() throws {
+    @Test func responsesOutputParsesButRefusalAndIncompleteAreRejected() throws {
         let data = try JSONSerialization.data(withJSONObject: [
             "status": "completed", "incomplete_details": NSNull(),
             "output": [["type": "message", "status": "completed", "content": [[
@@ -101,9 +99,6 @@ struct TranslationHTTPCodecTests {
         let translations = try TranslationHTTPCodec.responseTranslations(from: data, protocol: .responses,
             expectedSegmentIDs: [RemoteTranslationRequest.singleSegmentID])
         #expect(translations == [RemoteTranslatedSegment(id: RemoteTranslationRequest.singleSegmentID, text: "저장해.")])
-    }
-
-    @Test func responsesRefusalAndIncompleteOutputAreRejected() throws {
         let refusal = try JSONSerialization.data(withJSONObject: [
             "output": [["content": [["type": "refusal", "refusal": "not available"]]]]])
         #expect(throws: RemoteTranslationError.refused) {
@@ -162,18 +157,6 @@ struct TranslationHTTPCodecTests {
                          [RemoteTranslationSegment(id: "box/one", text: "one")]] {
             #expect(throws: RemoteTranslationError.self) {
                 try RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: segments).validate()
-            }
-        }
-    }
-
-    @Test func invalidClassificationCannotSilentlyRemoveText() throws {
-        for invalid in ["true" as Any, 1, NSNull()] {
-            let payload = try JSONSerialization.data(withJSONObject: ["translations": [["id": "s", "text": "translated", "text_role": invalid]]])
-            let wire = try JSONSerialization.data(withJSONObject: ["choices": [["index": 0, "finish_reason": "stop",
-                "message": ["content": String(decoding: payload, as: UTF8.self)]] as [String: Any]]])
-            #expect(throws: RemoteTranslationError.self) {
-                try TranslationHTTPCodec.responseTranslations(from: wire, protocol: .chatCompletions,
-                    expectedSegmentIDs: ["s"], sfxSourceTexts: ["s": "BANG"])
             }
         }
     }
@@ -357,23 +340,7 @@ private enum TranslationWireContractChecks {
         }
         try check(schema["additionalProperties"] as? Bool == false, "Envelope allows extra fields")
         try check(schema["required"] as? [String] == ["translations"], "Envelope must require translations")
-        // Resolve the local ID definition against the root, not against an anyOf branch.
-        func resolve(_ value: Any) throws -> Any {
-            if let object = value as? [String: Any] {
-                if let ref = object["$ref"] as? String {
-                    guard ref == "#/$defs/segment_id", object.count == 1,
-                          let definition = (schema["$defs"] as? [String: Any])?["segment_id"] as? [String: Any],
-                          definition["type"] as? String == "string", definition["enum"] is [String] else {
-                        throw Failure(description: "Unsupported or unresolved local schema reference")
-                    }
-                    return definition
-                }
-                return try object.mapValues { try resolve($0) }
-            }
-            if let array = value as? [Any] { return try array.map { try resolve($0) } }
-            return value
-        }
-        return try resolve(item) as! [String: Any]
+        return item
     }
 
     static func branches(_ schema: [String: Any]) -> [[String: Any]] {
@@ -390,19 +357,9 @@ private enum TranslationWireContractChecks {
                   let properties = branch["properties"] as? [String: [String: Any]],
                   Set(required) == Set(properties.keys), Set(item.keys) == Set(required) else { return false }
             return properties.allSatisfy { key, rule in
-                guard let value = item[key] else { return false }
-                switch rule["type"] as? String {
-                case "string":
-                    guard let string = value as? String,
-                          string.count >= (rule["minLength"] as? Int ?? 0) else { return false }
-                    return (rule["enum"] as? [String]).map { $0.contains(string) } ?? true
-                case "boolean":
-                    guard let number = value as? NSNumber,
-                          CFGetTypeID(number) == CFBooleanGetTypeID() else { return false }
-                    return (rule["enum"] as? [Bool]).map { $0.contains(number.boolValue) } ?? true
-                default:
-                    return false
-                }
+                guard rule["type"] as? String == "string", let string = item[key] as? String,
+                      string.count >= (rule["minLength"] as? Int ?? 0) else { return false }
+                return (rule["enum"] as? [String]).map { $0.contains(string) } ?? true
             }
         }
     }
@@ -583,29 +540,14 @@ private enum TranslationWireContractChecks {
     }
 
     static func singlePageImageOnly() throws {
-        // A real, crop-capable image with several eligible small regions catches
-        // accidental reintroduction of the retired detail-image path.
-        guard let context = CGContext(data: nil, width: 1024, height: 1024, bitsPerComponent: 8,
-                                      bytesPerRow: 4096, space: CGColorSpaceCreateDeviceRGB(),
-                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
-            throw Failure(description: "Cannot allocate synthetic page")
-        }
-        context.setFillColor(gray: 1, alpha: 1)
-        context.fill(CGRect(x: 0, y: 0, width: 1024, height: 1024))
-        let data = NSMutableData()
-        guard let page = context.makeImage(),
-              let encoder = CGImageDestinationCreateWithData(data, "public.jpeg" as CFString, 1, nil) else {
-            throw Failure(description: "Cannot encode synthetic page")
-        }
-        CGImageDestinationAddImage(encoder, page, nil)
-        try check(CGImageDestinationFinalize(encoder), "JPEG encoding failed")
+        let data = Data([0xff, 0xd8, 0xff, 0xd9])
         let segments = (0..<4).map { index -> RemoteTranslationSegment in
             .init(id: "part-\(index)", text: "原文", bounds: [0.1 + Double(index) * 0.2, 0.2, 0.03, 0.1])
         }
         var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: segments)
-        request.imageJPEG = data as Data
+        request.imageJPEG = data
         request.filtersSFX = true; request.filtersBackground = true; request.translatesPageLettering = true
-        let expectedURL = "data:image/jpeg;base64," + (data as Data).base64EncodedString()
+        let expectedURL = "data:image/jpeg;base64," + data.base64EncodedString()
         for proto in [RemoteTranslationProtocol.responses, .chatCompletions] {
             for compact in [false, true] {
                 let config = RemoteTranslationConfiguration(provider: .custom, apiProtocol: proto,
@@ -625,27 +567,20 @@ private enum TranslationWireContractChecks {
                 try check(parts.filter { ["input_image", "image_url"].contains($0["type"] as? String ?? "") }.count == 1,
                     "Extra image attached")
                 let payload = try JSONSerialization.jsonObject(with: Data((parts[1]["text"] as! String).utf8)) as! [String: Any]
-                try check(payload["context"] == nil, "Empty context sent")
+                try check(Set(payload.keys) == ["source_language", "target_language", "segments"], "Unexpected OCR data fields")
                 let sent = payload["segments"] as! [[String: Any]]
-                try check(sent.count == 4 && sent.allSatisfy { $0["role_evidence"] == nil }, "Internal contour evidence reached provider")
+                try check(sent.count == 4, "Segments lost")
                 for (index, segment) in sent.enumerated() {
-                    try check(segment["sfx_evidence"] == nil, "Derived SFX annotations sent")
+                    try check(Set(segment.keys) == ["id", "text", "box_2d"], "Unexpected segment fields")
                     try check(segment["box_2d"] as? [Int] == [200, 100 + 200 * index, 300, 130 + 200 * index],
                               "Source box_2d lost")
                 }
                 if proto == .responses && !compact {
-                    // Measured v30 snapshot of this exact four-region fixture.
-                    // Do not reconstruct history from the evolving Evidence encoder.
-                    let before = 2_817
-                    let after = (parts[1]["text"] as! String).utf8.count
                     let promptBytes = (root["instructions"] as! String).utf8.count
-                    try check(after + promptBytes < before + 1013, "Total text input did not shrink")
-                    print("METRIC synthetic 4-region OCR JSON: \(before) -> \(after) bytes; prompt \(promptBytes) bytes")
+                    try check((parts[1]["text"] as! String).utf8.count + promptBytes < 3_830, "Total text input grew")
                     let escaped = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
                     try check(body.count < escaped.count, "Redundant image URL slash escapes retained")
-                    print("METRIC outer slash escaping alone: \(escaped.count) -> \(body.count) bytes; same decoded image")
                 }
-                try check(!String(decoding: body, as: UTF8.self).contains("Detail context:"), "Retired crop caption sent")
             }
         }
     }

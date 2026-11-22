@@ -1,54 +1,32 @@
 import CoreGraphics
 import Foundation
 
-// S8 source style estimation for the V2 pipeline (see Docs/translation-v2.md).
-// Cheap, model-free per-block measurement on a bounded crop:
-// - font px: a simple geometric rule (production minimal-policy calibration and
-//   member-logratio grouping, seeded by the longest texts, text-length-weighted group median).
-// - fill: candidates are k-means colour clusters inside the line polygons, their
-//   parts cut off from the surroundings, and a re-clustering of interior pixels;
-//   small TRAIN-fit boosted trees (V2StyleParameters) pick the fill from cheap
-//   enclosure/contrast/stroke/neighbour features plus a page colour consensus.
-//   The colour is the median of the candidate's stroke-core pixels.
-// - outline: colour profile of distance rings around the fill mask; presence by
-//   boosted trees plus page consensus, width by ring-colour persistence.
-// - bold: glyph stroke thickness / size >= boldStrokeRatio. The ratio does not separate the
-//   GT bold labels (1.5% of sources; best train F1 0.3), so it is kept out of reach and S10
-//   paints the bundled Regular face, the weight of 98.5% of source lettering.
-// Constants were fit on TRAIN and selected on DEV (the out-of-repo research scripts (scripts-style)).
+// S8 (Docs/translation-v2.md): model-free style per block on a bounded crop. Font px is a geometric
+// rule with grouping; the fill is the k-means colour candidate that TRAIN-fit boosted trees
+// (V2StyleParameters) pick; the outline comes from colour rings around the fill mask.
 
 extension V2Style {
     /// Fills `style` on every block; blocks keep order and all other fields.
     static func estimate(_ page: V2Page, blocks: [V2Block]) -> [V2Block] {
-        V2StyleEstimator.estimate(page, blocks: blocks)
-    }
-}
-
-enum V2StyleEstimator {
-    static func estimate(_ page: V2Page, blocks: [V2Block]) -> [V2Block] {
         let fonts = V2SimpleFont.estimate(blocks)
-        var analyses = analyzeAll(page.image, blocks: blocks, fonts: fonts)
-        let styles = decide(&analyses, fonts: fonts)
+        // Blocks are independent; measure them concurrently.
+        let results = UnsafeMutableBufferPointer<V2StyleEstimator.BlockAnalysis?>.allocate(capacity: blocks.count)
+        results.initialize(repeating: nil)
+        defer { results.deallocate() }
+        DispatchQueue.concurrentPerform(iterations: blocks.count) { index in
+            results[index] = V2StyleEstimator.analyze(page.image, block: blocks[index], font: fonts[index])
+        }
+        var analyses = Array(results)
+        let styles = V2StyleEstimator.decide(&analyses, fonts: fonts)
         return zip(blocks, styles).map { block, style in
             var block = block
             block.style = style
             return block
         }
     }
-
-    /// Blocks are independent; measure them concurrently.
-    static func analyzeAll(_ image: CGImage, blocks: [V2Block], fonts: [CGFloat]) -> [BlockAnalysis?] {
-        let results = UnsafeMutableBufferPointer<BlockAnalysis?>.allocate(capacity: blocks.count)
-        results.initialize(repeating: nil)
-        defer { results.deallocate() }
-        DispatchQueue.concurrentPerform(iterations: blocks.count) { index in
-            results[index] = analyze(image, block: blocks[index], font: fonts[index])
-        }
-        return Array(results)
-    }
 }
 
-// MARK: - Font size (port of NativeSimpleSourceFont, production minimal policy)
+// MARK: - Font size (port of NativeSimpleSourceFont)
 
 enum V2SimpleFont {
     // NativeSourceInferencePolicy minimal-m1-p9-body64-presence95 calibration.
@@ -154,8 +132,7 @@ enum V2SimpleFont {
         return best
     }
 
-    /// Returns the polygon itself when already convex (same vertex order as the
-    /// legacy port), otherwise Andrew's monotone chain hull.
+    /// The polygon itself when already convex (legacy vertex order), else the monotone chain hull.
     private static func convexHull(_ poly: [(Double, Double)]) -> [(Double, Double)] {
         func cross(_ a: (Double, Double), _ b: (Double, Double), _ p: (Double, Double)) -> Double {
             (b.0 - a.0) * (p.1 - a.1) - (b.1 - a.1) * (p.0 - a.0)
@@ -186,8 +163,7 @@ enum V2SimpleFont {
 
 // MARK: - Per-block pixel measurement
 
-/// Cheap colour/structure features of one block crop (working pixels are the
-/// crop downscaled to at most `maximumPixels`; lengths are reported in page px).
+/// Colour/structure features of one block crop (lengths in page px).
 struct V2StyleFeatures: Sendable {
     struct Cluster: Sendable {
         var count = 0
@@ -208,7 +184,6 @@ struct V2StyleFeatures: Sendable {
     }
     struct Ring: Sendable {
         var distance: Double
-        var count: Int
         var median: [Double]
         var mad: Double
     }
@@ -220,7 +195,7 @@ struct V2StyleFeatures: Sendable {
     var profiles: [Int: [Ring?]] = [:]
 }
 
-extension V2StyleEstimator {
+enum V2StyleEstimator {
     static let clusterCount = 5
     static let interiorClusterCount = 3
     static let maximumPixels = 90_000
@@ -236,7 +211,7 @@ extension V2StyleEstimator {
         var assignment: [UInt8] = []
         /// Second-level clusters of interior (not exterior-connected) line pixels; 255 elsewhere.
         var interiorAssignment: [UInt8] = []
-        var exterior: [Bool] = []
+        /// Ring plus the same-cluster regions 4-connected to it.
         var exteriorOwn: [Bool] = []
         var exteriorDistance2: [Int32] = []
     }
@@ -282,14 +257,12 @@ extension V2StyleEstimator {
                 }
             }
         }
-        result.ringBackground = channelMedian(crop.crop.rgb, mask: crop.crop.ring)
-        // exterior: ring plus same-cluster 4-connected regions reachable from ring pixels
+        result.ringBackground = channelMedian(crop.crop.rgb, indices: crop.crop.ring.indices.filter { crop.crop.ring[$0] })
         floodExterior(&crop.crop)
-        // Line polygons covering the whole crop leave no exterior: every exterior distance would be
-        // Int32.max and `measureCluster` would allocate a 2^31-entry histogram.
-        guard crop.crop.exterior.contains(true) else { return nil }
+        // No exterior: every exterior distance would be Int32.max (a 2^31-entry histogram).
+        guard crop.crop.exteriorOwn.contains(true) else { return nil }
         let labels = Labels(width: crop.crop.width, height: crop.crop.height)
-        crop.crop.exteriorDistance2 = squaredDistance(to: crop.crop.exterior, width: crop.crop.width, height: crop.crop.height)
+        crop.crop.exteriorDistance2 = squaredDistance(to: crop.crop.exteriorOwn, width: crop.crop.width, height: crop.crop.height)
         result.clusters = (0..<k).map { j in
             var cluster = V2StyleFeatures.Cluster()
             cluster.inLines = Double(inLines[j]) / Double(lineCount)
@@ -298,8 +271,7 @@ extension V2StyleEstimator {
                            into: &cluster)
             return cluster
         }
-        // Enclosed variants (candidate k + j): the part of a mostly-exterior cluster that is
-        // cut off from the surroundings, e.g. a white fill inside an outline on a white ground.
+        // Enclosed variants (k + j): the part of a mostly-exterior cluster cut off from the surroundings.
         func measureExtra(_ candidate: Int, into cluster: inout V2StyleFeatures.Cluster) {
             let members = candidateMembers(crop.crop, candidate: candidate)
             cluster.inLines = Double(members.reduce(0) { $0 + (crop.crop.lines[$1] ? 1 : 0) }) / Double(lineCount)
@@ -312,8 +284,7 @@ extension V2StyleEstimator {
             if result.clusters[j].valid, result.clusters[j].exterior >= enclosedExteriorMinimum { measureExtra(k + j, into: &cluster) }
             result.clusters.append(cluster)
         }
-        // Interior re-clustering (candidates 2k + j): separates a thin fill from art colours it was
-        // merged with in the first-level clusters.
+        // Interior re-clustering (2k + j): separates a thin fill from merged art colours.
         var interior = [Bool](repeating: false, count: n)
         var interiorCount = 0
         for i in 0..<n where crop.crop.lines[i] && !crop.crop.exteriorOwn[i] { interior[i] = true; interiorCount += 1 }
@@ -466,21 +437,13 @@ extension V2StyleEstimator {
         return low + Float(position - Double(lower)) * (high - low)
     }
 
-    /// k-th smallest value (0-based), Hoare quickselect on a copy.
+    /// k-th smallest value (0-based).
     static func select(_ values: [Float], _ k: Int) -> Float {
         var a = values
-        var lo = 0, hi = a.count - 1
-        while lo < hi {
-            let pivot = a[(lo + hi) / 2]
-            var i = lo, j = hi
-            while i <= j {
-                while a[i] < pivot { i += 1 }
-                while a[j] > pivot { j -= 1 }
-                if i <= j { a.swapAt(i, j); i += 1; j -= 1 }
-            }
-            if k <= j { hi = j } else if k >= i { lo = i } else { return a[k] }
+        return a.withUnsafeMutableBufferPointer { buffer in
+            V2RemovalMask.select(buffer.baseAddress!, count: buffer.count, k)
+            return buffer[k]
         }
-        return a[k]
     }
 
     private static func assign(_ crop: Crop, centres: [[Float]]) -> [UInt8] {
@@ -528,7 +491,6 @@ extension V2StyleEstimator {
             }
         }
         crop.exteriorOwn = own
-        crop.exterior = own
     }
 
     static let enclosedExteriorMinimum = 0.3
@@ -560,8 +522,7 @@ extension V2StyleEstimator {
         return mask.indices.filter { mask[$0] }
     }
 
-    /// Per-block label plane on a 2 px border: bit 0 member, bit 1 outside the crop, bit 2 already
-    /// counted in the shell. `measureCluster` leaves it as it found it.
+    /// Label plane with a 2 px border: bit 0 member, bit 1 outside the crop, bit 2 counted in the shell.
     final class Labels {
         static let member: UInt8 = 1, outside: UInt8 = 2, marked: UInt8 = 4
         let width: Int, height: Int, stride: Int
@@ -593,13 +554,11 @@ extension V2StyleEstimator {
         crop.exteriorDistance2.withUnsafeBufferPointer { dist in
             for i in members { maximumDistance = max(maximumDistance, dist[i]) }
         }
-        // Squared distances can reach w^2 + h^2 on long thin crops; a histogram that large would be
-        // a huge allocation, so such clusters take the same median from their sorted distances.
+        // Squared distances can reach w^2 + h^2; such clusters take the median from sorted distances.
         let useHistogram = maximumDistance <= maximumDistanceHistogram
         var histogram = [Int](repeating: 0, count: useHistogram ? Int(maximumDistance) + 1 : 1)
-        // Channel histograms of all members and of the core members (medians are order-free).
         var all = [Int](repeating: 0, count: 768), core = all
-        withPointers(crop, &histogram, &all, &core) { own, dist, rgb, a, e, histogram, all, core in
+        withPointers(crop, &histogram, &all, &core) { own, dist, rgb, a, histogram, all, core in
             for i in members {
                 let p = labels.at(i)
                 if own[i] { exterior += 1 }
@@ -619,7 +578,7 @@ extension V2StyleEstimator {
                     shellPixels.append(j)
                     shell += 1
                     neighbours[Int(a[j])] += 1
-                    if e[j] { shellExterior += 1 }
+                    if own[j] { shellExterior += 1 }
                 }
             }
         }
@@ -642,24 +601,20 @@ extension V2StyleEstimator {
         c.shellExterior = Double(shellExterior) / Double(max(1, shell))
     }
 
-    /// Crop planes (exterior-own, exterior distance, RGB, assignment, exterior) and three
-    /// mutable histograms as buffer pointers for `measureCluster`.
+    /// Crop planes and three mutable histograms as buffer pointers for `measureCluster`.
     private static func withPointers(
         _ crop: Crop, _ histogram: inout [Int], _ all: inout [Int], _ core: inout [Int],
         _ body: (UnsafeBufferPointer<Bool>, UnsafeBufferPointer<Int32>, UnsafeBufferPointer<UInt8>, UnsafeBufferPointer<UInt8>,
-                 UnsafeBufferPointer<Bool>, UnsafeMutableBufferPointer<Int>, UnsafeMutableBufferPointer<Int>,
-                 UnsafeMutableBufferPointer<Int>) -> Void
+                 UnsafeMutableBufferPointer<Int>, UnsafeMutableBufferPointer<Int>, UnsafeMutableBufferPointer<Int>) -> Void
     ) {
         crop.exteriorOwn.withUnsafeBufferPointer { own in
             crop.exteriorDistance2.withUnsafeBufferPointer { dist in
                 crop.rgb.withUnsafeBufferPointer { rgb in
                     crop.assignment.withUnsafeBufferPointer { a in
-                        crop.exterior.withUnsafeBufferPointer { e in
-                            histogram.withUnsafeMutableBufferPointer { histogram in
-                                all.withUnsafeMutableBufferPointer { all in
-                                    core.withUnsafeMutableBufferPointer { core in
-                                        body(own, dist, rgb, a, e, histogram, all, core)
-                                    }
+                        histogram.withUnsafeMutableBufferPointer { histogram in
+                            all.withUnsafeMutableBufferPointer { all in
+                                core.withUnsafeMutableBufferPointer { core in
+                                    body(own, dist, rgb, a, histogram, all, core)
                                 }
                             }
                         }
@@ -696,8 +651,7 @@ extension V2StyleEstimator {
                 for ch in 0..<3 { total += abs(Double(crop.rgb[i * 3 + ch]) - median[ch]) }
                 histogram[Int((total * 2).rounded())] += 1
             }
-            return .init(distance: Double(b) / s, count: pixels.count, median: median,
-                         mad: histogramMedian(histogram, count: pixels.count) / 2)
+            return .init(distance: Double(b) / s, median: median, mad: histogramMedian(histogram, count: pixels.count) / 2)
         }
     }
 
@@ -735,9 +689,7 @@ extension V2StyleEstimator {
         }
         target.withUnsafeBufferPointer { t in
             grid.withUnsafeMutableBufferPointer { g in
-                // Column pass: for a 0/infinity input the lower envelope is exactly the squared
-                // distance to the nearest target pixel in the column (or infinity), so two
-                // row-major sweeps give the same values as the 1-D transform.
+                // Column pass: for a 0/infinity input two row-major sweeps equal the 1-D transform.
                 let steps = UnsafeMutablePointer<Int64>.allocate(capacity: w * h)
                 defer { steps.deallocate() }
                 let none = Int64(Int32.max)
@@ -779,10 +731,6 @@ extension V2StyleEstimator {
         return out
     }
 
-    static func channelMedian(_ rgb: [UInt8], mask: [Bool]) -> [Double] {
-        channelMedian(rgb, indices: mask.indices.filter { mask[$0] })
-    }
-
     static func channelMedian(_ rgb: [UInt8], indices: [Int]) -> [Double] {
         var histograms = [[Int]](repeating: [Int](repeating: 0, count: 256), count: 3)
         for i in indices {
@@ -815,7 +763,7 @@ extension V2StyleEstimator {
     }
 }
 
-// MARK: - Decisions (TRAIN-fit trees/constants in V2StyleParameters.swift, the out-of-repo research scripts (scripts-style)/model.py)
+// MARK: - Decisions (TRAIN-fit trees/constants in V2StyleParameters.swift)
 
 /// Flattened gradient-boosted trees (sklearn GradientBoostingClassifier export).
 struct V2StyleForest: Sendable {

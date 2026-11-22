@@ -129,8 +129,7 @@ extension HistoryView.ViewModel {
         let ids = Array(Set(chapterIds))
         guard !ids.isEmpty else { return }
         let generation = historyReloadGeneration
-        // Several mutation notifications can await the same predecessor. Recheck
-        // ownership after every suspension so only one successor reads/merges.
+        // Several notifications can await the same predecessor; only one successor may proceed.
         while let predecessor = loadTask {
             let predecessorID = loadTaskID
             _ = await predecessor.value
@@ -146,8 +145,7 @@ extension HistoryView.ViewModel {
                     await self.increaseOffset(by: newObjectCount.inserted, generation: generation)
                     break
                 }
-                // A removal changed the content snapshot while I/O was suspended.
-                // Re-read the current top window instead of losing this new event.
+                // A removal changed the snapshot during I/O; re-read instead of losing this event.
                 await Task.yield()
             }
             return false
@@ -235,8 +233,7 @@ extension HistoryView.ViewModel {
         }
     }
 
-    // Batch deletion commits at execute(), not at a later context.save().
-    // Keep the displayed records and pagination until that operation acknowledges success.
+    // Keep the displayed records until the batch deletion reports success.
     func clearHistory(deleteHistory: () async -> Bool) async {
         _ = await loadTask?.value
         guard await deleteHistory() else { return }
@@ -476,8 +473,7 @@ extension HistoryView.ViewModel {
         return applied ? (historyObj.count, historyObj.count - replacedCount) : nil
     }
 
-    /// Exact event identities avoid reading the same newest row for different
-    /// queued notifications. Bound the SQL predicate even for large imports.
+    /// Reads the exact changed rows, in bounded predicate batches.
     nonisolated static func readIdentityHistoryBatch(chapterIds: [ChapterIdentifier], context: NSManagedObjectContext) -> HistoryBatch {
         let ids = Array(Set(chapterIds))
         var rows: [HistoryObject] = []

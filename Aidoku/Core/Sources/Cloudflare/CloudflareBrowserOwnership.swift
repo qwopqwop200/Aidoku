@@ -1,7 +1,6 @@
 import Foundation
 
-/// Guards generation-bound browser effects on the same executor that performs them.
-/// An actor check before hopping to MainActor cannot prevent a stale queued UI effect.
+/// Checks the challenge generation on MainActor, where stale queued UI effects would run.
 @MainActor
 final class CloudflareBrowserOwnership {
     private var challengeID: UUID?
@@ -31,12 +30,10 @@ final class CloudflareBrowserOwnership {
         return true
     }
 
-    @discardableResult
-    func end(expectedID: UUID?, _ cleanup: () -> Void) -> Bool {
-        guard isCurrent(expectedID) else { return false }
+    func end(expectedID: UUID?, _ cleanup: () -> Void) {
+        guard isCurrent(expectedID) else { return }
         challengeID = nil
         popupReserved = false
         cleanup()
-        return true
     }
 }

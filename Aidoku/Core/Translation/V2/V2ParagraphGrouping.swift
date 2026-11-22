@@ -19,11 +19,9 @@ enum V2ParagraphGrouping {
     }
     struct Group {
         let members: [Int]
-        let representative: Int
         let readingOrder: [Int]
         let polygon: [CGPoint]
         let vertical: Bool
-        let singleVerticalColumn: Bool
         /// Ruby lines erased with the group but not part of its text.
         var readings: [Int] = []
     }
@@ -95,7 +93,7 @@ enum V2ParagraphGrouping {
     }
 
     /// Correct only order within a contiguous run of one unambiguous column.
-    /// Cross-column run order and all grouping/representative metadata are untouched.
+    /// Cross-column run order and grouping are untouched.
     private static func orderColumnRuns(_ legacy: [Int], along: [[CGFloat]], cross: [[CGFloat]]) -> [Int] {
         var parents = Array(legacy.indices)
         func root(_ i: Int) -> Int {
@@ -147,9 +145,8 @@ enum V2ParagraphGrouping {
         let fits = max(ga, gb) <= glyph*2
         let sharedText = a.text.map { x in b.text.map { !x.isDisjoint(with: $0) } ?? false } ?? false
         let ag = max(x.start, y.start)-min(x.end, y.end), cg = max(x.low, y.low)-min(x.high, y.high)
-        // Same-column continuation (legacy G:152-179): a 2 glyph gap, 4 below an unclosed quote; a shared RF text
-        // scope lifts the width-fit limit.
-        // Inside one RF balloon the column/row gutter may be wider (legacy P:1733, 1746: 3 glyph in a verified balloon).
+        // Same-column continuation: a 2 glyph gap, 4 below an unclosed quote; a shared RF text scope
+        // lifts the width-fit limit, and one RF balloon allows a wider gutter.
         let sameBalloon = a.balloon != nil && a.balloon?.owner == b.balloon?.owner
         let sameLimit = glyph*(hasOpenQuote((x.start <= y.start ? a : b).input.source) ? 4 : 2)
         let parallelLimit = glyph*(sameBalloon ? 1.25 : 1)
@@ -397,8 +394,7 @@ enum V2ParagraphGrouping {
                         .map { members[$0] }
                 }
             }
-            return .init(members: members, representative: legacyOrder[0], readingOrder: readingOrder, polygon: polygon,
-                vertical: vertical, singleVerticalColumn: single)
+            return .init(members: members, readingOrder: readingOrder, polygon: polygon, vertical: vertical)
         }
         return groups.map { group in
             var group = group

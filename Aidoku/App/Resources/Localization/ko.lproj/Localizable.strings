@@ -216,6 +216,7 @@
 "NEVER" = "사용 안 함";
 "WEEKLY" = "매주";
 "WITH_UNREAD_CHAPTERS" = "읽지 않은 챕터가 있는 작품";
+"THAT_HAVENT_BEEN_READ" = "읽지 않은 것";
 "WITH_NO_CHAPTERS_READ" = "읽음으로 표시된 챕터가 없는 작품";
 "SOURCE_LISTS" = "소스 목록";
 "SOURCE_LIST_ADD_FAIL_TEXT" = "입력한 소스 목록 URL이 올바르지 않거나 이미 추가되어 있습니다.";
@@ -354,6 +355,7 @@
 "NO_DOWNLOADS" = "다운로드 없음";
 "NO_DOWNLOADS_TEXT" = "다운로드한 콘텐츠가 여기에 표시됩니다.";
 "DOWNLOADED_CHAPTERS" = "다운로드한 챕터";
+"TOTAL_DOWNLOADS" = "총 내려받은 수";
 "DOWNLOAD_STORAGE_USED" = "다운로드 총 용량";
 "%i_SERIES" = "작품 %i개";
 "IN_LIBRARY" = "라이브러리에 있음";
@@ -372,6 +374,7 @@
 "INVALID_URL_TEXT" = "이 소스의 URL이 유효하지 않습니다.";
 "MORE_BARBUTTON" = "더보기";
 "RETRY" = "다시 시도";
+"NO_RESULT" = "결과 없음";
 "UNIMPLEMENTED" = "구현되지 않음";
 "NETWORK_ERROR" = "네트워크 오류";
 "DECODING_ERROR" = "디코딩 오류";
@@ -460,6 +463,7 @@
 "VOLUME" = "권";
 "OPEN_WEBSITE" = "웹사이트 열기";
 "SET_COVER_IMAGE" = "표지 이미지 설정";
+"UPLOAD_CUSTOM_COVER" = "사용자 지정 표지 업로드";
 "CHOOSE_CUSTOM_COVER" = "사용자 지정 표지 선택";
 "RESET_COVER" = "표지 초기화";
 "LOGIN" = "로그인";
@@ -546,39 +550,26 @@
 "TRANSLATION_CLEAR_CACHE" = "번역 캐시 비우기";
 "TRANSLATION_CACHE_CLEARED" = "번역 캐시를 비웠습니다.";
 "TRANSLATION_NOTICES" = "OCR 및 번역 라이선스";
-
-// Translation overlay and pipeline controls
 "TRANSLATION_ADVANCED" = "번역 옵션";
 "TRANSLATION_REASONING" = "추론 강도";
 "TRANSLATION_MODEL_DEFAULT" = "모델 기본값";
 "TRANSLATION_CONCURRENCY" = "동시 요청 수";
-
 "TRANSLATION_PROVIDER" = "번역 제공업체";
 "TRANSLATION_BASE_URL" = "서버 주소";
 "TRANSLATION_API_FORMAT" = "API 방식";
 "TRANSLATION_CUSTOM_HELP" = "HTTPS 기본 주소 또는 API 전체 주소와 서버에서 지원하는 모델을 입력하세요. 키는 서버 주소별로 저장되며, 주소를 변경하면 입력 중인 키가 지워집니다. Responses와 Chat Completions의 구조화된 JSON 응답을 사용합니다.";
-
 "TRANSLATION_AUTOMATIC" = "자동 번역";
 "TRANSLATION_AUTOMATIC_HELP" = "리더의 페이지를 자동으로 번역해 표시합니다. 리더의 번역 버튼으로도 이 설정을 켜거나 끌 수 있습니다.";
-
 "TRANSLATION_TEST" = "API 연결 테스트";
 "TRANSLATION_TEST_RUNNING" = "연결 테스트 중…";
 "TRANSLATION_TEST_SUCCESS" = "연결 성공";
 "TRANSLATION_TEST_FAILURE" = "연결 실패";
 "TRANSLATION_TEST_HELP" = "현재 입력값으로 짧은 문장을 번역합니다. 키를 비워두면 이 서버용으로 저장된 키를 사용합니다. 변경 사항은 자동으로 저장됩니다.";
-
-// Search suggestions
 "SEARCH_SUGGESTIONS" = "검색 자동완성";
-
 "TRANSLATION_CACHE" = "오프라인 캐시";
-
 "TRANSLATION_CACHE_LIMIT" = "최대 저장 용량";
-
 "TRANSLATION_CACHE_USED" = "사용 중인 용량";
-
 "TRANSLATION_CACHE_HELP" = "OCR·페이지 번역·만화 및 챕터 제목·작가명·태그·만화 설명·소스 메뉴 및 섹션 제목 번역·텍스트 배치 정보를 자동 저장합니다. 페이지 이미지는 현재·주변 페이지의 메모리에만 보관합니다. 용량이 차면 가장 오래 사용하지 않은 결과부터 삭제합니다. 기본 1GB, 최대 100GB이며 변경 사항은 자동으로 적용됩니다. 한도를 줄이면 가장 오래 사용하지 않은 결과부터 삭제해 용량을 맞춥니다.";
-
-// Source-language filtering
 "TRANSLATION_SOURCE_FILTER" = "번역 대상 원문 언어";
 "TRANSLATION_FILTER_ALL" = "모든 감지 언어";
 "TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "선택한 원문 언어로 판별된 텍스트만 번역합니다. 기기에서 언어를 판별할 수 없는 언어에는 필터를 적용하지 않습니다.";
@@ -590,44 +581,25 @@
 "HTTPS_BYPASS_TEST_RESULT" = "HTTP %d 수신 · TLS 분할 적용 확인";
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d 수신 · TLS 분할 미확인";
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS 우회 경로로 연결하지 못했습니다.";
-
 "TRANSLATION_MANGA_TITLES" = "만화 제목 번역";
-
 "TRANSLATION_CHAPTER_TITLES" = "챕터 제목 번역";
-
 "TRANSLATION_TITLES_HELP" = "기존 번역 API와 대상 언어를 사용합니다. 페이지 자동 번역과 별도로 동작하며, 각 항목을 끄면 해당 원문이 표시됩니다. 번역 중이거나 실패하면 원문을 표시합니다.";
-
 "TRANSLATION_MANGA_TITLE_FILTER" = "만화 제목 원문 언어";
-
 "TRANSLATION_CHAPTER_TITLE_FILTER" = "챕터 제목 원문 언어";
-
 "TRANSLATION_PAGE_SOURCE" = "페이지 원문 언어";
-
 "TRANSLATION_MANGA_DESCRIPTIONS" = "만화 설명 번역";
-
 "TRANSLATION_DESCRIPTION_FILTER" = "만화 설명 원문 언어";
-
 "TRANSLATION_METADATA_FILTER_HELP" = "원문 언어를 자동 감지해 선택한 언어만 번역합니다. ‘모든 감지 언어’를 선택하면 언어 제한 없이 번역합니다. 각 항목의 언어 필터는 페이지와 다른 항목의 언어 설정에 영향을 받지 않습니다.";
-
 "TRANSLATION_CUSTOM_PROVIDER" = "사용자 지정 (OpenAI 호환)";
-
 "TRANSLATION_REASONING_NONE" = "없음";
-
 "TRANSLATION_REASONING_MINIMAL" = "최소";
-
 "TRANSLATION_REASONING_LOW" = "낮음";
-
 "TRANSLATION_REASONING_MEDIUM" = "보통";
-
 "TRANSLATION_REASONING_HIGH" = "높음";
-
 "TRANSLATION_REASONING_XHIGH" = "매우 높음";
-
 "TRANSLATION_REASONING_MAX" = "최대";
-
 "TRANSLATION_MANGA_TAGS" = "만화 태그 번역";
 "TRANSLATION_TAG_FILTER" = "태그 원문 언어";
-
 "TRANSLATION_SOURCE_LABELS" = "소스 메뉴·섹션 제목 번역";
 
 // Completed app localization
@@ -936,34 +908,20 @@
 "TOGGLE_PAGE_OFFSET" = "페이지 오프셋 전환";
 "MIGRATE_CHAPTER_HISTORY" = "챕터 읽기 기록 이전";
 "MIGRATE_CHAPTER_HISTORY_TEXT" = "이전 버전에서 남아 현재 기기의 챕터와 연결되지 않은 읽기 기록을 이전합니다. 일반적으로 앱 업데이트 후 자동으로 처리됩니다. 완료되지 않았다면 여기에서 다시 실행할 수 있습니다.";
-
-// Local image import
 "IMPORT_PHOTO" = "사진 가져오기";
 "LOCAL_IMAGE_IMPORT_TEXT" = "사진 또는 이미지 파일을 바로 가져오거나, CBZ·ZIP 파일을 선택하여 읽을 수 있습니다.";
-
-// Translated page export
 "SAVE_TRANSLATED_IMAGE" = "번역된 이미지 저장";
 "TRANSLATED_IMAGE_SAVE_FAILED" = "번역 이미지를 만들지 못했습니다. 번역이 완료된 후 다시 시도하세요.";
-
 "TRANSLATION_AUTHORS" = "작가명 번역";
-
 "TRANSLATION_AUTHOR_FILTER" = "작가명 원문 언어";
 "TRANSLATION_SOURCE_LABEL_FILTER" = "소스 메뉴·섹션 원문 언어";
-
-// Shared image retention
 "SAVE_SHARED_IMAGES" = "공유 이미지를 로컬 파일에 보관";
 "SAVE_SHARED_IMAGES_HELP" = "끄면 공유 이미지를 임시로 열고, 닫을 때 삭제합니다. 읽기 기록과 OCR·번역 캐시도 보관하지 않습니다.";
-
 "TRANSLATION_LARGE_FILTER_OPTIONS" = "대량 필터 항목 번역 (100개 초과)";
-
 "SETTING_INVALID_STEPPER_RANGE" = "숫자 설정 범위가 올바르지 않습니다.";
-
 "SETTING_MISSING_CONTENT_HANDLER" = "설정을 표시할 수 없습니다: %@";
-
 "DOWNLOAD_TRANSLATED" = "번역 포함 다운로드";
-
 "TRANSLATION_STATE_ON" = "켜짐";
-
 "TRANSLATION_STATE_OFF" = "꺼짐";
 
 // Translation errors
@@ -992,14 +950,8 @@
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 글자 인식에 실패했습니다. 다른 이미지나 OCR 모델로 다시 시도하세요.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "번역 캐시 저장소가 올바르지 않거나 사용할 수 없습니다.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "번역 캐시를 저장할 수 없습니다.";
-
 "ICLOUD_SYNC_RESTART_REQUIRED" = "iCloud 동기화 변경은 Aidoku를 완전히 종료한 뒤 다시 열 때 적용됩니다. 그전까지는 현재 동기화 설정이 유지됩니다.";
-
-// Translation settings section
-
 "TRANSLATION_TARGETS" = "번역 대상";
-
-// Download page counts and single-series totals.
 "PAGES_%i_OF_%i" = "%i / %i페이지";
 "1_SERIES" = "작품 1개";
 "SKIPPING_ONE_CHAPTER" = "소스에 없거나 필터에서 제외된 챕터 1개를 건너뜁니다";
@@ -1023,8 +975,6 @@
 "RECOMMENDED_JMDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 종합 일본어·영어 사전입니다.";
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 일본어 고유명사 사전입니다.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe의 미디어 말뭉치를 기반으로 한 빈도 사전입니다.";
-
-// Reader background translation and preparation limits
 "TRANSLATION_BACKGROUND" = "원본 표시 중에도 번역";
 "TRANSLATION_BACKGROUND_HELP" = "번역 버튼을 끄고 읽는 동안에도 번역을 계속하며 원본 페이지를 표시합니다. 앱이 비활성 상태가 되면 번역을 일시 중지합니다.";
 "TRANSLATION_PRETRANSLATION_LIMIT" = "미리 번역할 페이지 수";
@@ -1032,9 +982,5 @@
 "TRANSLATION_UNLIMITED" = "무제한";
 "TRANSLATION_PAGE_SETTINGS" = "페이지 번역";
 "TRANSLATION_VISIBLE_PAGES_ONLY" = "현재 보이는 페이지만";
-
-// Unsupported installed source package version
-
 "TRANSLATION_OCR_MANGA_HELP" = "Manga v0.3는 일본어, 중국어(간체·번체), 영어 및 기타 라틴 문자 원문을 인식하며, 한국어, 키릴 문자, 베트남어는 인식하지 못합니다. 자동 원문 언어 판별과 원문 언어 선택도 이 언어들로 제한됩니다. 번역 대상 언어는 어떤 언어든 선택할 수 있습니다. Manga를 선택하면 탐지 임계값 0.85와 0.25가 적용되며, 기본 탐지 크기는 1120px입니다.";
-
 "TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "지원되는 모든 OCR 언어";

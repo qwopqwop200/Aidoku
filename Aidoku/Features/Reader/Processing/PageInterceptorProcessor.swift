@@ -77,8 +77,7 @@ struct PageInterceptorProcessor: ImageProcessing {
             try await source.remove(value: imageDescriptor)
             return result
         } catch {
-            // Cleanup must outlive caller cancellation, but must finish before returning.
-            // Preserve the original processing error if removing the handle also fails.
+            // Cleanup must outlive caller cancellation and keep the original error.
             await Task.detached { try? await source.remove(value: imageDescriptor) }.value
             throw error
         }

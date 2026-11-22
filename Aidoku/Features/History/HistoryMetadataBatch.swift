@@ -1,8 +1,7 @@
 import AidokuRunner
 import CoreData
 
-/// Fetch only metadata referenced by this history page, without faulting in a
-/// manga's entire chapter collection or retaining any decoded cover images.
+/// Fetches only the metadata a history page references, without faulting in chapter lists.
 struct HistoryMetadataBatch {
     var manga: [MangaIdentifier: AidokuRunner.Manga] = [:]
     var chapters: [ChapterIdentifier: AidokuRunner.Chapter] = [:]
@@ -10,8 +9,7 @@ struct HistoryMetadataBatch {
     static func load(chapterIds: [ChapterIdentifier], context: NSManagedObjectContext) -> Self {
         var result = Self()
         let ids = Array(Set(chapterIds))
-        // Notifications can contain more than the normal 100-row history page.
-        // Bound SQL predicate size even for a large history import.
+        // Bound SQL predicate size for large history imports.
         for start in stride(from: 0, to: ids.count, by: 100) {
             let batch = ids[start..<min(start + 100, ids.count)]
             let mangaIds = Set(batch.map(\.mangaIdentifier)).filter { result.manga[$0] == nil }

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Run focused checks by default, or an explicitly requested complete test scope."""
 import argparse
-from contextlib import ExitStack
 import fcntl
 import json
 import math
@@ -20,8 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def host_commands():
-    # Python tooling tests, localization parity and the model-free V2 host settings
-    # check. Model-loading V2 host smokes and OCR contracts are in the full-host matrix.
+    # Model-loading V2 host smokes and OCR contracts are in the full-host matrix.
     return [
         [sys.executable, '-m', 'unittest', 'discover', '-s', 'Scripts', '-v'],
         [sys.executable, 'Scripts/validate_localizations.py'],
@@ -29,16 +27,8 @@ def host_commands():
     ]
 
 
-def log_tail(log, limit=12000):
-    """Read a bounded diagnostic tail even when a compiler produced a large log."""
-    log.seek(0, os.SEEK_END)
-    log.seek(max(0, log.tell() - limit))
-    return log.read().decode('utf-8', errors='replace')
-
-
 def full_host_commands():
-    manifest = ROOT / 'Scripts/tests/full-host-matrix.json'
-    entries = json.loads(manifest.read_text())['commands']
+    entries = json.loads((ROOT / 'Scripts/tests/full-host-matrix.json').read_text())['commands']
     commands = []
     for entry in entries:
         command = entry['command']
@@ -50,6 +40,12 @@ def full_host_commands():
     return commands
 
 
+def log_tail(log, limit=12000):
+    log.seek(0, os.SEEK_END)
+    log.seek(max(0, log.tell() - limit))
+    return log.read().decode('utf-8', errors='replace')
+
+
 def has_skipped_host_tests(log):
     log.seek(0)
     patterns = (
@@ -57,7 +53,7 @@ def has_skipped_host_tests(log):
         rb'\bOK \(skipped=[1-9][0-9]*\)',
         rb'\.\.\. skipped [\'"]',
     )
-    return any(any(re.search(pattern, line) for pattern in patterns) for line in log)
+    return any(re.search(pattern, line) for line in log for pattern in patterns)
 
 
 def xcresult_json(bundle, *arguments):
@@ -68,8 +64,7 @@ def xcresult_json(bundle, *arguments):
 
 
 def result_summary_error(summary):
-    # Xcode's top-level counts are declarations; device counts can expand dynamic
-    # parameter cases. Do not add them together or infer execution from log text.
+    # Top-level counts are declarations; device counts can expand parameter cases, so never add them.
     counts = ('passedTests', 'failedTests', 'skippedTests', 'expectedFailures', 'totalTestCount')
     if not isinstance(summary, dict):
         return 'invalid result summary'
@@ -92,7 +87,7 @@ def result_summary_error(summary):
 
 
 def selected_suite_execution_error(document, requested_suites):
-    """Require actual cases for each --ios suite, using xcresult's test tree."""
+    """Require actual passing cases for each --ios suite in xcresult's test tree."""
     def nodes(value):
         if not isinstance(value, dict) or not isinstance(value.get('children', []), list):
             raise ValueError('invalid test-tree node')
@@ -103,8 +98,6 @@ def selected_suite_execution_error(document, requested_suites):
     if not isinstance(document, dict) or not isinstance(document.get('testNodes'), list):
         return 'invalid executed-test tree'
     try:
-        # Same Test Suite / Test Case / Arguments traversal as the mandatory
-        # native quality gate, verified against actual xcresult JSON exports.
         all_nodes = [node for root in document['testNodes'] for node in nodes(root)]
         for name in dict.fromkeys(requested_suites):
             matches = [node for node in all_nodes
@@ -112,8 +105,7 @@ def selected_suite_execution_error(document, requested_suites):
             if len(matches) != 1:
                 return f'requested suite {name!r}: expected one executed suite, found {len(matches)}; check the bare suite name'
             descendants = list(nodes(matches[0]))
-            cases = [node for node in descendants if node.get('nodeType') == 'Test Case']
-            if not cases:
+            if not any(node.get('nodeType') == 'Test Case' for node in descendants):
                 return f'requested suite {name!r}: zero executed test cases'
             if any(node.get('result') != 'Passed' for node in descendants):
                 return f'requested suite {name!r}: failed, skipped or non-passing execution'
@@ -124,8 +116,7 @@ def selected_suite_execution_error(document, requested_suites):
 
 def report_ios_result(bundle, log, wall_seconds, requested_suites=()):
     summary = xcresult_json(bundle, 'test-results', 'summary')
-    selection_evidence = None
-    selection_error = None
+    selection_evidence = selection_error = None
     if requested_suites:
         tree_path = bundle.with_suffix('.tests.json')
         try:
@@ -178,12 +169,12 @@ def main():
     selection.add_argument('--full-host', action='store_true',
                            help='Run the complete checked-in host test matrix without the smoke deadline')
     selection.add_argument('--ios', nargs='+', metavar='SUITE',
-                        help='Run these AidokuTests suites and require execution of every selected suite; pass bare names without method filters')
+                           help='Run these AidokuTests suites and require execution of every selected suite; '
+                                'pass bare names without method filters')
     parser.add_argument('--device', help='Simulator UDID (required for iOS runs)')
     parser.add_argument('--derived-data', help='Reuse a consistent Xcode build cache')
-    parser.add_argument('--result-bundle', type=Path, help='New iOS .xcresult output path; existing results are never overwritten')
-    parser.add_argument('--host-result-directory', type=Path,
-                        help='New directory for every host command log and execution-result JSON')
+    parser.add_argument('--result-bundle', type=Path,
+                        help='New iOS .xcresult output path; existing results are never overwritten')
     parser.add_argument('--jobs', type=int, default=2, help='Parallel Xcode build jobs (default: 2; one test simulator)')
     parser.add_argument('--configuration', choices=['Debug', 'Release'],
                         help='Default: Release for --fast-ios/--full-ios, Debug for explicit --ios suites')
@@ -199,25 +190,17 @@ def main():
         parser.error('--ios/--fast-ios/--full-ios requires --device')
     if not is_ios and (args.device or args.derived_data or args.result_bundle):
         parser.error('--device, --derived-data and --result-bundle require an iOS selection')
-    if is_ios and args.host_result_directory:
-        parser.error('--host-result-directory applies only to host checks')
     if args.ios and any('/' in suite or '(' in suite or ')' in suite or suite.startswith('-') for suite in args.ios):
         parser.error('--ios accepts bare suite names only, e.g. --ios NativeOCRRecognitionRegressionTests. '
                      'Remove the AidokuTests/ prefix and /method suffix; run the whole affected suite. '
                      'Method filters can silently match zero Swift Testing tests.')
     started = time.monotonic()
     bundle = None
-    cache = None
-    host_results = None
-    if args.host_result_directory:
-        host_results = args.host_result_directory.expanduser().resolve()
-        if host_results.exists():
-            parser.error(f'Host result directory already exists: {host_results}')
-        host_results.mkdir(parents=True)
     if is_ios:
         cache = Path(args.derived_data or ROOT / ('build/simulator-fast-' + configuration.lower())).expanduser().resolve()
         bundle = (args.result_bundle or ROOT / 'build/test-results' / f'{uuid.uuid4()}.xcresult').expanduser().resolve()
-        if bundle.exists() or bundle.with_suffix('.log').exists() or bundle.with_suffix('.summary.json').exists() or bundle.with_suffix('.tests.json').exists():
+        if any(path.exists() for path in (bundle, *(bundle.with_suffix(suffix)
+                                                    for suffix in ('.log', '.summary.json', '.tests.json')))):
             parser.error(f'Result path already exists: {bundle}')
         commands = [[
             'xcodebuild', 'test', '-project', 'Aidoku.xcodeproj', '-scheme', 'Aidoku',
@@ -242,36 +225,34 @@ def main():
                        'selected iOS tests from AidokuFull (incremental build)') if is_ios else
                       'complete checked-in host matrix' if args.full_host else
                       'host tooling smoke checks'), flush=True)
-    with ExitStack() as resources:
-        if cache is not None:
-            cache.mkdir(parents=True, exist_ok=True)
-            bundle.parent.mkdir(parents=True, exist_ok=True)
-            lock = resources.enter_context((cache / '.test-runner.lock').open('a'))
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                parser.exit(1, 'Another test runner is using this DerivedData cache.\n')
-        return run_commands(commands, deadline, started, bundle, args.full_host, host_results,
-                            requested_suites=tuple(args.ios or ()))
+    if not is_ios:
+        return run_commands(commands, deadline, started, None, args.full_host)
+    cache.mkdir(parents=True, exist_ok=True)
+    bundle.parent.mkdir(parents=True, exist_ok=True)
+    with (cache / '.test-runner.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            parser.exit(1, 'Another test runner is using this DerivedData cache.\n')
+        return run_commands(commands, deadline, started, bundle, False, requested_suites=tuple(args.ios or ()))
 
 
-def run_commands(commands, deadline, started, bundle, full_host, host_results=None, requested_suites=()):
+def stop_process_group(process):
+    # The group leader may exit before a worker that ignored SIGTERM; stop only this invocation.
+    for sig, wait in ((signal.SIGTERM, 0.5), (signal.SIGKILL, 1)):
+        try:
+            os.killpg(process.pid, sig)
+        except ProcessLookupError:
+            pass
+        try:
+            process.wait(timeout=wait)
+        except subprocess.TimeoutExpired:
+            if sig == signal.SIGKILL:
+                raise
+
+
+def run_commands(commands, deadline, started, bundle, full_host, requested_suites=()):
     failures = 0
-    records = []
-
-    def record_host(index, command, status, code, seconds, **details):
-        if host_results is None:
-            return
-        record = dict(index=index, name=shlex.join(command), argv=command, command=command,
-                      status=status, exitCode=code, seconds=seconds,
-                      log=str(host_results / f'{index:03d}.log'), **details)
-        records.append(record)
-        (host_results / f'{index:03d}.json').write_text(json.dumps(record, indent=2) + '\n')
-        (host_results / 'results.json').write_text(json.dumps({
-            'totalCommands': len(commands), 'recordedCommands': len(records),
-            'passedCommands': sum(item['status'] == 'passed' for item in records),
-            'commands': records,
-        }, indent=2) + '\n')
     for index, command in enumerate(commands, 1):
         remaining = None if deadline is None else deadline - (time.monotonic() - started)
         if remaining is not None and remaining <= 0:
@@ -279,14 +260,12 @@ def run_commands(commands, deadline, started, bundle, full_host, host_results=No
             return 124
         print(f'[{index}/{len(commands)}] {shlex.join(command)}', flush=True)
         command_started = time.monotonic()
-        log_path = bundle.with_suffix('.log') if bundle else host_results / f'{index:03d}.log' if host_results else None
-        with (log_path.open('w+b') if log_path else tempfile.TemporaryFile(mode='w+b')) as log:
+        with (bundle.with_suffix('.log').open('w+b') if bundle else tempfile.TemporaryFile(mode='w+b')) as log:
             try:
                 process = subprocess.Popen(command, cwd=ROOT, stdout=log,
                                            stderr=subprocess.STDOUT, start_new_session=True)
             except OSError as error:
                 print(f'FAIL: {error}', flush=True)
-                record_host(index, command, 'failed', None, time.monotonic() - command_started, error=str(error))
                 failures += 1
                 if full_host:
                     continue
@@ -294,27 +273,10 @@ def run_commands(commands, deadline, started, bundle, full_host, host_results=No
             try:
                 code = process.wait(timeout=remaining)
             except (subprocess.TimeoutExpired, KeyboardInterrupt) as error:
-                # Stop only this invocation and its children, never other test runs.
-                try:
-                    os.killpg(process.pid, signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-                try:
-                    process.wait(timeout=0.5)
-                except subprocess.TimeoutExpired:
-                    pass
-                # The group leader may exit before a compiler/test worker that
-                # ignored SIGTERM. Stop the entire invocation even in that case.
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                process.wait(timeout=1)
-                record_host(index, command, 'incomplete', None, time.monotonic() - command_started, error=type(error).__name__)
+                stop_process_group(process)
                 print(log_tail(log))
                 print(f'INCOMPLETE after {time.monotonic() - started:.1f}s; not a pass', flush=True)
                 return 124 if isinstance(error, subprocess.TimeoutExpired) else 130
-            skipped = False
             if bundle:
                 try:
                     problem = report_ios_result(bundle, log, time.monotonic() - command_started, requested_suites)
@@ -328,9 +290,6 @@ def run_commands(commands, deadline, started, bundle, full_host, host_results=No
                 print(log_tail(log))
                 print('FAIL: host tests skipped execution', flush=True)
                 code = 1
-                skipped = True
-            record_host(index, command, 'failed' if code else 'passed', code,
-                        time.monotonic() - command_started, skipped=skipped)
             if code:
                 print(log_tail(log))
                 print(f'FAIL after {time.monotonic() - started:.1f}s (exit {code})', flush=True)

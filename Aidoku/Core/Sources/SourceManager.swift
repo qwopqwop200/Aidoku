@@ -103,8 +103,7 @@ extension SourceManager {
         }
     }
 
-    // One-time migration for new and existing installations. Keep this outside the local.*
-    // namespace so removing a source's settings does not undo the user's choice.
+    // Outside the local.* namespace, so removing the source's settings keeps the user's choice.
     static let localDefaultRegistrationKey = "Browse.localDefaultRegistrationCompleted"
 
     private func installDefaultLocalSourceIfNeeded() async {
@@ -558,8 +557,6 @@ extension SourceManager {
                 url.stopAccessingSecurityScopedResource()
             }
         }
-        // Packages are untrusted archives: bound entry count and inflated size, reject
-        // traversal and symlinks, and remove any partial extraction on failure.
         let extracted = temporaryDirectory.appendingPathComponent("package", isDirectory: true)
         do {
             try SourcePackageExtractor.extract(fileUrl, to: extracted)
@@ -568,7 +565,7 @@ extension SourceManager {
             return nil
         }
 
-        // Preflight the staged manifest. The runner must own only the final installed location.
+        // Read the staged manifest; the runner must own only the final installed location.
         let payload = extracted.appendingPathComponent("Payload")
         let sourceKey: String
         do {
@@ -907,8 +904,7 @@ extension SourceManager {
         loadSourceLanguages()
         await removeEnhancedTrackerItems(for: sourceKey)
 
-        // Batch callers suppress the browse refresh, but consumers must still
-        // release the removed source and observe its unloaded state.
+        // Batch callers suppress only the browse refresh; consumers must still see the unload.
         await publishSourceState()
         notifySourcesUnloaded(keys: [sourceKey], skipUpdateNotification: skipUpdateNotification)
     }

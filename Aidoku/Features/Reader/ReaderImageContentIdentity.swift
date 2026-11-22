@@ -2,12 +2,9 @@ import CryptoKit
 import Foundation
 import Nuke
 
-/// Content-addressed keys survive launches and cannot alias pages from different
-/// sources that happen to share a chapter ID/index. Hash without decoding pixels
-/// or allocating a second full copy of the base64 payload.
+/// Content-addressed keys survive launches and cannot alias pages across sources; hashing never decodes pixels.
 enum ReaderImageContentIdentity {
-    /// File paths can be reused after a download or local comic replacement.
-    /// Match the page revision before Nuke can return pixels for the old file.
+    /// File paths can be reused, so match the page revision before Nuke returns old pixels.
     static func localFileRequestIdentity(_ url: URL) async -> String? {
         guard url.isFileURL else { return nil }
         let parts = [url.absoluteString, ReaderLocalPageIdentity.fileRevision(url)]
@@ -15,9 +12,7 @@ enum ReaderImageContentIdentity {
         return "reader-local-pixels-v1-" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Hitomi rotates routing epochs and shards without changing the hash-addressed
-    /// image. Keep transport URLs intact, but reuse bytes across those rotations.
-    /// Derive the key through Nuke so headers, method and body remain isolated.
+    /// Hitomi rotates routing hosts for the same hash-addressed image: reuse bytes across rotations, keeping request isolation.
     static func applyStableRemoteIdentity(to request: inout ImageRequest, sourceKey: String?) {
         guard var canonical = request.urlRequest, let url = canonical.url,
               let canonicalURL = stableRemoteURL(url, sourceKey: sourceKey) else { return }
@@ -27,8 +22,7 @@ enum ReaderImageContentIdentity {
         }
     }
 
-    /// Share the same content identity with persistent OCR/translation lookups.
-    /// Only routing fields of validated hash-addressed Hitomi URLs may be removed.
+    /// Shared with OCR/translation lookups; only routing fields of validated Hitomi URLs are removed.
     static func stableRemoteURL(_ url: URL, sourceKey: String?) -> URL? {
         guard sourceKey == "multi.hitomi",
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -72,8 +66,7 @@ enum ReaderImageContentIdentity {
     }
 }
 
-/// A page carries its content identity with its base64 payload so repeated
-/// translation-cache lookups never rehash the full encoded image on UIKit.
+/// Caches the base64 content identity so translation lookups never rehash the payload.
 @propertyWrapper
 struct HashedReaderBase64: Hashable, Sendable {
     var wrappedValue: String? {

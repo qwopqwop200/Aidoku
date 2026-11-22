@@ -1,45 +1,31 @@
 import CoreGraphics
 import Foundation
 
-// S4b: free lettering space around each block, measured on the S4 gray raster.
-// RF-DETR finds no balloon for most vertical source columns, and its balloon boxes
-// often span several balloons or cut past rounded outlines, so S9 would either wrap
-// the translation inside the tight column box or paint outside the balloon.
-// The block's bounds get the legacy granted margin, then grow by legacy steps per side,
-// stopped by other text, other detected balloons, the panel frame, the block's own
-// balloon box, the 8 x 4 line reach and (clean paper, past 3 x the source) ink. On clean paper, per-row spans
-// through the source centre stop at outlines and art. The result becomes `V2Block.balloon`,
-// the box S9 fits into.
+// S4b: free lettering space around each block on the S4 gray raster (RF-DETR balloons are often
+// missing or wrong). The bounds grow per side, stopped by other text and balloons, the panel, the
+// line reach and ink; the result becomes `V2Block.balloon`, the box S9 fits into.
 enum V2Interior {
     typealias Box = (x0: Int, y0: Int, x1: Int, y1: Int)
     /// Raster row spans: rows `first...`, half-widths in cells about column `centre`.
-    struct Rows {
-        var first: Int
-        var centre: Int
-        var halves: [Int]
-    }
+    typealias Rows = (first: Int, centre: Int, halves: [Int])
 
     /// Gray distance from the paper level that marks a cell as ink or art.
     static let inkDistance = 64
     /// Paper levels in this open range (tone, mid-gray art) are not treated as paper.
     static let midGray = 96...160
-    /// Growth per side, in source line thicknesses (column width or row height): text
-    /// outside any detected balloon may spread up to 8 x 4 (the legacy exterior reach);
-    /// inside a detected balloon the balloon box bounds it.
+    /// Growth reach per side, in source line thicknesses.
     static let horizontalReach: CGFloat = 8
     static let verticalReach: CGFloat = 4
-    /// Granted margin around the source before the clean growth (legacy exterior start).
+    /// Granted margin around the source before the growth.
     static let baseMargin = (horizontal: CGFloat(3), vertical: CGFloat(1.5))
-    /// Legacy exterior growth: step per side in line thicknesses, steps per side and the share
-    /// of other text an added strip may cover.
+    /// Growth step in line thicknesses, steps per side and the share of other text a strip may cover.
     static let growthStep = (horizontal: CGFloat(1), vertical: CGFloat(0.5))
     static let growthSteps = 6
     static let collisionShare: Double = 0.02
-    /// Edge test on the growth (legacy edge risk): a step stops at > 3% ink in its strip, once the box
-    /// holds 3 x the source area (smaller boxes keep growing: the text needs the room; chosen on train folds).
+    /// A step stops at > 3% ink in its strip once the box holds 3 x the source area.
     static let edgeShare = 0.03
     static let edgeGuard = 3
-    /// Least share of the grown box's area a balloon lobe keeps to replace it (chosen on train folds).
+    /// Least share of the grown box's area a balloon lobe keeps to replace it.
     static let lobeShare = 0.6
     /// A panel frame bounds the growth when it holds this share of the block.
     static let frameHold: CGFloat = 0.95
@@ -73,9 +59,7 @@ enum V2Interior {
                                        halfWidths: rows.halves.map { CGFloat($0) / sx })
                 }
             }
-            // A detected balloon holding no other text: the rectangle inscribed in its
-            // ellipse is safe for rounded and square balloons alike (and survives shading
-            // inside the balloon that stops the pixel growth).
+            // A detected balloon holding no other text: the rectangle inscribed in its ellipse.
             if let balloon = block.balloon, !blocks.indices.contains(where: { other in
                 other != index && blocks[other].role != .background && blocks[other].bounds.intersects(balloon)
             }) {
@@ -84,7 +68,6 @@ enum V2Interior {
             }
             guard let best = candidates.map({ $0.union(block.bounds) })
                 .max(by: { $0.width * $0.height < $1.width * $1.height }) else { return block }
-            // Never smaller than the source text itself.
             block.balloon = best
             // Row spans only describe the pixel-grown interior.
             block.rows = candidates.first.map { $0.union(block.bounds) == best } == true ? spans : nil
@@ -127,8 +110,7 @@ enum V2Interior {
             guard let box = cells(bound) else { continue }
             limit = (max(limit.x0, box.x0), max(limit.y0, box.y0), min(limit.x1, box.x1), min(limit.y1, box.y1))
         }
-        // Legacy granted margin (3 x 1.5 line thicknesses), within the limit; a side that would
-        // reach another block's text stops before it.
+        // Granted margin within the limit; a side reaching another block's text stops before it.
         var base: Box = (max(limit.x0, start.x0 - Int(baseMargin.horizontal * CGFloat(emX))),
                          max(limit.y0, start.y0 - Int(baseMargin.vertical * CGFloat(emY))),
                          min(limit.x1, start.x1 + Int(baseMargin.horizontal * CGFloat(emX))),
@@ -137,8 +119,7 @@ enum V2Interior {
             if o.x0 >= start.x1 { base.x1 = min(base.x1, o.x0) } else if o.x1 <= start.x0 { base.x0 = max(base.x0, o.x1) }
             else if o.y0 >= start.y1 { base.y1 = min(base.y1, o.y0) } else if o.y1 <= start.y0 { base.y0 = max(base.y0, o.y1) }
         }
-        // Paper level: the most common 16-level band of the block's own box (dense
-        // columns can be half ink, so a median would land on gray).
+        // Paper level: the most common 16-level band of the block's box (dense columns can be half ink).
         var bands = [Int](repeating: 0, count: 16), sums = [Int](repeating: 0, count: 16)
         for y in start.y0..<start.y1 {
             for x in start.x0..<start.x1 {
@@ -154,8 +135,7 @@ enum V2Interior {
 
         let blocked = avoid.compactMap(cells)
 
-        // Own lines, padded by a fifth of a line (glyphs overhang detector boxes), are
-        // erased by S6, so they count as paper.
+        // Own lines (padded by a fifth of a line) are erased by S6, so they count as paper.
         let pad = max(2, Int((CGFloat(emX) * 0.2).rounded()))
         let own = block.lines.compactMap { cells($0.bounds) }.map {
             (x0: $0.x0 - pad, y0: $0.y0 - pad, x1: $0.x1 + pad, y1: $0.y1 + pad)
@@ -165,10 +145,8 @@ enum V2Interior {
             guard abs(Int(raster.pixels[y * width + x]) - paper) > inkDistance else { return false }
             return !own.contains { x >= $0.x0 && x < $0.x1 && y >= $0.y0 && y < $0.y1 }
         }
-        // Legacy exterior growth: each side in turn (left, right, top, bottom) by 1 em (0.5 em
-        // vertically), at most `growthSteps` times, while the added strip covers <= 2% of other
-        // blocks' text and enters no other detected balloon; on clean paper, once the box holds
-        // `edgeGuard` x the source area, also while <= `edgeShare` of the strip is ink or art.
+        // Each side in turn (left, right, top, bottom), while the strip spares other text and balloons
+        // (and, on clean paper past `edgeGuard`, holds <= `edgeShare` ink).
         func area(_ r: Box) -> Int { max(0, r.x1 - r.x0) * max(0, r.y1 - r.y0) }
         func overlap(_ r: Box, _ o: Box) -> Int { max(0, min(r.x1, o.x1) - max(r.x0, o.x0)) * max(0, min(r.y1, o.y1) - max(r.y0, o.y0)) }
         var best = base
@@ -200,12 +178,10 @@ enum V2Interior {
         }
         guard best != start else { return nil }
         guard !toned else { return (best, nil) }
-        // An enclosed balloon's tail-free lobe replaces the grown box (row spans still describe the
-        // growth) unless it keeps less than `lobeShare` of its area (a narrow lobe cuts words).
+        // An enclosed balloon's tail-free lobe replaces the grown box unless it keeps < `lobeShare`.
         let box = lobeRect(limit, source: start, dirty: dirty).flatMap { Double(area($0)) >= lobeShare * Double(area(best)) ? $0 : nil } ?? best
-        // Row spans: per raster row, the clean run through the source centre column, as a
-        // half-width symmetric about it, one cell inside; kept for the contiguous rows around
-        // the centre row and only when some row is wider than the rectangle.
+        // Row spans: per row, the clean half-width about the source centre column, for the contiguous
+        // rows around the centre, kept only when some row is wider than the rectangle.
         let centre = (start.x0 + start.x1) / 2, middle = (start.y0 + start.y1) / 2
         func half(_ y: Int) -> Int {
             guard !dirty(centre, y) else { return 0 }
@@ -221,13 +197,11 @@ enum V2Interior {
         while bottom + 1 < limit.y1 { let h = half(bottom + 1); guard h > 0 else { break }; halves.append(h); bottom += 1 }
         let rectHalf = (best.x1 - best.x0) / 2
         guard (halves.max() ?? 0) > rectHalf + 1 else { return (box, nil) }
-        return (box, Rows(first: top, centre: centre, halves: halves))
+        return (box, (first: top, centre: centre, halves: halves))
     }
 
-    /// Legacy balloon_consistency lobes: the paper connected to the source inside the balloon box
-    /// is split at its distance cores (>= 0.32 of the peak, seeds >= 3% of the core); the lobe
-    /// holding >= 70% of the source yields the widest centred rectangle inscribed in its rows
-    /// (centre weighted by distance squared, so a thin tail neither pulls nor widens it).
+    /// Balloon lobes: the paper connected to the source is split at its distance cores; the lobe
+    /// holding >= 70% of the source yields the widest centred rectangle inscribed in its rows.
     static func lobeRect(_ box: Box, source: Box, dirty: (Int, Int) -> Bool) -> Box? {
         let w = box.x1 - box.x0, h = box.y1 - box.y0
         guard w > 4, h > 4 else { return nil }

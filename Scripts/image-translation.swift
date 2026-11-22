@@ -52,7 +52,7 @@ do {
         .map { "Core/Translation/NativeEngine/Overlay/\($0).swift" }
       + ["NativeCoreMLDetector", "NativeCoreMLRecognizer", "BrowserOCRSourceOrientation", "NativeOCRLocalCoordinates",
          "NativeCoreMLDBPostprocessor", "NativeCoreMLModelStore", "NativeOCRCGImageAdapter", "NativeOCRFrameTypes",
-         "NativeMangaNGram", "NativeOCRScopeGeometry"].map { "Core/Translation/NativeEngine/OCR/\($0).swift" }
+         "NativeMangaNGram"].map { "Core/Translation/NativeEngine/OCR/\($0).swift" }
       + ["RemoteTranslationClient", "TranslationHTTPCodec", "BoundedURLSessionTransport",
          "KeychainTranslationCredentialStore", "TranslationImageSupport", "TranslationModels",
          "TranslationStreamDecoder", "TranslationEndpointPolicy"].map { "Core/Translation/NativeEngine/Translation/\($0).swift" }

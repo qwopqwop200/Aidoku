@@ -2,19 +2,9 @@ import CoreGraphics
 import CoreText
 import Foundation
 
-// S10: paint placed translations over the restored page in one pass.
-// Each line is shaped once per paint colour and drawn through the native glyph
-// painters (stroke first, then fill), with CTLineDraw as the fallback for lines
-// those painters decline (for example colour emoji). Geometry comes only from
-// V2Layout (frame, font size, wrapped lines), so painted ink stays in the frame.
-//
-// Cost: the background is copied into the output bitmap once (a row copy when
-// its pixel format already matches, else one CGContext.draw); fonts are created
-// once per size; each line is shaped once for measuring and filling. Every item
-// draws only inside its own clip, so items whose clips share no device pixel
-// rasterize concurrently into the same bitmap (overlapping items stay together,
-// in order). Each pixel is still written by the same items in the same order,
-// so the output equals painting them one after another.
+// S10: paint placed translations over the restored page with the native glyph painters (stroke,
+// then fill; CTLineDraw as fallback). Items whose clips share no pixel paint concurrently into the
+// same bitmap, so every pixel is written by the same items in the same order.
 enum V2Painter {
     static func paint(background: CGImage, blocks: [V2Block], placed: [V2PlacedText]) -> CGImage {
         let width = background.width, height = background.height
@@ -96,10 +86,8 @@ enum V2Painter {
         return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
     }
 
-    /// The source style, made legible on `background`: text whose fill and outline both
-    /// vanish into the background gets a black or white outline (the one that best
-    /// separates the fill, weighted 0.85, and the background, 0.15); an existing outline
-    /// keeps its colour unless it is itself invisible there.
+    /// The source style made legible on `background`: text whose fill and outline both vanish gets
+    /// the black or white outline that best separates fill (0.85) and background (0.15).
     static func legible(block: V2Block, fontPixels: CGFloat, background: V2RGB?) -> Paint {
         let (fill, stroke) = paints(for: block)
         let width = V2Layout.strokeWidth(for: block, fontPixels: fontPixels)
@@ -148,10 +136,8 @@ enum V2Painter {
         context.clip(to: page)
     }
 
-    /// Partitions item indices into groups whose clips can share no device pixel
-    /// (each clip widened to whole pixels plus a one-pixel guard); clips that do
-    /// overlap, directly or through a chain, stay in one group in paint order.
-    /// Any null, empty or non-finite clip keeps every item in a single group.
+    /// Groups of item indices (paint order) whose pixel-widened clips overlap, directly or by chain;
+    /// an invalid clip keeps every item in one group.
     static func independentGroups(_ clips: [CGRect]) -> [[Int]] {
         guard !clips.isEmpty else { return [] }
         var cells: [CGRect] = []
@@ -184,10 +170,8 @@ enum V2Painter {
         return order.map { groups[$0]! }
     }
 
-    /// Copies a same-format background (sRGB RGBA8 premultipliedLast, as
-    /// produced by V2PageRaster) straight into the fresh, zeroed bitmap. Drawing
-    /// such an image source-over onto transparent black at identity scale yields
-    /// exactly its bytes, so this is the same result without a compositing pass.
+    /// Copies a same-format background (as produced by V2PageRaster) into the fresh bitmap: the
+    /// bytes a source-over draw would give, without the compositing pass.
     static func copyPixels(of image: CGImage, into context: CGContext) -> Bool {
         let order = image.bitmapInfo.intersection(.byteOrderMask)
         guard image.width == context.width, image.height == context.height,
@@ -226,29 +210,26 @@ enum V2Painter {
         return (color(style.textColor), style.strokeColor.map(color))
     }
 
-    /// Baseline origins (top-left page coordinates) for each line/glyph cell of `item`,
-    /// with each measured line (shaped with `color`) for drawing. Horizontal: one origin
-    /// per line with its measured width. Vertical: one per character.
-    /// Colour does not change shaping or typographic width.
-    private static func runs(for item: V2PlacedText, stroke: CGFloat, pitch: CGFloat, metrics: V2Layout.FontMetrics,
-                             font: CTFont, color: CGColor, leading: Bool = false) -> [(text: String, origin: CGPoint, line: CTLine)] {
+    /// Baseline origins (top-left page coordinates) and shaped lines: one per horizontal line, one
+    /// per vertical character.
+    private static func runs(for item: V2PlacedText, stroke: CGFloat, metrics: V2Layout.FontMetrics,
+                             font: CTFont, color: CGColor, leading: Bool) -> [(text: String, origin: CGPoint, line: CTLine)] {
         let size = item.fontPixels
         let ascent = metrics.ascent * size, glyph = (metrics.ascent + metrics.descent) * size
         var result: [(String, CGPoint, CTLine)] = []
         if !item.vertical {
-            let lineHeight = size * pitch
+            let lineHeight = size * V2Layout.lineHeightEm
             for (index, text) in item.lines.enumerated() {
                 let shaped = line(text, font: font, color: color)
                 let width = CGFloat(CTLineGetTypographicBounds(shaped, nil, nil, nil))
                 let top = item.frame.minY + stroke + CGFloat(index) * lineHeight   // this line's ink top
-                // Captions (narration) start each line at the frame's left edge (before the condense
-                // about the frame centre); other text is centred.
+                // Narration starts at the frame's left edge (before the condense); other text is centred.
                 let x = leading ? item.frame.midX - (item.frame.width / 2 - stroke) / (item.condense ?? 1) : item.frame.midX - width / 2
                 result.append((text, CGPoint(x: x, y: top + size * V2Layout.inkAscentEm), shaped))
             }
             return result
         }
-        let columnWidth = size * pitch, cell = size * V2Layout.verticalAdvanceEm
+        let columnWidth = size * V2Layout.lineHeightEm, cell = size * V2Layout.verticalAdvanceEm
         for (column, text) in item.lines.enumerated() {
             let centre = item.frame.maxX - stroke - size / 2 - CGFloat(column) * columnWidth
             var y = item.frame.minY + stroke
@@ -264,8 +245,7 @@ enum V2Painter {
         return result
     }
 
-    /// Vertical presentation forms for punctuation set in a column (ellipses, brackets,
-    /// dashes, commas and stops); "..." becomes one vertical ellipsis.
+    /// Vertical presentation forms for punctuation in a column; "..." becomes one vertical ellipsis.
     static func verticalForms(_ text: String) -> String {
         String(text.replacingOccurrences(of: "...", with: "…").map { verticalForm[$0] ?? $0 })
     }
@@ -288,23 +268,19 @@ enum V2Painter {
     private static func draw(_ job: Job, metrics: V2Layout.FontMetrics, context: CGContext, page: CGRect) {
         let item = job.item, font = job.font
         let fill = job.paint.fill, strokeColor = job.paint.stroke
-        // Layout insets the frame by the style's outline; an added halo sits in the clip margin.
         let stroke = V2Layout.strokeWidth(for: job.block, fontPixels: item.fontPixels)
         let outline = job.paint.strokeWidth
-        let runs = runs(for: item, stroke: stroke, pitch: V2Layout.lineHeightEm, metrics: metrics, font: font, color: fill,
+        let runs = runs(for: item, stroke: stroke, metrics: metrics, font: font, color: fill,
                         leading: item.leading ?? (job.block.role == .narration))
         context.saveGState()
-        // Never paint outside the page (layout already clamps frames to it).
         context.clip(to: job.clip)
         if let angle = item.angle, angle != 0 {
-            // Glyph painters preserve the text matrix, so a rotated CTM tilts whole lines.
             context.translateBy(x: item.frame.midX, y: item.frame.midY)
             context.rotate(by: angle)
             context.translateBy(x: -item.frame.midX, y: -item.frame.midY)
         }
-        // After the rotation (CTM calls apply in reverse): lines narrow in their own frame.
+        // Condensed lines narrow about the frame centre, after the rotation (CTM calls apply in reverse).
         if let condense = item.condense, condense > 0, condense != 1 {
-            // Condensed lines: narrowed about the frame centre (layout measured them so).
             context.translateBy(x: item.frame.midX, y: 0)
             context.scaleBy(x: condense, y: 1)
             context.translateBy(x: -item.frame.midX, y: 0)

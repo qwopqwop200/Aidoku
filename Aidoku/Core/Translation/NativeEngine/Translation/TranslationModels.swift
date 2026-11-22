@@ -9,13 +9,6 @@ private func isASCIIAlphaNumeric(_ scalar: Unicode.Scalar) -> Bool {
     }
 }
 
-private extension Int {
-    func saturatingAdding(_ value: Int) -> Int {
-        let result = addingReportingOverflow(value)
-        return result.overflow ? Int.max : result.partialValue
-    }
-}
-
 enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
     case invalidConfiguration(String)
     case invalidRequest(String)
@@ -190,17 +183,14 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
             guard Self.hasSafeSourceTextSize(segment) else {
                 throw RemoteTranslationError.invalidRequest("source segments exceed their safe size limit")
             }
-            sourceBytes = sourceBytes.saturatingAdding(segment.text.utf8.count)
+            sourceBytes += segment.text.utf8.count
         }
         guard sourceBytes <= Self.maximumSourceBytes else {
             throw RemoteTranslationError.invalidRequest("source segments exceed their safe size limit")
         }
     }
 
-    /// Returns the individually safe, unambiguous candidates. OCR can
-    /// occasionally emit a whitespace-only or pathological line; that line
-    /// stays visible as source text but must not poison every valid neighbor
-    /// in the provider batch.
+    /// Individually safe, unambiguous candidates, so one bad OCR line cannot fail its whole batch.
     static func admissibleSegmentIndices(in segments: [RemoteTranslationSegment]) -> [Int] {
         let identifierCounts = segments.reduce(into: [String: Int]()) { $0[$1.id, default: 0] += 1 }
         return segments.indices.filter { index in
@@ -239,9 +229,6 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
 struct RemoteTranslationConfiguration: Hashable, Sendable {
     static let defaultInstructions = "Preserve tone, emphasis and vocal expression naturally."
 
-    static let maximumModelBytes = 256
-    static let maximumInstructionsBytes = 32 * 1024
-    static let maximumResponseBytesLimit = 4 * 1024 * 1024
     static let maximumTimeout: Double = 600
 
     let provider: RemoteTranslationProvider
@@ -251,60 +238,22 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
     let credentialAccount: String
     /// Increment whenever an API key, organization, project, or tenant binding
     /// changes. Secrets themselves never enter cache keys or persistence.
-    let credentialGeneration: UInt64
-    let instructions: String
-    let reasoningEffort: OpenAIReasoningEffort
-    let timeout: TimeInterval
-    let maximumResponseBytes: Int
-    /// Internal development escape hatch constrained by endpoint policy to
-    /// canonical loopback hosts; it is not a production feature toggle.
-    let allowsInsecureLocalhostForDevelopment: Bool
-
-    init(
-        provider: RemoteTranslationProvider,
-        apiProtocol: RemoteTranslationProtocol,
-        baseURL: String,
-        model: String,
-        credentialAccount: String,
-        credentialGeneration: UInt64 = 0,
-        instructions: String = Self.defaultInstructions,
-        reasoningEffort: OpenAIReasoningEffort = .modelDefault,
-        timeout: TimeInterval = 60,
-        maximumResponseBytes: Int = 1024 * 1024,
-        allowsInsecureLocalhostForDevelopment: Bool = false
-    ) {
-        self.provider = provider
-        self.apiProtocol = apiProtocol
-        self.baseURL = baseURL
-        self.model = model
-        self.credentialAccount = credentialAccount
-        self.credentialGeneration = credentialGeneration
-        self.instructions = instructions
-        self.reasoningEffort = reasoningEffort
-        self.timeout = timeout
-        self.maximumResponseBytes = maximumResponseBytes
-        self.allowsInsecureLocalhostForDevelopment = allowsInsecureLocalhostForDevelopment
-    }
+    var credentialGeneration: UInt64 = 0
+    var instructions = RemoteTranslationConfiguration.defaultInstructions
+    var reasoningEffort = OpenAIReasoningEffort.modelDefault
+    var timeout: TimeInterval = 60
+    var maximumResponseBytes = 1024 * 1024
+    /// Development-only; endpoint policy limits it to canonical loopback hosts.
+    var allowsInsecureLocalhostForDevelopment = false
 
     static func openAI(
-        model: String,
-        credentialAccount: String = "openai",
-        credentialGeneration: UInt64 = 0,
-        instructions: String = Self.defaultInstructions,
-        reasoningEffort: OpenAIReasoningEffort = .modelDefault,
+        model: String, credentialAccount: String = "openai", credentialGeneration: UInt64 = 0,
+        instructions: String = Self.defaultInstructions, reasoningEffort: OpenAIReasoningEffort = .modelDefault,
         timeout: TimeInterval = 60
     ) -> Self {
-        Self(
-            provider: .openAI,
-            apiProtocol: .responses,
-            baseURL: "https://api.openai.com",
-            model: model,
-            credentialAccount: credentialAccount,
-            credentialGeneration: credentialGeneration,
-            instructions: instructions,
-            reasoningEffort: reasoningEffort,
-            timeout: timeout
-        )
+        Self(provider: .openAI, apiProtocol: .responses, baseURL: "https://api.openai.com", model: model,
+             credentialAccount: credentialAccount, credentialGeneration: credentialGeneration, instructions: instructions,
+             reasoningEffort: reasoningEffort, timeout: timeout)
     }
 
     func validatedEndpoint() throws -> URL {
@@ -313,20 +262,20 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
                 value.utf8.count <= maximumBytes &&
                 !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
         }
-        guard isTrimmedPlainText(model, maximumBytes: Self.maximumModelBytes) else {
+        guard isTrimmedPlainText(model, maximumBytes: 256) else {
             throw RemoteTranslationError.invalidConfiguration("model is invalid")
         }
         guard isTrimmedPlainText(credentialAccount, maximumBytes: 256) else {
             throw RemoteTranslationError.invalidConfiguration("credential account is invalid")
         }
         guard !instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              instructions.utf8.count <= Self.maximumInstructionsBytes else {
+              instructions.utf8.count <= 32 * 1024 else {
             throw RemoteTranslationError.invalidConfiguration("instructions exceed their safe size limit or are blank")
         }
         guard (1...Self.maximumTimeout).contains(timeout) else {
             throw RemoteTranslationError.invalidConfiguration("timeout must be between 1 and 600 seconds")
         }
-        guard (4 * 1024...Self.maximumResponseBytesLimit).contains(maximumResponseBytes) else {
+        guard (4 * 1024...4 * 1024 * 1024).contains(maximumResponseBytes) else {
             throw RemoteTranslationError.invalidConfiguration("response limit is outside the supported range")
         }
         guard provider != .openAI || apiProtocol == .responses else {
@@ -417,11 +366,8 @@ struct RemoteTranslationBatchResult: Hashable, Sendable {
     let providerRequestID: String?
 }
 
-/// Canonical provider/cache representation of one caller request. OCR tracker
-/// IDs are presentation-lifetime metadata, not translation semantics. Replacing
-/// them with batch-local ordinals lets identical ordered OCR text share the
-/// cache and an in-flight provider request across tracker resets.
-/// Results are mapped back to the caller's IDs before leaving TranslationService.
+/// Caller (OCR tracker) IDs replaced by batch-local ordinals so identical ordered
+/// text shares the cache and in-flight requests; results get the caller IDs back.
 struct CanonicalRemoteTranslationRequest: Sendable {
     let request: RemoteTranslationRequest
     private let callerSegmentIDs: [String]
@@ -431,8 +377,7 @@ struct CanonicalRemoteTranslationRequest: Sendable {
         self.callerSegmentIDs = callerSegmentIDs
     }
 
-    /// Every result (network, cached, any client) leaves the service
-    /// here, so leaked JSON escapes are decoded once, against the segment's source.
+    /// Every result leaves the service here, so leaked JSON escapes are decoded once.
     private func repairedText(_ text: String, at index: Int) -> String {
         TranslationHTTPCodec.decodingLeakedEscapes(
             in: text, source: request.segments.indices.contains(index) ? request.segments[index].text : nil)
@@ -494,14 +439,5 @@ extension RemoteTranslationRequest {
         copy.filtersBackground = filtersBackground
         copy.translatesPageLettering = translatesPageLettering
         return copy
-    }
-}
-
-extension Collection where Element == RemoteTranslationBatchResult {
-    /// Reports the most expensive source that contributed to an atomic group.
-    /// A mixed cache/network frame must never be presented as a cache-only hit.
-    var combinedTranslationSource: TranslationResultSource? {
-        guard !isEmpty else { return nil }
-        return contains(where: { $0.source == .network }) ? .network : .memoryCache
     }
 }

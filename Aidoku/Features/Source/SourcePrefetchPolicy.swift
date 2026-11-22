@@ -1,8 +1,7 @@
 import UIKit
 
 enum SourcePrefetchPolicy {
-    /// Only changes when one next-page request starts; never fans out pages or
-    /// retains decoded covers. Fast scrolling gets at most two screenfuls.
+    /// Next-page trigger distance in items; fast scrolling gets up to two screenfuls.
     @MainActor static func threshold(for view: UICollectionView) -> Int {
         let visible = max(1, view.indexPathsForVisibleItems.count)
         let speed = abs(view.panGestureRecognizer.velocity(in: view).y)

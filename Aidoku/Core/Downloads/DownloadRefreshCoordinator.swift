@@ -1,7 +1,6 @@
 import Foundation
 
-/// One UI refresh at a time, with a trailing pass for events received during IO.
-/// The revision prevents an older pass from repainting over a newer user action.
+/// One UI refresh at a time, plus a trailing pass for events received meanwhile.
 @MainActor
 final class DownloadRefreshCoordinator {
     private var revision: UInt64 = 0

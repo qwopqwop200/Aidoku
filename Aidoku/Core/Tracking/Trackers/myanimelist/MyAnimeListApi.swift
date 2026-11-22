@@ -110,12 +110,28 @@ extension MyAnimeListApi {
         return try await self.request(url: url)
     }
 
+    func getMangaDetails(id: Int) async throws -> MyAnimeListManga? {
+        guard var url = URL(string: baseApiUrl + "/manga/\(id)") else { return nil }
+        url.queryParameters = [
+            "fields": "id,title,synopsis,num_chapters,main_picture,status,media_type,start_date,my_list_status"
+        ]
+        return try await self.request(url: url)
+    }
+
     func getMangaWithStatus(id: Int) async throws -> MyAnimeListManga {
         guard var url = URL(string: baseApiUrl + "/manga/\(id)") else { throw URLError(.badURL) }
         url.queryParameters = [
             "fields": "num_volumes,num_chapters,my_list_status"
         ]
         return try await self.request(url: url)
+    }
+
+    func getMangaStatus(id: Int) async -> MyAnimeListMangaStatus? {
+        guard var url = URL(string: baseApiUrl + "/manga/\(id)") else { return nil }
+        url.queryParameters = [
+            "fields": "my_list_status"
+        ]
+        return (try? await self.request(url: url) as MyAnimeListManga)?.myListStatus
     }
 
     func updateMangaStatus(id: Int, status: MyAnimeListMangaStatus) async throws {

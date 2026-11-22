@@ -40,28 +40,19 @@ struct V2ReaderPipelineTests {
     }
 
     @Test func replayReappliesOnlyMatchingBlocks() {
-        func block(_ id: Int, _ text: String, translation: String? = nil) -> V2Block {
-            V2Block(id: id, lines: [], bounds: .zero, polygon: [], vertical: true, readingOrder: id,
-                    sourceText: text, translation: translation)
-        }
         let stored = [block(0, "こんにちは", translation: "안녕"), block(1, "さようなら", translation: "잘 가")]
         let replayed = ReaderTranslationV2Service.replay(stored, onto: [block(0, "こんにちは"), block(1, "別の文"), block(2, "新しい")])
         #expect(replayed.map(\.translation) == ["안녕", nil, nil])
     }
 
-    private static func freshSettings() -> ReaderTranslationSettings {
-        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "V2ReaderPipelineTests-\(UUID())")!)
-        settings.targetLanguage = "ko"
-        return settings
-    }
-
-    private func block(_ id: Int, _ text: String) -> V2Block {
+    private func block(_ id: Int, _ text: String, translation: String? = nil) -> V2Block {
         V2Block(id: id, lines: [], bounds: CGRect(x: 0, y: 0, width: 10, height: 10), polygon: [], vertical: true,
-                readingOrder: id, sourceText: text)
+                readingOrder: id, sourceText: text, translation: translation)
     }
 
     @Test func excludedLanguageBlocksAreNeverSentToTheProvider() async throws {
-        var settings = Self.freshSettings()
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "V2ReaderPipelineTests-\(UUID())")!)
+        settings.targetLanguage = "ko"
         settings.sourceLanguage = "auto"
         let blocks = [block(0, "今日はいい天気ですね"), block(1, "안녕하세요 반갑습니다")]
         let sent = V2SentIDs()

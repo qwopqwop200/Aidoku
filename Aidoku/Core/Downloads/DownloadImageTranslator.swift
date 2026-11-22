@@ -2,8 +2,7 @@ import UIKit
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Serializes translated-download page work across source download queues.
-/// The saved pixels remain translated without the reader's cache or network.
+/// Translates downloaded pages, shared across all source download queues.
 @MainActor
 enum DownloadImageTranslator {
     private static let pipelineGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 2)
@@ -14,18 +13,8 @@ enum DownloadImageTranslator {
         }
     }
 
-    static func translate(fileURL: URL, settings: ReaderTranslationSettings) async throws -> Data {
-        try await withAdmittedFile(at: fileURL) { data in
-            try await translateAdmitted(data, settings: settings)
-        }
-    }
-
-    /// Waiting downloads own file identities only. Reading/mapping compressed
-    /// bytes begins after the same two-pipeline admission used by raw inputs.
-    private static func withAdmittedFile<Value: Sendable>(
-        at url: URL,
-        operation: @escaping @MainActor (Data) async throws -> Value
-    ) async throws -> Value {
+    /// Waiting downloads hold only file URLs; bytes are read after admission.
+    static func translate(fileURL url: URL, settings: ReaderTranslationSettings) async throws -> Data {
         try await pipelineGate.withPermit(priority: .prefetch) {
             try Task.checkCancellation()
             let reading = Task.detached(priority: .utility) {
@@ -38,7 +27,7 @@ enum DownloadImageTranslator {
                 try await reading.value
             } onCancel: { reading.cancel() }
             try Task.checkCancellation()
-            return try await operation(data)
+            return try await translateAdmitted(data, settings: settings)
         }
     }
 
@@ -60,8 +49,7 @@ enum DownloadImageTranslator {
         return ext
     }
 
-    /// Downloaded bytes are untrusted: reject pages whose decoded raster can never
-    /// fit before any pixels are allocated (the reader loader applies the same budget).
+    /// Rejects pages whose decoded raster can never fit, before allocating pixels.
     nonisolated static func admittedDecodedBytes(
         _ data: Data, physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory
     ) throws -> UInt64 {
@@ -79,8 +67,7 @@ enum DownloadImageTranslator {
         // Header-checked: above the pixel cap this is an upright ImageIO thumbnail, never a full decode.
         guard let decoded = ImagePixelCap.decodeImage(data) else { throw ReaderTranslationImageExporter.ExportError.unavailable }
         guard decoded.imageOrientation != .up else { return decoded }
-        // The upright redraw allocates a second full raster before the page
-        // pipeline's own admission; wait for the same memory headroom first.
+        // The upright redraw allocates a second raster; wait for memory headroom first.
         try await TranslationImageWorkBudget.shared.withPermit(priority: .prefetch, decodedBytes: bytes) {}
         try Task.checkCancellation()
         return autoreleasepool {

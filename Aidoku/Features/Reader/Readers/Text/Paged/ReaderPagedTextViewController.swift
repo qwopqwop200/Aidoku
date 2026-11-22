@@ -321,7 +321,7 @@ class ReaderPagedTextViewController: BaseObservingViewController {
 
     /// Load previously saved reading progress for a chapter.
     private func loadReadingProgress(for chapterKey: String) async -> CGFloat? {
-        return await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
+        await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
             guard let self else { return nil }
             let object = CoreDataManager.shared.getHistory(
                 chapterId: .init(

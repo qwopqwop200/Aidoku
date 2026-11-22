@@ -61,7 +61,7 @@ class ReaderTextViewController: BaseViewController {
 
     /// Load previously saved reading progress for a chapter.
     private func loadReadingProgress(for chapterKey: String) async -> CGFloat? {
-        return await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
+        await CoreDataManager.shared.container.performBackgroundTask { [weak self] context in
             guard let self else { return nil }
             let object = CoreDataManager.shared.getHistory(
                 chapterId: .init(
@@ -374,13 +374,20 @@ extension ReaderTextViewController {
 
     /// Recalculate estimated page count for the current chapter's section.
     private func updateEstimatedPageCount() {
-        guard let layout = currentSectionLayout else { return }
-        let section = sections[layout.index]
+        guard let sectionIndex = currentSectionIndex else { return }
+        let section = sections[sectionIndex]
         let screenHeight = scrollView.frame.height
-        guard screenHeight > 0, layout.height > 0 else { return }
+        guard screenHeight > 0 else { return }
+
+        // Sum up the heights of hosting controllers in this section
+        var sectionHeight: CGFloat = 0
+        for hc in section.hostingControllers {
+            sectionHeight += hc.view.frame.height
+        }
+        guard sectionHeight > 0 else { return }
 
         needsPageCountUpdate = false
-        let newCount = max(1, Int(ceil(layout.height / screenHeight)))
+        let newCount = max(1, Int(ceil(sectionHeight / screenHeight)))
         if newCount != estimatedPageCount, let firstPage = section.pages.first {
             estimatedPageCount = newCount
             lastReportedPage = 0
@@ -426,7 +433,7 @@ extension ReaderTextViewController {
     // MARK: - Chapter Section Index from Scroll Position
 
     /// Index of the section whose content is currently at the center of the viewport.
-    private var currentSectionLayout: (index: Int, startY: CGFloat, height: CGFloat)? {
+    private var currentSectionIndex: Int? {
         guard !sections.isEmpty else { return nil }
         let viewportCenter = scrollView.contentOffset.y + scrollView.frame.height / 2
         let prevHeight = showsPreviousTransition ? transitionPageHeight : 0
@@ -441,11 +448,11 @@ extension ReaderTextViewController {
             let totalSectionHeight = sectionHeight + transitionHeight
 
             if viewportCenter < offset + totalSectionHeight || index == sections.count - 1 {
-                return (index, offset, sectionHeight)
+                return index
             }
             offset += totalSectionHeight
         }
-        return nil
+        return sections.count - 1
     }
 
     /// The Y offset where a given section's text content starts.
@@ -716,7 +723,8 @@ extension ReaderTextViewController {
     // MARK: - Chapter Switch Detection
 
     /// Update the "current chapter" when the user scrolls into a different section.
-    private func updateCurrentChapterFromScroll(at index: Int) {
+    private func updateCurrentChapterFromScroll() {
+        guard let index = currentSectionIndex else { return }
         let sectionChapter = sections[index].chapter
         guard sectionChapter != chapter else { return }
 
@@ -784,7 +792,9 @@ extension ReaderTextViewController: ReaderReaderDelegate {
         isSliding = true
 
         // Slider operates on the current chapter's section only
-        guard case let (_, startY, height)? = currentSectionLayout else { return }
+        guard let index = currentSectionIndex else { return }
+        let startY = sectionContentStartY(at: index)
+        let height = sectionContentHeight(at: index)
         let screenHeight = scrollView.frame.size.height
         guard height > screenHeight else { return }
 
@@ -798,7 +808,9 @@ extension ReaderTextViewController: ReaderReaderDelegate {
     func sliderStopped(value: CGFloat) {
         isSliding = false
 
-        guard case let (_, startY, height)? = currentSectionLayout else { return }
+        guard let index = currentSectionIndex else { return }
+        let startY = sectionContentStartY(at: index)
+        let height = sectionContentHeight(at: index)
         let screenHeight = scrollView.frame.size.height
         guard height > screenHeight else { return }
 
@@ -824,8 +836,11 @@ extension ReaderTextViewController: UIScrollViewDelegate {
         guard !isLoadingChapter, !isSliding, !pendingScrollRestore, !isReportingProgress else { return }
 
         // Detect if current chapter changed due to scrolling
-        guard case let (index, startY, height)? = currentSectionLayout else { return }
-        updateCurrentChapterFromScroll(at: index)
+        updateCurrentChapterFromScroll()
+
+        guard let index = currentSectionIndex else { return }
+        let startY = sectionContentStartY(at: index)
+        let height = sectionContentHeight(at: index)
         let screenHeight = scrollView.frame.size.height
         guard height > 0, screenHeight > 0 else { return }
 

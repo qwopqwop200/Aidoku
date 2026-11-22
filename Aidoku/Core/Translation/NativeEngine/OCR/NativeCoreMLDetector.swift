@@ -10,31 +10,6 @@ struct NativeCoreMLDetectionBox: Equatable, Sendable {
 }
 
 @available(iOS 18.0, *)
-struct NativeCoreMLDetectionCanvas: Equatable, Hashable, Sendable {
-    let width: Int
-    let height: Int
-
-    var inputShape: [Int] { [1, 3, height, width] }
-    var outputShape: [Int] { [1, 1, height, width] }
-
-    static func exact(
-        sourceWidth: Int,
-        sourceHeight: Int,
-        maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide
-    ) -> Self? {
-        guard let dimensions = NativeCoreMLDetectionPreprocessor.resizeDimensions(
-            sourceWidth: sourceWidth, sourceHeight: sourceHeight, maximumSide: maximumSide
-        ) else { return nil }
-        return Self(width: dimensions.width, height: dimensions.height)
-    }
-
-    private init(width: Int, height: Int) {
-        self.width = width
-        self.height = height
-    }
-}
-
-@available(iOS 18.0, *)
 enum NativeCoreMLDetectorError: Error, Equatable, LocalizedError {
     case modelResourceMissing
     case modelLoadFailed(String)
@@ -42,7 +17,6 @@ enum NativeCoreMLDetectorError: Error, Equatable, LocalizedError {
     case modelInputCreationFailed
     case modelOutputMissing
     case modelOutputShape(expected: [Int], actual: [Int])
-    case unsupportedInputShape(sourceWidth: Int, sourceHeight: Int, resizedWidth: Int, resizedHeight: Int)
     case unsupportedModelOutputType
     case predictionFailed(String)
 
@@ -50,98 +24,63 @@ enum NativeCoreMLDetectorError: Error, Equatable, LocalizedError {
         switch self {
         case .modelResourceMissing: NSLocalizedString("OCR_ERROR_MODEL_MISSING")
         case .modelLoadFailed: NSLocalizedString("OCR_ERROR_MODEL_LOAD")
-        case .imageConversionFailed, .modelInputCreationFailed, .unsupportedInputShape: NSLocalizedString("OCR_ERROR_IMAGE")
+        case .imageConversionFailed, .modelInputCreationFailed: NSLocalizedString("OCR_ERROR_IMAGE")
         case .modelOutputMissing, .modelOutputShape, .unsupportedModelOutputType: NSLocalizedString("OCR_ERROR_OUTPUT")
         case .predictionFailed: NSLocalizedString("OCR_ERROR_PREDICTION")
         }
     }
 }
 
+/// Loads the model once; a failed load is retried by the next prediction.
 @available(iOS 18.0, *)
-private final class NativeCoreMLDetectorModelPredictor: Sendable {
-    /// Loads the model once; a failed load is retried by the next prediction.
-    private actor ModelStore {
-        private let asset: MLModelAsset
-        private var load: Task<ModelHandle, Error>?
-
-        init(asset: MLModelAsset) { self.asset = asset }
-
-        func model() async throws -> MLModel {
-            if load == nil {
-                let asset = self.asset
-                load = Task {
-                    let configuration = MLModelConfiguration()
-                    configuration.computeUnits = .cpuAndGPU
-                    configuration.modelDisplayName = "PP-OCRv6 Dynamic"
-                    configuration.optimizationHints.reshapeFrequency = .frequent
-                    configuration.optimizationHints.specializationStrategy = .fastPrediction
-                    return ModelHandle(model: try await MLModel.load(asset: asset, configuration: configuration))
-                }
-            }
-            do {
-                return try await load!.value.model
-            } catch {
-                load = nil
-                throw error
-            }
-        }
-    }
-
+private actor NativeCoreMLDetectorModelPredictor {
     private struct ModelHandle: @unchecked Sendable {
         let model: MLModel
     }
 
-    private let modelStore: ModelStore
+    private let asset: MLModelAsset
+    private var load: Task<ModelHandle, Error>?
 
     init(modelURL: URL) throws {
-        let published = try NativeCoreMLModelStore.shared.modelURL(for: modelURL)
-        // Both the device and the simulator run the Manga graph on CPU and GPU: its
-        // dynamic padding produces nonfinite source cells on the simulator CPU backend.
-        modelStore = ModelStore(asset: try MLModelAsset(url: published))
+        asset = try MLModelAsset(url: try NativeCoreMLModelStore.shared.modelURL(for: modelURL))
     }
 
-    /// Feature-provider prediction of one planar input canvas.
     func predict(array: MLMultiArray) async throws -> MLMultiArray {
-        let model = try await modelStore.model()
-        let provider = try MLDictionaryFeatureProvider(dictionary: [
-            NativeCoreMLDetector.inputFeatureName: MLFeatureValue(multiArray: array),
-        ])
+        if load == nil {
+            let asset = self.asset
+            load = Task {
+                // Both the device and the simulator run the Manga graph on CPU and GPU: its dynamic
+                // padding produces nonfinite source cells on the simulator CPU backend.
+                let configuration = MLModelConfiguration()
+                configuration.computeUnits = .cpuAndGPU
+                configuration.modelDisplayName = "PP-OCRv6 Dynamic"
+                configuration.optimizationHints.reshapeFrequency = .frequent
+                configuration.optimizationHints.specializationStrategy = .fastPrediction
+                return ModelHandle(model: try await MLModel.load(asset: asset, configuration: configuration))
+            }
+        }
+        let model: MLModel
+        do {
+            model = try await load!.value.model
+        } catch {
+            load = nil
+            throw error
+        }
+        let provider = try MLDictionaryFeatureProvider(dictionary: ["x": MLFeatureValue(multiArray: array)])
         let prediction = try await model.prediction(from: provider)
-        guard let output = prediction.featureValue(for: NativeCoreMLDetector.outputFeatureName)?.multiArrayValue else {
+        guard let output = prediction.featureValue(for: "fetch_name_0")?.multiArrayValue else {
             throw NativeCoreMLDetectorError.modelOutputMissing
         }
         return output
     }
 }
 
-@available(iOS 18.0, *)
-private final class NativeCoreMLDetectionGeneration: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value: UInt64 = 0
-
-    func begin() -> UInt64 {
-        lock.withLock {
-            value &+= 1
-            return value
-        }
-    }
-
-    func cancel(ifCurrent generation: UInt64) {
-        lock.withLock { if value == generation { value &+= 1 } }
-    }
-
-    func isCurrent(_ generation: UInt64) -> Bool { lock.withLock { value == generation } }
-}
-
 /// PP-OCRv6 Manga text detection using one bounded dynamic-spatial Core ML model.
 /// A newer request cancels one still in flight on the same instance.
 @available(iOS 18.0, *)
 final class NativeCoreMLDetector: @unchecked Sendable {
-    static let modelResourceName = "PP-OCRv6-Manga-DetShapes"
-    static let inputFeatureName = "x"
-    static let outputFeatureName = "fetch_name_0"
-
-    private let generation = NativeCoreMLDetectionGeneration()
+    private let lock = NSLock()
+    private var generation: UInt64 = 0
     private let resourceLock = NSLock()
     private let bundle: Bundle
     private var predictor: NativeCoreMLDetectorModelPredictor?
@@ -153,7 +92,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         image: CGImage,
         configuration: NativeCoreMLDBPostprocessConfiguration = .manga
     ) async throws -> [NativeCoreMLDetectionBox] {
-        try await performGeometryDetection(providedFrame: nil, image: image, configuration: configuration)
+        try await detect(providedFrame: nil, image: image, configuration: configuration)
     }
 
     /// Geometry-only detection from caller-owned pixels (V2 shares one frame with recognition).
@@ -161,20 +100,21 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         frame: NativeOCRRGBAFrame,
         configuration: NativeCoreMLDBPostprocessConfiguration = .manga
     ) async throws -> [NativeCoreMLDetectionBox] {
-        try await performGeometryDetection(providedFrame: frame, image: nil, configuration: configuration)
+        try await detect(providedFrame: frame, image: nil, configuration: configuration)
     }
 
-    /// Full-frame detection: multiarray input, feature-provider prediction,
-    /// direct output read and one DB decode.
-    private func performGeometryDetection(
+    private func detect(
         providedFrame: NativeOCRRGBAFrame?,
         image: CGImage?,
         configuration: NativeCoreMLDBPostprocessConfiguration
     ) async throws -> [NativeCoreMLDetectionBox] {
-        let issuedGeneration = generation.begin()
+        let issued = lock.withLock {
+            generation &+= 1
+            return generation
+        }
         let check: @Sendable () throws -> Void = { [self] in
             try Task.checkCancellation()
-            guard generation.isCurrent(issuedGeneration) else { throw CancellationError() }
+            guard lock.withLock({ generation == issued }) else { throw CancellationError() }
         }
         return try await withTaskCancellationHandler {
             try check()
@@ -187,18 +127,10 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                 throw NativeCoreMLDetectorError.imageConversionFailed
             }
             try check()
-            guard let canvas = NativeCoreMLDetectionCanvas.exact(sourceWidth: frame.width, sourceHeight: frame.height) else {
-                let resized = NativeCoreMLDetectionPreprocessor.resizeDimensions(
-                    sourceWidth: frame.width, sourceHeight: frame.height) ?? (0, 0)
-                throw NativeCoreMLDetectorError.unsupportedInputShape(
-                    sourceWidth: frame.width, sourceHeight: frame.height,
-                    resizedWidth: resized.width, resizedHeight: resized.height)
-            }
-            let prepared = try await NativeCoreMLDetectionPreprocessor.prepareArray(
-                frame: frame, canvas: canvas, cancellationCheck: check)
+            let prepared = try await NativeCoreMLDetectionPreprocessor.prepareArray(frame: frame, cancellationCheck: check)
             try check()
-            // A first call loads the model under `resourceLock`; keep that blocking load off the
-            // cooperative pool so concurrent pages cannot starve it.
+            // A first call publishes and loads the model under `resourceLock`; keep that blocking
+            // work off the cooperative pool so concurrent pages cannot starve it.
             let predictor = try await Task.detached(priority: .userInitiated) { [self] in
                 try loadPredictor(cancellationCheck: check)
             }.value
@@ -216,15 +148,15 @@ final class NativeCoreMLDetector: @unchecked Sendable {
             try check()
             let map = try NativeCoreMLDetectionOutput.makeMap(
                 output: output, width: prepared.resizedWidth,
-                height: prepared.resizedHeight, expectedShape: canvas.outputShape)
+                height: prepared.resizedHeight, expectedShape: [1, 1] + prepared.input.shape.suffix(2).map(\.intValue))
             try check()
             let boxes = try NativeCoreMLDBPostprocessor.decode(
                 map: map, sourceWidth: frame.width, sourceHeight: frame.height,
                 configuration: configuration, cancellationCheck: check)
             try check()
             return boxes
-        } onCancel: { [generation] in
-            generation.cancel(ifCurrent: issuedGeneration)
+        } onCancel: { [self] in
+            lock.withLock { if generation == issued { generation &+= 1 } }
         }
     }
 
@@ -233,7 +165,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         defer { resourceLock.unlock() }
         try cancellationCheck()
         if let predictor { return predictor }
-        guard let modelURL = Self.findModelURL(in: bundle, resourceName: Self.modelResourceName) else {
+        guard let modelURL = bundle.url(forResource: "PP-OCRv6-Manga-DetShapes", withExtension: "mlmodelc") else {
             throw NativeCoreMLDetectorError.modelResourceMissing
         }
         let loaded: NativeCoreMLDetectorModelPredictor
@@ -245,18 +177,6 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         try cancellationCheck()
         predictor = loaded
         return loaded
-    }
-
-    private static func findModelURL(in bundle: Bundle, resourceName: String) -> URL? {
-        if let exact = bundle.url(forResource: resourceName, withExtension: "mlmodelc") { return exact }
-        let expected = normalizedResourceName(resourceName)
-        return bundle.urls(forResourcesWithExtension: "mlmodelc", subdirectory: nil)?.first {
-            normalizedResourceName($0.deletingPathExtension().lastPathComponent) == expected
-        }
-    }
-
-    private static func normalizedResourceName(_ value: String) -> String {
-        String(value.lowercased().filter { $0.isLetter || $0.isNumber })
     }
 }
 
@@ -270,21 +190,13 @@ struct NativeCoreMLDetectionPreparedArray: @unchecked Sendable {
 
 @available(iOS 18.0, *)
 enum NativeCoreMLDetectionPreprocessor {
-    static let modelMaximumSide = 2_000
     private static let channelMean: [Float] = [0.485, 0.456, 0.406]
     private static let channelStandardDeviation: [Float] = [0.229, 0.224, 0.225]
 
-    private static func alignedMaximumSide(_ maximumSide: Int) -> Int {
-        max(32, min(modelMaximumSide, maximumSide) / 32 * 32)
-    }
-
-    static func resizeDimensions(
-        sourceWidth: Int,
-        sourceHeight: Int,
-        maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide
-    ) -> (width: Int, height: Int)? {
+    /// The stride-aligned model canvas, at most `IPhoneOCRSettings.defaultDetectorMaximumSide`.
+    static func resizeDimensions(sourceWidth: Int, sourceHeight: Int) -> (width: Int, height: Int)? {
         guard sourceWidth > 0, sourceHeight > 0 else { return nil }
-        let alignedMaximumSide = alignedMaximumSide(maximumSide)
+        let alignedMaximumSide = max(32, min(2_000, IPhoneOCRSettings.defaultDetectorMaximumSide) / 32 * 32)
         let sourceMaximumSide = max(sourceWidth, sourceHeight)
         let scale = sourceMaximumSide > alignedMaximumSide
             ? Double(alignedMaximumSide) / Double(sourceMaximumSide)
@@ -296,41 +208,28 @@ enum NativeCoreMLDetectionPreprocessor {
         return (min(alignedMaximumSide, width), min(alignedMaximumSide, height))
     }
 
-    /// Separate source content from the stride-aligned model canvas: an axis
-    /// must never gain source samples just to reach the model stride.
-    static func contentDimensions(
-        sourceWidth: Int, sourceHeight: Int,
-        maximumSide: Int = IPhoneOCRSettings.defaultDetectorMaximumSide
-    ) -> (width: Int, height: Int)? {
-        guard let aligned = resizeDimensions(sourceWidth: sourceWidth,
-            sourceHeight: sourceHeight, maximumSide: maximumSide) else { return nil }
-        return (min(sourceWidth, aligned.width), min(sourceHeight, aligned.height))
-    }
-
     static func prepareArray(
         frame: NativeOCRRGBAFrame,
-        canvas: NativeCoreMLDetectionCanvas,
         cancellationCheck: () throws -> Void = {}
     ) async throws -> NativeCoreMLDetectionPreparedArray {
         try cancellationCheck()
-        guard let dimensions = contentDimensions(
-            sourceWidth: frame.width, sourceHeight: frame.height,
-            maximumSide: max(canvas.width, canvas.height)
-        ), dimensions.width > 0, dimensions.height > 0,
-        dimensions.width <= frame.width, dimensions.height <= frame.height,
-        dimensions.width <= canvas.width, dimensions.height <= canvas.height
-        else { throw NativeCoreMLDetectorError.modelInputCreationFailed }
-        let sourceXs = await resizeCoordinates(sourceLength: frame.width, targetLength: dimensions.width,
-                                               resizesOtherAxis: frame.height != dimensions.height)
+        guard let canvas = resizeDimensions(sourceWidth: frame.width, sourceHeight: frame.height) else {
+            throw NativeCoreMLDetectorError.modelInputCreationFailed
+        }
+        // Source content is separate from the stride-aligned canvas: an axis
+        // must never gain source samples just to reach the model stride.
+        let width = min(frame.width, canvas.width), height = min(frame.height, canvas.height)
+        let sourceXs = await resizeCoordinates(sourceLength: frame.width, targetLength: width,
+                                               resizesOtherAxis: frame.height != height)
         try cancellationCheck()
         try Task.checkCancellation()
-        let sourceYs = await resizeCoordinates(sourceLength: frame.height, targetLength: dimensions.height, vertical: true,
-                                               resizesOtherAxis: frame.width != dimensions.width)
+        let sourceYs = await resizeCoordinates(sourceLength: frame.height, targetLength: height, vertical: true,
+                                               resizesOtherAxis: frame.width != width)
         try cancellationCheck()
         try Task.checkCancellation()
         let array: MLMultiArray
         do {
-            array = try MLMultiArray(shape: canvas.inputShape.map { NSNumber(value: $0) }, dataType: .float32)
+            array = try MLMultiArray(shape: [1, 3, canvas.height, canvas.width].map { NSNumber(value: $0) }, dataType: .float32)
         } catch {
             throw NativeCoreMLDetectorError.modelInputCreationFailed
         }
@@ -341,13 +240,11 @@ enum NativeCoreMLDetectionPreprocessor {
             else { throw NativeCoreMLDetectorError.modelInputCreationFailed }
             try fillBoundedInput(
                 frame: frame, canvasWidth: canvas.width, canvasHeight: canvas.height,
-                width: dimensions.width, height: dimensions.height,
+                width: width, height: height,
                 sourceXs: sourceXs, sourceYs: sourceYs, into: base, cancellationCheck: cancellationCheck
             )
         }
-        return NativeCoreMLDetectionPreparedArray(
-            input: array, resizedWidth: dimensions.width, resizedHeight: dimensions.height
-        )
+        return NativeCoreMLDetectionPreparedArray(input: array, resizedWidth: width, resizedHeight: height)
     }
 
     /// Rows submitted to one `concurrentPerform` pass. Cancellation is observed
@@ -475,10 +372,8 @@ enum NativeCoreMLDetectionPreprocessor {
         let resizesOtherAxis: Bool
     }
 
-    /// Consecutive reader pages almost always share source and canvas sizes.
-    /// The ramps are a pure function of the key, so a tiny LRU replays the
-    /// exact CPU `MLTensor` result instead of building two tensor graphs per
-    /// page. Eight entries of at most 2,000 coordinates stay below 400 KB.
+    /// Consecutive pages usually share sizes; the ramps are a pure function of
+    /// the key, so a tiny LRU replays them instead of building tensor graphs.
     private static let resizeCoordinateCacheCapacity = 8
     private static let resizeCoordinateCache = ResizeCoordinateCache()
 
@@ -502,14 +397,12 @@ enum NativeCoreMLDetectionPreprocessor {
         }
     }
 
-    /// Native one-dimensional ramps preserve the resize backend's exact
-    /// half-pixel rounding without allocating full-resolution Float images.
-    /// Match whether one or both axes resize: Core ML selects different
-    /// coordinate kernels for these cases. Two constant rows/columns (three
-    /// after resizing) preserve this distinction with only linear storage.
-    /// A parity ramp carries the fractional weight separately: subtracting
-    /// the integer part of a large coordinate loses several Float ULPs.
-    static func resizeCoordinates(
+    /// One-dimensional ramps resized by `MLTensor` reproduce its exact bilinear
+    /// coordinates. Core ML picks different kernels when one or both axes
+    /// resize, so the orthogonal axis grows from 2 to 3 to match. A parity ramp
+    /// carries the fractional weight separately (subtracting the integer part
+    /// of a large coordinate loses Float ULPs).
+    private static func resizeCoordinates(
         sourceLength: Int, targetLength: Int, vertical: Bool = false, resizesOtherAxis: Bool = false
     ) async -> [(Int, Int, Float)] {
         let key = ResizeCoordinateKey(sourceLength: sourceLength, targetLength: targetLength,

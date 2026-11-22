@@ -3,9 +3,7 @@
     {
       "id" : "2342EBB1-A5DB-4B66-9F31-F4AA25A1AA61",
       "name" : "Default",
-      "options" : {
-
-      }
+      "options" : {}
     }
   ],
   "defaultOptions" : {
@@ -16,150 +14,54 @@
       "parallelizable" : false,
       "selectedTests" : {
         "suites" : [
-          {
-            "name" : "AppMiscTests"
-          },
-          {
-            "name" : "ArchiveTests"
-          },
-          {
-            "name" : "BackupSafetyTests"
-          },
-          {
-            "name" : "BuiltInServerSourceTests"
-          },
-          {
-            "name" : "CloudflareResponsePolicyTests"
-          },
-          {
-            "name" : "ComicInfoTests"
-          },
-          {
-            "name" : "CoverImagePipelineCacheTests"
-          },
-          {
-            "name" : "CoverRecoveryTests"
-          },
-          {
-            "name" : "CropBordersProcessorRegressionTests"
-          },
-          {
-            "name" : "DictionaryTests"
-          },
-          {
-            "name" : "DownloadMetadataTests"
-          },
-          {
-            "name" : "DownloadPathContainmentTests"
-          },
-          {
-            "name" : "FixedAPIDateFormatTests"
-          },
-          {
-            "name" : "FormEncodingTests"
-          },
-          {
-            "name" : "HistoryDataTests"
-          },
-          {
-            "name" : "JSONAnyValueTests"
-          },
-          {
-            "name" : "LibraryDataTests"
-          },
-          {
-            "name" : "LocalFileNameParserTests"
-          },
-          {
-            "name" : "LocalImageImportTests"
-          },
-          {
-            "name" : "LocalImportSchedulingTests"
-          },
-          {
-            "name" : "LocalPathContainmentTests"
-          },
-          {
-            "name" : "MangaDescriptionTranslationTests"
-          },
-          {
-            "name" : "NativeOCRRecognitionRegressionTests"
-          },
-          {
-            "name" : "NativeWebLoginPolicyTests"
-          },
-          {
-            "name" : "PageInterceptorProcessorTests"
-          },
-          {
-            "name" : "PartialDownloadTests"
-          },
-          {
-            "name" : "ReaderPageIdentityTests"
-          },
-          {
-            "name" : "ReaderTranslationLanguageFilterTests"
-          },
-          {
-            "name" : "ReaderTranslationPageIdentityTests"
-          },
-          {
-            "name" : "ReaderTranslationPanelOrderTests"
-          },
-          {
-            "name" : "ReaderTranslationProviderTests"
-          },
-          {
-            "name" : "SettingsLoginAttemptTests"
-          },
-          {
-            "name" : "SharedImageInboxTests"
-          },
-          {
-            "name" : "SourceBrowseSafetyTests"
-          },
-          {
-            "name" : "SourceLoginBrowserPolicyTests"
-          },
-          {
-            "name" : "SourcePaginationTests"
-          },
-          {
-            "name" : "SourceRequestCookieScopeTests"
-          },
-          {
-            "name" : "TitleTranslationTests"
-          },
-          {
-            "name" : "TrackerRegressionTests"
-          },
-          {
-            "name" : "TrackerSyncTests"
-          },
-          {
-            "name" : "TranslatedDownloadTests"
-          },
-          {
-            "name" : "TranslationEndpointPolicyTests"
-          },
-          {
-            "name" : "TranslationHTTPCodecTests"
-          },
-          {
-            "name" : "TranslationServiceCacheTests"
-          },
-          {
-            "name" : "TranslationStreamingTests"
-          },
-          {
-            "name" : "V2PaidRequestTests"
-          },
-          {
-            "name" : "V2ReaderPipelineTests"
-          },
-          {
-            "name" : "V2StageTests"
-          }
+          { "name" : "AppMiscTests" },
+          { "name" : "ArchiveTests" },
+          { "name" : "BackupSafetyTests" },
+          { "name" : "BuiltInServerSourceTests" },
+          { "name" : "CloudflareResponsePolicyTests" },
+          { "name" : "ComicInfoTests" },
+          { "name" : "CoverImagePipelineCacheTests" },
+          { "name" : "CoverRecoveryTests" },
+          { "name" : "CropBordersProcessorRegressionTests" },
+          { "name" : "DictionaryTests" },
+          { "name" : "DownloadMetadataTests" },
+          { "name" : "DownloadPathContainmentTests" },
+          { "name" : "FixedAPIDateFormatTests" },
+          { "name" : "FormEncodingTests" },
+          { "name" : "HistoryDataTests" },
+          { "name" : "JSONAnyValueTests" },
+          { "name" : "LibraryDataTests" },
+          { "name" : "LocalFileNameParserTests" },
+          { "name" : "LocalImageImportTests" },
+          { "name" : "LocalImportSchedulingTests" },
+          { "name" : "LocalPathContainmentTests" },
+          { "name" : "MangaDescriptionTranslationTests" },
+          { "name" : "NativeOCRRecognitionRegressionTests" },
+          { "name" : "NativeWebLoginPolicyTests" },
+          { "name" : "PageInterceptorProcessorTests" },
+          { "name" : "PartialDownloadTests" },
+          { "name" : "ReaderPageIdentityTests" },
+          { "name" : "ReaderTranslationLanguageFilterTests" },
+          { "name" : "ReaderTranslationPageIdentityTests" },
+          { "name" : "ReaderTranslationPanelOrderTests" },
+          { "name" : "ReaderTranslationProviderTests" },
+          { "name" : "SettingsLoginAttemptTests" },
+          { "name" : "SharedImageInboxTests" },
+          { "name" : "SourceBrowseSafetyTests" },
+          { "name" : "SourceLoginBrowserPolicyTests" },
+          { "name" : "SourcePaginationTests" },
+          { "name" : "SourceRequestCookieScopeTests" },
+          { "name" : "TitleTranslationTests" },
+          { "name" : "TrackerRegressionTests" },
+          { "name" : "TrackerSyncTests" },
+          { "name" : "TranslatedDownloadTests" },
+          { "name" : "TranslationEndpointPolicyTests" },
+          { "name" : "TranslationHTTPCodecTests" },
+          { "name" : "TranslationServiceCacheTests" },
+          { "name" : "TranslationStreamingTests" },
+          { "name" : "V2PaidRequestTests" },
+          { "name" : "V2ReaderPipelineTests" },
+          { "name" : "V2StageTests" }
         ]
       },
       "target" : {

@@ -79,13 +79,9 @@ struct ListingsHeaderView: View {
                     Button {
                         selectedListing = offset
                     } label: {
-                        let label = Group {
-                            if source.features.providesHome && offset == 0 {
-                                Text(option)
-                            } else {
-                                TranslatedTitleText(option, kind: .sourceLabel)
-                            }
-                        }
+                        // An empty translation source leaves the localized home tab untranslated.
+                        let isHome = source.features.providesHome && offset == 0
+                        let label = TranslatedTitleText(option, kind: .sourceLabel, translating: isHome ? "" : nil)
                             .padding(.horizontal, 13)
                             .padding(.vertical, 8)
                             .font(.footnote.weight(.medium))

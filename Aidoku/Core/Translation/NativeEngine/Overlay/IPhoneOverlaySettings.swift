@@ -40,11 +40,6 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     var subtitleMaxLines: Int
     var subtitleContextSentences: Int
 
-    private enum CodingKeys: String, CodingKey {
-        case visible, mode, colorMode, preserveSourceTextColor, preserveSourceBackgroundColor, inpaintingEnabled
-        case opacity, textPlacement, subtitlePosition, subtitleMaxLines, subtitleContextSentences
-    }
-
     init(
         visible: Bool,
         mode: IPhoneOverlayMode,
@@ -66,8 +61,7 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     }
 
     init(from decoder: any Decoder) throws {
-        // Removed font-size and expansion preferences are deliberately ignored.
-        // Rendering always fits text automatically inside the image region.
+        // Removed font-size and expansion preferences are ignored.
         let container = try decoder.container(keyedBy: CodingKeys.self)
         visible = try container.decode(Bool.self, forKey: .visible)
         mode = try container.decode(IPhoneOverlayMode.self, forKey: .mode)
@@ -79,10 +73,8 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         subtitleContextSentences = try container.decode(Int.self, forKey: .subtitleContextSentences)
     }
 
-    /// Legacy subtitle/side-panel fields remain decodable so an installed v1
-    /// build can migrate without discarding unrelated credentials or settings.
-    /// The current iPhone product always renders translated text directly over
-    /// its source bbox.
+    /// Legacy subtitle/side-panel fields stay decodable for migration; text is
+    /// always rendered directly over its source box.
     mutating func enforceSourceReplacement() {
         inpaintingEnabled = false
         preserveSourceTextColor = false

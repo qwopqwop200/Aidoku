@@ -14,11 +14,8 @@ extension RemoteTranslating {
     func prepare(configuration: RemoteTranslationConfiguration) async {}
 }
 
-/// Per-endpoint record of whether a custom server accepts
-/// the compact structured wire format. Only a server that identified itself as
-/// a recent vLLM in a successful metadata or standard response is tried; a rejection or
-/// an unverified malformed answer permanently returns it to the standard
-/// structured request for this client.
+/// Per-endpoint record of whether a custom server accepts the compact structured format. Only a
+/// server identified as recent vLLM is tried; a rejection or unverified malformed answer disables it.
 final class CompactChatOutputRegistry: @unchecked Sendable {
     enum State: Equatable { case unknown, eligible, verified, unsupported }
 
@@ -59,9 +56,7 @@ final class CompactChatOutputRegistry: @unchecked Sendable {
         }
     }
 
-    /// Cached OCR can finish before metadata. Give an already running probe
-    /// at most 80 ms from its start, shared by all callers, not 80 ms per call.
-    /// Late arrivals and endpoints without a probe never wait.
+    /// Waits for a running metadata probe up to 80 ms after its start (shared, not per call).
     func waitForMetadata(endpoint: String, account: String) async throws {
         let id = UUID()
         try await withTaskCancellationHandler {
@@ -196,10 +191,7 @@ actor CustomProtocolPreferenceRegistry {
 }
 
 final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
-    /// A short grace window lets one request discover a fast 404/405/501 and
-    /// publish the alternate endpoint before sibling batches duplicate that
-    /// failed probe. If the configured endpoint is valid but slow, siblings
-    /// resume after the grace window and retain normal provider parallelism.
+    /// Lets one request discover a fast 404/405/501 before siblings repeat the failed probe.
     private static let protocolProbeGraceNanoseconds: UInt64 = 40_000_000
 
     private let credentialStore: TranslationCredentialProviding
@@ -222,9 +214,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         self.rechecksImageSupport = rechecksImageSupport
     }
 
-    /// Start alongside OCR; translation only gives an in-flight probe a short grace. A metadata
-    /// hint only makes compact output eligible; strict decoding and fallback
-    /// still verify the actual protocol on its first translation.
+    /// Runs alongside OCR. A metadata hint only makes compact output eligible; the first
+    /// translation still verifies it.
     func prepare(configuration: RemoteTranslationConfiguration) async {
         guard !Task.isCancelled, configuration.provider == .custom,
               configuration.apiProtocol != .responses || configuration.reasoningEffort == .none,
@@ -263,8 +254,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
     ) async throws -> RemoteTranslationBatchResult {
         try Task.checkCancellation()
         try request.validate()
-        // Page-lettering classification is a single-pass decision: no
-        // source-alignment retries, protocol fallback or image downgrade.
+        // Page lettering is single-pass: no alignment retries, protocol fallback or image downgrade.
         if request.translatesPageLettering == true {
             guard request.imageJPEG != nil, request.filtersSFX == true, request.filtersBackground == true else {
                 throw RemoteTranslationError.invalidRequest("page translation requires image, SFX and background roles")
@@ -294,8 +284,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             imageSupport.record(.supported, for: configuration)
         }
         return try await TranslationHTTPCodec.recoveringIndependentSourceAlignment(request: request, result: result) { isolated in
-            // Call below this recovery entry point: an independently confirmed
-            // coinciding translation is accepted without recursively retrying.
+            // Below the recovery entry point: a confirmed coinciding translation is not retried again.
             try await self.translateUsingSupportedProtocol(isolated, configuration: configuration)
         }
     }
@@ -379,8 +368,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         Self.recordPhase("keychain", segmentCount: segmentCount, since: keychainStartedAt)
 
         if request.translatesPageLettering == true {
-            // Compact-output negotiation may retry after a rejected grammar.
-            // The one-call page path uses the portable schema directly.
+            // The one-call page path skips compact-output negotiation.
             return try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
                 chatOptions: .standard).batch
         }
@@ -393,13 +381,11 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         if Self.usesCompactOutput(configuration: configuration, request: request, state: compactState) {
             do {
                 let result = try await exchange(request, configuration: configuration, endpoint: endpoint, apiKey: apiKey,
-                                                chatOptions: Self.compactChatOptions(configuration: configuration, request: request))
+                                                chatOptions: Self.compactChatOptions(configuration: configuration))
                 compactOutput.markVerified(compactKey)
                 return result.batch
             } catch let error as RemoteTranslationError {
-                // Fall back once to the standard request when the server rejects
-                // the compact options, or when a server that has not yet produced
-                // a valid compact answer returns an unusable one.
+                // Fall back once if the options are rejected or a not-yet-verified server answers unusably.
                 let rejected: Bool
                 switch error {
                 case let .httpStatus(status, _): rejected = status == 400 || status == 422
@@ -432,13 +418,10 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         return TranslationHTTPCodec.supportsCompactOutput(segmentIDs: request.segments.map(\.id))
     }
 
-    static func compactChatOptions(
-        configuration: RemoteTranslationConfiguration,
-        request: RemoteTranslationRequest
-    ) -> TranslationHTTPCodec.ChatWireOptions {
+    static func compactChatOptions(configuration: RemoteTranslationConfiguration) -> TranslationHTTPCodec.ChatWireOptions {
         configuration.apiProtocol == .responses
             ? TranslationHTTPCodec.ChatWireOptions(compactStructuredOutput: true)
-            : TranslationHTTPCodec.ChatWireOptions(compactStructuredOutput: true, stream: true, maximumOutputTokens: nil)
+            : TranslationHTTPCodec.ChatWireOptions(compactStructuredOutput: true, stream: true)
     }
 
     private struct ExchangeResult {
@@ -468,8 +451,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         )
         Self.recordPhase("encode", segmentCount: segmentCount, since: encodeStartedAt)
 
-        // SSE framing repeats per-chunk metadata around each token; the
-        // assembled content is still bounded by the envelope parser.
+        // SSE framing repeats per-chunk metadata; the assembled content is still bounded by the parser.
         let maximumBodyBytes = chatOptions.stream
             ? configuration.maximumResponseBytes.multipliedReportingOverflow(by: 8).partialValue
             : configuration.maximumResponseBytes
@@ -528,8 +510,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         try Task.checkCancellation()
         return ExchangeResult(
             batch: RemoteTranslationBatchResult(translations: translations, source: .network, providerRequestID: requestID),
-            // Only custom, non-page requests consume this capability hint.
-            // Avoid decoding the response envelope again for every reader page.
+            // Only custom, non-page requests use this hint; avoid re-decoding every page response.
             identifiesStructuredOutputServer: configuration.provider == .custom && request.translatesPageLettering != true &&
                 !chatOptions.compactStructuredOutput && !isEventStream &&
                 TranslationHTTPCodec.identifiesStructuredOutputServer(
@@ -563,8 +544,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         }
     }
 
-    /// A gateway may route models or credentials to different backends. A
-    /// rejection or verification from one route must not affect another route.
+    /// A gateway may route models or credentials to different backends; keep their states apart.
     static func compactCapabilityKey(for configuration: RemoteTranslationConfiguration) throws -> String {
         let fields = [configuration.provider.rawValue, configuration.apiProtocol.rawValue,
             try configuration.validatedEndpoint().absoluteString, configuration.model,
@@ -586,10 +566,8 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
         )
     }
 
-    /// Builds a protocol-specific configuration from the normalized endpoint
-    /// namespace. This also supports a custom base URL entered as a complete
-    /// endpoint (for example `/v1/responses`): switching to the remembered or
-    /// fallback protocol must replace that suffix instead of appending to it.
+    /// Switches protocol from the normalized namespace, so a base URL entered as a complete
+    /// endpoint (`/v1/responses`) has its suffix replaced rather than appended to.
     private static func configuration(
         _ configuration: RemoteTranslationConfiguration,
         replacingAPIProtocol apiProtocol: RemoteTranslationProtocol

@@ -82,8 +82,7 @@ extension UIView {
         let selector = #selector(setter: UIView.clipsToBounds)
         guard let method = class_getInstanceMethod(originalClass, selector),
               let subclass = objc_allocateClassPair(originalClass, subclassName, 0) else { return }
-        // Capture the original setter once. Looking it up from the object's current
-        // class inside the replacement would recurse if a subclass is added later.
+        // Capture the original setter once; a lookup at call time would recurse.
         typealias Setter = @convention(c) (UIView, Selector, Bool) -> Void
         let setter = unsafeBitCast(method_getImplementation(method), to: Setter.self)
         let block: @convention(block) (UIView, Bool) -> Void = { view, _ in

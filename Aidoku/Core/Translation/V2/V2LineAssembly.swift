@@ -3,52 +3,42 @@ import Foundation
 
 /// S2b: joins detector fragments of one text column (vertical) or row (horizontal).
 ///
-/// The DB detector often splits one lettered column into 2-4 components (a gap
-/// at small kana, punctuation or a faint stroke). Two fragments are joined when
-/// they are stacked along one axis with a gap of at most `gap` line
-/// thicknesses, have similar thickness, overlap across the axis, neither runs
-/// clearly across the joining axis, and they do not straddle a balloon
-/// boundary. Joins are applied greedily, smallest normalized gap first, and the
-/// merged line is re-tested against the remaining fragments. Recall-first:
-/// parameters were fitted on the GT train split (individual_premerge_bbox).
-/// Python reference: the out-of-repo research scripts (scripts-detection)/assemble.py (kept bit-identical).
+/// The DB detector often splits one lettered column into 2-4 components. Two fragments
+/// join when stacked along one axis within `maximumGap` thicknesses, of similar thickness,
+/// overlapping across the axis, and not straddling a balloon boundary; joins are greedy,
+/// smallest normalized gap first, re-testing the merged line. Fitted recall-first on GT train;
+/// bit-identical to the out-of-repo research reference (scripts-detection/assemble.py).
 enum V2LineAssembly {
-    struct Parameters: Sendable, Equatable {
-        /// Maximum along-axis gap, in units of the thinner fragment's thickness.
-        var gap: CGFloat = 1.5
-        /// Minimum cross-axis overlap, in units of the thinner fragment's thickness.
-        var overlap: CGFloat = 0.6
-        /// Maximum thickness ratio between the two fragments.
-        var ratio: CGFloat = 1.8
-        /// A fragment joins along an axis only when `length * aspect >= thickness`.
-        var aspect: CGFloat = 1.25
-        /// Maximum along-axis overlap, in units of the shorter fragment's length.
-        var nesting: CGFloat = 0.5
-        /// A fragment belongs to the balloon covering at least this share of it.
-        var balloonInside: CGFloat = 0.5
-        /// A fragment outside every balloon may join a balloon member only when at
-        /// least this share of it lies inside that balloon.
-        var balloonOutside: CGFloat = 0.15
-        var balloonMinimumScore: Float = 0.5
+    /// Maximum along-axis gap, in units of the thinner fragment's thickness.
+    static let maximumGap: CGFloat = 1.5
+    /// Minimum cross-axis overlap, in units of the thinner fragment's thickness.
+    static let minimumOverlap: CGFloat = 0.6
+    /// Maximum thickness ratio between the two fragments.
+    static let maximumRatio: CGFloat = 1.8
+    /// A fragment joins along an axis only when `length * aspect >= thickness`.
+    static let aspect: CGFloat = 1.25
+    /// Maximum along-axis overlap, in units of the shorter fragment's length.
+    static let nesting: CGFloat = 0.5
+    /// A fragment belongs to the balloon covering at least this share of it.
+    static let balloonInside: CGFloat = 0.5
+    /// A fragment outside every balloon joins a balloon member only with this share inside it.
+    static let balloonOutside: CGFloat = 0.15
+    static let balloonMinimumScore: Float = 0.5
 
-        static let standard = Parameters()
-    }
-
-    static func assemble(_ lines: [V2Line], layout: [V2LayoutRegion], parameters: Parameters = .standard) -> [V2Line] {
+    static func assemble(_ lines: [V2Line], layout: [V2LayoutRegion]) -> [V2Line] {
         guard lines.count > 1 else { return lines }
         let balloons = layout.filter {
-            $0.kind == .balloon && $0.score >= parameters.balloonMinimumScore && !$0.bounds.isEmpty
+            $0.kind == .balloon && $0.score >= balloonMinimumScore && !$0.bounds.isEmpty
         }.map(\.bounds)
-        // Items keep stable ids (input order); a merge keeps the lower id and drops the higher, so id
-        // order is the array order of the original quadratic rescan. Admissible pairs are cached and
-        // only the merged item's pairs are recomputed, so each merge is O(pairs + n) instead of O(n^2)
-        // (noisy pages reach the detector's 3,000-candidate cap). Same pairs, same (gap, i, j) choice.
-        var items = lines.map { Item(line: $0, box: $0.bounds, owner: owner($0.bounds, balloons, parameters)) }
+        // Stable ids (input order): a merge keeps the lower id, matching the original quadratic
+        // rescan. Admissible pairs are cached and only the merged item's are recomputed (noisy
+        // pages reach the detector's 3,000-candidate cap); same pairs, same (gap, i, j) choice.
+        var items = lines.map { Item(line: $0, box: $0.bounds, owner: owner($0.bounds, balloons)) }
         var alive = [Bool](repeating: true, count: items.count)
         var pairs: [Pair] = []
         func admissible(_ i: Int, _ j: Int) -> Pair? {
-            guard let gap = joinGap(items[i].box, items[j].box, parameters),
-                  layoutAllows(items[i], items[j], balloons, parameters) else { return nil }
+            guard let gap = joinGap(items[i].box, items[j].box),
+                  layoutAllows(items[i], items[j], balloons) else { return nil }
             return Pair(gap: gap, i: i, j: j)
         }
         for i in items.indices {
@@ -66,7 +56,7 @@ enum V2LineAssembly {
             merged.bounds = box
             merged.vertical = box.height >= box.width
             merged.detectionScore = max(a.line.detectionScore, b.line.detectionScore)
-            items[best.i] = Item(line: merged, box: box, owner: owner(box, balloons, parameters))
+            items[best.i] = Item(line: merged, box: box, owner: owner(box, balloons))
             alive[best.j] = false
             pairs.removeAll { $0.i == best.i || $0.j == best.i || $0.i == best.j || $0.j == best.j }
             for other in items.indices where alive[other] && other != best.i {
@@ -93,7 +83,7 @@ enum V2LineAssembly {
     }
 
     /// Normalized gap when `a` and `b` are fragments of one column or row, else nil.
-    static func joinGap(_ a: CGRect, _ b: CGRect, _ parameters: Parameters) -> CGFloat? {
+    static func joinGap(_ a: CGRect, _ b: CGRect) -> CGFloat? {
         var best: CGFloat?
         for vertical in [true, false] {
             let thicknessA = vertical ? a.width : a.height
@@ -108,11 +98,11 @@ enum V2LineAssembly {
                 : max(a.minX, b.minX) - min(a.maxX, b.maxX)
             let thickness = min(thicknessA, thicknessB)
             guard thickness > 0,
-                  lengthA * parameters.aspect >= thicknessA, lengthB * parameters.aspect >= thicknessB,
-                  max(thicknessA, thicknessB) <= parameters.ratio * thickness,
-                  crossOverlap >= parameters.overlap * thickness,
-                  gap <= parameters.gap * thickness,
-                  gap >= -parameters.nesting * min(lengthA, lengthB)
+                  lengthA * aspect >= thicknessA, lengthB * aspect >= thicknessB,
+                  max(thicknessA, thicknessB) <= maximumRatio * thickness,
+                  crossOverlap >= minimumOverlap * thickness,
+                  gap <= maximumGap * thickness,
+                  gap >= -nesting * min(lengthA, lengthB)
             else { continue }
             let normalized = max(gap, 0) / thickness
             if best.map({ normalized < $0 }) ?? true { best = normalized }
@@ -120,16 +110,16 @@ enum V2LineAssembly {
         return best
     }
 
-    private static func layoutAllows(_ a: Item, _ b: Item, _ balloons: [CGRect], _ parameters: Parameters) -> Bool {
+    private static func layoutAllows(_ a: Item, _ b: Item, _ balloons: [CGRect]) -> Bool {
         switch (a.owner, b.owner) {
         case let (x?, y?): x == y
-        case let (x?, nil): coverage(b.box, balloons[x]) >= parameters.balloonOutside
-        case let (nil, y?): coverage(a.box, balloons[y]) >= parameters.balloonOutside
+        case let (x?, nil): coverage(b.box, balloons[x]) >= balloonOutside
+        case let (nil, y?): coverage(a.box, balloons[y]) >= balloonOutside
         case (nil, nil): true
         }
     }
 
-    private static func owner(_ box: CGRect, _ balloons: [CGRect], _ parameters: Parameters) -> Int? {
+    private static func owner(_ box: CGRect, _ balloons: [CGRect]) -> Int? {
         var best: Int?
         var bestCoverage: CGFloat = 0
         for (index, balloon) in balloons.enumerated() {
@@ -139,7 +129,7 @@ enum V2LineAssembly {
                 best = index
             }
         }
-        return bestCoverage >= parameters.balloonInside ? best : nil
+        return bestCoverage >= balloonInside ? best : nil
     }
 
     /// Share of `box`'s area inside `region` (shared with `V2ParagraphGrouping`).

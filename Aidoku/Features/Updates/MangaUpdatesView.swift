@@ -272,9 +272,7 @@ extension MangaUpdatesView {
     }
 }
 
-/// Owns pagination and offset-changing mutations through their whole I/O span.
-/// Recovery loads execute inside the same turn; joining an old load alone is
-/// insufficient because a new pagination request can otherwise pass a delete.
+/// Serializes pagination and offset-changing mutations across their whole I/O span.
 @MainActor
 final class MangaUpdatesOperationQueue: ObservableObject {
     private var tail: Task<Void, Never>?

@@ -199,8 +199,7 @@ class VerticalContentOffsetPreservingLayout: UICollectionViewFlowLayout {
     }
 
     override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
-        // Frames are stacked in increasing Y order (including the zoom transform).
-        // Find the first possible intersection, then visit only the viewport.
+        // Frames are sorted by Y: binary-search the first intersection, then visit only the viewport.
         var low = 0
         var high = verticalAttributes.count
         while low < high {

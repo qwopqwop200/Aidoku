@@ -21,42 +21,13 @@ struct NativeCoreMLCTCTokenObservation: Equatable, Sendable {
 
 @available(iOS 18.0, *)
 struct NativeCoreMLRecognitionBucket: Equatable, Hashable, Sendable {
-    static let all = [
-        NativeCoreMLRecognitionBucket(width: 320, timeSteps: 40)!,
-        NativeCoreMLRecognitionBucket(width: 640, timeSteps: 80)!,
-        NativeCoreMLRecognitionBucket(width: 1_280, timeSteps: 160)!,
-    ]
-
     let width: Int
     let timeSteps: Int
 
-    init?(width: Int) {
-        guard (32...2_400).contains(width) else { return nil }
+    init(width: Int) {
         self.width = width
         // Two width strides followed by pooling: floor(ceil(width / 4) / 2).
         timeSteps = (width + 3) / 8
-    }
-
-    private init?(width: Int, timeSteps: Int) {
-        self.init(width: width)
-        guard self.timeSteps == timeSteps else { return nil }
-    }
-
-    static func containing(
-        desiredWidth: Int,
-        dynamicWidth: Bool = false,
-        maximumWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth
-    ) -> Self {
-        let boundedMaximum = min(2_400, max(32, maximumWidth))
-        let boundedWidth = min(boundedMaximum, max(32, desiredWidth))
-        if dynamicWidth {
-            // Exact crop width: no bucket rounding and no minimum-width padding.
-            return Self(width: boundedWidth)!
-        }
-        // Fixed functions still need their compiled tensor width. The crop
-        // planner caps content separately, so a 1184-pixel line uses rec1280
-        // without shrinking all the way to the preceding 640-pixel bucket.
-        return all.first { boundedWidth <= $0.width } ?? all[all.count - 1]
     }
 }
 
@@ -71,17 +42,16 @@ struct NativeCoreMLPreparedTensor: Equatable, Sendable {
 @available(iOS 18.0, *)
 enum NativeCoreMLRecognitionPreprocessor {
     static let targetHeight = 48
-    static let maximumTargetWidth = 2_000
 
     struct Plan: Sendable {
         let resizedWidth: Int
         let bucket: NativeCoreMLRecognitionBucket
         let rotatedCounterClockwise: Bool
-        fileprivate let cropWidth: Int
-        fileprivate let cropHeight: Int
-        fileprivate let orientedWidth: Int
-        fileprivate let orientedHeight: Int
-        fileprivate let homography: Homography
+        let cropWidth: Int
+        let cropHeight: Int
+        let orientedWidth: Int
+        let orientedHeight: Int
+        let homography: Homography
     }
 
     fileprivate struct Quad: Sendable {
@@ -91,20 +61,14 @@ enum NativeCoreMLRecognitionPreprocessor {
         let bottomLeft: CGPoint
     }
 
-    fileprivate struct Homography: Sendable {
+    struct Homography: Sendable {
         let a, b, c, d, e, f, g, h: Double
     }
 
-    static func plan(
-        polygon: [CGPoint],
-        dynamicWidth: Bool = false,
-        maximumWidth: Int = IPhoneOCRSettings.defaultRecognizerMaximumWidth,
-        mangaPublisherWidth: Bool = false,
-        useProvidedOrder: Bool = false
-    ) -> Plan? {
-        guard let quad = makeQuad(polygon, useProvidedOrder: useProvidedOrder),
-              let homography = makeHomography(quad)
-        else { return nil }
+    /// Manga crop plan: exact (dynamic) tensor width; a 4-point polygon must
+    /// already be in reading order (TL, TR, BR, BL).
+    static func plan(polygon: [CGPoint]) -> Plan? {
+        guard let quad = makeQuad(polygon), let homography = makeHomography(quad) else { return nil }
         let widthTop = distance(quad.topLeft, quad.topRight)
         let widthBottom = distance(quad.bottomLeft, quad.bottomRight)
         let heightLeft = distance(quad.topLeft, quad.bottomLeft)
@@ -126,22 +90,13 @@ enum NativeCoreMLRecognitionPreprocessor {
         let orientedWidth = rotated ? cropHeight : cropWidth
         let orientedHeight = rotated ? cropWidth : cropHeight
         let ratio = Double(orientedWidth) / Double(max(1, orientedHeight))
-        let legacyWidth = Int(min(Double(maximumTargetWidth), max(1, ceil(Double(targetHeight) * ratio))))
         // Publisher's rule uses the natural width BEFORE clipping: ordinary
         // lines cap at 640, only natural widths above 2000 can use up to 2400.
-        let desiredWidth: Int
-        if mangaPublisherWidth {
-            let naturalWidth = (Double(targetHeight) * ratio).rounded(.toNearestOrEven)
-            desiredWidth = Int(max(1, min(naturalWidth > 2_000 ? 2_400 : 640, naturalWidth)))
-        } else {
-            desiredWidth = legacyWidth
-        }
-        // Sampling keeps the original resizedWidth; ordinary crops stay exact.
-        let bucket = NativeCoreMLRecognitionBucket.containing(
-            desiredWidth: desiredWidth, dynamicWidth: dynamicWidth, maximumWidth: maximumWidth)
-        let resizedWidth = min(bucket.width, desiredWidth, max(32, maximumWidth))
+        let naturalWidth = (Double(targetHeight) * ratio).rounded(.toNearestOrEven)
+        let desiredWidth = Int(max(1, min(naturalWidth > 2_000 ? 2_400 : 640, naturalWidth)))
+        let bucket = NativeCoreMLRecognitionBucket(width: max(32, desiredWidth))
         return Plan(
-            resizedWidth: resizedWidth, bucket: bucket, rotatedCounterClockwise: rotated,
+            resizedWidth: desiredWidth, bucket: bucket, rotatedCounterClockwise: rotated,
             cropWidth: cropWidth, cropHeight: cropHeight, orientedWidth: orientedWidth,
             orientedHeight: orientedHeight, homography: homography
         )
@@ -354,12 +309,11 @@ enum NativeCoreMLRecognitionPreprocessor {
         return (xs, ys)
     }
 
-    private static func makeQuad(_ polygon: [CGPoint], useProvidedOrder: Bool = false) -> Quad? {
+    private static func makeQuad(_ polygon: [CGPoint]) -> Quad? {
         let finite = polygon.filter { $0.x.isFinite && $0.y.isFinite }
         guard finite.count == polygon.count, finite.count >= 2 else { return nil }
         if finite.count == 4 {
-            guard let p = useProvidedOrder ? finite : NativeOCRScopeGeometry.canonicalQuad(finite) else { return nil }
-            let quad = Quad(topLeft: p[0], topRight: p[1], bottomRight: p[2], bottomLeft: p[3])
+            let quad = Quad(topLeft: finite[0], topRight: finite[1], bottomRight: finite[2], bottomLeft: finite[3])
             guard abs(signedArea(quad)) > 0.5 else { return nil }
             return quad
         }

@@ -1,7 +1,6 @@
 import Foundation
 
-/// Native response classification and replay policy. Browser verification is still
-/// required when the server does not accept an existing clearance cookie.
+/// Native challenge classification and clearance replay policy.
 enum CloudflareResponsePolicy {
     static func isChallenge(response: HTTPURLResponse, data: Data) -> Bool {
         // Cloudflare documents this header for all Challenge Page response types.
@@ -55,8 +54,7 @@ enum CloudflareResponsePolicy {
         }
     }
 
-    /// Verification can refresh Cloudflare state, but cannot export provider credentials.
-    /// A persistent WebKit snapshot may contain an older session than native networking.
+    /// Only Cloudflare state is exported; WebKit may hold an older source session than native networking.
     static func commitVerificationCookies(_ cookies: [HTTPCookie], for url: URL,
                                           storage: HTTPCookieStorage = .shared, now: Date = Date()) {
         let allowedNames: Set<String> = ["cf_clearance", "__cf_bm", "_cfuvid"]

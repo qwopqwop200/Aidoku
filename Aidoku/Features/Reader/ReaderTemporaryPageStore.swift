@@ -36,14 +36,12 @@ actor ReaderTemporaryPageStore {
         let decodedBytes: @Sendable () async throws -> UInt64
     }
 
-    // ZIPFoundation's path subscript reads headers from the beginning each
-    // time. Advance one cursor on demand so opening page one stays inexpensive.
+    // ZIPFoundation's path subscript rescans headers each time; advance one cursor on demand instead.
     private final class IndexedArchive {
         let archive: Archive
         let revision: String
         private var remaining: AnyIterator<Entry>?
-        // Headers can contain ZIP comments and extra fields. Keep just the
-        // recent ones, retaining small names for exact and alias lookups.
+        // Keep only recent headers (they can be large) plus all names for exact and alias lookups.
         private static let headerLimit = 512
         private var headers: [Entry] = []
         private var names: [String] = []
@@ -96,14 +94,12 @@ actor ReaderTemporaryPageStore {
         archiveObservers.forEach(NotificationCenter.default.removeObserver)
     }
 
-    /// Identify the encoded bytes before writing: a failed write must not make
-    /// distinct raw source pages share an empty-URL translation identity.
+    /// Identify the encoded bytes before writing, so a failed write cannot share an identity.
     func prepareRawPage(_ page: Page, pageIndex: Int) -> Page {
         Self.prepareRawPage(page, pageIndex: pageIndex, directory: directory)
     }
 
-    /// The optional-store reader path still needs content identity, but need not
-    /// create a temporary directory with no reader owner to remove it.
+    /// Content identity without creating an unowned temporary directory.
     nonisolated static func prepareInMemoryPage(_ page: Page, pageIndex: Int) async -> Page {
         prepareRawPage(page, pageIndex: pageIndex, directory: nil)
     }
@@ -112,8 +108,7 @@ actor ReaderTemporaryPageStore {
         guard let image = page.image else { return page }
         var prepared = page
         prepared.index = pageIndex
-        // An image that cannot encode cannot provide a persistent content hash.
-        // Fail closed with a per-page identity rather than reuse another image.
+        // Fail closed with a per-page identity when the image cannot be encoded.
         prepared.imageContentIdentity = "reader-unencodable-image-v1-" + UUID().uuidString
         guard !Task.isCancelled else { return prepared }
         return autoreleasepool {
@@ -127,8 +122,7 @@ actor ReaderTemporaryPageStore {
                 prepared.image = nil
                 prepared.imageURL = url.absoluteString
             } catch {
-                // Keep the original image and its digest when storage is full
-                // or this reader's temporary directory was removed.
+                // Keep the original image and digest when the write fails.
             }
             return prepared
         }
@@ -143,11 +137,8 @@ actor ReaderTemporaryPageStore {
             return nil
         }
 
-        return writePNG(data, stem: "\(chapterKey.hashValue)-\(pageIndex)")
-    }
-
-    private func writePNG(_ data: Data, stem: String) -> URL? {
-        let filename = "\(stem).png"
+        let fileExtension = "png"
+        let filename = "\(chapterKey.hashValue)-\(pageIndex).\(fileExtension)"
         let url = directory.appendingPathComponent(filename)
 
         do {
@@ -165,11 +156,11 @@ actor ReaderTemporaryPageStore {
             guard !Task.isCancelled, let image = page.image else { return nil }
             let sealed = page.translationSplitSource?.sealPNG(from: image)
             guard let data = sealed?.data ?? image.pngData(), !Task.isCancelled else { return nil }
-            // A persisted crop from source B must not replace the file retained
-            // by an in-flight or restored crop from source A.
+            // Name by source digest so a new crop never replaces a file still in use.
             let stem = "\((chapterKey + "-split").hashValue)-\(pageIndex * 2 + offset)"
             let named = sealed.map { stem + "-" + $0.filenameDigest } ?? stem
-            guard let url = writePNG(data, stem: named) else { return nil }
+            let url = directory.appendingPathComponent(named + ".png")
+            guard (try? data.write(to: url, options: .atomic)) != nil else { return nil }
             var stored = page
             stored.image = nil
             stored.imageURL = url.absoluteString
@@ -179,8 +170,7 @@ actor ReaderTemporaryPageStore {
         return result
     }
 
-    // Supply Nuke with the original encoded bytes. Its image task coalesces
-    // matching display and translation requests, including the decoder stage.
+    // Nuke gets the encoded bytes and coalesces matching display and translation requests.
     func archiveImageSource(from url: URL, path: String) -> ArchiveImageSource? {
         guard !Task.isCancelled, directory.exists, url.isFileURL,
               LocalFileManager.allowedImageExtensions.contains((path as NSString).pathExtension.lowercased()) else { return nil }
@@ -305,4 +295,7 @@ actor ReaderTemporaryPageStore {
         directory.removeItem()
     }
 
+    static func removeAllSessions() {
+        sessionsDirectory.removeItem()
+    }
 }

@@ -245,8 +245,7 @@ extension MangaGridCell {
 }
 
 extension MangaGridCell {
-    /// Resolves source authentication/rewrites before consulting a cache key.
-    /// A bare-URL hit must not bypass the modified request's identity.
+    /// Resolve source rewrites first so a bare-URL cache hit cannot bypass them.
     static func coverRequest(for url: URL, source: AidokuRunner.Source?) async -> URLRequest {
         if let fileUrl = url.toAidokuFileUrl() {
             URLRequest(url: fileUrl)

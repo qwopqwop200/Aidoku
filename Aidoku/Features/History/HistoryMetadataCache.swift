@@ -1,8 +1,7 @@
 import AidokuRunner
 import Foundation
 
-/// Small, disposable, disk-only metadata cache. No image bytes or chapter lists.
-/// Called on database/background queues, never from a SwiftUI body.
+/// Small disk-only metadata cache (no images or chapter lists), used off the main thread.
 final class HistoryMetadataCache: @unchecked Sendable {
     static let shared = HistoryMetadataCache(directory: FileManager.default.cachesDirectory
         .appendingPathComponent("HistoryMetadata-v1", isDirectory: true))
@@ -60,8 +59,7 @@ final class HistoryMetadataCache: @unchecked Sendable {
         }
     }
 
-    /// A deletion invalidates all in-flight recovery requests, preventing late
-    /// network responses from recreating metadata after history was cleared.
+    /// Deletions bump the generation so late responses cannot recreate cleared metadata.
     func store(manga: AidokuRunner.Manga, chapters: [AidokuRunner.Chapter], generation: UInt64) {
         let now = Date()
         queue.sync {

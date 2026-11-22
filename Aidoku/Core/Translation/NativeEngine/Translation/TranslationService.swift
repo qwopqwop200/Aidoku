@@ -6,72 +6,37 @@ import os
 /// Never log OCR text, translated text, credentials, endpoints, model names,
 /// or provider request identifiers here.
 enum TranslationPerformanceDiagnostics {
-    private static let logger = os.Logger(
-        subsystem: "app.aidoku.Aidoku",
-        category: "TranslationPerformance"
-    )
+    private static let logger = os.Logger(subsystem: "app.aidoku.Aidoku", category: "TranslationPerformance")
 
-    static func serviceCompleted(
-        source: TranslationResultSource,
-        segmentCount: Int,
-        sourceBytes: Int,
-        elapsedMilliseconds: Double
-    ) {
+    static func serviceCompleted(source: TranslationResultSource, segmentCount: Int, sourceBytes: Int, elapsedMilliseconds: Double) {
         TranslationPerformanceFileLog.record(.service, fields: [.source: sourceCode(source), .segments: Double(segmentCount),
             .sourceBytes: Double(sourceBytes), .elapsedMilliseconds: elapsedMilliseconds])
-        logger.notice(
-            "service_complete source=\(source.rawValue, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)"
-        )
+        logger.notice("service_complete source=\(source.rawValue, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)")
     }
 
-    static func providerAttemptCompleted(
-        attempt: Int,
-        segmentCount: Int,
-        sourceBytes: Int,
-        elapsedMilliseconds: Double
-    ) {
+    static func providerAttemptCompleted(attempt: Int, segmentCount: Int, sourceBytes: Int, elapsedMilliseconds: Double) {
         TranslationPerformanceFileLog.record(.providerAttempt, fields: [.attempt: Double(attempt), .segments: Double(segmentCount),
             .sourceBytes: Double(sourceBytes), .elapsedMilliseconds: elapsedMilliseconds])
-        logger.notice(
-            "provider_attempt_complete attempt=\(attempt, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)"
-        )
+        logger.notice("provider_attempt_complete attempt=\(attempt, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)")
     }
 
     static func providerAttemptFailed(
-        attempt: Int,
-        reason: String,
-        willRetry: Bool,
-        segmentCount: Int,
-        sourceBytes: Int,
-        elapsedMilliseconds: Double
+        attempt: Int, reason: String, willRetry: Bool, segmentCount: Int, sourceBytes: Int, elapsedMilliseconds: Double
     ) {
         TranslationPerformanceFileLog.record(.providerFailure, fields: [.attempt: Double(attempt), .retry: willRetry ? 1 : 0,
             .reason: reason == "invalid_structured_response" ? 1 : 0, .segments: Double(segmentCount),
             .sourceBytes: Double(sourceBytes), .elapsedMilliseconds: elapsedMilliseconds])
-        logger.error(
-            "provider_attempt_failed attempt=\(attempt, privacy: .public) reason=\(reason, privacy: .public) retry=\(willRetry, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)"
-        )
+        logger.error("provider_attempt_failed attempt=\(attempt, privacy: .public) reason=\(reason, privacy: .public) retry=\(willRetry, privacy: .public) segments=\(segmentCount, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)")
     }
 
-    static func clientPhaseCompleted(
-        phase: String,
-        segmentCount: Int,
-        elapsedMilliseconds: Double
-    ) {
+    static func clientPhaseCompleted(phase: String, segmentCount: Int, elapsedMilliseconds: Double) {
         if let event = TranslationPerformanceFileLog.Event(rawValue: phase) {
             TranslationPerformanceFileLog.record(event, fields: [.segments: Double(segmentCount), .elapsedMilliseconds: elapsedMilliseconds])
         }
-        logger.notice(
-            "client_phase_complete phase=\(phase, privacy: .public) segments=\(segmentCount, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)"
-        )
+        logger.notice("client_phase_complete phase=\(phase, privacy: .public) segments=\(segmentCount, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public)")
     }
 
-    static func transportCompleted(
-        segmentCount: Int,
-        responseBytes: Int,
-        statusCode: Int,
-        metrics: TranslationHTTPTransportMetrics
-    ) {
+    static func transportCompleted(segmentCount: Int, responseBytes: Int, statusCode: Int, metrics: TranslationHTTPTransportMetrics) {
         let statusClass = statusCode / 100
         TranslationPerformanceFileLog.record(.transport, fields: [.segments: Double(segmentCount),
             .responseBytes: Double(responseBytes), .statusClass: Double(statusClass), .statusCode: Double(statusCode),
@@ -79,31 +44,18 @@ enum TranslationPerformanceDiagnostics {
             .firstBodyByteMilliseconds: metrics.firstBodyByteMilliseconds ?? -1,
             .bodyMilliseconds: metrics.bodyMilliseconds ?? -1, .totalMilliseconds: metrics.totalMilliseconds ?? -1])
         // `-1` means a custom/test transport could not provide this phase.
-        logger.notice(
-            "transport_complete segments=\(segmentCount, privacy: .public) response_bytes=\(responseBytes, privacy: .public) status_code=\(statusCode, privacy: .public) status_class=\(statusClass, privacy: .public) response_headers_ms=\(metrics.responseHeadersMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) first_body_byte_ms=\(metrics.firstBodyByteMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) body_ms=\(metrics.bodyMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) total_ms=\(metrics.totalMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public)"
-        )
+        logger.notice("transport_complete segments=\(segmentCount, privacy: .public) response_bytes=\(responseBytes, privacy: .public) status_code=\(statusCode, privacy: .public) status_class=\(statusClass, privacy: .public) response_headers_ms=\(metrics.responseHeadersMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) first_body_byte_ms=\(metrics.firstBodyByteMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) body_ms=\(metrics.bodyMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public) total_ms=\(metrics.totalMilliseconds ?? -1, format: .fixed(precision: 1), privacy: .public)")
     }
 
     static func batchGroupCompleted(
-        batchCount: Int,
-        totalSegments: Int,
-        sourceBytes: Int,
-        elapsedMilliseconds: Double,
-        combinedSource: TranslationResultSource
+        batchCount: Int, totalSegments: Int, sourceBytes: Int, elapsedMilliseconds: Double, combinedSource: TranslationResultSource
     ) {
         TranslationPerformanceFileLog.record(.batch, fields: [.batchCount: Double(batchCount), .segments: Double(totalSegments),
             .sourceBytes: Double(sourceBytes), .elapsedMilliseconds: elapsedMilliseconds, .source: sourceCode(combinedSource)])
-        logger.notice(
-            "batch_group_complete batch_count=\(batchCount, privacy: .public) total_segments=\(totalSegments, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public) combined_source=\(combinedSource.rawValue, privacy: .public)"
-        )
+        logger.notice("batch_group_complete batch_count=\(batchCount, privacy: .public) total_segments=\(totalSegments, privacy: .public) source_bytes=\(sourceBytes, privacy: .public) elapsed_ms=\(elapsedMilliseconds, format: .fixed(precision: 1), privacy: .public) combined_source=\(combinedSource.rawValue, privacy: .public)")
     }
 
-    private static func sourceCode(_ source: TranslationResultSource) -> Double {
-        switch source {
-        case .network: 0
-        case .memoryCache: 1
-        }
-    }
+    private static func sourceCode(_ source: TranslationResultSource) -> Double { source == .network ? 0 : 1 }
 
     static func elapsedMilliseconds(since uptime: TimeInterval) -> Double {
         max(0, (ProcessInfo.processInfo.systemUptime - uptime) * 1_000)
@@ -265,11 +217,7 @@ actor TranslationService {
     /// into ~450 serial calls (minutes of backoff); descendants retry once.
     static let splitDescendantMaximumRetries = 1
     private static let structuredOutputRetryDelaysNanoseconds: [UInt64] = [
-        300_000_000,
-        500_000_000,
-        1_000_000_000,
-        1_000_000_000,
-        2_000_000_000,
+        300_000_000, 500_000_000, 1_000_000_000, 1_000_000_000, 2_000_000_000,
     ]
 
     private struct InFlightRequest {
@@ -287,11 +235,7 @@ actor TranslationService {
     private var purgeGeneration: UInt64 = 0
     private var purgeTask: Task<Void, Error>?
 
-    init(
-        client: RemoteTranslating,
-        cache: TranslationCache,
-        providerRequestLimiter: TranslationProviderRequestLimiter? = nil
-    ) {
+    init(client: RemoteTranslating, cache: TranslationCache, providerRequestLimiter: TranslationProviderRequestLimiter? = nil) {
         self.client = client
         self.cache = cache
         self.providerRequestLimiter = providerRequestLimiter
@@ -299,8 +243,7 @@ actor TranslationService {
 
     /// Reads matching translations without entering provider admission.
     func cachedResult(
-        _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration
+        _ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult? {
         try Task.checkCancellation()
         try request.validate()
@@ -319,8 +262,7 @@ actor TranslationService {
     /// the gate just before a concurrent purge starts. Cached translations in
     /// the wrong language are treated as a miss.
     private func admittedCacheLookup(
-        for key: TranslationCacheKey,
-        request: RemoteTranslationRequest
+        for key: TranslationCacheKey, request: RemoteTranslationRequest
     ) async throws -> (cached: CachedTranslation?, storageGeneration: UInt64, purgeGeneration: UInt64) {
         while true {
             try Task.checkCancellation()
@@ -341,8 +283,7 @@ actor TranslationService {
     }
 
     func translate(
-        _ request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
+        _ request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration,
         priority: TranslationRequestPriority = .foreground
     ) async throws -> RemoteTranslationBatchResult {
         let startedAt = ProcessInfo.processInfo.systemUptime
@@ -434,14 +375,9 @@ actor TranslationService {
     }
 
     private func register(
-        waiterID: UUID,
-        continuation: CheckedContinuation<RemoteTranslationBatchResult, Error>,
-        key: TranslationCacheKey,
-        request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        cacheStorageGeneration: UInt64,
-        purgeAdmissionGeneration: UInt64,
-        priority: TranslationRequestPriority
+        waiterID: UUID, continuation: CheckedContinuation<RemoteTranslationBatchResult, Error>, key: TranslationCacheKey,
+        request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration,
+        cacheStorageGeneration: UInt64, purgeAdmissionGeneration: UInt64, priority: TranslationRequestPriority
     ) {
         guard purgeAdmissionGeneration == purgeGeneration, purgeTask == nil else {
             continuation.resume(throwing: CancellationError())
@@ -468,23 +404,14 @@ actor TranslationService {
                 finish(key: key, requestID: requestID, error: error)
             }
         }
-        inFlight[key] = InFlightRequest(
-            id: requestID,
-            cacheStorageGeneration: cacheStorageGeneration,
-            networkTask: networkTask,
-            priorities: priorities,
-            waiters: [waiterID: continuation]
-        )
+        inFlight[key] = InFlightRequest(id: requestID, cacheStorageGeneration: cacheStorageGeneration,
+                                        networkTask: networkTask, priorities: priorities, waiters: [waiterID: continuation])
     }
 
     private static func requestProvider(
-        client: RemoteTranslating,
-        request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration,
-        providerRequestLimiter: TranslationProviderRequestLimiter?,
-        priority: TranslationRequestPriority,
-        allowsParallelSplit: Bool = true,
-        maximumRetries: Int = maximumStructuredOutputRetries
+        client: RemoteTranslating, request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration,
+        providerRequestLimiter: TranslationProviderRequestLimiter?, priority: TranslationRequestPriority,
+        allowsParallelSplit: Bool = true, maximumRetries: Int = maximumStructuredOutputRetries
     ) async throws -> RemoteTranslationBatchResult {
         var attempt = 0
         while true {
@@ -496,11 +423,8 @@ actor TranslationService {
                 let result: RemoteTranslationBatchResult
                 if let providerRequestLimiter {
                     result = try await providerRequestLimiter.withPermit(priority: priority) {
-                        TranslationPerformanceDiagnostics.clientPhaseCompleted(
-                            phase: "provider_queue",
-                            segmentCount: segmentCount,
-                            elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: attemptStartedAt)
-                        )
+                        TranslationPerformanceDiagnostics.clientPhaseCompleted(phase: "provider_queue", segmentCount: segmentCount,
+                            elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: attemptStartedAt))
                         return try await performProviderAttempt(
                             client: client, request: request, configuration: configuration)
                     }
@@ -586,18 +510,13 @@ actor TranslationService {
     /// Keep provider queueing out of the client duration. The client includes request encoding/transport/validation,
     /// whose nested phases further separate local work from server response wait.
     private static func performProviderAttempt(
-        client: RemoteTranslating,
-        request: RemoteTranslationRequest,
-        configuration: RemoteTranslationConfiguration
+        client: RemoteTranslating, request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
         try Task.checkCancellation()
         let startedAt = ProcessInfo.processInfo.systemUptime
         defer {
-            TranslationPerformanceDiagnostics.clientPhaseCompleted(
-                phase: "provider_client",
-                segmentCount: request.segments.count,
-                elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt)
-            )
+            TranslationPerformanceDiagnostics.clientPhaseCompleted(phase: "provider_client", segmentCount: request.segments.count,
+                elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt))
         }
         let result = try await client.translate(request, configuration: configuration)
         guard !ReaderTranslationLanguageFilter.containsWrongLanguage(result.translations, request: request) else {
@@ -658,11 +577,8 @@ enum BoundedTranslationBatchExecutor {
     /// enter limited provider slots first. Throwing task-group semantics cancel
     /// siblings on failure and never return a partial group.
     static func translate(
-        _ requests: [RemoteTranslationRequest],
-        configuration: RemoteTranslationConfiguration,
-        service: TranslationService,
-        maximumConcurrentRequests: Int,
-        priority: TranslationRequestPriority
+        _ requests: [RemoteTranslationRequest], configuration: RemoteTranslationConfiguration, service: TranslationService,
+        maximumConcurrentRequests: Int, priority: TranslationRequestPriority
     ) async throws -> [RemoteTranslationBatchResult] {
         let startedAt = ProcessInfo.processInfo.systemUptime
         let totalSegments = requests.reduce(into: 0) { $0 += $1.segments.count }
@@ -680,10 +596,7 @@ enum BoundedTranslationBatchExecutor {
             let rightBytes = TranslationPerformanceDiagnostics.sourceBytes(in: requests[right])
             return leftBytes != rightBytes ? leftBytes < rightBytes : left < right
         }
-        let results = try await withThrowingTaskGroup(
-            of: IndexedBatchResult.self,
-            returning: [RemoteTranslationBatchResult].self
-        ) { group in
+        let results = try await withThrowingTaskGroup(of: IndexedBatchResult.self, returning: [RemoteTranslationBatchResult].self) { group in
             defer { group.cancelAll() }
             var nextSubmission = 0
             var active = 0
@@ -701,9 +614,7 @@ enum BoundedTranslationBatchExecutor {
                     group.addTask {
                         try Task.checkCancellation()
                         return try await IndexedBatchResult(
-                            index: index,
-                            result: service.translate(requests[index], configuration: configuration, priority: priority)
-                        )
+                            index: index, result: service.translate(requests[index], configuration: configuration, priority: priority))
                     }
                 }
                 if completedCount == requests.count { break }
@@ -721,11 +632,12 @@ enum BoundedTranslationBatchExecutor {
                 return result
             }
         }
-        if let combinedSource = results.combinedTranslationSource {
+        if !results.isEmpty {
+            // A mixed cache/network group must never be reported as a cache-only hit.
             TranslationPerformanceDiagnostics.batchGroupCompleted(
                 batchCount: requests.count, totalSegments: totalSegments, sourceBytes: sourceBytes,
                 elapsedMilliseconds: TranslationPerformanceDiagnostics.elapsedMilliseconds(since: startedAt),
-                combinedSource: combinedSource
+                combinedSource: results.contains { $0.source == .network } ? .network : .memoryCache
             )
         }
         return results

@@ -1,8 +1,7 @@
 import AidokuRunner
 import Foundation
 
-/// Sequential source fallback preserves first-match order and silent ordinary
-/// failures, but cancelled read-only matching must not visit further sources.
+/// Sequential first-match search that stops visiting sources once cancelled.
 enum MigrationMatchSearch {
     static func firstMatch(for manga: AidokuRunner.Manga, sources: [AidokuRunner.Source], isNeeded: @escaping @Sendable () -> Bool) async -> AidokuRunner.Manga? {
         for source in sources {
@@ -22,8 +21,7 @@ enum MigrationMatchSearch {
     }
 }
 
-/// A row can revoke read-only matching without cancelling another row or
-/// releasing an in-flight source slot before its callback actually finishes.
+/// Lets one row revoke its matching without cancelling other rows.
 final class MigrationRowDemand: @unchecked Sendable {
     private let lock = NSLock()
     private var active = true

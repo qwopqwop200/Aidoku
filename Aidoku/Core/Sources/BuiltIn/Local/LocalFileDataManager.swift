@@ -216,8 +216,7 @@ extension LocalFileDataManager {
             return nil // nothing to remove
         }
 
-        // Validate every existing path before mutating any record. Invalid legacy
-        // records stay intact for recovery; never convert them into delete targets.
+        // Validate every path before mutating; invalid legacy records stay intact, never delete targets.
         let paths = mangaObjects.flatMap { [$0.fileInfo?.path] + (($0.chapters as? Set<ChapterObject>) ?? []).map { $0.fileInfo?.path } }
         guard paths.compactMap({ $0 }).allSatisfy(Self.isContainedLocalPath) else { return nil }
         var mangaPath: String?
@@ -348,16 +347,14 @@ extension LocalFileDataManager {
 extension LocalFileDataManager {
     private enum ImportError: Error { case missingManga }
 
-    /// No suspension between existence checks, inserts and commit. The caller may
-    /// acknowledge/remove its inbox only after this durable transaction succeeds.
+    /// Checks, inserts and saves without suspension, so callers can trust a successful return.
     // swiftlint:disable:next function_parameter_count
     func commitImport(
         folder: URL, mangaId: String, mangaTitle: String, cover: String?, description: String?,
         archive: URL, chapterId: String, chapterTitle: String?, volume: Float?, chapter: Float?, comicInfo: ComicInfo?
     ) throws {
         do {
-            // Replaying a scan or crash recovery must not create another chapter
-            // for an archive already committed by a foreground import.
+            // A replayed scan must not duplicate a chapter already committed for this archive.
             let existing = ChapterObject.fetchRequest()
             existing.predicate = NSPredicate(format: "mangaId == %@ AND sourceId == %@", mangaId, LocalSourceRunner.sourceKey)
             let canonical = archive.standardizedFileURL.resolvingSymlinksInPath().path

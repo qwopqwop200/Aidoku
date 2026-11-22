@@ -38,8 +38,7 @@ actor ReaderTranslationDiskCache {
 
     deinit { touchFlushTask?.cancel() }
 
-    /// LRU touches are best effort: a failed flush (disk full, busy) must not
-    /// turn an already-read hit into a thrown miss, and the queue stays bounded.
+    /// Best-effort LRU touches: a failed flush must not turn a hit into a miss.
     private func recordRead(_ name: String) {
         pendingTouches.removeAll { $0 == name }
         pendingTouches.append(name)
@@ -52,8 +51,7 @@ actor ReaderTranslationDiskCache {
         }
     }
 
-    /// Reads coalesce metadata writes; content durability remains unchanged.
-    /// Flush before mutations/eviction so in-process LRU order stays exact.
+    /// Flush before mutations/eviction so LRU order stays exact.
     func flushAccesses() throws {
         touchFlushTask?.cancel(); touchFlushTask = nil
         guard !pendingTouches.isEmpty, let database else { pendingTouches.removeAll(); return }
@@ -110,8 +108,7 @@ actor ReaderTranslationDiskCache {
     func setByteLimit(_ value: Int64) throws {
         let nextLimit = min(Self.maximumBytes, max(0, value))
         if byteLimit >= ReaderCacheDatabase.minimumBytes, nextLimit < ReaderCacheDatabase.minimumBytes {
-            // Disabling storage deletes its contents just like clear(). Old work
-            // must stay invalid after a later re-enable, including metadata.
+            // Disabling storage deletes its contents like clear(); old work stays invalid.
             generation &+= 1
             metadataGeneration &+= 1
         }
@@ -137,12 +134,6 @@ actor ReaderTranslationDiskCache {
         guard let unpacked = try database?.unpackedData(name) else { return nil }
         recordRead(name)
         return unpacked
-    }
-
-    func markUsed(_ key: String, kind: Kind) throws {
-        try prepare()
-        try flushAccesses()
-        try database?.touch(fileName(key, kind: kind))
     }
 
     func contains(_ key: String, kind: Kind) throws -> Bool {
@@ -187,8 +178,7 @@ actor ReaderTranslationDiskCache {
 
     private func storePayload(_ data: Data, name: String, base: Data? = nil) throws {
         guard let database else { return }
-        // Preserve exact read-before-write LRU order in the content transaction.
-        // A failed write rolls back touches too, so keep them queued for retry.
+        // Pending touches commit with the write; on failure they stay queued.
         try database.store(data, name: name, base: base, touching: pendingTouches)
         touchFlushTask?.cancel()
         touchFlushTask = nil
@@ -202,10 +192,7 @@ actor ReaderTranslationDiskCache {
 
     static let legacyPipelinePurgeMarker = "legacy-pipeline-purge-v1"
 
-    /// Whether a page row was written by the V2 pipeline (kept by the purge):
-    /// `.layout` rows hold the rendered page JPEG, `.translation` rows the V2
-    /// block JSON. OCR rows, region archives and every other payload belong to
-    /// the retired legacy page pipeline.
+    /// V2 page rows (layout JPEGs, translation block JSON) survive the legacy purge.
     static func isV2PageRow(kind: Kind, unpacked data: Data, linkedToRegionBase: Bool) -> Bool {
         guard !linkedToRegionBase else { return false }
         switch kind {
@@ -216,9 +203,7 @@ actor ReaderTranslationDiskCache {
         }
     }
 
-    /// One-time launch cleanup: deletes the rows of the retired legacy page
-    /// pipeline (OCR, region translations/layouts, snapshots). Metadata rows
-    /// and V2 page rows are kept. Returns the number of deleted rows.
+    /// One-time launch cleanup of legacy page-pipeline rows; returns the deleted count.
     @discardableResult
     func purgeLegacyPipelineRows() async throws -> Int {
         try prepare()
@@ -248,8 +233,7 @@ actor ReaderTranslationDiskCache {
         return deleted
     }
 
-    /// Upgrade old region records without changing their LRU order. Each row is atomic,
-    /// so cancellation or a terminated app can resume without discarding translations.
+    /// Upgrades old records in place, keeping LRU order; each row is atomic and resumable.
     func compact() async throws {
         try prepare()
         guard let database else { return }
@@ -273,9 +257,7 @@ actor ReaderTranslationDiskCache {
                 guard self.database === database else { return }
             }
         }
-        // Existing variants/layouts, then region bases, upgrade in the background. Each UPDATE is
-        // atomic and leaves source-base IDs, links and exact LRU order intact. Base names remain the
-        // hash of the canonical ATZ1 bytes, so existing links and future deduplication agree.
+        // Recompress payloads, then region bases. Base names stay the hash of canonical ATZ1 bytes.
         for (marker, table) in [("payload-compression-v2", "cache"), ("base-compression-v2", "region_bases")] {
             guard try !database.hasMarker(marker) else { continue }
             cursor = ""
@@ -293,9 +275,7 @@ actor ReaderTranslationDiskCache {
             }
             if table == "region_bases" {
                 try Task.checkCancellation()
-                // Shrinking BLOBs can leave space inside live B-tree pages that
-                // auto_vacuum cannot release. Rebuild once, before marking complete;
-                // SQLite keeps saved work intact and a failed rebuild retries later.
+                // auto_vacuum cannot release space inside live pages; rebuild once.
                 try database.execute("VACUUM")
             }
             try database.execute("INSERT OR IGNORE INTO cache_policy(name,value) VALUES('\(marker)','1')")
@@ -321,8 +301,7 @@ actor ReaderTranslationDiskCache {
         let opened = try ReaderCacheDatabase(url: directory.appendingPathComponent("cache.sqlite"))
         try opened.importLegacy(directory: directory, byteLimit: byteLimit)
         try opened.separateLegacyMetadata()
-        // Old full-page PNGs duplicate the original artwork. Retain all OCR,
-        // translations and layouts so reopening never requires another API call.
+        // Old full-page PNG snapshots duplicate the artwork.
         try opened.execute("DELETE FROM cache WHERE name GLOB 'snapshot-*'")
         try opened.optimizePageSize()
         database = opened
@@ -383,8 +362,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             throw error
         }
         sqlite3_busy_timeout(handle, 5_000)
-        // Compact text/layout BLOBs waste overflow pages in 4 KiB WITHOUT ROWID
-        // tables. New databases use 1 KiB pages; existing ones migrate below.
+        // 1 KiB pages avoid wasted overflow pages; existing databases migrate below.
         try execute("PRAGMA page_size=1024")
         try execute("PRAGMA foreign_keys=ON")
         try execute("PRAGMA auto_vacuum=FULL")
@@ -392,13 +370,12 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try execute("PRAGMA synchronous=FULL")
         try execute("PRAGMA cache_size=-2048")
         try execute("CREATE TABLE IF NOT EXISTS cache (name TEXT PRIMARY KEY, data BLOB NOT NULL, accessed INTEGER NOT NULL) WITHOUT ROWID")
-        // In a WITHOUT ROWID table a primary-key search can visit overflow BLOBs even on a miss.
-        // This narrow index lets page and viewport lookups reject absent keys without reading artwork.
+        // A key-only index lets lookups reject absent keys without reading overflow BLOBs.
         do {
             try execute("CREATE UNIQUE INDEX IF NOT EXISTS cache_key_only ON cache(name)")
             lookupTable = "cache INDEXED BY cache_key_only"
         } catch let error as NSError where [SQLITE_FULL, SQLITE_BUSY, SQLITE_LOCKED].contains(Int32(error.code)) {
-            // Keep an existing database usable when this optional migration must wait until reopen.
+            // Optional migration; retried on reopen.
         }
         try execute("CREATE INDEX IF NOT EXISTS cache_lru ON cache(accessed, name)")
         try execute("DROP INDEX IF EXISTS cache_snapshot_lru")
@@ -423,18 +400,14 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
 
     func optimizePageSize() throws {
         let previous = try integer("PRAGMA page_size")
-        // auto_vacuum only takes effect on an existing database through VACUUM.
-        // Without it deleted rows never shrink the file, so trim(to:) would
-        // evict every entry while the allocation stays above the limit.
+        // auto_vacuum only applies to an existing database through VACUUM; without it
+        // deletes never shrink the file and trim(to:) would evict everything.
         guard try previous != 1024 || integer("PRAGMA auto_vacuum") != 1 else { return }
         try execute("PRAGMA page_size=1024")
         do {
-            // SQLite rebuilds atomically and preserves every key, BLOB, policy,
-            // link and LRU timestamp. Its page cache remains bounded at 2 MiB.
             try execute("VACUUM")
         } catch {
-            // Disk pressure or a busy reader must not turn saved work into a
-            // cache miss. Keep using the original database and retry on reopen.
+            // Keep the original database and retry on reopen.
             try execute("PRAGMA page_size=\(previous)")
         }
     }
@@ -507,16 +480,13 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try statement("SELECT 1 FROM \(lookupTable) WHERE name=?", name: name, body: hasRow)
     }
 
-    /// Decode inside the statement lifetime so compressed BLOBs need no full
-    /// intermediate copy. Capture the snapshot version only when a row needs removal.
+    /// Decodes inside the statement lifetime, avoiding an intermediate copy.
     func unpackedData(_ name: String) throws -> Data? {
         var rejectedVersion: Int64?
         let data: Data? = try statement(payloadSQL, name: name) { pointer in
             guard try hasRow(pointer) else { return nil }
             do {
                 if sqlite3_column_type(pointer, 1) != SQLITE_NULL {
-                    // Shared archives keep their existing owned buffers; restore
-                    // produces independent JSON for the compatibility data API.
                     return try ReaderTranslationRegionArchive.restore(base: blob(pointer, column: 1), variant: blob(pointer, column: 0))
                 }
                 return try unpackedBlob(pointer, column: 0)
@@ -537,8 +507,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         guard count > 0, let bytes = sqlite3_column_blob(pointer, column) else { return Data() }
         let borrowed = Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes), count: count, deallocator: .none)
         guard ReaderTranslationCacheCodec.isPacked(borrowed) else {
-            // The codec's raw fast path returns its input. Materialize it here so
-            // no SQLite pointer escapes step/reset/finalize, even for legacy JSON.
+            // Copy raw data so no SQLite pointer escapes the statement.
             return Data(bytes: bytes, count: count)
         }
         return try ReaderTranslationCacheCodec.unpack(borrowed)
@@ -552,8 +521,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
                 return hit.record
             }
         }
-        // A missing row has no version to validate. On a hit the SELECT still
-        // holds its read snapshot while the connection samples data_version.
+        // The SELECT holds its read snapshot while data_version is sampled.
         guard let payload = try withPayload(name, { data, base in
             (data: data, base: base, version: try integer("PRAGMA data_version"))
         }) else { return nil }
@@ -568,13 +536,10 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             try delete(name, ifVersionIs: payload.version)
             return nil
         }
-        // Large archives still decode on demand. Budget expanded bytes and
-        // Swift region storage so highly compressible pages cannot flood RAM.
+        // Retain only small decoded records, within a 1 MiB / 8-entry budget.
         let cost = record.decodedByteCount + record.regions.count * MemoryLayout<ReaderTranslationRegion>.stride
         if cost <= 256 * 1024 {
             recentRegions.removeAll { $0.version != payload.version }
-            // Nearby pages with small records can share the same 1 MiB budget.
-            // Keep a count bound for empty pages and evict in read order.
             var retainedBytes = recentRegions.reduce(cost) { $0 + $1.cost }
             while retainedBytes > 1024 * 1024 || recentRegions.count >= 8 {
                 retainedBytes -= recentRegions.removeFirst().cost
@@ -620,14 +585,12 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func touch(_ names: [String]) throws {
-        // Keep the common newest-only read free of transaction/journal writes.
         guard names.count > 1 else { if let name = names.first { try touch(name) }; return }
         try transaction { for name in names { try touch(name) } }
     }
 
     func touch(_ name: String) throws {
-        // The newest entry already has the correct durable LRU position. Repeated
-        // reads need no journal/fsync; alternating entries still persist exact order.
+        // Touching the newest entry is a no-op, so repeated reads write nothing.
         try statement("UPDATE cache SET accessed=(SELECT COALESCE(MAX(accessed),0)+1 FROM cache) WHERE name=? AND name != (SELECT name FROM "
             + "cache ORDER BY accessed DESC, name DESC LIMIT 1)", name: name, body: step)
     }
@@ -637,8 +600,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try statement("DELETE FROM cache WHERE name=?", name: name, body: step)
     }
 
-    // A replacement can commit after a failing read releases its SQLite snapshot.
-    // Hold the writer lock through the check and delete, including identical-byte replacements.
+    // A replacement may commit after a failed read; delete only if nothing changed since.
     private func delete(_ name: String, ifVersionIs version: Int64) throws {
         try transaction { if try integer("PRAGMA data_version") == version { try delete(name) } }
     }
@@ -658,10 +620,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             }
             guard let base else { return }
             let digest = ReaderTranslationCacheIdentity.digest(base)
-            // A surviving sibling link can keep a corrupt shared base alive after
-            // a cache miss. Fresh canonical source data must repair that base,
-            // otherwise recomputing this page repeatedly stores another miss.
-            // Matching bytes perform no UPDATE and keep the common hit cheap.
+            // Fresh source data repairs a corrupt shared base kept alive by a sibling link.
             try bindBlob(try ReaderTranslationCacheCodec.repack(base), "INSERT INTO region_bases(name,data) VALUES(?,?) "
                 + "ON CONFLICT(name) DO UPDATE SET data=excluded.data WHERE region_bases.data != excluded.data", name: digest)
             try statement("INSERT INTO region_links(name,base) VALUES(?,?)", name: name) { pointer in
@@ -675,8 +634,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         let sql = legacyAccess == nil
             ? "INSERT INTO cache(name,data,accessed) VALUES(?,?,(SELECT COALESCE(MAX(accessed),0)+1 FROM cache)) ON CONFLICT(name) DO UPDATE SET data=excluded.data, accessed=excluded.accessed"
             : "INSERT OR IGNORE INTO cache(name,data,accessed) VALUES(?,?,?)"
-        // SQLITE_STATIC is safe because statement() finalizes on every exit,
-        // including throws, before this borrowed-buffer scope ends.
+        // SQLITE_STATIC is safe: statement() finalizes before the buffer scope ends.
         try data.withUnsafeBytes { bytes in
             try statement(sql, name: name) { pointer in
                 let result = bytes.isEmpty ? sqlite3_bind_zeroblob(pointer, 2, 0)
@@ -688,9 +646,8 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         }
     }
 
-    /// Old metadata entries used the page namespace, but always contained one
-    /// zero-sized "title" region. Move one row at a time, preserving bytes, bases
-    /// and LRU order. Per-row commits make an interrupted upgrade resumable.
+    /// Moves old metadata rows (one zero-sized "title" region in the translation
+    /// namespace) row by row, preserving bytes, bases and LRU order.
     func separateLegacyMetadata() throws {
         guard try !hasMarker("metadata-kind-v1") else { return }
         var cursor = "translation-"
@@ -707,8 +664,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
             let destination = "metadata-" + name.dropFirst("translation-".count)
             try transaction {
                 if try !exists(destination) {
-                    // Copy the link before deleting the old parent so its shared
-                    // base remains referenced throughout the transaction.
+                    // Copy the link first so the shared base stays referenced.
                     for sql in [
                         "INSERT INTO cache(name,data,accessed) SELECT ?,data,accessed FROM cache WHERE name=?",
                         "INSERT INTO region_links(name,base) SELECT ?,base FROM region_links WHERE name=?"
@@ -725,8 +681,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         try execute("INSERT INTO cache_policy(name,value) VALUES('metadata-kind-v1','1')")
     }
 
-    /// The initial policy adopts existing records. Subsequent settings changes
-    /// remove all obsolete translations/layouts, including their unreferenced bases.
+    /// The first policy adopts existing rows; later changes delete obsolete ones.
     func applyPolicy(_ policy: ReaderTranslationCachePolicy) throws -> (page: Bool, metadata: Bool) {
         recentRegions.removeAll()
         return try transaction {
@@ -764,8 +719,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
     }
 
     func trim(to byteLimit: Int64) throws {
-        // The indexed oldest row is O(log n); no in-memory directory inventory or full sort.
-        // Batch deletions amortize commits and auto-vacuum while accounting for actual allocation.
+        // Evict oldest rows in batches sized from the average payload.
         while try allocatedBytes() > byteLimit {
             recentRegions.removeAll()
             let before = try integer("SELECT entries FROM totals")
@@ -785,7 +739,7 @@ private final class ReaderCacheDatabase: @unchecked Sendable {
         var pending: [URL] = []
         func flush() throws {
             try execute("COMMIT")
-            // Commit first: interruption before/during unlinking safely resumes with INSERT OR IGNORE.
+            // Commit first: an interrupted unlink resumes with INSERT OR IGNORE.
             for file in pending { try FileManager.default.removeItem(at: file) }
             pending.removeAll(keepingCapacity: true)
             try trim(to: byteLimit)
@@ -874,8 +828,7 @@ private struct ReaderTranslationCachePolicy: Equatable {
     let layout: String
 
     init(_ settings: ReaderTranslationSettings) {
-        // Page rows (V2 blocks and bitmaps) are dropped when the provider,
-        // languages or source filter change; their keys carry the same inputs.
+        // Page rows are dropped when the provider, languages or source filter change.
         let config = settings.configuration
         translation = ReaderTranslationCacheIdentity.encoded([
             "page-cache-policy-v2", config.provider.rawValue, config.apiProtocol.rawValue, config.baseURL, config.model,

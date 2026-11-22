@@ -31,15 +31,13 @@ enum NativeSourceNetwork {
         }
     }
 
-    /// Streams through `session` (the shared source session by default) and stops once the body exceeds `maximum`.
-    /// The per-task body delegate leaves redirect handling to the session's delegate.
+    /// Streams through `session` (default: the shared source session), stopping once the body exceeds `maximum`.
     static func limitedData(
         for request: URLRequest,
         session: URLSession? = nil,
         maximum: Int = maximumBodyBytes
     ) async throws -> (Data, URLResponse) {
-        let resolvedSession: URLSession
-        if let session { resolvedSession = session } else { resolvedSession = try await SourceNetwork.shared.session() }
+        let resolvedSession = if let session { session } else { try await SourceNetwork.shared.session() }
         do {
             return try await SourceResponseBody.read(request, session: resolvedSession) { _ in .limited(maximum) }
         } catch is SourceResponseBody.TooLarge {

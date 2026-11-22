@@ -6,7 +6,6 @@ enum ReaderTranslationDiagnostics {
     struct Context: Sendable, Equatable {
         let trace: UInt64
         let pageToken: UInt64
-        let page: Int
     }
     @TaskLocal static var context: Context?
     private static let identityLock = NSLock()
@@ -14,11 +13,9 @@ enum ReaderTranslationDiagnostics {
 
     static func makeContext(pageKey: String) -> Context {
         let token = UInt64(pageKey.prefix(16), radix: 16) ?? 0
-        if let context, context.pageToken == token, token != 0 {
-            return Context(trace: context.trace, pageToken: token, page: context.page)
-        }
+        if let context, context.pageToken == token, token != 0 { return context }
         let identity = identityLock.withLock { nextIdentity &+= 1; return nextIdentity }
-        return Context(trace: identity, pageToken: token, page: -1)
+        return Context(trace: identity, pageToken: token)
     }
 
     private static let sink: TranslationPerformanceFileWriter? = {

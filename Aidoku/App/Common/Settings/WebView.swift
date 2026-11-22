@@ -81,8 +81,7 @@ struct WebView: UIViewRepresentable {
 
         private static func extract(_ webView: WKWebView, _ url: URL, _ keys: [String]) async -> Snapshot {
             let browserCookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
-            // Source settings expose flat cookie values, without a credential request endpoint.
-            // Retain API-path cookies rather than incorrectly scope them to the login page.
+            // Flat source cookie values: keep API-path cookies instead of scoping to the login page.
             let cookies = SourceLoginBrowserPolicy.cookieValues(browserCookies, for: url, includePath: false)
             // Identity-provider localStorage must never become a source credential.
             let storage = if SourceLoginBrowserPolicy.sameOrigin(webView.url, url) {

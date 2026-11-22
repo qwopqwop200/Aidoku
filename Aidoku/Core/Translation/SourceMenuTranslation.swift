@@ -4,12 +4,8 @@ import SwiftUI
 enum SourceMenuTranslation {
     static let maximumTranslatedOptions = 100
 
-    static func translatesOptions(count: Int, includeLargeLists: Bool = false) -> Bool {
+    static func translatesOptions(count: Int, includeLargeLists: Bool) -> Bool {
         includeLargeLists || count <= maximumTranslatedOptions
-    }
-
-    static func labelsToTranslate(options: [String], includeLargeLists: Bool = false) -> [String] {
-        translatesOptions(count: options.count, includeLargeLists: includeLargeLists) ? options : []
     }
 
     static func translate(_ originals: [String], settings: ReaderTranslationSettings, kind: TitleTranslationKind = .sourceLabel,
@@ -21,8 +17,6 @@ enum SourceMenuTranslation {
             await TitleTranslation.translate(original, kind: kind, settings: settings,
                 service: service, diskCache: diskCache)
         }
-        // Unscheduled cancelled inputs retain their original values, just as
-        // the former eagerly submitted cancelled TitleTranslation tasks did.
         return Dictionary(uniqueKeysWithValues: zip(unique, translated))
     }
 }
@@ -40,12 +34,10 @@ struct SourceMenuTranslationModifier: ViewModifier {
         content
             .task(id: identity) {
                 let settings = ReaderTranslationSettings()
-                let requested = limitsOptions
-                    ? SourceMenuTranslation.labelsToTranslate(options: originals,
-                        includeLargeLists: settings.translateLargeFilterOptions)
-                    : originals
-                // Submit and display the section heading before its potentially
-                // large tag/option list; queue priority alone cannot fix a late submission.
+                let skipsOptions = limitsOptions && !SourceMenuTranslation.translatesOptions(
+                    count: originals.count, includeLargeLists: settings.translateLargeFilterOptions)
+                let requested = skipsOptions ? [] : originals
+                // Submit and display the section heading before its potentially large option list.
                 let headings = await SourceMenuTranslation.translate([filterTitle].compactMap { $0 }, settings: settings)
                 guard !Task.isCancelled else { return }
                 labels.merge(headings) { _, heading in heading }

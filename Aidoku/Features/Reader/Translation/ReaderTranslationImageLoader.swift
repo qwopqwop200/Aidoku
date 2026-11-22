@@ -47,7 +47,11 @@ actor ReaderTranslationImageLoader {
             }
             return processors
         }
-        return try autoreleasepool {
+        return try Self.apply(processors, to: image)
+    }
+
+    static func apply(_ processors: [any ImageProcessing], to image: UIImage) throws -> UIImage {
+        try autoreleasepool {
             var result = image
             for processor in processors {
                 try Task.checkCancellation()

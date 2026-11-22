@@ -136,7 +136,6 @@ class ReaderInfoPageView: UIView {
     func chapterDifference(higherChapterNumber: Float, lowerChapterNumber: Float) -> Int {
         let difference = Double(floor(higherChapterNumber)) - Double(floor(lowerChapterNumber))
         // Source-provided chapter numbers can be non-finite or outside integer range.
-        // An invalid gap cannot produce a meaningful skipped-chapters label.
         guard difference.isFinite, difference > 0, difference <= Double(Int32.max) else { return 0 }
         return Int(difference)
     }

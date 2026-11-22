@@ -6,7 +6,6 @@
 //
 
 import AidokuRunner
-import Darwin
 import Foundation
 import ZIPFoundation
 
@@ -73,26 +72,31 @@ actor DownloadManager {
         } else {
             var descriptionFiles: [URL] = []
 
-            var files = directory.contents.compactMap { url -> (name: String, url: URL, isText: Bool)? in
-                let name = url.lastPathComponent
-                guard !name.hasPrefix(".") else { return nil }
-                let ext = url.pathExtension.lowercased()
-                let isText = LocalFileManager.allowedTextExtensions.contains(ext)
-                guard isText || LocalFileManager.allowedImageExtensions.contains(ext) else { return nil }
-                return (name, url, isText)
-            }
-            files.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            var pages = files.compactMap { file -> AidokuRunner.Page? in
-                if file.isText {
-                    if file.name.hasSuffix("desc.txt") {
-                        descriptionFiles.append(file.url)
+            var pages = directory.contents
+                .sorted {
+                    $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+                }
+                .compactMap { url -> AidokuRunner.Page? in
+                    guard !url.lastPathComponent.hasPrefix(".") else {
                         return nil
                     }
-                    guard let text = try? String(contentsOf: file.url) else { return nil }
-                    return AidokuRunner.Page(content: .text(text))
+                    if LocalFileManager.allowedTextExtensions.contains(url.pathExtension.lowercased()) {
+                        // add description file to list
+                        if url.lastPathComponent.hasSuffix("desc.txt") {
+                            descriptionFiles.append(url)
+                            return nil
+                        }
+                        // otherwise, load file as text
+                        let text: String? = try? String(contentsOf: url)
+                        guard let text else { return nil }
+                        return AidokuRunner.Page(content: .text(text))
+                    } else if LocalFileManager.allowedImageExtensions.contains(url.pathExtension.lowercased()) {
+                        // load file as image
+                        return AidokuRunner.Page(content: .url(url: url, context: nil))
+                    } else {
+                        return nil
+                    }
                 }
-                return AidokuRunner.Page(content: .url(url: file.url, context: nil))
-            }
 
             // load descriptions from files
             for descriptionFile in descriptionFiles {
@@ -165,8 +169,7 @@ actor DownloadManager {
             return chapterFile
         }
         // otherwise we can compress it ourselves
-        let tmpFile = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString + "-" + chapterFile.lastPathComponent)
+        let tmpFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "-" + chapterFile.lastPathComponent)
         do {
             try FileManager.default.zipItem(at: chapterDirectory, to: tmpFile, shouldKeepParent: false)
             return tmpFile
@@ -274,8 +277,7 @@ extension DownloadManager {
         invalidateDownloadedMangaCache()
     }
 
-    /// Enumeration failures and chapters arriving after enumeration must leave
-    /// their containing directory intact. Never recursively delete at this step.
+    /// Removes the directory only if it holds no chapters; never deletes recursively.
     nonisolated static func pruneEmptyMangaDirectory(_ directory: URL) -> Bool {
         do {
             let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey])
@@ -397,8 +399,7 @@ extension DownloadManager {
             snapshotWork = work
             let result = await work.task.value
             if snapshotWork?.id == work.id { snapshotWork = nil }
-            // A mutation during IO must not resurrect deleted chapters or mark
-            // an obsolete directory listing fresh for another sixty seconds.
+            // A mutation during the scan makes its result stale; scan again.
             guard work.revision == snapshotRevision else {
                 if Task.isCancelled { return downloadedMangaCache }
                 continue
@@ -599,7 +600,7 @@ extension DownloadManager {
         }
     }
 
-    /// Read each chapter's metadata, including compressed and failed downloads.
+    /// Load metadata from manga directory.
     private func findComicInfo(in directory: URL) -> ComicInfo? {
         for chapter in directory.contentsIncludingHidden.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             if let info = DownloadedChapterFile.comicInfo(in: chapter) { return info }

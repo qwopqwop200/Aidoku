@@ -10,15 +10,9 @@ final class ReaderTranslationConnectionTest: ObservableObject {
         case success(String)
         case failure(String)
     }
-    typealias Runner = @Sendable (ReaderTranslationSettings, String) async throws -> String
     @Published private(set) var state: State = .idle
-    private let run: Runner
     private var task: Task<Void, Never>?
     private var generation = UUID()
-
-    init(run: @escaping Runner = { try await ReaderTranslationConnectionTest.translate(settings: $0, apiKey: $1) }) {
-        self.run = run
-    }
 
     deinit { task?.cancel() }
 
@@ -26,11 +20,10 @@ final class ReaderTranslationConnectionTest: ObservableObject {
         guard state != .running else { return }
         generation = UUID()
         let issued = generation
-        let run = run
         state = .running
         task = Task { [weak self] in
             let result: Result<String, Error>
-            do { result = .success(try await run(settings, apiKey)) } catch { result = .failure(error) }
+            do { result = .success(try await Self.translate(settings: settings, apiKey: apiKey)) } catch { result = .failure(error) }
             guard let self, generation == issued, !Task.isCancelled else { return }
             task = nil
             switch result {
@@ -47,23 +40,12 @@ final class ReaderTranslationConnectionTest: ObservableObject {
         state = .idle
     }
 
-    nonisolated static func translate(
-        settings: ReaderTranslationSettings, apiKey: String,
-        savedCredentials: any TranslationCredentialProviding = KeychainTranslationCredentialStore(),
-        transport: any TranslationHTTPTransport = BoundedURLSessionTransport(),
-        imageSupport: TranslationImageSupport = .shared
-    ) async throws -> String {
+    nonisolated static func translate(settings: ReaderTranslationSettings, apiKey: String) async throws -> String {
         let credentials = TestCredentials(
             account: settings.selectedCredentialAccount,
-            draft: apiKey.trimmingCharacters(in: .whitespacesAndNewlines), saved: savedCredentials
+            draft: apiKey.trimmingCharacters(in: .whitespacesAndNewlines), saved: KeychainTranslationCredentialStore()
         )
-        return try await probe(
-            settings, client: RemoteTranslationClient(credentialStore: credentials, transport: transport,
-                imageSupport: imageSupport, rechecksImageSupport: true)
-        )
-    }
-
-    nonisolated static func probe(_ settings: ReaderTranslationSettings, client: any RemoteTranslating) async throws -> String {
+        let client = RemoteTranslationClient(credentialStore: credentials, rechecksImageSupport: true)
         try settings.validate()
         let sample = switch settings.sourceLanguage {
         case "ko": "연결 테스트"

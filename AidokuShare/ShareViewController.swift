@@ -61,9 +61,7 @@ final class ShareViewController: UIViewController {
     private func openContainingApp() async -> Bool {
         guard let scheme = Bundle.main.object(forInfoDictionaryKey: "SHARED_IMAGE_URL_SCHEME") as? String,
               let url = URL(string: "\(scheme)://importSharedImages") else { return false }
-        // Share extensions do not have a guaranteed launch API. Prefer the extension
-        // context, then use the responder application's modern URL API on supported OSes.
-        // Keep the inbox intact if the OS refuses, so the selection is never lost.
+        // No guaranteed launch API: try the extension context, then the responder chain.
         if let extensionContext {
             let opened = await withCheckedContinuation { continuation in
                 extensionContext.open(url) { continuation.resume(returning: $0) }

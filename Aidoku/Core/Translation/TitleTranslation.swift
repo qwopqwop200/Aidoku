@@ -29,8 +29,7 @@ enum TitleTranslationKind: String, CaseIterable {
     func formattedTranslation(_ text: String, original: String) -> String {
         let translated = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard self == .description, !translated.isEmpty else { return translated }
-        // The codec trims replies. Restore source whitespace outside model control,
-        // including Markdown indentation, hard breaks and chunk separators.
+        // The codec trims replies; restore source edge whitespace (indentation, breaks, chunk separators).
         let leading = original.prefix(while: \.isWhitespace)
         let trailing = original.reversed().prefix(while: \.isWhitespace).reversed()
         return String(leading) + translated + String(trailing)
@@ -62,8 +61,7 @@ extension TitleTranslationKind {
 }
 
 enum TitleTranslation {
-    /// SwiftUI retains state when a row changes its text or metadata role.
-    /// Keep every input separate so an old result cannot match another split.
+    /// SwiftUI retains state when a row changes text or role; keep each input separate.
     static func presentationIdentity(original: String, source: String, kind: TitleTranslationKind, revision: UUID) -> String {
         ReaderTranslationCacheIdentity.encoded([revision.uuidString, kind.rawValue, original, source])
     }
@@ -73,8 +71,7 @@ enum TitleTranslation {
         var result = settings
         result.usesOCRLanguagePolicy = false
         result.sourceLanguage = "auto"
-        // Metadata has no reader page to attach. Inheriting this option makes
-        // the shared service reject every uncached text request before sending it.
+        // Metadata has no page image; inheriting this would reject every uncached request.
         result.includePageImage = false
         switch kind {
         case .manga: result.translationSourceLanguages = settings.mangaTitleSourceLanguages
@@ -119,7 +116,6 @@ enum TitleTranslation {
            !ReaderTranslationLanguageFilter.isUntranslatedJapaneseReply(source: original, translation: title, target: settings.targetLanguage) {
             return Task.isCancelled ? original : kind.formattedTranslation(title, original: original)
         }
-        // Share the byte limit and eviction, but OCR changes must not invalidate metadata.
         // Cache failures must never hide a successful network translation.
         let region = ReaderTranslationRegion(id: "title", rect: .zero, source: original)
         do {
@@ -206,8 +202,7 @@ final class TranslatedTitleLabel: UILabel {
     deinit { translationTask?.cancel() }
 
     private func observeSettings() {
-        // Settings can be persisted by background work. NotificationCenter otherwise
-        // delivers on that caller's thread, bypassing UILabel's MainActor isolation.
+        // Settings may be saved off the main thread; deliver on main for UILabel.
         settingsObserver = NotificationCenter.default.publisher(for: ReaderTranslationSettings.changed)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in

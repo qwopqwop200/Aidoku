@@ -611,13 +611,24 @@ extension BackupManager {
         let missingSourceKeys = await SourceManager.shared.missingExternalSourceKeys(in: Set(backupSourceKeys))
 
         await Task { @MainActor [backupError] in
+            let delegate = UIApplication.shared.appDelegate
             if let backupError {
-                Self.presentRestoreError((backupError as? BackupError)?.stringValue ?? NSLocalizedString("UNKNOWN"))
-            } else if !missingSourceKeys.isEmpty {
-                UIApplication.shared.appDelegate?.presentAlert(
-                    title: NSLocalizedString("MISSING_SOURCES"),
-                    message: NSLocalizedString("MISSING_SOURCES_TEXT") + missingSourceKeys.map { "\n\($0)" }.joined()
+                // show error alert
+                delegate?.presentAlert(
+                    title: NSLocalizedString("BACKUP_ERROR"),
+                    message: String(
+                        format: NSLocalizedString("BACKUP_ERROR_TEXT"),
+                        (backupError as? BackupError)?.stringValue ?? NSLocalizedString("UNKNOWN")
+                    )
                 )
+            } else {
+                // show missing sources alert if there are any
+                if !missingSourceKeys.isEmpty {
+                    delegate?.presentAlert(
+                        title: NSLocalizedString("MISSING_SOURCES"),
+                        message: NSLocalizedString("MISSING_SOURCES_TEXT") + missingSourceKeys.map { "\n\($0)" }.joined()
+                    )
+                }
             }
         }.value
 

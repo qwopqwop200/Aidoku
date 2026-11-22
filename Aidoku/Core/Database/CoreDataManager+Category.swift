@@ -8,8 +8,7 @@
 import CoreData
 
 extension CoreDataManager {
-    // These synchronous helpers run on their context queue. Keep fetch, save,
-    // and preference migration together; never hold this lock across await.
+    // Keeps save and settings migration together; never hold it across await.
     private static let categoryReferenceLock = NSLock()
 
     /// Commit the database rename before migrating settings that refer to its title.
@@ -135,9 +134,10 @@ extension CoreDataManager {
         var errorDescription: String? { "The category list has reached its storage capacity." }
     }
 
-    /// Create a category object. A saturated group fails before any mutation.
+    /// Create a category object.
     @discardableResult
     func createCategory(title: String, group: Bool = false, context: NSManagedObjectContext) throws -> CategoryObject {
+
         let request = CategoryObject.fetchRequest()
         request.predicate = NSPredicate(format: "group == %@", NSNumber(value: group))
         request.sortDescriptors = [NSSortDescriptor(key: "sort", ascending: false)]
@@ -145,8 +145,7 @@ extension CoreDataManager {
         let lastCategoryIndex = try context.fetch(request).first?.sort ?? -1
         let nextSort: Int16
         if lastCategoryIndex == Int16.max {
-            // Backup imports may contain sparse ranks at the signed maximum.
-            // Renumber only this group, retaining its existing presentation order.
+            // Restored ranks may sit at Int16.max; renumber this group in order.
             request.fetchLimit = 0
             request.sortDescriptors = [NSSortDescriptor(key: "sort", ascending: true)]
             let categories = try context.fetch(request)
@@ -180,9 +179,8 @@ extension CoreDataManager {
             // Normal categories and filter groups have independent rank spaces.
             for group in [false, true] {
                 let rows = categories.filter { $0.group == group }
+                // An overfull imported group keeps its old ranks.
                 if rows.count <= 65_536 { Self.normalizeCategoryRanks(rows) }
-                // An already overfull imported group retains its old ranks;
-                // removing an entry does not require changing its order.
             }
         }
     }
@@ -249,9 +247,7 @@ extension CoreDataManager {
             return
         }
 
-        // Each settings list uses its own positions. Stored sort values may
-        // contain gaps after a restore, so identify the row rather than treating
-        // its sort value as an index into all categories and filter groups.
+        // Positions are per list, and restored sort values may have gaps.
         var categories = getCategories(sorted: true, context: context)
             .filter { $0.group == categoryObject.group }
         guard let fromPosition = categories.firstIndex(of: categoryObject) else { return }

@@ -334,8 +334,7 @@ actor SuwayomiSourceRunner: Runner {
             return false
         }
 
-        // A server can change authentication modes between logins. Do not let
-        // an older cookie override the newly accepted token/basic credentials.
+        // The auth mode may have changed; stale credentials must not override the new ones.
         for suffix in ["cookie", "token", "refreshToken"] {
             UserDefaults.standard.removeObject(forKey: "\(sourceKey).\(suffix)")
         }

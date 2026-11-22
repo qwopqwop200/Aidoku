@@ -666,8 +666,7 @@ extension ReaderWebtoonViewController {
         if infinite { checkInfiniteLoad() }
     }
 
-    // At most the previous and next chapter may wait. Wake on actual gesture /
-    // programmatic settlement, rather than retaining a periodic polling task.
+    // At most two waiters (previous/next), woken on scroll settlement instead of polling.
     private func waitForChapterInsertion(generation: UUID) async -> Bool {
         while isZooming || isScrolling || isSliding || isAnimatingScroll
             || (isAutoScrolling && !autoScrollPausedForUserInteraction) {
@@ -701,8 +700,7 @@ extension ReaderWebtoonViewController {
     private func stopProgrammaticScroll() {
         guard isAnimatingScroll else { return }
         isAnimatingScroll = false
-        // UIKit need not send didEndScrollingAnimation when another interaction
-        // takes over. Cancel the old animation and clear its insertion barrier.
+        // UIKit may skip didEndScrollingAnimation when interrupted, so cancel the animation here.
         scrollView.setContentOffset(scrollView.contentOffset, animated: false)
     }
 
@@ -841,10 +839,7 @@ extension ReaderWebtoonViewController {
         guard await waitForChapterInsertion(generation: issued) else { return }
 
         guard issued == chapterGeneration, !Task.isCancelled, !chapters.contains(nextChapter) else { return }
-        // A pending above-page resize can leave the layout's global size-delta
-        // preservation flag set. Appending below must not count those new pages
-        // as height inserted above the reader. Preserve an existing visible item
-        // instead, including any genuine above-page resize during the batch.
+        // Anchor a visible item: a pending above-page resize must not count appended pages as inserted above.
         let visibleBounds = collectionNode.view.bounds
         let anchor = collectionNode.collectionViewLayout.layoutAttributesForElements(in: visibleBounds)?
             .filter { $0.representedElementCategory == .cell && $0.frame.intersects(visibleBounds) }
@@ -1052,9 +1047,7 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
         let handoff = viewModel.takePendingPreload(for: chapter)
         chapterGeneration = UUID()
         finishChapterInsertionWaiters(allowed: false)
-        // `chapters` is replaced now but `pages` (and the collection) only after
-        // the page list loads. Block infinite loads until both describe the same
-        // sections, or an insert would pair the new chapter with stale pages.
+        // Block infinite loads until `pages` catches up with `chapters`.
         loadingNext = true
         loadingPrevious = true
         isAnimatingScroll = false

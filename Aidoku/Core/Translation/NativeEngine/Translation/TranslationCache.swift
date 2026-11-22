@@ -6,11 +6,6 @@ struct CachedTranslation: Equatable, Sendable {
     let source: TranslationResultSource
 }
 
-struct TranslationCacheLookup: Sendable {
-    let value: CachedTranslation?
-    let storageGeneration: UInt64
-}
-
 enum TranslationCacheError: Error, Equatable, LocalizedError {
     case unsafeStorageObject
     case persistenceFailure
@@ -65,8 +60,8 @@ actor TranslationCache {
     /// Returns the cache result and the storage generation observed by that
     /// lookup. A provider result carries this lease back to `insert`, which
     /// prevents pre-purge work from refilling a freshly purged cache.
-    func lookup(for key: TranslationCacheKey) -> TranslationCacheLookup {
-        TranslationCacheLookup(value: value(for: key), storageGeneration: storageGeneration)
+    func lookup(for key: TranslationCacheKey) -> (value: CachedTranslation?, storageGeneration: UInt64) {
+        (value(for: key), storageGeneration)
     }
 
     func insert(
@@ -161,10 +156,7 @@ private func translationEntryCharge(key: TranslationCacheKey, translations: [Rem
     encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
     guard let keyData = try? encoder.encode(key),
           let translationData = try? encoder.encode(translations) else { return nil }
-    let (payloadBytes, overflow) = keyData.count.addingReportingOverflow(translationData.count)
-    guard !overflow else { return nil }
-    let (chargedBytes, overheadOverflow) = payloadBytes.addingReportingOverflow(128)
-    return overheadOverflow ? nil : chargedBytes
+    return keyData.count + translationData.count + 128
 }
 
 private func cachedTranslationsAreValid(_ translations: [RemoteTranslatedSegment], for key: TranslationCacheKey) -> Bool {

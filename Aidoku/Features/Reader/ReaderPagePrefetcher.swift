@@ -25,8 +25,7 @@ final class ReaderPagePrefetcher {
             count: min(max(0, count), pages.count), chapterKey: chapterKey, sourceKey: sourceKey
         )
         guard !reservation.indices.isEmpty else { return }
-        // Reserve before suspension to avoid duplicates, but only retain pages
-        // actually submitted. Cancellation must leave the remainder retryable.
+        // Reserve before suspending; unsubmitted pages stay retryable after cancellation.
         var submitted = Set<Int>()
         defer { reservations.finish(reservation, submitted: submitted) }
 
@@ -51,8 +50,7 @@ final class ReaderPagePrefetcher {
             requests.append(await ReaderPageView.imageRequest(url: url, context: page.context, source: source))
             guard !Task.isCancelled, generation == self.generation else { return }
             requestIndices.insert(index)
-            // Start early without increasing the prefetcher's concurrency or
-            // decoding any images. Request modification can itself suspend.
+            // Submit in small batches since request modification can suspend.
             if requests.count == 2 {
                 prefetcher.startPrefetching(with: requests)
                 submitted.formUnion(requestIndices)
@@ -74,8 +72,7 @@ final class ReaderPagePrefetcher {
     }
 }
 
-/// Tracks preparation leases separately from requests handed to Nuke. A reset
-/// invalidates old leases so their eventual cancellation cannot release new work.
+/// Preparation leases; a reset invalidates old leases so they cannot release new work.
 struct ReaderPagePrefetchReservations {
     struct Key: Hashable {
         let chapter: String

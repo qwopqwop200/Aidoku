@@ -40,20 +40,15 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unc
     private final class RequestState {
         let maximumResponseBytes: Int
         let continuation: CheckedContinuation<TranslationHTTPResponse, Error>
-        let startedAt: TimeInterval
+        let startedAt = ProcessInfo.processInfo.systemUptime
         var response: HTTPURLResponse?
         var responseHeadersAt: TimeInterval?
         var firstBodyByteAt: TimeInterval?
         var data = Data()
 
-        init(
-            maximumResponseBytes: Int,
-            continuation: CheckedContinuation<TranslationHTTPResponse, Error>,
-            startedAt: TimeInterval = ProcessInfo.processInfo.systemUptime
-        ) {
+        init(maximumResponseBytes: Int, continuation: CheckedContinuation<TranslationHTTPResponse, Error>) {
             self.maximumResponseBytes = maximumResponseBytes
             self.continuation = continuation
-            self.startedAt = startedAt
             data.reserveCapacity(min(maximumResponseBytes, 64 * 1024))
         }
 
@@ -103,11 +98,8 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unc
     private var states: [RequestKey: RequestState] = [:]
     private let delegateProxy: BoundedURLSessionDelegateProxy
 
-    // Initialize both sessions eagerly before this transport is published;
-    // Swift lazy properties are not a synchronization primitive and two first
-    // concurrent provider calls could otherwise race their initialization.
-    // The sessions retain a proxy whose owner is weak, avoiding the usual
-    // transport -> session -> delegate -> transport retain cycle.
+    // Created eagerly (lazy properties would race on concurrent first calls). The sessions retain a
+    // proxy with a weak owner, avoiding a transport -> session -> delegate -> transport cycle.
     private var standardSession: URLSession!
     private var directSession: URLSession!
 
@@ -142,8 +134,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unc
                 states[key] = state
                 stateLock.unlock()
 
-                // Install only after registering the continuation. A
-                // cancellation racing this setup can then always complete it.
+                // Install after registering the continuation so a racing cancellation can complete it.
                 taskBox.install(task)
                 task.resume()
             }
@@ -242,26 +233,19 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unc
     }
 
     private func makeSession(bypassesProxy: Bool) -> URLSession {
-        URLSession(configuration: Self.sessionConfiguration(bypassesProxy: bypassesProxy),
-                   delegate: delegateProxy, delegateQueue: nil)
-    }
-
-    static func sessionConfiguration(bypassesProxy: Bool) -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
         configuration.urlCredentialStorage = nil
-        // A private tailnet endpoint must fail within the request timeout when
-        // its tunnel is inactive. Waiting for connectivity makes the settings
-        // test and every OCR translation appear frozen.
+        // An inactive private tailnet must fail within the timeout instead of appearing frozen.
         configuration.waitsForConnectivity = false
         configuration.timeoutIntervalForRequest = RemoteTranslationConfiguration.maximumTimeout
         configuration.timeoutIntervalForResource = RemoteTranslationConfiguration.maximumTimeout
         configuration.httpMaximumConnectionsPerHost = BoundedTranslationBatchExecutor.allowedMaximumConcurrentRequests
         if bypassesProxy { configuration.connectionProxyDictionary = [:] }
-        return configuration
+        return URLSession(configuration: configuration, delegate: delegateProxy, delegateQueue: nil)
     }
 
     private func requestKey(session: URLSession, task: URLSessionTask) -> RequestKey {
@@ -276,9 +260,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unc
     }
 }
 
-/// URLSession strongly retains its delegate until invalidation. Keeping the
-/// forwarding owner weak lets the transport deinitialize normally while still
-/// preserving delegate-backed streaming response limits.
+/// URLSession retains its delegate until invalidation; a weak owner lets the transport deinitialize.
 private final class BoundedURLSessionDelegateProxy: NSObject, URLSessionDataDelegate, URLSessionTaskDelegate,
     @unchecked Sendable {
     weak var owner: BoundedURLSessionTransport?

@@ -11,6 +11,7 @@ actor ShikimoriApi {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
     private let userAgent = "Aidoku"
+    private let dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
 
     // Registered under Skitty's Shikimori account
     nonisolated let oauth = OAuthClient(

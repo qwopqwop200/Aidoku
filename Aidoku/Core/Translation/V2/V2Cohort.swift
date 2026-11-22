@@ -1,23 +1,15 @@
 import CoreGraphics
 import Foundation
 
-// S9 size cohorts: translated text whose source lettering shared a size and style is
-// painted at a common size, so a page keeps the source's typographic consistency
-// (ported from the legacy page font clusters, source-size snap and inconsistency
-// guard). Pure arithmetic over S8 styles and S9 fits; one bounded pass.
-//
-// 1. Key: orientation and bold (no colour: legacy families mix colours; no outline: S8 outline presence is noisy).
-// 2. Source snap: within a key, sources within 1.08x of a band's first value take the
-//    band median (S8 per-block estimates are noisy).
-// 3. Families: same key, sorted by source, chained while max/min <= 1.22; size >= 2. A block in no
-//    family joins the nearest family of its key within 1.08x.
-//    Every member shares one cap: the family median source x the cap ratio.
-// 4. After the per-block fits, the family takes the largest step of its cap
-//    (1, 0.95 ... 0.65, >= 12 px) that every member reached; the page then takes one scale, the
-//    smallest family step; a member that cannot reach
-//    the last step keeps its own fit. Members only shrink, so frames stay collision-free
-//    (legacy NativeAOTRawTextPainter.swift:961-976 cohort fit planning). A re-fit that lands
-//    below the family size pulls the family down to it (up to three more rounds).
+// S9 size cohorts (legacy page font clusters): text whose source lettering shared a size
+// and style is painted at a common size.
+// 1. Key: orientation and bold (colour and S8 outline presence are too noisy).
+// 2. Snap: within a key, sources within 1.08x of a band's first value take the band median.
+// 3. Families: same key, chained while max/min <= 1.22, >= 2 members; a lone block joins the
+//    nearest family of its key within 1.08x. Members share the cap median source x cap ratio.
+// 4. After the fits, a family takes the largest cap step (1 ... 0.65, >= 12 px) every member
+//    reached (members below the last step keep their fit); the page takes the smallest family
+//    step, and a lower re-fit pulls its family down. Members only shrink.
 enum V2Cohort {
     static let snapRatio: CGFloat = 1.08
     static let cohortRatio: CGFloat = 1.22
@@ -92,9 +84,8 @@ enum V2Cohort {
         return sorted.count % 2 == 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
     }
 
-    /// The family's common size (quarter pixels): the largest cap step that every member's
-    /// fit reaches, ignoring members below the last step (they keep their fit).
-    /// nil when no member reaches the last step.
+    /// The family's common size (quarter pixels): the largest cap step every member's fit
+    /// reaches, ignoring members below the last step; nil when none reaches it.
     static func familySize(cap: CGFloat, fits: [CGFloat]) -> CGFloat? {
         let sizes = steps.map { ((cap * $0) * 4).rounded(.down) / 4 }.filter { $0 >= min(cap, minimumPixels) }
         guard let lowest = sizes.last, let need = fits.filter({ $0 >= lowest - 0.01 }).min() else { return nil }

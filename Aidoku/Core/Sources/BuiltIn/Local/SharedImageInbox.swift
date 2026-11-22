@@ -63,8 +63,7 @@ struct SharedImageInbox {
                     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                         let complete: (Any?, Error?) -> Void = { item, error in
                             do {
-                                // Release ImageIO/UIKit temporaries per image; share extensions are
-                                // limited to roughly 120 MB.
+                                // Release temporaries per image; share extensions are limited to ~120 MB.
                                 try autoreleasepool { try storeSharedItem(item, error: error, at: destination) }
                                 continuation.resume()
                             } catch { continuation.resume(throwing: error) }
@@ -82,8 +81,7 @@ struct SharedImageInbox {
         throw lastError
     }
 
-    /// Image containers the app imports directly. Their original bytes are copied as-is, so the
-    /// extension never decodes them; anything else ImageIO can read is downsampled and re-encoded.
+    /// Formats copied byte-for-byte; anything else ImageIO can read is downsampled and re-encoded.
     static let passthroughTypes: Set<String> = [
         UTType.jpeg.identifier, UTType.png.identifier, UTType.gif.identifier, UTType.tiff.identifier,
         UTType.bmp.identifier, UTType.heic.identifier, UTType.heif.identifier,
@@ -92,7 +90,6 @@ struct SharedImageInbox {
     /// Pixel budget for images that must be re-encoded in the extension (16 MP is 64 MB as RGBA).
     static let maxTranscodePixels = 16_000_000
 
-    /// Writes one provider item to `destination` without decoding it whenever possible.
     static func storeSharedItem(
         _ item: Any?, error: Error?, at destination: URL, maxPixels: Int = maxTranscodePixels
     ) throws {
@@ -112,7 +109,6 @@ struct SharedImageInbox {
         try normalizeStoredImage(at: destination, maxPixels: maxPixels)
     }
 
-    /// Keeps supported files byte-for-byte; re-encodes other readable formats as bounded PNG.
     private static func normalizeStoredImage(at url: URL, maxPixels: Int) throws {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               CGImageSourceGetCount(source) > 0,
@@ -152,8 +148,7 @@ struct SharedImageInbox {
             try writePNG(cgImage, to: url)
             return
         }
-        // The source bitmap is already resident; drawing allocates only the bounded target and
-        // bakes in the orientation, which PNG files do not reliably carry.
+        // Drawing bakes in the orientation, which PNG files do not reliably carry.
         let scale = min(1, (Double(maxPixels) / pixels).squareRoot())
         let pointScale = max(image.scale, 1)
         let size = CGSize(
@@ -193,8 +188,7 @@ struct SharedImageInbox {
             let right = (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             return left < right
         }.compactMap { directory in
-            // Batches are published by an atomic rename, so an unreadable one can never
-            // become valid. Discard it instead of failing (and alerting) on every launch.
+            // Batches are published atomically, so an unreadable one never becomes valid.
             guard (try? directory.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true else { return nil }
             guard let batch = Self.batch(at: directory) else {
                 try? FileManager.default.removeItem(at: directory)
@@ -228,8 +222,7 @@ struct SharedImageInbox {
         return max(0, count)
     }
 
-    /// Counts a failed import. Returns true when the batch was discarded because it reached
-    /// `maxImportAttempts` (or its counter cannot be persisted, which would allow endless retries).
+    /// Returns true when the batch was discarded (attempt limit reached or counter not persisted).
     @discardableResult
     func recordFailedAttempt(_ batch: Batch) -> Bool {
         let count = failedAttempts(batch) + 1
@@ -241,7 +234,6 @@ struct SharedImageInbox {
         return true
     }
 
-    /// Removes half-written staging directories left behind by an extension that was terminated.
     private func removeStaleStaging(now: Date) {
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey, .isDirectoryKey]

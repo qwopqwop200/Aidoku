@@ -505,13 +505,7 @@ struct LabelView: View {
     var background = Color(UIColor.tertiarySystemFill)
 
     var body: some View {
-        Group {
-            if translatesTag {
-                TranslatedTitleText(text, kind: .tag)
-            } else {
-                Text(text)
-            }
-        }
+        TranslatedTitleText(text, kind: .tag, translating: translatesTag ? nil : "")
             .lineLimit(1)
             .foregroundStyle(.secondary)
             .font(.caption2)

@@ -1,7 +1,6 @@
 import UIKit
 
-/// Stable, indexed page descriptors. UIKit objects are created only on demand;
-/// identity lookups never instantiate the rest of a chapter.
+/// Indexed page controllers, created only on demand.
 @MainActor
 final class ReaderPageControllerStore {
     private enum Slot {

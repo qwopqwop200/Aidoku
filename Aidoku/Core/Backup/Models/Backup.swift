@@ -33,18 +33,10 @@ struct Backup: Codable, Hashable, Identifiable, Sendable {
     }
 
     static func decode(_ data: Data) -> Backup? {
-        func decodeJSON() -> Backup? {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .secondsSince1970
-            return try? decoder.decode(Backup.self, from: data)
-        }
-        func decodePlist() -> Backup? {
-            try? PropertyListDecoder().decode(Backup.self, from: data)
-        }
-
-        if data.first == UInt8(ascii: "{") {
-            return decodeJSON() ?? decodePlist()
-        }
-        return decodePlist() ?? decodeJSON()
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let json = { try? decoder.decode(Backup.self, from: data) }
+        let plist = { try? PropertyListDecoder().decode(Backup.self, from: data) }
+        return data.first == UInt8(ascii: "{") ? json() ?? plist() : plist() ?? json()
     }
 }

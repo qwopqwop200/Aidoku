@@ -134,15 +134,10 @@ extension LocalFileManager {
         }
 
         // extract the first three images for preview
-        let previewEntries = pageEntries.lazy
+        let previewImages = Array(pageEntries.lazy
             .filter { LocalFileManager.allowedImageExtensions.contains($0.path.pathExtension().lowercased()) }
             .prefix(3)
-        var previewImages: [PlatformImage] = []
-        for entry in previewEntries {
-            if let image = Self.previewImage(for: entry, in: archive) {
-                previewImages.append(image)
-            }
-        }
+            .compactMap { Self.previewImage(for: $0, in: archive) })
 
         let fileType = switch pathExtension {
             case "cbz": LocalFileType.cbz
@@ -184,8 +179,7 @@ extension LocalFileManager {
 }
 
 extension LocalFileManager {
-    /// Decodes an image for import, downsampling ones whose full-size bitmap would exceed
-    /// `maxPixels`. Rendering a 20000×20000 image at full size needs over 1.5 GB.
+    /// Decodes an image for import, downsampling it when its full-size bitmap would exceed `maxPixels`.
     nonisolated static func loadImportImage(at url: URL, maxPixels: Int = maxImportImagePixels) -> PlatformImage? {
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithURL(url as CFURL, options),
@@ -226,8 +220,7 @@ extension LocalFileManager {
                     // Drawing applies EXIF orientation consistently for reading and OCR.
                     let format = UIGraphicsImageRendererFormat()
                     format.scale = 1
-                    // .automatic picks a 16-bit-per-channel extended-range buffer for wide-color
-                    // photos on P3 devices, doubling a page that may already be 48 MP (~384 MB).
+                    // .automatic picks a 16-bit extended-range buffer for P3 photos, doubling memory.
                     format.preferredRange = .standard
                     let normalized = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
                         image.draw(in: CGRect(origin: .zero, size: image.size))
@@ -286,8 +279,7 @@ extension LocalFileManager {
         }
 
         var descriptionFiles: [(entry: Entry, index: Int)] = []
-        // ZIPFoundation decodes Entry.path on each access. Keep the decoded
-        // paths for sorting, and retain archive entries only for sidecar reads.
+        // ZIPFoundation decodes Entry.path on each access, so sort decoded paths instead of entries.
         var paths = archive.compactMap { entry -> String? in
             guard entry.type == .file else { return nil }
             let path = entry.path
@@ -499,8 +491,7 @@ extension LocalFileManager {
 
         var imported = false
         defer {
-            // This destination was created exclusively by this upload. Never
-            // delete a pre-existing file discovered by the filesystem scanner.
+            // Never delete a pre-existing file discovered by the scanner.
             if !imported && !skipUpload { try? FileManager.default.removeItem(at: destURL) }
         }
         let coverURL: URL?
@@ -520,8 +511,7 @@ extension LocalFileManager {
             coverURL = Self.defaultCover(in: mangaFolder)
         }
 
-        // Commit series and chapter together. Failed commits retain the inbox for
-        // retry and cannot be mistaken for a successful import by its caller.
+        // Commit series and chapter together so a failed commit is never reported as imported.
         let cover = coverURL?.toAidokuImageUrl()?.absoluteString
         let title: String?
         if let chapterName {
@@ -654,8 +644,7 @@ extension LocalFileManager {
 
     // scan the local files folder and synchronize the db to match the file system
     func scanLocalFiles() async {
-        // Every event advances demand, even when a mutation or existing scan
-        // prevents immediate work. A pass must include all later event demand.
+        // Record demand even when a mutation or running scan defers the work.
         scanDemand.request()
         guard scanDemand.canRun else { return }
 
@@ -670,8 +659,7 @@ extension LocalFileManager {
                 do { try await fileOperations.acquire() } catch { scanDemand.request(); break }
                 do { try await scanLocalFilesPass() }
                 catch {
-                    // Retain demand, but retry only on a later event/call rather
-                    // than spinning on disk-full or persistent store failures.
+                    // Keep demand, but retry only on a later event rather than spinning on persistent failures.
                     scanDemand.request()
                     fileOperations.release()
                     break
@@ -695,8 +683,7 @@ extension LocalFileManager {
         let mangaFolders = try localContents.filter { try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true }
         try Task.checkCancellation()
 
-        // Complete every directory read before reconciling deletions. A failed
-        // read must never look like an empty folder and erase saved metadata.
+        // Read every directory before reconciling, so a failed read never looks like an empty folder.
         let folderChapters = try mangaFolders.map { folder in
             try Task.checkCancellation()
             let chapters = try fileManager.contentsOfDirectory(
@@ -778,8 +765,7 @@ extension LocalFileManager {
 
 }
 
-// Paths may be nested, but all writes/deletions must remain strictly below Local.
-// Resolve existing symlink ancestors as well as lexical dot components.
+// All writes and deletions must stay strictly below Local, after resolving symlinks and dot components.
 extension LocalFileManager {
     nonisolated static func isContainedLocalURL(_ url: URL, root: URL = FileManager.default.documentDirectory.appendingPathComponent("Local", isDirectory: true)) -> Bool {
         guard url.isFileURL, root.isFileURL else { return false }
@@ -788,15 +774,13 @@ extension LocalFileManager {
         let resolvedRoot = root.standardizedFileURL.resolvingSymlinksInPath()
         guard resolvedRoot.path == expectedRoot.path else { return false }
         let base = resolvedRoot.path
-        // Foundation may leave a nonexistent leaf unchanged, including a symlink
-        // in its ancestors. Resolve the nearest existing ancestor first, then
-        // restore only the missing suffix without touching the filesystem.
+        // Foundation does not resolve symlinks above a nonexistent leaf: resolve the nearest
+        // existing ancestor, then append the missing suffix.
         var ancestor = url.standardizedFileURL
         var missingComponents: [String] = []
         let fileManager = FileManager.default
         while !fileManager.fileExists(atPath: ancestor.path) {
-            // A dangling link is not a new ordinary directory; refusing it also
-            // avoids validating its unresolved spelling as a safe destination.
+            // Refuse dangling links rather than validating their unresolved spelling.
             if (try? fileManager.destinationOfSymbolicLink(atPath: ancestor.path)) != nil { return false }
             let parent = ancestor.deletingLastPathComponent()
             guard parent.path != ancestor.path else { return false }
@@ -811,8 +795,7 @@ extension LocalFileManager {
     }
 }
 
-/// Actor-owned demand state. Leases nest across suspension; an event arriving
-/// after a scan snapshot always survives as one trailing pass.
+/// Actor-owned scan demand: mutations nest, and an event after a pass starts causes one trailing pass.
 struct LocalFileScanDemand {
     private(set) var mutations = 0
     private(set) var dirty = false
@@ -831,8 +814,7 @@ struct LocalFileScanDemand {
     }
 }
 
-/// FIFO ownership across actor suspension. Cancellation removes queued work;
-/// callers release only after they actually acquired ownership.
+/// FIFO ownership across actor suspension; cancellation removes queued waiters.
 final class LocalFileOperationGate: @unchecked Sendable {
     private let lock = NSLock()
     private var active = false

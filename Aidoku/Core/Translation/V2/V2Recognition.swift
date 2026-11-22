@@ -2,14 +2,9 @@ import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
 
-// S3: PP-OCRv6 manga line recognition for the V2 pipeline.
-//
-// The dynamic-width Core ML program runs on the CPU on every measured Apple
-// runtime and one `MLModel` handle serializes its predictions, so a resident
-// pool of independent handles predicts exact-width crops longest-first in
-// parallel. Every numeric step after the padded crop (sampling, tensor, model,
-// compact top-k packing, n-gram corrected CTC decode and 0.30 gate) matches the
-// legacy recognizer.
+// S3: PP-OCRv6 manga line recognition. One `MLModel` handle serializes predictions, so a
+// resident pool of handles predicts exact-width crops longest-first in parallel. Every step
+// after the padded crop (tensor, compact top-k, n-gram CTC decode, 0.30 gate) matches legacy.
 
 /// Resident recognizer state. `V2Models` owns one instance for the process.
 @available(iOS 18.0, *)
@@ -18,15 +13,9 @@ final class V2RecognitionEngine: @unchecked Sendable {
     static let dictionaryResourceName = "ppocrv6_manga_rec_character_dict"
     static let languageModelResourceName = "manga_ngram_v03"
     static let expectedDictionaryCharacterCount = 19_054
-    static let maximumWidth = IPhoneOCRSettings.mangaMaximumRecognizerWidth
 
-    /// Independent handles predict concurrently; each resident handle costs
-    /// about 180 MB on macOS (measured, widths up to 2400). A prediction keeps
-    /// about 1.2 cores busy, so on macOS every core but four (left to the other
-    /// stages of concurrent pages) gets a handle, at most ten (six below 16 GB):
-    /// on a 14-core M4 Pro with three pages in flight, ten handles cut the S3
-    /// median by about a quarter versus six without slowing other stages.
-    /// iOS keeps the legacy two, three on >= 7 GB.
+    /// About 180 MB and 1.2 busy cores per handle: on macOS every core but four (left to other
+    /// stages) gets one, at most ten (six below 16 GB); iOS keeps the legacy two, three on >= 7 GB.
     static var defaultHandleCount: Int {
 #if os(macOS)
         min(ProcessInfo.processInfo.physicalMemory >= 16 * 1_024 * 1_024 * 1_024 ? 10 : 6,
@@ -177,13 +166,8 @@ enum V2Recognition {
         var confidence: Double
     }
 
-    /// Recognizes every line; returns accepted lines (non-empty text and
-    /// confidence >= `minimumConfidence`) in input order with text/confidence set.
-    static func recognize(
-        _ page: V2Page,
-        lines: [V2Line],
-        engine: V2RecognitionEngine
-    ) async throws -> [V2Line] {
+    /// The accepted lines (non-empty text, confidence >= `minimumConfidence`) in input order.
+    static func recognize(_ page: V2Page, lines: [V2Line], engine: V2RecognitionEngine) async throws -> [V2Line] {
         guard !lines.isEmpty else { return [] }
         guard let frame = NativeOCRCGImageAdapter.makeRGBAFrame(from: page.image) else {
             throw V2RecognitionEngine.Failure.imageConversionFailed
@@ -192,36 +176,15 @@ enum V2Recognition {
     }
 
     /// Frame overload so the orchestrator can share the detector's RGBA frame.
-    static func recognize(
-        frame: NativeOCRRGBAFrame,
-        lines: [V2Line],
-        engine: V2RecognitionEngine
-    ) async throws -> [V2Line] {
-        let reads = try await read(frame: frame, polygons: lines.map(\.polygon), engine: engine)
-        return zip(lines, reads).compactMap { line, read in
-            guard let read, !read.text.isEmpty, read.confidence >= minimumConfidence else { return nil }
-            var output = line
-            output.text = read.text
-            output.confidence = Float(read.confidence)
-            return output
-        }
-    }
-
-    /// Raw reads per polygon (nil = degenerate geometry), before the gate.
-    static func read(
-        frame: NativeOCRRGBAFrame,
-        polygons: [[CGPoint]],
-        engine: V2RecognitionEngine
-    ) async throws -> [Read?] {
-        let plans = polygons.map(plan)
-        // Longest crops first: prediction cost is linear in width, so this
-        // balances the parallel lanes (LPT scheduling).
+    static func recognize(frame: NativeOCRRGBAFrame, lines: [V2Line], engine: V2RecognitionEngine) async throws -> [V2Line] {
+        let plans = lines.map { plan($0.polygon) }
+        // Longest crops first: cost is linear in width, so this balances the lanes (LPT).
         let order = plans.indices.filter { plans[$0] != nil }
             .sorted { (plans[$0]!.bucket.width, $1) > (plans[$1]!.bucket.width, $0) }
-        guard !order.isEmpty else { return Array(repeating: nil, count: polygons.count) }
+        guard !order.isEmpty else { return [] }
         let queue = WorkQueue(order)
         let lanes = min(engine.handleCount, order.count)
-        var reads = [Read?](repeating: nil, count: polygons.count)
+        var reads = [Read?](repeating: nil, count: lines.count)
         try await withThrowingTaskGroup(of: [(Int, Read?)].self) { group in
             for _ in 0..<lanes {
                 group.addTask(priority: .userInitiated) {
@@ -240,16 +203,20 @@ enum V2Recognition {
                 for (index, read) in results { reads[index] = read }
             }
         }
-        return reads
+        return zip(lines, reads).compactMap { line, read in
+            guard let read, !read.text.isEmpty, read.confidence >= minimumConfidence else { return nil }
+            var output = line
+            output.text = read.text
+            output.confidence = Float(read.confidence)
+            return output
+        }
     }
 
-    /// Legacy crop plan for the full-frame manga policy (dynamic width,
-    /// publisher width rule <= 640, natural > 2000 up to 2400, reading-order
-    /// quad) on the padded line polygon.
+    /// Legacy crop plan for the full-frame manga policy (dynamic width, publisher width rule,
+    /// reading-order quad) on the padded line polygon.
     static func plan(_ polygon: [CGPoint]) -> NativeCoreMLRecognitionPreprocessor.Plan? {
-        // A text line (long side >= 1.5 x short) is cropped 5% of its short side
-        // wider on every side: tight detector boxes clip edge strokes. Squarish
-        // boxes keep the exact crop (padding them lets SFX fragments pass the gate).
+        // A text line (long side >= 1.5 x short) is padded 5% of its short side: tight boxes
+        // clip edge strokes. Squarish boxes keep the exact crop (padding lets SFX pass the gate).
         let xs = polygon.map(\.x), ys = polygon.map(\.y)
         guard let x0 = xs.min(), let x1 = xs.max(), let y0 = ys.min(), let y1 = ys.max() else { return nil }
         let short = min(x1 - x0, y1 - y0)
@@ -259,17 +226,11 @@ enum V2Recognition {
         }
         let ordered = polygon.count == 4 ? NativeOCRDirectionGeometry.readingQuad(polygon) : nil
         if polygon.count == 4, ordered == nil { return nil }
-        return NativeCoreMLRecognitionPreprocessor.plan(
-            polygon: ordered ?? polygon, dynamicWidth: true, maximumWidth: V2RecognitionEngine.maximumWidth,
-            mangaPublisherWidth: true, useProvidedOrder: ordered != nil)
+        return NativeCoreMLRecognitionPreprocessor.plan(polygon: ordered ?? polygon)
     }
 
-    private static func predict(
-        _ plan: NativeCoreMLRecognitionPreprocessor.Plan,
-        frame: NativeOCRRGBAFrame,
-        model: MLModel,
-        engine: V2RecognitionEngine
-    ) async throws -> Read? {
+    private static func predict(_ plan: NativeCoreMLRecognitionPreprocessor.Plan, frame: NativeOCRRGBAFrame,
+                                model: MLModel, engine: V2RecognitionEngine) async throws -> Read? {
         guard let tensor = NativeCoreMLRecognitionPreprocessor.prepare(frame: frame, plan: plan) else { return nil }
         let width = tensor.bucket.width
         let input = try MLMultiArray(shape: [1, 3, 48, NSNumber(value: width)], dataType: .float32)

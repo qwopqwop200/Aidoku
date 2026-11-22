@@ -15,8 +15,7 @@ enum ReaderTranslationCacheCodec {
         return zlibMagic + compressed
     }
 
-    // Shared-base IDs hash these bytes. Retain their canonical encoding so new
-    // variants continue sharing existing bases instead of duplicating them.
+    // Shared-base IDs hash these bytes, so their encoding must stay canonical.
     static func packSharedBase(_ data: Data) -> Data {
         guard data.count >= 512, !isPacked(data),
               let compressed = try? (data as NSData).compressed(using: .lzfse) as Data,
@@ -37,8 +36,7 @@ enum ReaderTranslationCacheCodec {
     }
 }
 
-/// One lossless source/geometry payload shared by OCR and every translation variant.
-/// Request identities are interned once per page instead of once per text region.
+/// A source/geometry base shared by every translation variant, with interned request identities.
 struct ReaderTranslationRegionArchive {
     let base: Data
     let variant: Data
@@ -142,7 +140,6 @@ struct ReaderTranslationRegionArchive {
             }
             return .init(regions: regions, decodedByteCount: rawBase.count + rawVariant.count)
         } catch {
-            // Corrupt compressed bases and invalid references follow the same cache-miss path.
             throw corrupt()
         }
     }

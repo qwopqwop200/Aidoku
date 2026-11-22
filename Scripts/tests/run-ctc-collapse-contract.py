@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "Aidoku"
 OCR = APP / "Core/Translation/NativeEngine/OCR"
 SOURCES = [OCR / "NativeCoreMLRecognizer.swift", OCR / "NativeMangaNGram.swift", OCR / "NativeOCRFrameTypes.swift",
-           OCR / "NativeOCRScopeGeometry.swift", APP / "Core/Translation/IPhoneOCRSettings.swift",
+           APP / "Core/Translation/IPhoneOCRSettings.swift",
            APP / "Extensions/Foundation/NSLocalizedString.swift"]
 checks = r'''
 func check(_ value: Bool, _ message: String) {

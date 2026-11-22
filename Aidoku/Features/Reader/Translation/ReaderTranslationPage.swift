@@ -22,7 +22,7 @@ final class ReaderTranslationPage {
             diagnosticContext = sourcePage.map { ReaderTranslationDiagnostics.makeContext(pageKey: $0.translationCacheKey) }
         }
     }
-    var diagnosticContext: ReaderTranslationDiagnostics.Context?
+    private var diagnosticContext: ReaderTranslationDiagnostics.Context?
     private var generation = UUID()
     private var cachedOverlay: ReaderTranslationCachedPageView?
     // One fully rendered V2 page bitmap per source image.
@@ -37,16 +37,12 @@ final class ReaderTranslationPage {
     deinit { v2Task?.cancel() }
 
     func reset() {
-        cancel()
+        generation = UUID()
+        cancelV2Work()
         releaseOverlay()
     }
 
-    func cancel() {
-        generation = UUID()
-        cancelV2Work()
-    }
-
-    func releaseOverlay() {
+    private func releaseOverlay() {
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
         isPresentingV2 = false
@@ -88,17 +84,16 @@ final class ReaderTranslationPage {
         }
         cachedOverlay = canvas
         imageView.insertSubview(canvas, at: 0)
-        ReaderTranslationDiagnostics.record("visible_bitmap_attached", page: diagnosticContext?.page ?? -1,
-                                            count: Int(imageView.bounds.width), code: Int(imageView.bounds.height), context: diagnosticContext)
+        ReaderTranslationDiagnostics.record("visible_bitmap_attached", count: Int(imageView.bounds.width),
+                                            code: Int(imageView.bounds.height), context: diagnosticContext)
     }
 }
 
 // MARK: - V2 pipeline presentation
 
 extension ReaderTranslationPage {
-    /// Starts (or keeps) V2 translation of the displayed image. The result is a
-    /// complete page bitmap presented through the cached-page canvas. Repeated calls for the same source
-    /// and identity are free, and a failure is not retried until `retryV2()`.
+    /// Starts (or keeps) V2 translation of the displayed image. Repeated calls for the same
+    /// source and identity are free, and a failure is not retried until `retryV2()`.
     func processV2(settings: ReaderTranslationSettings, persistsCache: Bool,
                    onPresented: @escaping @MainActor () -> Void,
                    onFailure: @escaping @MainActor (Error) -> Void) {
@@ -151,8 +146,7 @@ extension ReaderTranslationPage {
     /// Removes the V2 presentation and any pending V2 work.
     func hideV2() {
         guard isPresentingV2 || v2Task != nil || v2Identity != nil else { return }
-        cancel()
-        releaseOverlay()
+        reset()
         v2Identity = nil
         v2Failed = false
     }
@@ -163,8 +157,7 @@ extension ReaderTranslationPage {
         v2Identity = nil
     }
 
-    /// A cached V2 bitmap attached in the loader's source commit (no source flash).
-    /// The later `processV2` call for the same key and source is then free.
+    /// A cached V2 bitmap attached in the loader's source commit; a later `processV2` is then free.
     private func displayLoadedV2(_ output: UIImage, key: String, source: UIImage, settings: ReaderTranslationSettings) {
         if isPresentingV2, v2Identity == key, v2Source === source {
             cachedOverlay?.setPresentationHidden(!settings.overlay.visible)

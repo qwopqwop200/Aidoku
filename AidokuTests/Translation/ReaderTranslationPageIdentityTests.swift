@@ -5,7 +5,6 @@ import Testing
 @testable import Aidoku
 
 struct ReaderTranslationPageIdentityTests {
-
     private func page() -> Page {
         Page(sourceId: "identity-source", chapterId: "chapter", index: 1,
              imageURL: "https://example.invalid/image")

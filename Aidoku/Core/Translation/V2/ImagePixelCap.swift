@@ -2,14 +2,10 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
-/// Hard ceiling on decoded page pixels, shared by the reader's Nuke decoder, the
-/// translation image loaders and the V2 page pipeline. A page above it is
-/// downsampled (aspect kept) instead of being decoded or rasterized at full size:
-/// a 100+ MP page would otherwise need 400+ MB per RGBA copy. Images at or below
-/// the cap are never touched. Every helper takes `maxPixels` so tests can use
-/// small synthetic images. This file is Foundation/ImageIO only so the V2 host CLI
-/// compiles it with the V2 stages; the UIKit/Nuke helpers are in
-/// `Core/Utilities/ImagePixelCap+Decoding.swift`.
+/// Hard ceiling on decoded page pixels (reader Nuke decoder, translation loaders, V2):
+/// a larger page is downsampled with its aspect kept instead of needing 400+ MB per RGBA
+/// copy; smaller images are never touched. Foundation/ImageIO only so the V2 host CLI
+/// compiles it; the UIKit/Nuke helpers are in `ImagePixelCap+Decoding.swift`.
 enum ImagePixelCap {
     /// About 64 megapixels (256 MiB as RGBA8).
     static let maxPixels = 64 * 1024 * 1024
@@ -27,8 +23,7 @@ enum ImagePixelCap {
         let scale = (Double(maxPixels) / (Double(width) * Double(height))).squareRoot()
         var cappedWidth = max(1, min(width, Int((Double(width) * scale).rounded(.down))))
         var cappedHeight = max(1, min(height, Int((Double(height) * scale).rounded(.down))))
-        // A side clamped up to 1 (extreme aspect) or floating-point rounding can leave the
-        // area over the cap; shrink the longer side to fit exactly.
+        // A side clamped to 1 or rounding can leave the area over the cap; shrink the longer side.
         if cappedWidth * cappedHeight > maxPixels {
             if cappedWidth >= cappedHeight {
                 cappedWidth = max(1, maxPixels / cappedHeight)
@@ -39,9 +34,8 @@ enum ImagePixelCap {
         return (cappedWidth, cappedHeight)
     }
 
-    /// `kCGImageSourceThumbnailMaxPixelSize` (longest side) whose thumbnail fits
-    /// `maxPixels`, or nil when the image already fits. ImageIO may round the
-    /// short side up, so the bound accounts for that.
+    /// The longest-side thumbnail size whose thumbnail fits `maxPixels` even when ImageIO
+    /// rounds the short side up; nil when the image already fits.
     static func thumbnailMaxPixelSize(width: Int, height: Int, maxPixels: Int = maxPixels) -> Int? {
         guard maxPixels > 0, exceeds(width: width, height: height, maxPixels: maxPixels) else { return nil }
         let long = Double(max(width, height)), short = Double(min(width, height))
@@ -89,9 +83,8 @@ enum ImagePixelCap {
 
     // MARK: Rasters
 
-    /// An already-decoded image within the cap is returned as is (same object);
-    /// above it, a high-quality sRGB RGBA8 (premultipliedLast) redraw at
-    /// `cappedSize`. Nil only when the smaller bitmap cannot be allocated.
+    /// The same image within the cap, else a high-quality sRGB RGBA8 redraw at `cappedSize`;
+    /// nil when the smaller bitmap cannot be allocated.
     static func downscaled(_ image: CGImage, maxPixels: Int = maxPixels) -> CGImage? {
         guard exceeds(width: image.width, height: image.height, maxPixels: maxPixels) else { return image }
         let size = cappedSize(width: image.width, height: image.height, maxPixels: maxPixels)

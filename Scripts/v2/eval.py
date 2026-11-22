@@ -1,21 +1,13 @@
 #!/usr/bin/env python3
-"""End-to-end metrics for a V2 pipeline run (Scripts/image-translation.swift).
+"""End-to-end metrics for a V2 pipeline run (Scripts/image-translation.swift) on one manifest split.
 
-Reads RUN/pages/*.json (blocks with lines, placed, timings) and scores one split of
-the canonical grouped-source manifest against aidoku-unified-gt-20261116.json:
-
-- detection: recall/precision at polygon IoU 0.5/0.7 of the V2 accepted lines
-  (block members, after line assembly and the recognition gate) against
-  individual_premerge_bbox (status canonical, optimization_required). One-to-one
-  Hungarian matching on polygon IoU, ported from the gtopt detection harness.
-- grouping: pairwise precision/recall/F1, purity, exact-group rate and contaminated
-  groups over V2 lines assigned to GT merged_bbox regions (>= 50% of the line box
-  inside the region box), ported from the gtopt grouping harness (production-
-  detection mode; the 6 not-required GT groups are excluded).
+- detection: one-to-one Hungarian recall/precision at polygon IoU 0.5/0.7 of V2 block lines against
+  canonical, optimization-required individual_premerge_bbox GT (ported from the gtopt detection harness).
+- grouping: pairwise P/R/F1, purity, exact-group rate and contaminated groups over lines assigned to
+  merged_bbox regions (>= 50% of the line box inside; 6 not-required groups excluded; gtopt grouping harness).
 - translation coverage, page failures, per-stage timing median/p90.
 
-The TEST split is refused unless --allow-test is given (final one-shot run only).
-
+TEST is refused unless --allow-test is given (final one-shot run only).
 Usage: python3 Scripts/v2/eval.py RUN_DIR [--split dev] [--out RUN_DIR/eval.json]
 """
 import argparse

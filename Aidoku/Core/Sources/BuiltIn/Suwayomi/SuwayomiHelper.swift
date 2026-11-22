@@ -274,8 +274,7 @@ extension SuwayomiHelper {
         return .init(cookie: nil, accessToken: nil, refreshToken: nil)
     }
 
-    // Suwayomi's SIMPLE_LOGIN endpoint expects form fields user/pass.
-    // A literal plus must not become a space when decoded as form-urlencoded.
+    // SIMPLE_LOGIN expects form fields user/pass; a literal plus must not decode as a space.
     static func simpleLoginRequest(url: URL, username: String, password: String) -> URLRequest {
         var components = URLComponents()
         components.queryItems = [
@@ -291,8 +290,7 @@ extension SuwayomiHelper {
     }
 
     static func isSuccessfulSimpleLogin(_ response: HTTPURLResponse) -> Bool {
-        // Failed credentials render the login page with HTTP 200 and can clear
-        // the session cookie; only the successful login redirects.
+        // Failed credentials render the login page with HTTP 200; only success redirects.
         (300..<400).contains(response.statusCode)
     }
 

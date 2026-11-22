@@ -1,11 +1,8 @@
 import CoreGraphics
 import Foundation
 
-/// Image-backed, deliberately partial reading-order evidence. This only supplies
-/// RTL ranks from a hierarchy of clearly separated panels, and within disjoint
-/// vertical-text bands. OCR enumeration need not keep panel members contiguous.
-/// Horizontal lettering retains its within-panel order. Callers
-/// must use the reader's explicit direction, never the OCR/source language.
+/// Partial RTL reading order from clearly separated panels and disjoint vertical-text
+/// bands. Callers must use the reader's explicit direction, never the source language.
 enum ReaderTranslationPanelOrder {
     struct Input: Sendable {
         let rect: CGRect // Normalized top-left image coordinates.
@@ -61,8 +58,7 @@ enum ReaderTranslationPanelOrder {
                     let da = a.1 - a.0, db = b.1 - b.0
                     return da == db ? a.0 < b.0 : da > db
                 }
-                // Antialiased one-to-three-pixel gutters require a frame on
-                // BOTH sides; ordinary wide whitespace keeps its stricter rule.
+                // Antialiased 1-3 px gutters require a frame on both sides.
                 var narrowStart: Int?
                 for position in 0...count {
                     if position < count && whiteFraction[position] >= 0.99 {
@@ -88,8 +84,7 @@ enum ReaderTranslationPanelOrder {
                         split(Area(x0: area.x0, y0: area.y0, x1: area.x1, y1: cut), before, depth + 1)
                         split(Area(x0: area.x0, y0: cut, x1: area.x1, y1: area.y1), after, depth + 1)
                     } else {
-                        // Traverse the right panel completely before the left, even
-                        // when detector indices from those panels are interleaved.
+                        // Traverse the right panel completely before the left.
                         split(Area(x0: cut, y0: area.y0, x1: area.x1, y1: area.y1), after, depth + 1)
                         split(Area(x0: area.x0, y0: area.y0, x1: cut, y1: area.y1), before, depth + 1)
                     }
@@ -100,13 +95,10 @@ enum ReaderTranslationPanelOrder {
         }
         split(Area(x0: 0, y0: 0, x1: width, y1: height), unchanged, 0)
         guard leaves.count >= 2, !Task.isCancelled else { return unchanged }
-        // Leaves are already in top-to-bottom / right-to-left traversal order.
-        // Build the permutation directly, rather than swapping detector slots:
-        // slot swaps can undo a nested split or strand text in another panel.
+        // Leaves are already in traversal order; build the permutation directly.
         let order = leaves.flatMap { ids -> [Int] in
             guard ids.count >= 2 else { return ids }
-            // Partition at complete vertical whitespace between detected text blocks.
-            // Never let a lower balloon prevent RTL ordering in the upper band.
+            // Partition at vertical whitespace between text blocks.
             let topToBottom = ids.sorted { boxes[$0].minY < boxes[$1].minY }
             var bands: [[Int]] = []
             var bottom: CGFloat = -.infinity
@@ -121,9 +113,7 @@ enum ReaderTranslationPanelOrder {
             }
             var ordered = ids
             for band in bands where band.count >= 2 {
-                // Horizontal lettering in a disjoint band supplies no evidence
-                // against vertical dialogue above or below it. Mixed lettering
-                // within the same band still retains the detector's order.
+                // Bands with any horizontal lettering keep the detector's order.
                 guard band.allSatisfy({ inputs[$0].isVertical }) else { continue }
                 let slots = ids.indices.filter { band.contains(ids[$0]) }
                 let commonTop = band.map { boxes[$0].minY }.max() ?? 0

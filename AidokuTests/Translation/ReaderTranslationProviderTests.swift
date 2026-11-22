@@ -51,7 +51,6 @@ struct ReaderTranslationProviderTests {
         #expect(try !fixture.keys.containsSecret(for: settings.selectedCredentialAccount))
         #expect(fixture.defaults.dictionaryRepresentation() as NSDictionary == original)
     }
-
 }
 
 private struct ProviderSettingsFixture {

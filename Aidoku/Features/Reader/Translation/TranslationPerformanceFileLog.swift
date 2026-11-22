@@ -132,7 +132,7 @@ final class TranslationPerformanceFileWriter: @unchecked Sendable {
                 if let context = entry.context {
                     line += " trace=\(context.trace) page_token=\(String(context.pageToken, radix: 16))"
                 }
-                line += " page=\(entry.page >= 0 ? entry.page : entry.context?.page ?? -1)"
+                line += " page=\(entry.page >= 0 ? entry.page : -1)"
                 if entry.reader {
                     line += " count=\(entry.count) code=\(entry.code) outcome=\(entry.outcome)"
                     if let elapsed = entry.elapsed, elapsed.isFinite { line += " elapsed_ms=\(elapsed)" }

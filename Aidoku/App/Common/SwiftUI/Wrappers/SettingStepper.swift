@@ -27,9 +27,8 @@ struct SettingStepper: UIViewRepresentable {
         @objc func changed(_ sender: UIStepper) { binding?.wrappedValue = sender.value }
     }
 
-    /// SwiftUI synchronizes a representable root UIControl's enabled state with
-    /// its environment after updates. Keep the validated control below a plain
-    /// UIView so invalid ranges remain disabled even in an enabled environment.
+    /// SwiftUI syncs a root UIControl's enabled state with the environment; a plain
+    /// container keeps invalid ranges disabled.
     @MainActor final class Container: UIView {
         let control: UIStepper
 
@@ -64,10 +63,6 @@ struct SettingStepper: UIViewRepresentable {
 
     func makeUIView(context: Context) -> Container {
         let control = context.coordinator.control()
-        control.setContentHuggingPriority(.required, for: .horizontal)
-        control.setContentCompressionResistancePriority(.required, for: .horizontal)
-        control.setContentHuggingPriority(.required, for: .vertical)
-        control.setContentCompressionResistancePriority(.required, for: .vertical)
         control.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .valueChanged)
         return Container(control: control)
     }
@@ -79,8 +74,7 @@ struct SettingStepper: UIViewRepresentable {
         control.accessibilityValue = String(format: "%g", locale: Locale.current, value)
         guard bounds.lowerBound.isFinite, bounds.upperBound.isFinite,
               step.isFinite, step > 0, bounds.lowerBound < bounds.upperBound else {
-            // UIKit requires a non-empty native range. A single legal setting
-            // value has no increment/decrement action; invalid input also stays inert.
+            // UIKit needs a non-empty range; single-value and invalid ranges stay inert.
             control.isEnabled = false
             return
         }
@@ -99,8 +93,7 @@ struct SettingStepper: UIViewRepresentable {
 
     static func dismantleUIView(_ uiView: Container, coordinator: Coordinator) {
         coordinator.binding = nil
-        // Returning the lease removes targets, clears settings handlers, and
-        // detaches the control before it becomes available to the next view.
+        // Returning the lease resets and detaches the control for reuse.
         coordinator.lease = nil
     }
 }

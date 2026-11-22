@@ -18,6 +18,20 @@ extension CoreDataManager {
         (try? context.fetch(MangaUpdateObject.fetchRequest())) ?? []
     }
 
+    /// Get a particular manga update object.
+    func getMangaUpdate(
+        chapterId: ChapterIdentifier,
+        context: NSManagedObjectContext
+    ) -> MangaUpdateObject? {
+        let request = MangaUpdateObject.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "chapterId == %@ AND mangaId == %@ AND sourceId == %@ ",
+            chapterId.chapterKey, chapterId.mangaKey, chapterId.sourceKey
+        )
+        request.fetchLimit = 1
+        return (try? context.fetch(request))?.first
+    }
+
     /// Gets sorted manga update objects.
     func getRecentMangaUpdates(limit: Int, offset: Int, context: NSManagedObjectContext) -> [MangaUpdateObject] {
         let request = MangaUpdateObject.fetchRequest()
@@ -26,6 +40,40 @@ extension CoreDataManager {
         request.fetchLimit = limit
         request.fetchOffset = offset
         return (try? context.fetch(request)) ?? []
+    }
+
+    func hasMangaUpdate(
+        chapterId: ChapterIdentifier,
+        context: NSManagedObjectContext
+    ) -> Bool {
+        getMangaUpdate(
+            chapterId: chapterId,
+            context: context
+        ) != nil
+    }
+
+    /// Creates a new manga update object if does not exist
+    func createMangaUpdate(
+        mangaId: MangaIdentifier,
+        chapterObject: ChapterObject,
+        context: NSManagedObjectContext
+    ) {
+        if hasMangaUpdate(
+            chapterId: .init(
+                sourceKey: mangaId.sourceKey,
+                mangaKey: mangaId.mangaKey,
+                chapterKey: chapterObject.id
+            ),
+            context: context
+        ) {
+            return
+        }
+        let mangaUpdateObject = MangaUpdateObject(context: context)
+        mangaUpdateObject.sourceId = mangaId.sourceKey
+        mangaUpdateObject.mangaId = mangaId.mangaKey
+        mangaUpdateObject.chapterId = chapterObject.id
+        mangaUpdateObject.date = Date()
+        mangaUpdateObject.chapter = chapterObject
     }
 
     /// Creates updates in source order and returns the number of new feed entries.
@@ -130,8 +178,7 @@ extension CoreDataManager {
     }
 }
 
-/// The two library refresh paths share a write turn per title, from initial reads through save.
-/// Each operation keeps its own context and its existing save/error handling.
+/// Serializes library refresh writes per title, from initial reads through save.
 actor MangaUpdateWriter {
     static let shared = MangaUpdateWriter()
     private var waiting: [MangaIdentifier: [CheckedContinuation<Void, Never>]] = [:]

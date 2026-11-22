@@ -150,18 +150,24 @@ struct V2StageTests {
 
     // MARK: S6 removal mask, S7 inpaint
 
-    @Test func removalMaskErasesInkButNotTheBalloonOrBackgroundRole() {
-        let width = 400, height = 200
-        let strokes = [CGRect(x: 110, y: 82, width: 6, height: 36), CGRect(x: 130, y: 97, width: 40, height: 6)]
-        var rgba = [UInt8](repeating: 255, count: width * height * 4)
+    /// A white 400 x 200 RGBA page with black `strokes`.
+    private func inkPage(_ strokes: [CGRect]) -> [UInt8] {
+        var rgba = [UInt8](repeating: 255, count: 400 * 200 * 4)
         for stroke in strokes {
             for y in Int(stroke.minY)..<Int(stroke.maxY) {
                 for x in Int(stroke.minX)..<Int(stroke.maxX) {
-                    let i = (y * width + x) * 4
+                    let i = (y * 400 + x) * 4
                     rgba[i] = 0; rgba[i + 1] = 0; rgba[i + 2] = 0
                 }
             }
         }
+        return rgba
+    }
+
+    @Test func removalMaskErasesInkButNotTheBalloonOrBackgroundRole() {
+        let width = 400, height = 200
+        let strokes = [CGRect(x: 110, y: 82, width: 6, height: 36), CGRect(x: 130, y: 97, width: 40, height: 6)]
+        let rgba = inkPage(strokes)
         let region = CGRect(x: 100, y: 75, width: 170, height: 50)
         let mask = V2RemovalMask.build(rgba: rgba, width: width, height: height,
                                        blocks: [maskBlock(rect(100, 75, 170, 50), bounds: region)], layout: [])
@@ -182,14 +188,7 @@ struct V2StageTests {
     @Test func removalMaskSearchesPastTheLineEnd() {
         let width = 400, height = 200
         let stroke = CGRect(x: 288, y: 85, width: 6, height: 30)
-        var rgba = [UInt8](repeating: 255, count: width * height * 4)
-        for y in Int(stroke.minY)..<Int(stroke.maxY) {
-            for x in Int(stroke.minX)..<Int(stroke.maxX) {
-                let i = (y * width + x) * 4
-                rgba[i] = 0; rgba[i + 1] = 0; rgba[i + 2] = 0
-            }
-        }
-        let mask = V2RemovalMask.build(rgba: rgba, width: width, height: height,
+        let mask = V2RemovalMask.build(rgba: inkPage([stroke]), width: width, height: height,
                                        blocks: [maskBlock(rect(100, 75, 170, 50), bounds: CGRect(x: 100, y: 75, width: 170, height: 50))],
                                        layout: [])
         var erased = 0
@@ -510,7 +509,7 @@ struct V2StageTests {
     @Test func layoutKeepsKoreanPhrasesAndSitsOverTheSource() {
         // "할 수" must not break between 할 and the dependent noun 수 when the pair fits a line.
         let text = V2Layout.MeasuredText("그건 할 수 있어", font: V2Layout.font(size: V2Layout.referenceSize))
-        let probe = text.wrap(limit: text.paragraphs[0][0].width + text.spaceWidth + text.paragraphs[0][1].width + 1)
+        let probe = text.wrap(limits: { _ in text.paragraphs[0][0].width + text.spaceWidth + text.paragraphs[0][1].width + 1 })
         #expect(!probe.lines.contains { $0.hasPrefix("수") }, "\(probe.lines)")
         #expect(V2Layout.MeasuredText.couples("할", "수") && V2Layout.MeasuredText.couples("몇", "번"))
         // Compaction counts lone graphemes and split phrases when it picks among wraps.

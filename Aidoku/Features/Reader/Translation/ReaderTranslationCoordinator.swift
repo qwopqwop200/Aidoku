@@ -13,17 +13,6 @@ protocol ReaderTranslationOwner: AnyObject {
     func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout
 }
 
-extension ReaderTranslationOwner {
-    var translationPreviewPages: [ReaderTranslationPage] { [] }
-    var translationReadingDirection: V2ReadingDirection { .rightToLeft }
-    var translationPersistsCache: Bool { true }
-    func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout { .whole }
-    var translationCurrentPageIndex: Int {
-        guard let key = translationVisiblePages.first?.sourcePage?.translationCacheKey else { return 0 }
-        return translationUpcomingPages.firstIndex { $0.translationCacheKey == key } ?? 0
-    }
-}
-
 extension ReaderViewController: ReaderTranslationOwner {
     var translationPersistsCache: Bool { !isTemporaryImageSession }
     var translationReadingDirection: V2ReadingDirection {
@@ -75,17 +64,14 @@ final class ReaderTranslationCoordinator {
     private var scrollVisibilityTask: Task<Void, Never>?
     private var scrollVisibility: ScrollVisibility?
     private var navigationIdentity: String?
-    /// Reader open/resume has no navigation to settle; its first populated
-    /// viewport uses the short delay. Scrubbing and later jumps stay conservative.
+    /// Reader open/resume has no navigation to settle; its first populated viewport uses the short delay.
     private var initialSynchronizationPending = true
     private var isScrubbing = false
     private var navigationDebounce = ReaderTranslationNavigationDebounce()
     private let v2Pages = NSHashTable<ReaderTranslationPage>.weakObjects()
     /// V2 look-ahead consumers by the whole-page V2 cache key (pages after the viewport).
     private var v2Lookahead: [String: Task<Void, Never>] = [:]
-    /// Look-ahead keys already translated in this reading session. Without it every
-    /// synchronization re-decoded those source pages (and, when neither cache kept
-    /// the result, re-ran the whole pipeline and provider requests).
+    /// Look-ahead keys already translated in this session, so synchronization never re-decodes them.
     private var v2LookaheadFinished: Set<String> = []
     private let v2Loader: ReaderTranslationImageLoader
 
@@ -153,9 +139,7 @@ final class ReaderTranslationCoordinator {
         scrollVisibility = nil
     }
 
-    /// Scroll callbacks run at display frequency. Read the latest viewport at a
-    /// bounded cadence, without rehashing/reordering the chapter on every frame.
-    /// Image/settings notifications still use the immediate restoration path.
+    /// Scroll callbacks run at display frequency; read the latest viewport at a bounded cadence.
     func scrollVisibilityDidChange() {
         guard isVisible, scrollVisibilityTask == nil else { return }
         scrollVisibilityTask = Task { [weak self] in
@@ -260,19 +244,12 @@ final class ReaderTranslationCoordinator {
     func resume() { isVisible = true; visiblePagesDidChange() }
 
     func suspend() {
-        cancelScrollVisibility()
-        dismissFailureNotice()
-        isVisible = false
-        updateMetadataActivity(active: false)
-        cancelSynchronization()
+        // A completed departure releases the attached bitmaps; returning to the
+        // reader re-presents them from the V2 memory cache.
+        stop { $0.hideV2() }
         navigationDebounce.reset()
         navigationIdentity = nil
         initialSynchronizationPending = true
-        // A completed departure releases the attached bitmaps; returning to the
-        // reader re-presents them from the V2 memory cache.
-        v2Pages.allObjects.forEach { $0.hideV2() }
-        v2Pages.removeAllObjects()
-        cancelV2Lookahead()
     }
 
     /// Chapter changes: stop page work for the old chapter.
@@ -281,18 +258,21 @@ final class ReaderTranslationCoordinator {
         cancelV2Lookahead()
     }
 
+    /// The V2 models remain warm across readers; memory pressure releases them.
     func close() {
+        stop { $0.cancelV2Work() }
+        owner = nil
+    }
+
+    private func stop(_ releasePage: (ReaderTranslationPage) -> Void) {
         cancelScrollVisibility()
         dismissFailureNotice()
         cancelSynchronization()
         isVisible = false
         updateMetadataActivity(active: false)
-        v2Pages.allObjects.forEach { $0.cancelV2Work() }
+        v2Pages.allObjects.forEach(releasePage)
         v2Pages.removeAllObjects()
         cancelV2Lookahead()
-        owner = nil
-        // The V2 models remain warm across readers. Memory pressure is the
-        // resource-release boundary.
     }
 
     func sliderInteractionBegan() {
@@ -377,8 +357,7 @@ final class ReaderTranslationCoordinator {
 
     // MARK: Cached presentation
 
-    /// Returns a cached V2 page bitmap for the loader to attach in the same
-    /// commit as the source image, so a cached page never flashes the source.
+    /// A cached V2 page bitmap to attach in the same commit as the source image (no source flash).
     /// A miss returns nil and the page translates once it is visible.
     func prepareCachedImage(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage? {
         guard #available(iOS 18.0, *), let owner else { return nil }
@@ -414,11 +393,9 @@ final class ReaderTranslationCoordinator {
 // MARK: - Look-ahead
 
 extension ReaderTranslationCoordinator {
-    /// One page after the viewport while visible pages are pending, two once
-    /// they are presented (or in background-only mode), bounded by the
-    /// pretranslation limit. Results land in the V2 caches; a page that
-    /// becomes visible joins its running computation. Wide pages the reader
-    /// shows as halves are translated per half, in reading order.
+    /// One page after the viewport while visible pages are pending, two once they are presented
+    /// (or in background-only mode), bounded by the pretranslation limit. A page that becomes
+    /// visible joins its running computation. Wide pages shown as halves are translated per half.
     private func updateV2Lookahead() {
         guard #available(iOS 18.0, *), let owner, isVisible, owner.translationPersistsCache else {
             cancelV2Lookahead()
@@ -433,8 +410,7 @@ extension ReaderTranslationCoordinator {
         func key(_ page: Page, _ crop: CGRect = unit) -> String {
             ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: crop, settings: settings)
         }
-        // Visible pages keep any look-ahead already running for them: their
-        // demand joins (and promotes) that computation instead of restarting.
+        // Visible pages join (and promote) any look-ahead already running for them.
         let retained = Set(targets.map { key($0) }).union(owner.translationVisiblePages.compactMap { $0.sourcePage.map { key($0) } })
         for (stale, task) in v2Lookahead where !retained.contains(stale) {
             task.cancel()
@@ -474,9 +450,8 @@ extension ReaderTranslationCoordinator {
         }
     }
 
-    /// The crops a look-ahead page is translated under: the whole page, or both
-    /// halves (reading order first) when the reader splits wide pages.
-    nonisolated static func v2LookaheadCrops(
+    /// The whole page, or both halves (reading order first) when the reader splits wide pages.
+    private nonisolated static func v2LookaheadCrops(
         imageSize: CGSize, splitsWidePages: Bool, direction: V2ReadingDirection
     ) -> [CGRect] {
         guard splitsWidePages, imageSize.height > 0, imageSize.width / imageSize.height > 1 else {
@@ -487,20 +462,12 @@ extension ReaderTranslationCoordinator {
         return direction == .rightToLeft ? [right, left] : [left, right]
     }
 
-    static func v2LookaheadPages(
+    private static func v2LookaheadPages(
         upcoming: [Page], visible: [ReaderTranslationPage], currentIndex: Int, settings: ReaderTranslationSettings
     ) -> [Page] {
-        let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
-        let allPresented = !visible.isEmpty && visible.allSatisfy(\.isPresentingV2)
-        return v2LookaheadPages(upcoming: upcoming, visibleKeys: visibleKeys, currentIndex: currentIndex,
-                                visiblePresented: allPresented, settings: settings)
-    }
-
-    nonisolated static func v2LookaheadPages(
-        upcoming: [Page], visibleKeys: Set<String>, currentIndex: Int, visiblePresented: Bool,
-        settings: ReaderTranslationSettings
-    ) -> [Page] {
         guard settings.shouldProcessReaderPages else { return [] }
+        let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
+        let visiblePresented = !visible.isEmpty && visible.allSatisfy(\.isPresentingV2)
         let backgroundOnly = !settings.automaticallyTranslate && settings.translateInBackground
         var count = backgroundOnly || visiblePresented ? 2 : 1
         count = V2PerformanceProfile.current.lookaheadCount(automatic: count)

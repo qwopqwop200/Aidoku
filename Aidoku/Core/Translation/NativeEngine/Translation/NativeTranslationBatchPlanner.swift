@@ -35,10 +35,7 @@ enum NativeTranslationBatchPlanner {
                 cursor += 1
             }
             guard !selection.isEmpty else {
-                // `admissibleSegmentIndices` already rejects an individually
-                // unsafe segment. Keep this defensive progress guarantee so a
-                // future hard-limit change cannot trap the planner in a loop.
-                cursor += 1
+                cursor += 1 // Progress guarantee if the hard limits ever change.
                 continue
             }
 

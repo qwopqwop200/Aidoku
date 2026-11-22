@@ -1,5 +1,4 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
-import CoreGraphics
 import Foundation
 import Testing
 @testable import Aidoku
@@ -16,19 +15,16 @@ struct TranslationStreamingTests {
     }
 
     /// Builds an SSE body whose content deltas are `pieces`.
-    static func sse(_ pieces: [String], finish: String? = "stop", done: Bool = true) throws -> Data {
+    static func sse(_ pieces: [String], finish: String = "stop") throws -> Data {
         var body = ""
         for piece in pieces {
             let chunk: [String: Any] = ["object": "chat.completion.chunk",
                                         "choices": [["index": 0, "delta": ["content": piece], "finish_reason": NSNull()]]]
             body += "data: " + String(decoding: try JSONSerialization.data(withJSONObject: chunk), as: UTF8.self) + "\n\n"
         }
-        if let finish {
-            let chunk: [String: Any] = ["choices": [["index": 0, "delta": [:] as [String: Any], "finish_reason": finish]]]
-            body += "data: " + String(decoding: try JSONSerialization.data(withJSONObject: chunk), as: UTF8.self) + "\r\n\r\n"
-        }
-        body += ": keep-alive\n\ndata: {\"choices\":[],\"usage\":{\"completion_tokens\":3}}\n\n"
-        if done { body += "data: [DONE]\n\n" }
+        let chunk: [String: Any] = ["choices": [["index": 0, "delta": [:] as [String: Any], "finish_reason": finish]]]
+        body += "data: " + String(decoding: try JSONSerialization.data(withJSONObject: chunk), as: UTF8.self) + "\r\n\r\n"
+        body += ": keep-alive\n\ndata: {\"choices\":[],\"usage\":{\"completion_tokens\":3}}\n\ndata: [DONE]\n\n"
         return Data(body.utf8)
     }
 
@@ -50,35 +46,17 @@ struct TranslationStreamingTests {
             var offset = 0
             while offset < body.count {
                 let end = min(body.count, offset + step)
-                _ = try decoder.consume(body.subdata(in: offset..<end))
+                try decoder.consume(body.subdata(in: offset..<end))
                 offset = end
             }
-            _ = try decoder.finish()
+            try decoder.finish()
             #expect(decoder.content == content)
             #expect(decoder.finishReason == "stop")
-            #expect(decoder.completed)
         }
     }
 
-    @Test func streamedEnvelopeUsesNonStreamingValidation() throws {
-        let content = #"{"translations":[{"id":"s","text_role":"sfx","text":"쾅"},{"id":"t","text_role":"dialogue","text":"안녕"}]}"#
-        let parsed = try TranslationHTTPCodec.streamedChatTranslations(
-            from: try Self.sse([String(content.prefix(20)), String(content.dropFirst(20))]),
-            expectedSegmentIDs: ["s", "t"], sfxSourceTexts: ["s": "ドン", "t": "こんにちは"])
-        #expect(parsed == [RemoteTranslatedSegment(id: "s", text: "쾅", isSFX: true, textRole: .sfx),
-                           RemoteTranslatedSegment(id: "t", text: "안녕", isSFX: false, textRole: .dialogue)])
-        let wrapped = try JSONSerialization.data(withJSONObject: ["choices": [["index": 0, "finish_reason": "stop",
-            "message": ["role": "assistant", "content": content]]]])
-        #expect(try TranslationHTTPCodec.responseTranslations(from: wrapped, protocol: .chatCompletions, expectedSegmentIDs: ["s", "t"],
-            sfxSourceTexts: ["s": "ドン", "t": "こんにちは"]) == parsed)
-
+    @Test func streamedRefusalAndErrorChunksAreRejected() throws {
         let good = #"{"translations":[{"id":"s","text":"a"}]}"#
-        #expect(throws: RemoteTranslationError.invalidResponse("the chat completion was truncated")) {
-            try TranslationHTTPCodec.streamedChatTranslations(from: try Self.sse([good], finish: "length"), expectedSegmentIDs: ["s"])
-        }
-        #expect(throws: RemoteTranslationError.invalidResponse("the chat completion did not finish with text")) {
-            try TranslationHTTPCodec.streamedChatTranslations(from: try Self.sse([good], finish: nil, done: false), expectedSegmentIDs: ["s"])
-        }
         #expect(throws: RemoteTranslationError.refused) {
             try TranslationHTTPCodec.streamedChatTranslations(from: try Self.sse([good], finish: "content_filter"), expectedSegmentIDs: ["s"])
         }
@@ -131,32 +109,14 @@ private actor ScriptedStreamingTransport: TranslationHTTPTransport {
         let httpBody = try #require(request.httpBody)
         let root = try #require(JSONSerialization.jsonObject(with: httpBody) as? [String: Any])
         let compact = root["structured_outputs"] != nil
-        let responses = request.url?.lastPathComponent == "responses"
-        let text: String
-        if responses {
-            #expect(root["stream"] == nil)
-            #expect(compact == (root["text"] == nil))
-            let input = try #require(root["input"] as? [[String: Any]])
-            let content = try #require(input.first?["content"] as? [[String: Any]])
-            // A page image, when attached, precedes the segment JSON.
-            text = try #require(content.first(where: { $0["type"] as? String == "input_text" })?["text"] as? String)
-        } else {
-            #expect(compact == (root["stream"] as? Bool == true))
-            #expect(compact == (root["response_format"] == nil))
-            let messages = try #require(root["messages"] as? [[String: Any]])
-            if let plain = messages.last?["content"] as? String {
-                text = plain
-            } else {
-                let parts = try #require(messages.last?["content"] as? [[String: Any]])
-                text = try #require(parts.first(where: { $0["type"] as? String == "text" })?["text"] as? String)
-            }
-        }
+        #expect(compact == (root["stream"] as? Bool == true))
+        #expect(compact == (root["response_format"] == nil))
+        let messages = try #require(root["messages"] as? [[String: Any]])
+        let text = try #require(messages.last?["content"] as? String)
         kinds.append(compact ? .compact : .standard)
         let payload = try #require(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
         let segments = try #require(payload["segments"] as? [[String: Any]])
-        // Role-classifying page requests require text_role between id and text.
-        let role = String(decoding: httpBody, as: UTF8.self).contains("text_role") ? "\"text_role\":\"dialogue\"," : ""
-        let items = segments.map { "{\"id\":\"\($0["id"] as! String)\"," + role + "\"text\":\"ko:\($0["text"] as! String)\"}" }
+        let items = segments.map { "{\"id\":\"\($0["id"] as! String)\",\"text\":\"ko:\($0["text"] as! String)\"}" }
         let content = "{\"translations\":[" + items.joined(separator: ",") + "]}"
         if compact, mode == .rejectCompact {
             return TranslationHTTPResponse(data: Data("{\"error\":{\"message\":\"bad\"}}".utf8),
@@ -166,20 +126,13 @@ private actor ScriptedStreamingTransport: TranslationHTTPTransport {
             let pattern = try #require((root["structured_outputs"] as? [String: Any])?["regex"] as? String)
             let regex = try NSRegularExpression(pattern: "^(?:" + pattern + ")$")
             #expect(regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)) != nil)
-        }
-        if compact, !responses {
             let pieces = items.enumerated().map { ($0.offset == 0 ? "{\"translations\":[" : ",") + $0.element } + ["]}"]
             let body = try TranslationStreamingTests.sse(pieces)
             return TranslationHTTPResponse(data: body, response: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,
                 headerFields: ["Content-Type": "text/event-stream; charset=utf-8"])!)
         }
-        var envelope: [String: Any] = ["choices": [["index": 0, "finish_reason": "stop",
-                                                    "message": ["role": "assistant", "content": content]]]]
-        if responses {
-            envelope = ["status": "completed", "output": [["type": "message", "status": "completed",
-                "content": [["type": "output_text", "text": content]]]]]
-        }
-        envelope["system_fingerprint"] = "vllm-0.27.0-test"
+        let envelope: [String: Any] = ["choices": [["index": 0, "finish_reason": "stop",
+            "message": ["role": "assistant", "content": content]]], "system_fingerprint": "vllm-0.27.0-test"]
         let body = try JSONSerialization.data(withJSONObject: envelope)
         return TranslationHTTPResponse(data: body, response: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"])!)

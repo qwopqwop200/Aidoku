@@ -1,12 +1,10 @@
 import CoreGraphics
 import Foundation
 
-/// Geometry-only local coordinates. No page IDs, labels, text substitutions,
-/// detector confidence changes, or automatic upside-down text classification.
 enum NativeOCRDirectionGeometry {
     /// Keep a valid directed cycle exactly. For an unordered input, recover a
     /// cycle anchored at the supplied first vertex, not screen-left halves.
-    static func cycle(_ points: [CGPoint]) -> [CGPoint]? {
+    private static func cycle(_ points: [CGPoint]) -> [CGPoint]? {
         guard points.count == 4, points.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { return nil }
         func turns(_ p: [CGPoint]) -> [CGFloat] {
             (0..<4).map { i in

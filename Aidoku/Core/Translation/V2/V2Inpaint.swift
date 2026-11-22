@@ -2,15 +2,9 @@ import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
 
-// S7: AOT-GAN 1024 FP16 restoration of the S6 removal mask.
-//
-// One prediction per page. The mask regions (16-px cells with context) are
-// packed as a mosaic into the 1024 canvas at native resolution when they fit
-// (else at the least downscale; the whole-page 1024 downscale blurred fills
-// and seams). Per patch the transport is the legacy NativeResidentAOT seam:
-// integer-area downscale (any-hit binary mask, masked RGB zeroed, edge-extended
-// padding), then clamped half-pixel bilinear upsampling of `raw_rgb` written
-// ONLY at mask pixels. Every pixel outside the mask is byte-identical to the input.
+// S7: AOT-GAN 1024 FP16 restoration of the S6 removal mask, one prediction per page. Mask regions
+// are packed as a mosaic into the 1024 canvas (native resolution when they fit), and the bilinear
+// upsampled prediction is written only at mask pixels; every other pixel is unchanged.
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2AOTModel: @unchecked Sendable {
@@ -46,16 +40,14 @@ final class V2AOTModel: @unchecked Sendable {
         options.outputBackings = ["raw_rgb": output]
     }
 
-    /// Synchronous restore straight into the bytes of the returned image; call through `executor`.
-    /// `removal` is page-sized, nonzero = erase. One prediction covers every mask region: the
-    /// `mosaic` patches are packed into one model canvas and scattered back to their page rects.
+    /// Synchronous restore of `removal` (page-sized, nonzero = erase); call through `executor`.
     func restoreImage(_ raster: V2PageRaster, removal: [UInt8]) throws -> CGImage {
         guard removal.count == raster.width * raster.height else { throw Failure.maskSize }
         let width = raster.width, height = raster.height
         var data = raster.rgba.withUnsafeBytes { Data($0) }
         let patches = Self.mosaic(removal, width: width, height: height)
         guard let first = patches.first else { return try V2PageRaster.image(data, width: width, height: height) }
-        // A packed patch carries a `pad` border; the single unpacked patch at the origin needs none.
+        // The single unpacked patch at the origin needs no `pad` border.
         let pad = first.origin == (0, 0) ? 0 : Self.pad
         let cw = patches.map { $0.origin.0 + $0.size.0 }.max()! + pad
         let ch = patches.map { $0.origin.1 + $0.size.1 }.max()! + pad
@@ -83,13 +75,11 @@ final class V2AOTModel: @unchecked Sendable {
         var size: (Int, Int)
     }
 
-    /// Context margins tried, widest first, and the replicated border around each packed patch
-    /// (without it a patch's fill reads its canvas neighbour as context).
+    /// Context margins tried, widest first, and the replicated border around each packed patch.
     static let margins = [384, 256, 160, 96, 64]
     static let pad = 16
 
-    /// Integer-area downscale (the `fill` arithmetic) of `patch.rect` into the canvas with the any-hit
-    /// mask, then its edge pixels replicated `pad` px outward (unmasked).
+    /// Integer-area downscale of `patch.rect` into the canvas (any-hit mask), edges replicated `pad` px.
     static func downscale(_ rgba: [UInt8], mask: [UInt8], width: Int, patch: Patch, pad: Int,
                           into canvas: inout [UInt8], canvasMask: inout [UInt8], canvasWidth: Int) {
         let (x0, y0, x1, y1) = patch.rect, (pw, ph) = patch.size, (ox, oy) = patch.origin
@@ -123,10 +113,8 @@ final class V2AOTModel: @unchecked Sendable {
         }
     }
 
-    /// Disjoint page rects covering `mask`: each occupied 16-px cell plus a context margin, merged
-    /// while they overlap. They are shelf-packed (with `pad` borders) into one model side at native
-    /// resolution with the widest margin that fits, else at the largest scale (steps of 0.9, smallest
-    /// margin) above that of the union of all rects; failing both, the union is the single patch.
+    /// Merged 16-px mask cells plus a context margin, shelf-packed into one model side at native
+    /// resolution (widest margin that fits), else at the largest 0.9-step scale, else the union.
     static func mosaic(_ mask: [UInt8], width: Int, height: Int) -> [Patch] {
         let cell = 16
         let columns = (width + cell - 1) / cell, rows = (height + cell - 1) / cell
@@ -198,88 +186,40 @@ final class V2AOTModel: @unchecked Sendable {
         return content
     }
 
-    /// Legacy `fillInputTensors` with 4-component input. Returns the content size.
+    /// Legacy `fillInputTensors` for a canvas that fits the model (masked RGB zeroed, edges
+    /// extended). Returns the content size.
     static func fill(rgba: [UInt8], mask binaryMask: [UInt8], width: Int, height: Int,
                      image: MLMultiArray, maskTensor: MLMultiArray) -> (Int, Int) {
+        precondition(width > 0 && height > 0 && width <= side && height <= side)
         let plane = side * side
-        let scale = min(1, Double(side) / Double(max(width, height)))
-        let sw = min(side, max(1, Int(ceil(Double(width) * scale))))
-        let sh = min(side, max(1, Int(ceil(Double(height) * scale))))
-        let ip = image.dataPointer.assumingMemoryBound(to: Float16.self)
-        let mp = maskTensor.dataPointer.assumingMemoryBound(to: Float16.self)
-        let horizontal = (0..<sw).map { x in (x * width / sw, min(width, ((x + 1) * width + sw - 1) / sw)) }
-        var bottom = [Float16](repeating: 0, count: sh < side ? sw * 3 : 0)
+        nonisolated(unsafe) let ip = image.dataPointer.assumingMemoryBound(to: Float16.self)
+        nonisolated(unsafe) let mp = maskTensor.dataPointer.assumingMemoryBound(to: Float16.self)
         rgba.withUnsafeBufferPointer { pixelBuffer in
             binaryMask.withUnsafeBufferPointer { maskBuffer in
-                bottom.withUnsafeMutableBufferPointer { bottomBuffer in
-                    nonisolated(unsafe) let pixels = pixelBuffer.baseAddress!
-                    nonisolated(unsafe) let masks = maskBuffer.baseAddress!
-                    nonisolated(unsafe) let saved = bottomBuffer.baseAddress
-                    nonisolated(unsafe) let ip = ip
-                    nonisolated(unsafe) let mp = mp
-                    @Sendable func rows(_ first: Int, _ last: Int) {
-                        for y in first..<last {
-                            let y0 = y * height / sh, y1 = min(height, ((y + 1) * height + sh - 1) / sh)
-                            let rowOffset = y * side
-                            let saveBottom = y == sh - 1 && sh < side
-                            var edge: (Float16, Float16, Float16) = (0, 0, 0)
-                            for x in 0..<sw {
-                                let (x0, x1) = horizontal[x]
-                                var sums = (0, 0, 0)
-                                var union: UInt8 = 0
-                                for yy in y0..<y1 {
-                                    for xx in x0..<x1 {
-                                        let p = yy * width + xx
-                                        let color = pixels + p * 4
-                                        sums.0 &+= Int(color[0])
-                                        sums.1 &+= Int(color[1])
-                                        sums.2 &+= Int(color[2])
-                                        union |= masks[p]
-                                    }
-                                }
-                                let hit = union != 0
-                                let count = Float((y1 - y0) * (x1 - x0)), p = rowOffset + x
-                                let n0 = (Float(sums.0) / count) / Float(127.5) - Float(1)
-                                let n1 = (Float(sums.1) / count) / Float(127.5) - Float(1)
-                                let n2 = (Float(sums.2) / count) / Float(127.5) - Float(1)
-                                mp[p] = hit ? 1 : 0
-                                ip[p] = Float16(n0 * (hit ? 0 : 1))
-                                ip[plane + p] = Float16(n1 * (hit ? 0 : 1))
-                                ip[2 * plane + p] = Float16(n2 * (hit ? 0 : 1))
-                                if saveBottom {
-                                    saved![x] = Float16(n0); saved![sw + x] = Float16(n1); saved![2 * sw + x] = Float16(n2)
-                                }
-                                if x == sw - 1 { edge = (Float16(n0), Float16(n1), Float16(n2)) }
-                            }
-                            for x in sw..<side {
-                                let p = rowOffset + x
-                                mp[p] = 0
-                                ip[p] = edge.0; ip[plane + p] = edge.1; ip[2 * plane + p] = edge.2
+                nonisolated(unsafe) let pixels = pixelBuffer.baseAddress!
+                nonisolated(unsafe) let masks = maskBuffer.baseAddress!
+                let lanes = 8
+                DispatchQueue.concurrentPerform(iterations: lanes) { lane in
+                    for y in (side * lane / lanes)..<(side * (lane + 1) / lanes) {
+                        let row = min(y, height - 1) * width
+                        for x in 0..<side {
+                            let p = row + min(x, width - 1), t = y * side + x
+                            let hit = x < width && y < height && masks[p] != 0
+                            mp[t] = hit ? 1 : 0
+                            for c in 0..<3 {
+                                let value = Float(pixels[p * 4 + c]) / Float(127.5) - Float(1)
+                                ip[c * plane + t] = Float16(value * (hit ? 0 : 1))
                             }
                         }
-                    }
-                    let lanes = 8
-                    DispatchQueue.concurrentPerform(iterations: lanes) { lane in
-                        rows(sh * lane / lanes, sh * (lane + 1) / lanes)
                     }
                 }
             }
         }
-        for y in sh..<side {
-            let rowOffset = y * side
-            for x in 0..<side {
-                let p = rowOffset + x, tx = min(x, sw - 1)
-                mp[p] = 0
-                ip[p] = bottom[tx]; ip[plane + p] = bottom[sw + tx]; ip[2 * plane + p] = bottom[2 * sw + tx]
-            }
-        }
-        return (sw, sh)
+        return (width, height)
     }
 
-    /// Legacy `scatter`: bilinear restore of mask pixels only (RGBA, alpha untouched).
-    /// Rows run in parallel with the legacy per-pixel arithmetic (column taps precomputed).
-    /// `region` (x0, y0, x1, y1) limits the restore to that page rect, read from the `content`-sized
-    /// prediction at `origin` (default: the whole page from the top-left).
+    /// Bilinear restore of mask pixels only, within `region` (default: the page), read from the
+    /// `content`-sized prediction at `origin`.
     static func scatter(into restored: UnsafeMutableBufferPointer<UInt8>, mask: [UInt8], width: Int, height: Int,
                         raw: MLMultiArray, content: (Int, Int), region: (Int, Int, Int, Int)? = nil,
                         origin: (Int, Int) = (0, 0)) throws {
@@ -288,7 +228,6 @@ final class V2AOTModel: @unchecked Sendable {
         let w = right - left, h = bottom - top
         let strides = raw.strides.map(\.intValue)
         let channel = strides[1], rowStride = strides[2], columnStride = strides[3]
-        // Column taps: (x0, x1) offsets into a channel row and the weight, as in the per-pixel legacy loop.
         var taps = [(Int, Int, Double)](repeating: (0, 0, 0), count: w)
         for x in 0..<w {
             let sx = min(Float(sw - 1), max(0, (Float(x) + 0.5) * Float(sw) / Float(w) - 0.5))

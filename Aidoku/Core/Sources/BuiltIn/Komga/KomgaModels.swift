@@ -105,8 +105,7 @@ extension KomgaSearchCondition: Encodable {
                 try container.encode(ConditionValue(operator: exclude ? "isNot" : "is", value: readStatus.rawValue), forKey: .readStatus)
             case .releaseDate(let year, let exclude):
                 if let year {
-                    // Server-provided filter IDs can contain any Int. Validate both
-                    // neighbors before Calendar or Date.lastOf performs arithmetic.
+                    // Server-provided filter IDs can be any Int; avoid overflow in the year arithmetic.
                     let nextYear = year.addingReportingOverflow(1)
                     let previousYear = year.subtractingReportingOverflow(1)
                     guard !nextYear.overflow, !previousYear.overflow else {

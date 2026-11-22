@@ -367,9 +367,7 @@ extension ReaderPagedViewController {
             }
         }
 
-        // A replaced controller may still own a source load or be waiting for
-        // translation geometry that the discarded view will never receive.
-        // Preserve only controllers actually transferred to the new store.
+        // Release controllers that were not transferred to the new store.
         for (_, controller) in previousControllers.materialized where !pageViewControllers.contains(controller) {
             controller.clearPage()
         }
@@ -540,8 +538,7 @@ extension ReaderPagedViewController {
     }
 
     func loadPages(in range: ClosedRange<Int>) {
-        // Rebase decoded images and in-flight loads on every completed navigation.
-        // Visible controllers remain protected during UIKit's transition callback.
+        // Rebase loads on every navigation; visible controllers stay protected mid-transition.
         let visibleControllers = visiblePageControllers()
         let visible = Set(visibleControllers.map(ObjectIdentifier.init)).union(transitionPageIDs)
         var visiblePages = Set(visibleControllers.compactMap { controller in
@@ -574,8 +571,7 @@ extension ReaderPagedViewController {
 
     /// Fetch the first `pageCount` pages of the next chapter ahead of time.
     func preloadNextChapter(pageCount: Int, isVisibleTransition: Bool = false) {
-        // The chapter transition needs its first image even when speculative
-        // lookahead is disabled, so the next swipe never targets an unloaded preview.
+        // The transition page needs the first image even with lookahead disabled.
         let limit = max(isVisibleTransition ? 1 : 0, pagesToPreload)
         let pageCount = min(pageCount, limit)
         guard pageCount > 0, let nextChapter else { return }
@@ -753,15 +749,28 @@ extension ReaderPagedViewController {
         let reverseOrderSetting = UserDefaults.standard.bool(forKey: "Reader.reverseSplitOrder")
         let reverseOrder = readingMode == .rtl ? reverseOrderSetting : !reverseOrderSetting
         let originalPage = viewModel.pages[safe: pageIndex - 1] ?? viewModel.pages.first
+        let originalKey = split.originalKey ?? originalPage?.translationCacheKey
 
-        func makePage(_ half: ReaderTranslationSplitSource.Half) -> Page {
-            Page(sourceId: sourceId, chapterId: chapterId, index: pageIndex,
-                 image: half.image, language: originalPage?.language,
-                 translationOriginalKey: split.originalKey ?? originalPage?.translationCacheKey,
-                 translationSourceRect: half.crop, translationSplitSource: half.source)
-        }
-        let leftPage = makePage(split.left)
-        let rightPage = makePage(split.right)
+        let leftPage = Page(
+            sourceId: sourceId,
+            chapterId: chapterId,
+            index: pageIndex,
+            image: split.left.image,
+            language: originalPage?.language,
+            translationOriginalKey: originalKey,
+            translationSourceRect: split.left.crop,
+            translationSplitSource: split.left.source
+        )
+        let rightPage = Page(
+            sourceId: sourceId,
+            chapterId: chapterId,
+            index: pageIndex,
+            image: split.right.image,
+            language: originalPage?.language,
+            translationOriginalKey: originalKey,
+            translationSourceRect: split.right.crop,
+            translationSplitSource: split.right.source
+        )
         return reverseOrder ? [leftPage, rightPage] : [rightPage, leftPage]
     }
 
@@ -1115,13 +1124,10 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
            let settledIndex = getIndex(of: settledController, pos: .first) {
             let settledPage = pageIndex(from: settledIndex)
             if (1...max(1, displayPageCount)).contains(settledPage) {
-                // An aborted drag restores the actual settled content window.
-                // currentPage intentionally remains the last content page while
-                // a chapter transition screen is displayed.
+                // An aborted drag restores the settled window (currentPage stays on the last content page).
                 loadPages(in: navigationWindow.range(at: settledPage, lookahead: pagesToPreload, doublePages: usesDoublePages))
             } else if settledPage == displayPageCount + 1 {
-                // Do not cancel mandatory chapter preview work by rebasing onto
-                // the stale last content page, particularly with zero lookahead.
+                // Keep mandatory chapter preview work, even with zero lookahead.
                 preloadNextChapter(pageCount: max(1, pagesToPreload), isVisibleTransition: true)
             }
         }
@@ -1251,8 +1257,7 @@ extension ReaderPagedViewController: UIPageViewControllerDelegate {
                 loadPage(at: page)
             }
         }
-        // The incoming view is already exposed during an interactive drag.
-        // Bind cached composite pixels now, without changing translation demand.
+        // The incoming view is already exposed during a drag; bind cached translated pixels now.
         delegate?.translationVisibilityDidChange()
     }
 }
@@ -1584,8 +1589,7 @@ extension ReaderPagedViewController {
         Task { [weak self] in
             let stored = await store.storeSplitPages(pages, chapterKey: key, pageIndex: pageIndex)
             guard let self else { return }
-            // If storage fails, keep the admission slot occupied: allocating more
-            // split images without being able to offload them would be unbounded.
+            // On storage failure keep the slot occupied, bounding unoffloaded split images.
             guard let stored else { return }
             splitPersistenceCount -= 1
             if splitPageCacheKey == key, splitPages[pageIndex] == pages {
@@ -1652,8 +1656,7 @@ extension ReaderPagedViewController {
     }
 }
 
-/// Keep the same image budget while moving lookahead toward sustained navigation.
-/// A single opposite turn is often a quick reread; two establish a new direction.
+/// Moves lookahead toward sustained navigation; two opposite turns change direction.
 private struct ReaderPagedNavigationWindow {
     private var anchor: Int?
     private var direction = 1

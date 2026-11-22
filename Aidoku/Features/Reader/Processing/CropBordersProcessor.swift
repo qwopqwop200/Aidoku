@@ -36,44 +36,72 @@ struct CropBordersProcessor: ImageProcessing {
     }
 
     func createCropRect(_ cgImage: CGImage, scale: CGFloat = 1) -> CGRect {
-        guard scale.isFinite, scale > 0 else { return .zero }
         let height = cgImage.height
         let width = cgImage.width
-
-        var lowX = width
-        var lowY = height
-        var highX = -1
-        var highY = -1
+        let heightFloat = CGFloat(height)
+        let widthFloat = CGFloat(width)
         // Native resolution preserves one-pixel strokes without a full-page RGBA
         // allocation. At most 128 scanlines are decoded into scratch storage.
         let stripHeight = min(128, height)
-        guard let context = createARGBBitmapContext(width: width, height: stripHeight),
-              let data = context.data?.assumingMemoryBound(to: UInt8.self) else { return .zero }
-        for originY in stride(from: 0, to: height, by: stripHeight) {
-            let rows = min(stripHeight, height - originY)
-            guard let strip = cgImage.cropping(to: CGRect(x: 0, y: originY, width: width, height: rows)) else { return .zero }
-            context.clear(CGRect(x: 0, y: 0, width: width, height: stripHeight))
-            context.draw(strip, in: CGRect(x: 0, y: stripHeight - rows, width: width, height: rows))
-            for y in 0..<rows {
-                for x in 0..<width {
-                    let offset = (y * width + x) * 4
-                    if data[offset] == 0 { continue }
-                    let red = data[offset + 1]
-                    let green = data[offset + 2]
-                    let blue = data[offset + 3]
-                    if red > whiteThreshold && green > whiteThreshold && blue > whiteThreshold { continue }
-                    if red < blackThreshold && green < blackThreshold && blue < blackThreshold { continue }
-                    lowX = min(x, lowX)
-                    highX = max(x, highX)
-                    lowY = min(originY + y, lowY)
-                    highY = max(originY + y, highY)
+
+        guard
+            let context = createARGBBitmapContext(width: width, height: stripHeight),
+            let data = context.data?.assumingMemoryBound(to: UInt8.self)
+        else {
+            return CGRect.zero
+        }
+
+        var lowX = widthFloat
+        var lowY = heightFloat
+        var highX: CGFloat = -1
+        var highY: CGFloat = -1
+
+        // Filter through data and look for non-transparent pixels.
+        for y in 0 ..< height {
+            let row = y % stripHeight
+            if row == 0 {
+                let rows = min(stripHeight, height - y)
+                guard let strip = cgImage.cropping(to: CGRect(x: 0, y: y, width: width, height: rows)) else { return .zero }
+                context.clear(CGRect(x: 0, y: 0, width: width, height: stripHeight))
+                context.draw(strip, in: CGRect(x: 0, y: stripHeight - rows, width: width, height: rows))
+            }
+            let y = CGFloat(y)
+
+            for x in 0 ..< width {
+                let x = CGFloat(x)
+                let pixelIndex = (widthFloat * CGFloat(row) + x) * 4 /* 4 for A, R, G, B */
+
+                // crop transparent
+                if data[Int(pixelIndex)] == 0 { continue }
+
+                // crop white
+                if
+                    data[Int(pixelIndex+1)] > whiteThreshold
+                    && data[Int(pixelIndex+2)] > whiteThreshold
+                    && data[Int(pixelIndex+3)] > whiteThreshold
+                {
+                    continue
                 }
+
+                // crop black
+                if
+                    data[Int(pixelIndex+1)] < blackThreshold
+                    && data[Int(pixelIndex+2)] < blackThreshold
+                    && data[Int(pixelIndex+3)] < blackThreshold
+                {
+                    continue
+                }
+
+                lowX = min(x, lowX)
+                highX = max(x, highX)
+
+                lowY = min(y, lowY)
+                highY = max(y, highY)
             }
         }
 
         guard highX >= lowX, highY >= lowY else { return .zero }
-        return CGRect(x: CGFloat(lowX) / scale, y: CGFloat(lowY) / scale,
-            width: CGFloat(highX - lowX + 1) / scale, height: CGFloat(highY - lowY + 1) / scale)
+        return CGRect(x: lowX / scale, y: lowY / scale, width: (highX - lowX + 1) / scale, height: (highY - lowY + 1) / scale)
     }
 
     func createARGBBitmapContext(width: Int, height: Int) -> CGContext? {

@@ -151,9 +151,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             ]
         )
         AppSettings.registerDefaults()
-        // One-time cleanup of the retired legacy page pipeline: its cache rows
-        // (V2 page rows and metadata stay), compiled copies of the unused OCR
-        // tiers, and its preference keys. Each step is idempotent.
+        // Idempotent cleanup of the retired legacy page pipeline's cache rows, OCR tiers and keys.
         ReaderTranslationSettings.retiredKeys.forEach(UserDefaults.standard.removeObject(forKey:))
         Task(priority: .background) {
             try? await ReaderTranslationDiskCache.shared.purgeLegacyPipelineRows()
@@ -572,9 +570,56 @@ extension AppDelegate {
                     }
                 }
             } else {
-                Task {
+                // todo: we should support opening items in library even if the source isn't installed
+                Task { @MainActor in
                     await sourceStartup.value
-                    await handleSourceURL(url)
+                    guard let host = url.host, let source = await SourceManager.shared.source(for: host) else {
+                        // check for tracker auth callback
+                        // this shouldn't really be called since authentication should be performed within the app
+                        if let tracker = TrackerManager.trackers.first(where: {
+                            ($0 as? OAuthTracker)?.callbackHost == url.host
+                        }) as? OAuthTracker {
+                            await tracker.handleAuthenticationCallback(url: url)
+                        } else {
+                            await handleDeepLink(url: url)
+                        }
+                        return
+                    }
+                    // support percent encoding characters like "/" for manga and chapter keys
+                    let pathComponents = url.percentEncodedPath
+                        .split(separator: "/")
+                        .map { String($0).removingPercentEncoding ?? String($0) }
+
+                    if !pathComponents.isEmpty { // /sourceId/mangaId
+                        let mangaKey = pathComponents[0]
+                        guard
+                            let navigationController,
+                            let manga = try? await source.getMangaUpdate(
+                                manga: AidokuRunner.Manga(sourceKey: source.id, key: mangaKey, title: ""),
+                                needsDetails: true,
+                                needsChapters: false
+                            )
+                        else {
+                            return
+                        }
+                        let chapterKey = pathComponents[safe: 1]
+                        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                        let action = components?.queryItems?.first(where: { $0.name == "action" })?.value.flatMap(MangaView.OpenAction.init)
+
+                        navigationController.pushViewController(
+                            MangaViewController(
+                                source: source,
+                                manga: manga,
+                                parent: navigationController.topViewController,
+                                chapterKey: chapterKey, // /sourceId/mangaId/chapterId
+                                openAction: action // ?action={read,readNext,readLatest}
+                            ),
+                            animated: true
+                        )
+                    } else { // /sourceId
+                        let vc = NewSourceViewController(source: source)
+                        navigationController?.pushViewController(vc, animated: true)
+                    }
                 }
             }
         } else if url.pathExtension == "aix" {
@@ -638,50 +683,6 @@ extension AppDelegate {
             Task {
                 await handleDeepLink(url: url)
             }
-        }
-    }
-
-    func handleSourceURL(_ url: URL) async {
-        if let host = url.host, let source = await SourceManager.shared.source(for: host) {
-            // support percent encoding characters like "/" for manga and chapter keys
-            let pathComponents = url.percentEncodedPath
-                .split(separator: "/")
-                .map { String($0).removingPercentEncoding ?? String($0) }
-
-            if !pathComponents.isEmpty { // /sourceId/mangaId
-                let mangaKey = pathComponents[0]
-                guard
-                    let navigationController,
-                    let manga = try? await source.getMangaUpdate(
-                        manga: AidokuRunner.Manga(sourceKey: source.id, key: mangaKey, title: ""),
-                        needsDetails: true,
-                        needsChapters: false
-                    )
-                else {
-                    return
-                }
-                let chapterKey = pathComponents[safe: 1]
-                let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-                let action = components?.queryItems?.first(where: { $0.name == "action" })?.value.flatMap(MangaView.OpenAction.init)
-
-                navigationController.pushViewController(
-                    MangaViewController(
-                        source: source,
-                        manga: manga,
-                        parent: navigationController.topViewController,
-                        chapterKey: chapterKey, // /sourceId/mangaId/chapterId
-                        openAction: action // ?action={read,readNext,readLatest}
-                    ),
-                    animated: true
-                )
-            } else { // /sourceId
-                let vc = NewSourceViewController(source: source)
-                navigationController?.pushViewController(vc, animated: true)
-            }
-        } else if let tracker = TrackerManager.trackers.lazy.compactMap({ $0 as? OAuthTracker }).first(where: { $0.callbackHost == url.host }) {
-            await tracker.handleAuthenticationCallback(url: url)
-        } else {
-            await handleDeepLink(url: url)
         }
     }
 
@@ -1060,8 +1061,7 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
-        // C++ interoperability imports this Objective-C options callback as Int.
-        // Match the actual delegate witness so foreground notifications arrive.
+        // C++ interop imports this callback's options as Int; match it so foreground notifications arrive.
         withCompletionHandler completionHandler: @escaping @Sendable (Int) -> Void
     ) {
         let options: UNNotificationPresentationOptions = [.banner, .sound, .list]
@@ -1069,8 +1069,7 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
     }
 
     static func notificationURL(sourceId: String, mangaId: String) -> URL? {
-        // The reader deep-link parser splits before percent-decoding each key.
-        // Encode the manga as one component, including slashes in source-provided manga keys.
+        // The deep-link parser splits before decoding, so encode slashes in the manga key too.
         let componentCharacters = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#"))
         guard let source = sourceId.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed),
               let manga = mangaId.addingPercentEncoding(withAllowedCharacters: componentCharacters)

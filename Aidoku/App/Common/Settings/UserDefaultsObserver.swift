@@ -93,7 +93,7 @@ class UserDefaultsBool: ObservableObject {
     }
 }
 
-/// One active refresh plus one latest replacement. Cancelled work drains before replacement starts.
+/// One active refresh plus the latest replacement, started after cancelled work drains.
 @MainActor
 final class SettingsRefreshScheduler {
     private var task: Task<Void, Never>?

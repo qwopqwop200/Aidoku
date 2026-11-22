@@ -19,11 +19,7 @@ UBIQUITY_KVSTORE_ID         = $(TeamIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER
 // Dev / sideload build (leave flag 'CANONICAL_BUILD' undefined)
 OTHER_SWIFT_FLAGS = $(inherited) -DCANONICAL_BUILD $(AIDOKU_PERFORMANCE_FLAGS)
 
-// Developer performance profile baked into this build (Debug and Release):
-// relaxed V2 memory caps, more page compute slots, look-ahead and provider
-// concurrency, scaled to the device (see V2PerformanceProfile). Set it empty
-// (here or `AIDOKU_PERFORMANCE_FLAGS=` on xcodebuild) for the shipped limits.
-// Test hosts always use the normal profile.
+// Developer V2 performance profile (see V2PerformanceProfile); set empty for the shipped limits.
 AIDOKU_PERFORMANCE_FLAGS = -DAIDOKU_DEVELOPER_PERFORMANCE
 
 // Shared image inbox used by the app and its Share extension.

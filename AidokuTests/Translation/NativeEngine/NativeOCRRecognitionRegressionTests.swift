@@ -20,20 +20,21 @@ struct NativeOCRRecognitionRegressionTests {
         ]
         for polygon in polygons {
             let scaled = polygon.map { CGPoint(x: $0.x * scale, y: $0.y * scale) }
-            let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: scaled))
+            let ordered = try #require(NativeOCRDirectionGeometry.readingQuad(scaled))
+            let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: ordered))
             #expect(!plan.rotatedCounterClockwise)
         }
     }
 
-    @Test(arguments: [33, 641, 1184, 1500])
-    func dynamicTensorUsesExactCropWidthWithoutPadding(width: Int) throws {
+    // Publisher width rule: natural widths cap at 640, only those above 2000 reach 2400.
+    @Test(arguments: zip([33, 641, 2_100], [33, 640, 2_100]))
+    func dynamicTensorUsesExactCropWidthWithoutPadding(width: Int, expectedWidth: Int) throws {
         let height = 48
         let frame = try #require(NativeOCRRGBAFrame(width: width, height: height,
             bytes: [UInt8](repeating: 255, count: width * height * 4)))
         let polygon = [CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0),
                        CGPoint(x: width, y: height), CGPoint(x: 0, y: height)]
-        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon, dynamicWidth: true))
-        let expectedWidth = min(width, 1184)
+        let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon))
         #expect(plan.resizedWidth == expectedWidth)
         #expect(plan.bucket.width == expectedWidth)
         #expect(plan.bucket.timeSteps == (expectedWidth + 3) / 8)
@@ -47,16 +48,9 @@ struct NativeOCRRecognitionRegressionTests {
         #expect(NativeCoreMLRecognitionPreprocessor.plan(polygon: [CGPoint(x: 0, y: 0), CGPoint(x: 1e20, y: 0),
             CGPoint(x: 1e20, y: 30), CGPoint(x: 0, y: 30)]) == nil)
         let plan = try #require(NativeCoreMLRecognitionPreprocessor.plan(polygon: [CGPoint(x: 0, y: 0),
-            CGPoint(x: 1e18, y: 0), CGPoint(x: 1e18, y: 2), CGPoint(x: 0, y: 2)],
-            dynamicWidth: true, maximumWidth: IPhoneOCRSettings.defaultRecognizerMaximumWidth))
-        #expect(plan.resizedWidth == 1_184)
-        #expect(plan.bucket.timeSteps == 148)
-        for extreme in [Int.min, -1, Int.max] {
-            #expect(NativeCoreMLRecognitionBucket.containing(desiredWidth: Int.max, dynamicWidth: true,
-                maximumWidth: extreme).width == (extreme <= 32 ? 32 : 2_400))
-            #expect(NativeCoreMLRecognitionBucket.containing(desiredWidth: extreme, dynamicWidth: true,
-                maximumWidth: 1_280).width == (extreme <= 32 ? 32 : 1_280))
-        }
+            CGPoint(x: 1e18, y: 0), CGPoint(x: 1e18, y: 2), CGPoint(x: 0, y: 2)]))
+        #expect(plan.resizedWidth == 2_400)
+        #expect(plan.bucket.timeSteps == 300)
     }
 
     @Test func precomputedSamplingCoordinatesPreserveEveryFloatBit() throws {

@@ -12,8 +12,7 @@ private enum BlockingTaskPriority {
         if let priority = withUnsafeCurrentTask(body: { $0?.priority }) {
             return priority
         }
-        // A synchronous Nuke/WASM callback may be on a dispatch worker without
-        // a Swift task. Preserve that worker's effective QoS as well.
+        // Synchronous callbacks may run on a dispatch worker without a Swift task.
         switch qos_class_self() {
         case QOS_CLASS_USER_INTERACTIVE: return TaskPriority(rawValue: 33)
         case QOS_CLASS_USER_INITIATED: return .high
@@ -24,8 +23,7 @@ private enum BlockingTaskPriority {
     }
 }
 
-/// Condition state distinguishes an unfinished operation from a completed optional nil.
-/// Every waiter observes the same completion, including repeated reads after a failure.
+/// Distinguishes an unfinished operation from a completed nil; every waiter sees the same result.
 private final class BlockingResult<Success, Failure: Error>: @unchecked Sendable {
     private let condition = NSCondition()
     private var result: Result<Success, Failure>?

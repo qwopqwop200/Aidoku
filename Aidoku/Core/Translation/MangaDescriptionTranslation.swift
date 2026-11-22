@@ -1,9 +1,7 @@
 import SwiftUI
 
-// BEGIN SYNOPSIS_CHUNK_HELPER (Foundation only; extract with import Foundation)
 enum SynopsisChunking {
-    /// Exact source slices. An indivisible link/grapheme larger than maximumBytes
-    /// returns the original as one oversized chunk; the caller must keep that line untranslated.
+    /// Exact source slices; an oversized indivisible link/grapheme returns the original as one chunk.
     static func chunks(_ text: String, maximumBytes: Int) -> [String] {
         precondition(maximumBytes > 0)
         guard !text.isEmpty else { return [] }
@@ -34,7 +32,6 @@ enum SynopsisChunking {
                 }
                 cursor = next
             }
-            // No legal boundary fits: avoid partially translating a line with an oversized token.
             guard safeEnd > start else { return [text] }
             let end = cursor == text.endIndex ? cursor : (preferredEnd ?? safeEnd)
             result.append(String(text[start..<end]))
@@ -87,8 +84,7 @@ enum SynopsisChunking {
             }
             if depth == 0 {
                 let link = (opening ?? cursor)..<end
-                // A bare-URL match can include the closing ')' and punctuation.
-                // Replace it with the Markdown range so those bytes do not inflate the token.
+                // A bare-URL match can include the closing ')'; use the Markdown range instead.
                 ranges.removeAll { $0.overlaps(next..<end) }
                 if text[link].utf8.count <= maximumBytes {
                     ranges.append(link)
@@ -114,9 +110,8 @@ enum SynopsisChunking {
         return merged
     }
 }
-// END SYNOPSIS_CHUNK_HELPER
 
-/// Preserve the complete synopsis while keeping each request within the API segment limit.
+/// Translate the complete synopsis, keeping each request within the API segment limit.
 enum MangaDescriptionTranslation {
     /// Repair escaped newlines and the source metadata typo " /nLabel:" without changing URL paths.
     static func normalizedLineBreaks(_ text: String) -> String {

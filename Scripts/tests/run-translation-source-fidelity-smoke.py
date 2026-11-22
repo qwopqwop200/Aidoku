@@ -78,19 +78,6 @@ func NSLocalizedString(_ key: String) -> String { key }
                         RemoteTranslationSegment(id: "idiom", text: "でっでもマリイさんにばかりに辛い目は」"),
                         RemoteTranslationSegment(id: "experiencer", text: "それでアンタにぴーぴー泣かれるほうが迷惑だわっ」"),
                         RemoteTranslationSegment(id: "reaction", text: "「んもうっ」")]
-        let requiredConfig = RemoteTranslationConfiguration(provider: .custom, apiProtocol: .responses,
-            baseURL: "https://test.invalid/v1", model: "test", credentialAccount: "test")
-        var pageSample = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko", segments: segments)
-        pageSample.translatesPageLettering = true
-        pageSample.imageJPEG = Data([0xff, 0xd8, 0xff, 0xd9])
-        pageSample.filtersSFX = true
-        pageSample.filtersBackground = true
-        let pageBody = try JSONSerialization.jsonObject(with:
-            TranslationHTTPCodec.requestBody(configuration: requiredConfig, request: pageSample)) as! [String: Any]
-        let pagePrompt = pageBody["instructions"] as! String
-        let previousDefaultPromptBytes = 1_013 // v30, immediately before the eight-reviewer compression.
-        print("METRIC default page prompt: \(pagePrompt.count) characters, \(pagePrompt.utf8.count) UTF-8 bytes; baseline \(previousDefaultPromptBytes) bytes; reduction \(previousDefaultPromptBytes - pagePrompt.utf8.count) bytes")
-        // Historical compression measurement, not a ceiling on later approved prompt changes.
         var count = 0
         for proto in [RemoteTranslationProtocol.responses, .chatCompletions] {
             for image in [false, true] { for sfx in [false, true] { for background in [false, true] {
@@ -190,24 +177,16 @@ func NSLocalizedString(_ key: String) -> String { key }
         setenv("AIDOKU_VLLM_FRESH_PREFIX", "1", 1)
         let saltRequest = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
             segments: [.init(id: "one", text: "こんにちは")])
-        let saltConfig = RemoteTranslationConfiguration(provider: .custom, apiProtocol: .responses,
-            baseURL: "https://test.invalid/v1", model: "test", credentialAccount: "test")
-        let saltedBodies = try (0..<2).map { _ -> [String: Any] in
-            try JSONSerialization.jsonObject(with: TranslationHTTPCodec.requestBody(
-                configuration: saltConfig, request: saltRequest)) as! [String: Any]
+        for proto in [RemoteTranslationProtocol.responses, .chatCompletions] {
+            let saltConfig = RemoteTranslationConfiguration(provider: .custom, apiProtocol: proto,
+                baseURL: "https://test.invalid/v1", model: "test", credentialAccount: "test")
+            let salts = try (0..<2).compactMap { _ in
+                try (JSONSerialization.jsonObject(with: TranslationHTTPCodec.requestBody(
+                    configuration: saltConfig, request: saltRequest)) as! [String: Any])["cache_salt"] as? String
+            }
+            precondition(salts.count == 2 && salts[0] != salts[1])
+            precondition(salts.allSatisfy { Data(base64Encoded: $0)?.count == 32 })
         }
-        let salts = saltedBodies.compactMap { $0["cache_salt"] as? String }
-        precondition(salts.count == 2 && salts[0] != salts[1])
-        precondition(salts.allSatisfy { Data(base64Encoded: $0)?.count == 32 })
-        let chatSaltConfig = RemoteTranslationConfiguration(provider: .custom, apiProtocol: .chatCompletions,
-            baseURL: "https://test.invalid/v1", model: "test", credentialAccount: "test")
-        let chatSaltedBodies = try (0..<2).map { _ -> [String: Any] in
-            try JSONSerialization.jsonObject(with: TranslationHTTPCodec.requestBody(
-                configuration: chatSaltConfig, request: saltRequest)) as! [String: Any]
-        }
-        let chatSalts = chatSaltedBodies.compactMap { $0["cache_salt"] as? String }
-        precondition(chatSalts.count == 2 && chatSalts[0] != chatSalts[1])
-        precondition(chatSalts.allSatisfy { Data(base64Encoded: $0)?.count == 32 })
         unsetenv("AIDOKU_VLLM_FRESH_PREFIX")
         print("PASS opt-in fresh vLLM prefix salt: unique 256-bit salts in both protocols")
         let legacy = Data(#"[{"id":"legacy","text":"이름","isSFX":false}]"#.utf8)
@@ -217,14 +196,17 @@ func NSLocalizedString(_ key: String) -> String { key }
         precondition(oldWire[0]["textRole"] == nil)
         let roles: [RemoteTranslationTextRole] = [.dialogue, .narration, .storyText, .sfx, .background]
         for proto in [RemoteTranslationProtocol.responses, .chatCompletions] {
-            for role in roles {
-                let item: [String: Any] = ["id": "role", "text_role": role.rawValue, "text": "번역문"]
+            func decodeItem(_ item: [String: Any]) throws -> [RemoteTranslatedSegment] {
                 let envelope = String(decoding: try JSONSerialization.data(withJSONObject: ["translations": [item]]), as: UTF8.self)
                 let root: [String: Any] = proto == .responses
                     ? ["status": "completed", "output": [["type": "message", "content": [["type": "output_text", "text": envelope]]]]]
                     : ["choices": [["index": 0, "finish_reason": "stop", "message": ["content": envelope]]]]
-                let parsed = try TranslationHTTPCodec.responseTranslations(from: JSONSerialization.data(withJSONObject: root),
-                    protocol: proto, expectedSegmentIDs: ["role"], sfxSourceTexts: ["role": "原文"], backgroundSourceTexts: ["role": "原文"])
+                return try TranslationHTTPCodec.responseTranslations(from: JSONSerialization.data(withJSONObject: root),
+                    protocol: proto, expectedSegmentIDs: ["role"], sfxSourceTexts: ["role": "原文"],
+                    backgroundSourceTexts: ["role": "原文"])
+            }
+            for role in roles {
+                let parsed = try decodeItem(["id": "role", "text_role": role.rawValue, "text": "번역문"])
                 precondition(parsed[0].textRole == role)
                 precondition(parsed[0].text == "번역문")
                 let roundTrip = try JSONDecoder().decode([RemoteTranslatedSegment].self, from: JSONEncoder().encode(parsed))
@@ -234,15 +216,6 @@ func NSLocalizedString(_ key: String) -> String { key }
                 let remote = RemoteTranslatedSegment(id: "segment-0", text: parsed[0].text, isSFX: parsed[0].isSFX, textRole: role)
                 let restored = try canonical.restoringCallerSegmentIDs(in: .init(translations: [remote], source: .network, providerRequestID: nil))
                 precondition(restored.translations[0].id == "caller" && restored.translations[0].textRole == role)
-            }
-            func decodeItem(_ item: [String: Any]) throws -> [RemoteTranslatedSegment] {
-                let envelope = String(decoding: try JSONSerialization.data(withJSONObject: ["translations": [item]]), as: UTF8.self)
-                let root: [String: Any] = proto == .responses
-                    ? ["status": "completed", "output": [["type": "message", "content": [["type": "output_text", "text": envelope]]]]]
-                    : ["choices": [["index": 0, "finish_reason": "stop", "message": ["content": envelope]]]]
-                return try TranslationHTTPCodec.responseTranslations(from: JSONSerialization.data(withJSONObject: root),
-                    protocol: proto, expectedSegmentIDs: ["role"], sfxSourceTexts: ["role": "原文"],
-                    backgroundSourceTexts: ["role": "原文"])
             }
             let valid: [String: Any] = ["id": "role", "text": "번역문", "text_role": "dialogue"]
             let parsedValid = try decodeItem(valid)

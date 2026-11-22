@@ -1179,7 +1179,7 @@ extension SettingView {
                     request.httpBody = parameters.percentEncoded()
 
                     SettingsStore.shared.remove(key: key + ".codeVerifier")
-                    oauthAttempt.exchange(request, attempt: attempt, commit: { result in
+                    oauthAttempt.exchange(attempt: attempt, operation: { try await URLSession.shared.data(for: request) }, commit: { result in
                         SettingsStore.shared.set(key: key, value: result)
                     }, failed: {
                         showLoginFailAlert = true
@@ -1604,14 +1604,6 @@ final class SettingsLoginAttempt: ObservableObject {
         run(attempt: attempt, operation: operation) { success in
             if success == true { commit() } else { failed() }
         }
-    }
-
-    func exchange(
-        _ request: URLRequest, attempt: UUID,
-        commit: @escaping @MainActor (String) -> Void,
-        failed: @escaping @MainActor () -> Void
-    ) {
-        exchange(attempt: attempt, operation: { try await URLSession.shared.data(for: request) }, commit: commit, failed: failed)
     }
 
     func exchange(

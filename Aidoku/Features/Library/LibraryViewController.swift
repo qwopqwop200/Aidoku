@@ -21,7 +21,7 @@ class LibraryViewController: OldMangaCollectionViewController {
         sharesBackground: false
     )
     private lazy var lockBarButton = makeBarButton(
-        systemName: viewModel.locked ? "lock" : "lock.open",
+        systemName: locked ? "lock" : "lock.open",
         action: #selector(performToggleLock),
         titleKey: "TOGGLE_LOCK"
     )
@@ -54,6 +54,11 @@ class LibraryViewController: OldMangaCollectionViewController {
     private lazy var refreshControl = UIRefreshControl()
     private lazy var emptyStackView = EmptyPageStackView()
     private lazy var lockedStackView = LockedPageStackView()
+
+    private var locked: Bool {
+        get { viewModel.locked }
+        set { viewModel.locked = newValue }
+    }
 
     private enum DisplayedRows: Equatable {
         case hidden
@@ -279,7 +284,7 @@ class LibraryViewController: OldMangaCollectionViewController {
         addObserver(forName: UIApplication.willResignActiveNotification) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.viewModel.locked = self.viewModel.isCategoryLocked()
+                self.locked = self.viewModel.isCategoryLocked()
                 self.updateLockState()
             }
         }
@@ -342,7 +347,7 @@ class LibraryViewController: OldMangaCollectionViewController {
         addObserver(forName: .updateLibraryLock) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.viewModel.locked = self.viewModel.isCategoryLocked()
+                self.locked = self.viewModel.isCategoryLocked()
                 self.updateLockState()
             }
         }
@@ -352,7 +357,7 @@ class LibraryViewController: OldMangaCollectionViewController {
                 await self.viewModel.refreshCategories()
                 self.collectionView.collectionViewLayout = self.makeCollectionViewLayout()
                 if AppSettings.library.lockLibrary.get() {
-                    self.viewModel.locked = self.viewModel.isCategoryLocked()
+                    self.locked = self.viewModel.isCategoryLocked()
                 }
                 self.updateLockState()
                 if !self.isEditing {
@@ -764,26 +769,29 @@ extension LibraryViewController {
     }
 
     func updateDataSource() {
-        let canShowRows = !viewModel.locked && viewModel.hasCurrentCategorySnapshot
+        var snapshot = NSDiffableDataSourceSnapshot<Section, MangaInfo>()
+        let canShowRows = !locked && viewModel.hasCurrentCategorySnapshot
+
+        if canShowRows {
+            if !viewModel.pinnedManga.isEmpty {
+                snapshot.appendSections(Section.allCases)
+                snapshot.appendItems(viewModel.pinnedManga, toSection: .pinned)
+            } else {
+                snapshot.appendSections([.regular])
+            }
+
+            snapshot.appendItems(viewModel.manga, toSection: .regular)
+        }
+
         let rows: DisplayedRows = canShowRows ? .library(viewModel.displayRevision) : .hidden
         if rows != appliedRows {
-            var snapshot = NSDiffableDataSourceSnapshot<Section, MangaInfo>()
-            if canShowRows {
-                if !viewModel.pinnedManga.isEmpty {
-                    snapshot.appendSections(Section.allCases)
-                    snapshot.appendItems(viewModel.pinnedManga, toSection: .pinned)
-                } else {
-                    snapshot.appendSections([.regular])
-                }
-                snapshot.appendItems(viewModel.manga, toSection: .regular)
-            }
             appliedRows = rows
             dataSource.apply(snapshot, animatingDifferences: canShowRows)
         }
 
         // handle empty library or category
         if navigationItem.searchController?.searchBar.text?.isEmpty ?? true {
-            emptyStackView.isHidden = canShowRows && (!viewModel.manga.isEmpty || !viewModel.pinnedManga.isEmpty)
+            emptyStackView.isHidden = !snapshot.itemIdentifiers.isEmpty
         }
         collectionView.isScrollEnabled = canShowRows && emptyStackView.isHidden && lockedStackView.isHidden
         collectionView.refreshControl = collectionView.isScrollEnabled ? refreshControl : nil
@@ -801,12 +809,12 @@ extension LibraryViewController {
 // MARK: - Locking
 extension LibraryViewController {
     func lock() {
-        viewModel.locked = true
+        locked = true
         updateLockState()
     }
 
     func unlock() {
-        viewModel.locked = false
+        locked = false
         updateLockState()
     }
 
@@ -834,7 +842,7 @@ extension LibraryViewController {
 
     @objc func performToggleLock() {
         Task {
-            if viewModel.locked {
+            if locked {
                 await attemptUnlock()
             } else {
                 lock()
@@ -843,7 +851,7 @@ extension LibraryViewController {
     }
 
     func updateLockState() {
-        if viewModel.locked {
+        if locked {
             // only update if lock view not already showing
             if emptyStackView.alpha != 0 {
                 collectionView.isScrollEnabled = false
@@ -861,7 +869,7 @@ extension LibraryViewController {
                 self.emptyStackView.alpha = 1
             }
         }
-        lockBarButton.image = UIImage(systemName: viewModel.locked ? "lock" : "lock.open")
+        lockBarButton.image = UIImage(systemName: locked ? "lock" : "lock.open")
 
         lockedStackView.text = viewModel.currentCategory == nil
             ? NSLocalizedString("LIBRARY_LOCKED")
@@ -1279,7 +1287,7 @@ extension LibraryViewController: LibraryCategorySelectionHeaderDelegate {
                 guard viewModel.filterGroups.indices.contains(indexPath.row) else { return }
                 viewModel.currentCategory = viewModel.filterGroups[indexPath.row].title
             }
-            viewModel.locked = viewModel.isCategoryLocked()
+            locked = viewModel.isCategoryLocked()
             updateLockState()
             deselectAllItems()
             updateToolbar()

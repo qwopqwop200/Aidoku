@@ -1,10 +1,8 @@
 import CoreGraphics
 import Foundation
 
-// Tilt of the source lettering (ported from the legacy NativeSourceTextRotation): each
-// four-point line votes with its longer pair of opposite edges; a length-weighted
-// consensus near the median gives the angle, and tilts under 2.5 degrees (detector
-// noise, and barely visible) count as upright.
+// Source lettering tilt (legacy NativeSourceTextRotation): each quad votes with its longer
+// edge pair; a length-weighted consensus near the median wins, and under 2.5 degrees is upright.
 enum V2Rotation {
     static let agreement = CGFloat.pi / 90
     static let maximum = CGFloat.pi / 6

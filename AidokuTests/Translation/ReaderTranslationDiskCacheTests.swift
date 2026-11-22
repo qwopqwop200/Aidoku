@@ -38,7 +38,7 @@ struct ReaderTranslationDiskCacheTests {
         try await cache.storeRegions(regions, for: "one", kind: .ocr, generation: 0)
         try await cache.storeRegions(regions, for: "two", kind: .translation, generation: 0)
         // Corruption without changing length also leaves byte accounting intact.
-        try databaseExecute(root, "UPDATE region_bases SET data=zeroblob(length(data))")
+        database(root, "UPDATE region_bases SET data=zeroblob(length(data))", returnsRow: false)
         #expect(try await cache.regions(for: "one", kind: .ocr) == nil)
         #expect(try await cache.regions(for: "two", kind: .translation) == nil)
         #expect(try await cache.statistics().entries == 0)
@@ -64,8 +64,11 @@ struct ReaderTranslationDiskCacheTests {
         #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("cache.sqlite").path))
         let reopened = ReaderTranslationDiskCache(directory: root)
         #expect(try await reopened.regions(for: "legacy", kind: .translation) == regions)
-        try await reopened.store(Data("ATZ1invalid".utf8), for: "broken", kind: .layout, generation: 0)
-        #expect(try await reopened.data(for: "broken", kind: .layout) == nil)
+        for (index, invalid) in ["ATZ1invalid", "ATZ2invalid"].enumerated() {
+            try await reopened.store(Data(invalid.utf8), for: "broken\(index)", kind: .layout, generation: 0)
+            #expect(try await reopened.data(for: "broken\(index)", kind: .layout) == nil)
+            #expect(try await reopened.contains("broken\(index)", kind: .layout) == false)
+        }
     }
 
     @Test func clearingRejectsOldWritersAndOversizedFilesDoNotExceedQuota() async throws {
@@ -96,7 +99,8 @@ struct ReaderTranslationDiskCacheTests {
         for (key, kind) in [("first", ReaderTranslationDiskCache.Kind.ocr), ("second", .translation), ("third", .layout)] {
             try await original.store(noise(65_536), for: key, kind: kind, generation: 0)
         }
-        try await original.markUsed("first", kind: .ocr)
+        _ = try await original.data(for: "first", kind: .ocr)
+        try await original.flushAccesses()
         let occupied = try await original.statistics().bytes
         let cache = ReaderTranslationDiskCache(directory: root)
         try await cache.setByteLimit(occupied - 1)
@@ -139,7 +143,7 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try await cache.contains("old", kind: .translation) == false)
         #expect(try await cache.contains("old", kind: .layout) == false)
         #expect(try await cache.statistics().entries == 1)
-        #expect(try databaseInteger(root, "SELECT COUNT(*) FROM region_bases") == 1)
+        #expect(database(root, "SELECT COUNT(*) FROM region_bases") == 1)
         // Both requests already in flight and old requests queued after the change are rejected.
         try await cache.storeRegions([region], for: "late", kind: .translation, generation: oldGeneration)
         let staleQueuedGeneration = await cache.currentGeneration(settings: original)
@@ -154,15 +158,6 @@ struct ReaderTranslationDiskCacheTests {
         try await reopened.synchronizeSettings(settings)
         #expect(try await reopened.contains("new", kind: .translation) == false)
         #expect(try await reopened.contains("ocr", kind: .ocr))
-    }
-
-    @Test func corruptCompressedPayloadIsRemovedOnRead() async throws {
-        let root = directory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let cache = ReaderTranslationDiskCache(directory: root)
-        try await cache.store(Data("ATZ2invalid".utf8), for: "broken", kind: .layout, generation: await cache.currentGeneration())
-        #expect(try await cache.data(for: "broken", kind: .layout) == nil)
-        #expect(try await cache.contains("broken", kind: .layout) == false)
     }
 
     /// Returned payloads must own their bytes after SQLite reuses or frees the row storage.
@@ -206,21 +201,16 @@ struct ReaderTranslationDiskCacheTests {
         #expect(try ReaderTranslationRegionArchive([]).variant == oldVariant)
     }
 
-    private func databaseExecute(_ root: URL, _ sql: String) throws {
-        var handle: OpaquePointer?
-        #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
-        defer { sqlite3_close(handle) }
-        #expect(sqlite3_exec(handle, sql, nil, nil, nil) == SQLITE_OK)
-    }
-
-    private func databaseInteger(_ root: URL, _ sql: String) throws -> Int64 {
+    /// Runs one statement directly on the cache database; returns its first integer column.
+    @discardableResult
+    private func database(_ root: URL, _ sql: String, returnsRow: Bool = true) -> Int64 {
         var handle: OpaquePointer?
         #expect(sqlite3_open(root.appendingPathComponent("cache.sqlite").path, &handle) == SQLITE_OK)
         defer { sqlite3_close(handle) }
         var statement: OpaquePointer?
         #expect(sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK)
         defer { sqlite3_finalize(statement) }
-        #expect(sqlite3_step(statement) == SQLITE_ROW)
+        #expect(sqlite3_step(statement) == (returnsRow ? SQLITE_ROW : SQLITE_DONE))
         return sqlite3_column_int64(statement, 0)
     }
 

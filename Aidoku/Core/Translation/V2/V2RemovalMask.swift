@@ -2,25 +2,17 @@ import Accelerate
 import CoreGraphics
 import Foundation
 
-/// S6: page-size 0/255 source-text removal mask, recall first.
-///
-/// Per block, inside the line polygons dilated by max(8, 0.3 T) (T = median line
-/// thickness) and the line boxes grown 0.5 T along their axis, cheap local-background
-/// features (black-hat / top-hat at 0.12/0.3/0.6 T and at 1/2.5 estimated stroke widths,
-/// colour distance to the ring background, local contrast, signed polygon distance) feed a two-stage auto-context MLP fit on train GT
-/// `text_glyph_instance_mask` (the out-of-repo research scripts (scripts-mask)). The stage-2 probability is
-/// thresholded low and dilated 2 px so antialiased fringes and outline bands are
-/// erased.
+/// S6: page-size 0/255 source-text removal mask, recall first. Per block, local morphology and
+/// colour features inside the dilated line polygons (T = median line thickness) feed a two-stage
+/// auto-context MLP fit on train GT; its probability is thresholded low and dilated 2 px.
 enum V2RemovalMask {
     static let roiScale = 0.3
     static let roiMinimum = 8
-    /// Each line's bounding box, grown along its reading axis by this many line thicknesses, is
-    /// also searched: detection often stops short of a column's last glyph or a trailing mark
-    /// (train: GT regions with > 2% of their glyph pixels left 116 -> 104, far false positives +1%).
+    /// Line boxes grown along their axis by this many thicknesses are also searched (detection often
+    /// stops short of a column's last glyph).
     static let lineEndExtension = 0.5
     static let threshold: Float = 0.05
-    /// Large lettering (line thickness >= 70 px) gets a lower threshold. Both values were fit on
-    /// the train split only (max train recall with train far-FP <= 1.15x legacy).
+    /// Large lettering (line thickness >= 70 px) gets a lower threshold (both fit on train).
     static let largeThickness: Double = 70
     static let largeThreshold: Float = 0.01
     static let outputDilation = 2
@@ -29,7 +21,7 @@ enum V2RemovalMask {
     static func build(_ page: V2Page, blocks: [V2Block], layout: [V2LayoutRegion]) -> [UInt8] {
         let width = page.width, height = page.height
         guard width > 0, height > 0 else { return [] }
-        // Pages beyond the shared raster limit would need a multi-GB RGBA copy here; nothing is erased.
+        // Beyond the shared raster limit nothing is erased (a multi-GB RGBA copy).
         guard width * height <= maximumPagePixels, let rgba = rgbaBytes(page.image) else {
             return [UInt8](repeating: 0, count: width * height)
         }
@@ -39,8 +31,7 @@ enum V2RemovalMask {
     /// Largest page (pixels) converted to RGBA for the mask (same as `V2PageRaster`'s 16384 x 16384).
     static let maximumPagePixels = 16_384 * 16_384
 
-    /// Same as `build(_:blocks:layout:)` for callers that already hold the page as
-    /// RGBA8 (row-major, 4 bytes per pixel, alpha ignored).
+    /// `build(_:blocks:layout:)` from RGBA8 bytes (alpha ignored).
     static func build(rgba: [UInt8], width: Int, height: Int, blocks: [V2Block], layout: [V2LayoutRegion]) -> [UInt8] {
         guard width > 0, height > 0 else { return [] }
         var mask = [UInt8](repeating: 0, count: width * height)
@@ -49,8 +40,7 @@ enum V2RemovalMask {
         guard !targets.isEmpty else { return mask }
         let geometries = targets.map { geometry($0, width: width, height: height) }
         var results = [BlockMask?](repeating: nil, count: targets.count)
-        // Peak memory is about 384 bytes per frame pixel of every block in flight, so
-        // only small blocks share the pool; large ones run one at a time afterwards.
+        // Peak memory scales with the frame pixels in flight: large blocks run one at a time.
         let threads = max(1, ProcessInfo.processInfo.activeProcessorCount)
         let small = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) <= concurrentBlockPixels / threads }
         let large = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) > concurrentBlockPixels / threads }
@@ -77,12 +67,9 @@ enum V2RemovalMask {
         return mask
     }
 
-    /// Frame pixels of all blocks segmented concurrently (about 1.1 GB at a conservative peak
-    /// of 384 bytes per frame pixel of `segment`: about 36 float planes across the feature
-    /// groups, 39 float feature columns and the Int index lists).
+    /// Frame pixels of all blocks segmented concurrently (about 384 bytes per frame pixel, 1.1 GB).
     static let concurrentBlockPixels = 3_000_000
-    /// Larger frames skip the classifier and erase their line polygons (dilated by
-    /// `outputDilation`) instead of risking a multi-GB allocation.
+    /// Larger frames erase their dilated line polygons without the classifier.
     static let maximumBlockPixels = 3_000_000
     /// Polygon coordinates beyond this magnitude are treated as invalid (no page is that large).
     static let maximumCoordinate: CGFloat = 1_000_000
@@ -233,8 +220,7 @@ enum V2RemovalMask {
             for row in 0..<rows { target[row] = plane[index[row]] }
         }
         func constant(_ value: Float, into f: Int) { column(f).update(repeating: value, count: rows) }
-        // Black-hat (closing - low) into column f and top-hat (high - opening) into column g;
-        // `keep` also leaves both full planes for the 2 px neighbourhood features.
+        // Black-hat into column f and top-hat into column g; `keep` also receives both full planes.
         func hats(_ scale: Int, dark f: Int, light g: Int, space: Workspace,
                   keep: (UnsafeMutablePointer<Float>, UnsafeMutablePointer<Float>)? = nil) {
             let closed = space.copy(high), opened = space.copy(low)
@@ -311,8 +297,7 @@ enum V2RemovalMask {
                     target[row] = min(1, max(-1, (outside[i] - inside[i]) * invThickness))
                 }
             case 3:
-                // Stroke width from the distance transform of the ink pixels, then black-hat /
-                // top-hat at 1 and 2.5 stroke widths so very thick lettering is not out of distribution.
+                // Stroke width from the ink distance transform; hats at 1 and 2.5 stroke widths.
                 let inkDepth = local.plane(zero: true)
                 let width: Float
                 if inkIndices.count >= 4 {
@@ -390,8 +375,7 @@ enum V2RemovalMask {
         return BlockMask(frame: frame, mask: mask)
     }
 
-    /// Fallback for frames above `maximumBlockPixels`: the line polygons dilated by
-    /// `outputDilation`, on a tight frame, using about 6 bytes per frame pixel.
+    /// Fallback above `maximumBlockPixels`: the line polygons dilated by `outputDilation`.
     static func polygonMask(_ polygons: [[CGPoint]], width: Int, height: Int) -> BlockMask? {
         guard let frame = paddedFrame(polygons, pad: outputDilation + 1, width: width, height: height) else { return nil }
         let w = frame.width, h = frame.height, n = frame.pixels
@@ -439,8 +423,7 @@ enum V2RemovalMask {
         }
     }
 
-    /// Equal-size float planes and morphology/blur scratch for one block, recycled so a block
-    /// touches a handful of planes instead of allocating (and page-faulting) dozens.
+    /// Recycled float planes and morphology/blur scratch for one block.
     final class Workspace {
         let width: Int, height: Int, count: Int
         private var spare: [UnsafeMutablePointer<Float>] = []
@@ -495,8 +478,7 @@ enum V2RemovalMask {
         return values
     }
 
-    /// Gathered values; `orderMedian` / `orderPercentile` equal the median / `percentile(sorted:)` of
-    /// them (exact order statistics by selection instead of a full sort).
+    /// Gathered values; `orderMedian` / `orderPercentile` are exact order statistics of them by selection.
     static func gathered(_ plane: UnsafePointer<Float>, at indices: [Int]) -> [Float] {
         [Float](unsafeUninitializedCapacity: indices.count) { buffer, count in
             for (k, i) in indices.enumerated() { buffer[k] = plane[i] }
@@ -581,10 +563,8 @@ enum V2RemovalMask {
     static let stage2 = Network(V2RemovalMaskWeights.stage2, features: V2RemovalMaskWeights.stage2Features,
                                 hidden: V2RemovalMaskWeights.stage2Hidden)
 
-    /// Two ReLU layers and a sigmoid output. `input` is feature-major: feature f of row r at
-    /// f * rows + r (extra trailing planes are ignored). Rows are evaluated in fixed chunks of 16 384
-    /// (each chunk is one identical BLAS call however they are scheduled); `parallel` runs the
-    /// chunks concurrently, and a single chunk reads the input planes in place.
+    /// `input` is feature-major (feature f of row r at f * rows + r). Rows run in fixed chunks of
+    /// 16 384, so each chunk is the same BLAS call however chunks are scheduled.
     static func mlp(_ input: UnsafePointer<Float>, rows: Int, network net: Network, output: UnsafeMutablePointer<Float>,
                     parallel: Bool = false) {
         let chunk = min(rows, 16_384)
@@ -636,8 +616,7 @@ enum V2RemovalMask {
 
     // MARK: - Image primitives
 
-    /// Square (2r+1) max/min filter, separable (van Herk / Gil-Werman over whole rows with
-    /// vDSP, O(1) per pixel); samples outside the frame are ignored.
+    /// Square (2r+1) max/min filter (separable van Herk / Gil-Werman); outside samples are ignored.
     static func morph(_ p: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int, max isMax: Bool,
                       space: Workspace) {
         guard r > 0, w > 0, h > 0 else { return }
@@ -649,9 +628,7 @@ enum V2RemovalMask {
         space.recycle(t)
     }
 
-    /// Closing (`firstMax`) or opening: two square filters of radius r. The square filter is
-    /// separable in either order, so the inner pair runs on the transposed plane and the
-    /// result is exactly the two `morph` calls with two fewer transposes.
+    /// Closing (`firstMax`) or opening: exactly two `morph` calls with two fewer transposes.
     static func morph2(_ p: UnsafeMutablePointer<Float>, width w: Int, height h: Int, radius r: Int, firstMax: Bool,
                        space: Workspace) {
         guard r > 0, w > 0, h > 0 else { return }
@@ -745,13 +722,8 @@ enum V2RemovalMask {
         }
     }
 
-    /// 3x3 chamfer distance (OpenCV DIST_L2 mask 3: 0.955 / 1.3693) from each nonzero
-    /// pixel to the nearest zero pixel; zero pixels get 0. `inverted` measures the zero
-    /// pixels of `plane` instead.
-    /// Each pass takes the minimum over the same candidates as the classic raster scan (min is
-    /// exact and order-free; zero pixels stay 0 because every candidate is >= 0), so only the
-    /// bounding box of the nonzero pixels is scanned: the previous-row terms vectorise, then one
-    /// sequential sweep adds the in-row term.
+    /// 3x3 chamfer distance (OpenCV DIST_L2 mask 3) from each nonzero pixel to the nearest zero
+    /// pixel (`inverted`: of the zero pixels); only the bounding box of the seeds is scanned.
     static func chamfer(_ plane: UnsafePointer<Float>, into d: UnsafeMutablePointer<Float>, width w: Int, height h: Int,
                         inverted: Bool) {
         let a: Float = 0.955, b: Float = 1.3693, far: Float = 1e6

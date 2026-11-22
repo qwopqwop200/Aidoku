@@ -34,8 +34,7 @@ final class CoreDataManager: @unchecked Sendable {
     private var lastHistoryToken: NSPersistentHistoryToken?
     private var didLoadHistoryToken = false
     private var lastHistoryPurge: Date?
-    // Store options are applied when loading the persistent store. Keep history
-    // retention aligned with that loaded configuration until the next launch.
+    // Matches the loaded store options until the next launch.
     private let usesCloudKitMirroring: Bool
 
     private static let historyTokenUrl = FileManager.default.applicationSupportDirectory
@@ -439,8 +438,7 @@ extension CoreDataManager {
                 }
             } else if let child = duplicate.value(forKey: name) as? NSManagedObject {
                 if let existing = keeper.value(forKey: name) as? NSManagedObject, existing != child {
-                    // Both parents may already own duplicate children. Merge their
-                    // unique descendants before removing the duplicate cascade edge.
+                    // Merge duplicate children before removing the cascade edge.
                     let sameHistory = (child as? HistoryObject).flatMap { history in
                         (existing as? HistoryObject).map { $0.identifier == history.identifier }
                     } ?? false

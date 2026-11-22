@@ -23,24 +23,18 @@ class LocalizationValidationTests(unittest.TestCase):
         self.assertEqual(values['URL'], 'https://host/path')
         self.assertIn('/* literal */', values['TEXT'])
 
-    def test_duplicate_and_empty_values_fail(self):
+    def test_duplicate_empty_and_truncated_values_fail(self):
         _, errors = self.parse('"SAVE" = "Save";\n"SAVE" = "";')
         self.assertTrue(any('duplicate' in issue for issue in errors))
         self.assertTrue(any('empty' in issue for issue in errors))
-
-    def test_truncated_entry_fails(self):
         _, errors = self.parse('"SAVE" = "Save"')
         self.assertTrue(any('malformed' in issue for issue in errors))
 
-    def test_positional_translation_can_reorder_arguments(self):
+    def test_format_signatures_allow_positional_reordering_only(self):
         self.assertEqual(validator.signature('Remove %i from %@'),
                          validator.signature('%2$@에서 %1$i개 제거'))
-
-    def test_unindexed_reordering_fails(self):
         self.assertNotEqual(validator.signature('Remove %i from %@'),
                             validator.signature('%@에서 %i개 제거'))
-
-    def test_integer_width_and_repeated_arguments_are_checked(self):
         self.assertNotEqual(validator.signature('%lld'), validator.signature('%d'))
         self.assertNotEqual(validator.signature('%@'), validator.signature('%@ %@'))
         self.assertNotEqual(validator.signature('%.2f%%'), validator.signature('%.2f'))

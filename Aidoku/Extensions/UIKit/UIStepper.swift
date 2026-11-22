@@ -47,9 +47,7 @@ extension UIStepper {
     }
 }
 
-// iOS 26's UIStepperDesignLibraryVisualElement retains its UIStepper owner even
-// after window removal. Reuse controls by scoped settings-cell ownership instead
-// of allocating another native retain cycle on every settings visit.
+// iOS 26's stepper visual element retains its UIStepper forever; reuse controls instead of leaking one per visit.
 @MainActor
 final class SettingStepperLease {
     private static var idleControls: [UIStepper] = []
@@ -59,8 +57,7 @@ final class SettingStepperLease {
 
     deinit {
         let control = control
-        // UIKit owners normally die on the main thread. Keep cleanup safe when
-        // the final Swift owner is released by an asynchronous task instead.
+        // The last owner may be released off the main thread by a task.
         if Thread.isMainThread {
             MainActor.assumeIsolated { Self.recycle(control) }
         } else {
@@ -87,9 +84,7 @@ final class SettingStepperLease {
         control.accessibilityValue = nil
         control.accessibilityHint = nil
         control.accessibilityIdentifier = nil
-        // Do not evict idle controls: the OS cycle would keep the evicted object
-        // alive while its next replacement added another. Storage is bounded by
-        // the largest number of simultaneously owned settings controls.
+        // Never evict: an evicted control stays alive anyway. Bounded by peak simultaneous use.
         idleControls.append(control)
     }
 }

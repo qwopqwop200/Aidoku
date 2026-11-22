@@ -53,9 +53,7 @@ import UIKit
         config.paragraphSpacing = 0
         config.horizontalPadding = 0
         config.verticalPadding = 0
-        // Keep the >10,000-page boundary with real TextKit layout. Unicode
-        // paragraph separators avoid reshaping a huge unbroken suffix, while
-        // remaining a single Markdown attribute run instead of 10,005 blocks.
+        // Paragraph separators keep one Markdown run while TextKit lays out >10,000 pages.
         let markdown = Array(repeating: "W", count: 10_005).joined(separator: "\u{2029}")
         let pages = TextPaginator(config: config).paginate(markdown: markdown, pageSize: CGSize(width: 51, height: 51))
         #expect(pages.count > 10_001)

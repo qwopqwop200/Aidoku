@@ -105,26 +105,30 @@ class ReaderToolbarView: UIView {
     }
 
     func displayPage(_ page: Int) {
-        currentPageValue = renderPageLabels(page: page)
+        currentPageValue = updatePageLabels(page: page)
     }
 
     func updatePageLabels() {
-        renderPageLabels(page: currentPage)
+        updatePageLabels(page: currentPage)
         incognitoModeLabel.text = NSLocalizedString("INCOGNITO_MODE")
     }
 
     // Previewing a page must keep both labels in sync without committing reader progress.
     @discardableResult
-    private func renderPageLabels(page: Int?) -> Int? {
-        guard let page, let totalPages, totalPages > 0 else {
+    private func updatePageLabels(page: Int?) -> Int? {
+        guard var currentPage = page, let totalPages = totalPages, totalPages > 0 else {
             currentPageLabel.text = nil
             pagesLeftLabel.text = nil
             return nil
         }
 
-        let boundedPage = min(max(page, 1), totalPages)
-        let pagesLeft = totalPages - boundedPage
-        currentPageLabel.text = String(format: NSLocalizedString("PAGE_X_OF_X"), boundedPage, totalPages)
+        if currentPage > totalPages {
+            currentPage = totalPages
+        } else if currentPage < 1 {
+            currentPage = 1
+        }
+        let pagesLeft = totalPages - currentPage
+        currentPageLabel.text = String(format: NSLocalizedString("PAGE_X_OF_X"), currentPage, totalPages)
         if pagesLeft < 1 {
             pagesLeftLabel.text = nil
         } else {
@@ -132,7 +136,7 @@ class ReaderToolbarView: UIView {
                 ? NSLocalizedString("ONE_PAGE_LEFT")
                 : String(format: NSLocalizedString("%i_PAGES_LEFT"), pagesLeft)
         }
-        return boundedPage
+        return currentPage
     }
 
     func updateSliderPosition() {

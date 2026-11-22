@@ -1,7 +1,6 @@
 import Foundation
 
-/// Bulk transfers drain to a smaller ceiling while a visible uncached reader
-/// image is outstanding. Existing URLSession transfers are never interrupted.
+/// Lowers the bulk transfer ceiling while a visible reader image is loading.
 actor BulkDownloadAdmission {
     static let shared = BulkDownloadAdmission()
 
@@ -22,14 +21,12 @@ actor BulkDownloadAdmission {
 
     private var limit: Int { eligibleReaders.isEmpty ? idleLimit : readerLimit }
 
-    /// Caller owns this lease until completion, cancellation, or loss of visible
-    /// priority. No suspension occurs between cancellation checking and issuance.
+    /// The caller owns the lease until it releases it.
     func acquireReaderDemand() throws -> UUID {
         try Task.checkCancellation()
         let id = UUID()
         readers.insert(id)
-        // Issuance never waits for grace: the reader starts immediately.
-        // Brief loads/scroll churn do not repeatedly throttle bulk transfers.
+        // Demand counts only after a grace period, so brief loads never throttle.
         let grace = demandGraceNanoseconds
         pendingReaders[id] = Task.detached(priority: .utility) { [weak self] in
             do { try await Task.sleep(nanoseconds: grace) } catch { return }

@@ -3,8 +3,7 @@ import Foundation
 import Security
 
 protocol TranslationCredentialProviding: Sendable {
-    /// This method is intentionally unavailable to UI code through the settings
-    /// surface. The HTTP client reads the secret only at request time.
+    /// Not exposed to settings UI; the HTTP client reads the secret only at request time.
     func secret(for account: String) throws -> String
 }
 
@@ -12,23 +11,6 @@ protocol TranslationCredentialManaging: TranslationCredentialProviding, Sendable
     func save(_ secret: String, for account: String) throws
     func containsSecret(for account: String) throws -> Bool
     func deleteSecret(for account: String) throws
-}
-
-enum TranslationKeychainAccessGroupResolver {
-    static let infoPlistKey = "AidokuTranslationKeychainAccessGroup"
-
-    static func resolve(_ rawValue: Any?) -> String? {
-        guard let value = rawValue as? String else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed == value, trimmed.utf8.count <= 256,
-              !trimmed.contains("$("), !trimmed.contains("${"),
-              !trimmed.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else { return nil }
-        return trimmed
-    }
-
-    static func resolve(from bundle: Bundle = .main) -> String? {
-        resolve(bundle.object(forInfoDictionaryKey: infoPlistKey))
-    }
 }
 
 enum TranslationCredentialStoreError: Error, Equatable, LocalizedError {
@@ -57,7 +39,7 @@ struct KeychainTranslationCredentialStore: TranslationCredentialManaging, Sendab
 
     init(
         service: String = "app.aidoku.translation",
-        accessGroup: String? = TranslationKeychainAccessGroupResolver.resolve()
+        accessGroup: String? = KeychainTranslationCredentialStore.infoPlistAccessGroup()
     ) {
         self.service = service
         self.accessGroup = accessGroup
@@ -142,6 +124,14 @@ struct KeychainTranslationCredentialStore: TranslationCredentialManaging, Sendab
         ]
         if let accessGroup { query[kSecAttrAccessGroup as String] = accessGroup }
         return query
+    }
+
+    static func infoPlistAccessGroup() -> String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "AidokuTranslationKeychainAccessGroup") as? String,
+              !value.isEmpty, value == value.trimmingCharacters(in: .whitespacesAndNewlines), value.utf8.count <= 256,
+              !value.contains("$("), !value.contains("${"),
+              !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else { return nil }
+        return value
     }
 
     /// The secret is sent verbatim in an HTTP header.

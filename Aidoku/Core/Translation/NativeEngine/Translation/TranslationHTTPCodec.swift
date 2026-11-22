@@ -1,28 +1,12 @@
 // OCR and translation engine. See OCR-TRANSLATION-NOTICES.txt.
 import Foundation
-import CoreFoundation
 
 enum TranslationHTTPCodec {
     static let maxOutputTokens = 8192
-    private static func environmentValue<Value: LosslessStringConvertible>(
-        _ name: String, default fallback: Value, isValid: (Value) -> Bool
-    ) -> Value {
-        guard let raw = ProcessInfo.processInfo.environment[name],
-              let value = Value(raw), isValid(value) else { return fallback }
-        return value
-    }
-    static var samplingTemperature: Double {
-        environmentValue("AIDOKU_TRANSLATION_TEMPERATURE", default: 1.0) { $0.isFinite && (0...2).contains($0) }
-    }
-    static var samplingTopP: Double {
-        environmentValue("AIDOKU_TRANSLATION_TOP_P", default: 0.95) { $0.isFinite && $0 > 0 && $0 <= 1 }
-    }
-    static var samplingTopK: Int {
-        environmentValue("AIDOKU_TRANSLATION_TOP_K", default: 64) { $0 > 0 }
-    }
-    static var samplingRepetitionPenalty: Double {
-        environmentValue("AIDOKU_TRANSLATION_REPETITION_PENALTY", default: 1.08) { $0.isFinite && $0 > 0 }
-    }
+    static let samplingTemperature: Double = 1
+    static let samplingTopP = 0.95
+    static let samplingTopK = 64
+    static let samplingRepetitionPenalty = 1.08
     static let roleVerificationPolicy = "source-bound-focused-role-verification-v262"
     static let backgroundPolicy = "background-v15-explicit-objects-and-screens"
     static let textOnlyBackgroundPolicy = "llm-background-text-v4-defined-roles"
@@ -44,17 +28,8 @@ enum TranslationHTTPCodec {
         "broadcast branding; error=only clear false detection with no textual glyph; faint, clipped or punctuation-only writing is not error.",
     ].joined(separator: " ")
 
-    static let textOnlyBackgroundInstructions =
-        "background=in-scene writing only with physical-placement context, not wording alone."
-
-    static func backgroundInstructions(hasImage: Bool) -> String {
-        guard hasImage else { return textOnlyBackgroundInstructions }
-        return "background=writing on depicted objects or screens, including partial signs and labels; not balloons or overlays."
-    }
-
-    /// An exact long output shared by substantially different long sources is a
-    /// retry candidate, not proof of mistranslation: real paraphrases can coincide.
-    /// Short replies and near-identical source wording must not incur extra calls.
+    /// IDs whose identical long output is shared by substantially different long sources: retry
+    /// candidates (real paraphrases can coincide). Short or near-identical sources never retry.
     static func independentSourceRetryIDs(
         request: RemoteTranslationRequest, result: RemoteTranslationBatchResult
     ) -> [String] {
@@ -92,8 +67,7 @@ enum TranslationHTTPCodec {
         return Array(request.segments.map(\.id).filter { candidates.contains($0) }.prefix(4))
     }
 
-    /// One isolated request per candidate prevents other segment text from being
-    /// reassigned to this ID. Metadata and source coordinates remain unchanged.
+    /// An isolated request cannot reassign other segments' text to this ID.
     static func independentSourceRetryRequest(
         id: String, request: RemoteTranslationRequest
     ) -> RemoteTranslationRequest? {
@@ -102,8 +76,6 @@ enum TranslationHTTPCodec {
             targetLanguage: request.targetLanguage, segments: [segment])
         isolated.copyImageRepresentation(from: request)
         isolated.translatesPageLettering = request.translatesPageLettering
-        // Candidates are already admitted translatable text, never source-equal
-        // background or SFX. The retry cannot reclassify them into copied source.
         return isolated
     }
 
@@ -134,13 +106,10 @@ enum TranslationHTTPCodec {
 
     static let maximumTranslationBytes = 512 * 1024
 
-    /// `.standard` uses the protocol's portable JSON schema. For custom
-    /// endpoints positively identified as vLLM, an exact whitespace-free
-    /// grammar (`structured_outputs.regex`) replaces that schema.
+    /// `.standard` uses the portable JSON schema; identified vLLM endpoints use an exact grammar instead.
     struct ChatWireOptions: Equatable, Sendable {
         var compactStructuredOutput = false
         var stream = false
-        var maximumOutputTokens: Int?
 
         static let standard = Self()
     }
@@ -179,7 +148,9 @@ enum TranslationHTTPCodec {
             if request.translatesPageLettering == true && request.imageJPEG != nil {
                 rules.append("text_role: " + pageRoleDescriptions)
             } else {
-                rules.append("text_role: " + backgroundInstructions(hasImage: request.imageJPEG != nil) +
+                rules.append("text_role: " + (request.imageJPEG != nil
+                    ? "background=writing on depicted objects or screens, including partial signs and labels; not balloons or overlays."
+                    : "background=in-scene writing only with physical-placement context, not wording alone.") +
                     " Otherwise: lettering matching ordinary dialogue on this page in size, weight and typeface is not sfx. sfx=graphic lettering (描き文字) for sound, motion or stylized vocalization, distinct from ordinary dialogue type; short voice-like glyphs count when independently drawn as effects, but not when they are OCR fragments of adjacent ordinary dialogue. Judge each box_2d; brevity or punctuation alone is not proof. dialogue=speech/thought in ordinary dialogue lettering (通常のセリフ写植), including emphasis. narration=expository caption (地の文) describing story or scene, not writing on an object. story_text=titles, credits or editorial notices outside the scene; error=only clear false detection with no textual glyph; faint, clipped or punctuation-only writing is not error.")
             }
         }
@@ -193,17 +164,13 @@ enum TranslationHTTPCodec {
             responsesContent.insert(["type": "input_image", "image_url": url, "detail": "high"], at: filtersSFX ? 0 : responsesContent.count)
             chatContent.insert(["type": "image_url", "image_url": ["url": url, "detail": "high"]], at: filtersSFX ? 0 : chatContent.count)
         }
-        // Shared vLLM-compatible extensions. Key order is irrelevant: the body
-        // is serialized with sorted keys.
+        // vLLM-compatible extensions; the body is serialized with sorted keys.
         func addCustomExtensions(to root: inout [String: Any]) throws {
             if configuration.provider == .custom {
                 root["top_k"] = samplingTopK
                 root["repetition_penalty"] = samplingRepetitionPenalty
             }
-            // The private vLLM endpoint supports cache_salt. Opt in for corpus
-            // verification when identical zero-temperature requests have produced
-            // divergent text under a warm prefix cache. A fresh 256-bit salt
-            // isolates this call without changing prompt semantics.
+            // Opt-in fresh 256-bit cache_salt isolates a call from vLLM's warm prefix cache.
             if ProcessInfo.processInfo.environment["AIDOKU_VLLM_FRESH_PREFIX"] == "1" {
                 var generator = SystemRandomNumberGenerator()
                 root["cache_salt"] = Data((0..<32).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
@@ -272,9 +239,6 @@ enum TranslationHTTPCodec {
                 ]
             }
             if chatOptions.stream { chatRoot["stream"] = true }
-            if let maximumOutputTokens = chatOptions.maximumOutputTokens {
-                chatRoot["max_tokens"] = min(maximumOutputTokens, maxOutputTokens)
-            }
             if configuration.reasoningEffort != .modelDefault { chatRoot["reasoning_effort"] = configuration.reasoningEffort.rawValue }
             root = chatRoot
         }
@@ -300,10 +264,8 @@ enum TranslationHTTPCodec {
         }
     }
 
-    /// Exact whitespace-free grammar for the textual output contract: one
-    /// object per supplied ID in request order, keys in the order the prompt
-    /// lists them. Role combinations match the parser; decoded text validity
-    /// (including nonblank content) remains a parser responsibility.
+    /// Whitespace-free grammar: one object per ID in request order, keys in prompt order.
+    /// Decoded text validity (e.g. nonblank) stays with the parser.
     static func compactOutputPattern(segmentIDs: [String], filtersSFX: Bool, filtersBackground: Bool) throws -> String {
         guard supportsCompactOutput(segmentIDs: segmentIDs) else {
             throw RemoteTranslationError.invalidRequest("segment IDs cannot be expressed in a compact output grammar")
@@ -342,9 +304,7 @@ enum TranslationHTTPCodec {
         )
     }
 
-    /// Resolve only at the model boundary; settings, persistence and cache keys
-    /// retain language codes. A fixed English locale avoids device-language drift
-    /// and preserves script/region distinctions such as zh-Hant and pt-BR.
+    /// Resolved only at the model boundary, in a fixed English locale (keeps zh-Hant, pt-BR distinct).
     static func languageName(_ identifier: String) -> String {
         if identifier.caseInsensitiveCompare("auto") == .orderedSame { return "Auto-detect from input" }
         return Locale(identifier: "en_US_POSIX").localizedString(forIdentifier: identifier) ?? identifier
@@ -517,8 +477,6 @@ enum TranslationHTTPCodec {
         return expectedSegmentIDs.compactMap { accepted[$0] }
     }
 
-    /// Validates one `translations` item exactly as the complete envelope
-    /// parser does, retaining classification separately from translated text.
     private static func validatedSegment(
         _ rawItem: Any,
         expectedIDs: Set<String>,
@@ -544,9 +502,7 @@ enum TranslationHTTPCodec {
         return RemoteTranslatedSegment(id: id, text: text, isSFX: textRole.map { $0 == .sfx }, textRole: textRole)
     }
 
-    /// Whether a successful standard Chat Completions body came from a vLLM
-    /// release that supports `structured_outputs` (introduced in 0.10.2; the
-    /// check requires 0.11+). Unknown servers keep the portable request.
+    /// Whether a successful response came from a vLLM release (0.11+) supporting `structured_outputs`.
     static func identifiesStructuredOutputServer(
         responseBody: Data,
         apiProtocol: RemoteTranslationProtocol = .chatCompletions,
@@ -565,18 +521,14 @@ enum TranslationHTTPCodec {
             return false
         }
         let components = version.split(separator: ".", omittingEmptySubsequences: false)
-        guard components.count == 3,
-              components.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy({ (48...57).contains($0) }) })
-        else { return false }
         let parts = components.compactMap { Int($0) }
-        guard parts.count == 3 else { return false }
-        let major = parts[0], minor = parts[1]
+        guard components.count == 3, parts.count == 3,
+              components.allSatisfy({ $0.utf8.allSatisfy({ (48...57).contains($0) }) }) else { return false }
         // Responses' top-level structured_outputs was verified on vLLM 0.27.
-        return major > 0 || minor >= (apiProtocol == .responses ? 27 : 11)
+        return parts[0] > 0 || parts[1] >= (apiProtocol == .responses ? 27 : 11)
     }
 
-    /// Validates a complete Chat Completions SSE body with the same finish and
-    /// envelope rules as a non-streamed response.
+    /// Validates a complete Chat Completions SSE body like a non-streamed response.
     static func streamedChatTranslations(
         from body: Data,
         expectedSegmentIDs: [String],
@@ -584,8 +536,8 @@ enum TranslationHTTPCodec {
         backgroundSourceTexts: [String: String]? = nil
     ) throws -> [RemoteTranslatedSegment] {
         var decoder = ChatCompletionStreamDecoder()
-        _ = try decoder.consume(body)
-        _ = try decoder.finish()
+        try decoder.consume(body)
+        try decoder.finish()
         try validateChatFinish(reason: decoder.finishReason, refused: decoder.refused)
         return try parseTranslationEnvelope(
             decoder.content,
@@ -596,13 +548,9 @@ enum TranslationHTTPCodec {
 }
 
 extension TranslationHTTPCodec {
-    /// Decodes JSON escapes that leaked into a translation as literal text,
-    /// e.g. when a model double-encodes its output ("\\uae68" -> "깨",
-    /// "\\n" -> newline). Only an unescaped backslash starts an escape
-    /// (a doubled backslash stays literal); `\u` needs four hex digits naming
-    /// a visible non-ASCII character (surrogates only as a valid pair); `\n`
-    /// must not continue an ASCII word. An escape the source text itself
-    /// contains is legitimate and kept.
+    /// Decodes JSON escapes a model double-encoded into literal text ("\\uae68" -> "깨", "\\n" -> newline).
+    /// Only a single backslash escapes; `\u` must name a visible non-ASCII scalar, `\n` must not continue
+    /// an ASCII word, and an escape the source itself contains is kept.
     static func decodingLeakedEscapes(in text: String, source: String? = nil) -> String {
         guard text.contains("\\") else { return text }
         let scalars = Array(text.unicodeScalars)

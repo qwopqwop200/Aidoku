@@ -199,8 +199,7 @@ extension ReaderPageView {
     private func loadPage(_ page: Page, skipProcessing: Bool) async -> Bool {
         guard !Task.isCancelled else { return false }
         if var image = page.image {
-            // A split is cropped from the already displayed (processed) page.
-            // Navigating back to its inline half must behave like its saved PNG.
+            // A split half is cropped from the already processed page.
             if !skipProcessing, page.translationSourceRect == nil {
                 var processors: [ImageProcessing] = []
                 if UserDefaults.standard.bool(forKey: "Reader.cropBorders") {
@@ -242,22 +241,13 @@ extension ReaderPageView {
         }
     }
 
-    /// Raw source pages bypass Nuke's worker queue. Keep synchronous image work
-    /// off the reader's actor and share the bounded raw-data slot with base64 pages.
+    /// Raw source pages bypass Nuke: process off the main actor, sharing the base64 slot.
     static func processRawImage(_ image: UIImage, processors: [ImageProcessing]) async throws -> UIImage {
         try Task.checkCancellation()
         guard !processors.isEmpty else { return image }
         let gate = base64Gate
         let processing = Task.detached { () throws -> UIImage in
-            try await gate.withPermit {
-                var result = image
-                for processor in processors {
-                    try Task.checkCancellation()
-                    result = processor.process(result) ?? result
-                }
-                try Task.checkCancellation()
-                return result
-            }
+            try await gate.withPermit { try ReaderTranslationImageLoader.apply(processors, to: image) }
         }
         return try await withTaskCancellationHandler {
             try await processing.value
@@ -333,7 +323,13 @@ extension ReaderPageView {
     }
 
     func setPageImage(url: URL, context: PageContext? = nil, sourceId: String? = nil, archiveRequest: ImageRequest? = nil) async -> Bool {
-        removeTextView()
+        // remove text view if it exists
+        if let textView {
+            textView.willMove(toParent: nil)
+            textView.view.removeFromSuperview()
+            textView.removeFromParent()
+            self.textView = nil
+        }
 
         let request = await Self.imageRequest(url: url, context: context, sourceKey: sourceId, archiveRequest: archiveRequest)
 
@@ -367,7 +363,7 @@ extension ReaderPageView {
             completion: { _ in }
         )
         imageTask = loading
-        // A cancelled request must never clear a newer request's handle.
+        // hide progress view when task completes
         defer {
             if imageLoadGeneration == issued {
                 progressView.isHidden = true
@@ -409,7 +405,13 @@ extension ReaderPageView {
     }
 
     func setPageImage(base64: String, key: Int) async -> Bool {
-        removeTextView()
+        // remove text view if it exists
+        if let textView {
+            textView.willMove(toParent: nil)
+            textView.view.removeFromSuperview()
+            textView.removeFromParent()
+            self.textView = nil
+        }
 
         let issued = imageLoadGeneration
         let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
@@ -439,8 +441,7 @@ extension ReaderPageView {
         let processing = Task.detached { () throws -> UIImage? in
             try await gate.withPermit {
             try Task.checkCancellation()
-            // Disk decoding and cache encoding are synchronous Nuke APIs. Keep
-            // both inside the bounded worker, and recover from corrupt entries.
+            // Synchronous Nuke disk decoding and cache encoding stay in the bounded worker.
             if let cached = pipeline.cache.cachedImage(for: request, caches: .disk) {
                 return cached.image
             }
@@ -501,7 +502,13 @@ extension ReaderPageView {
             return true
         }
 
-        removeTextView()
+        // remove text view if it exists
+        if let textView {
+            textView.willMove(toParent: nil)
+            textView.view.removeFromSuperview()
+            textView.removeFromParent()
+            self.textView = nil
+        }
 
         return await setPageImage(url: extractedURL)
     }
@@ -597,8 +604,7 @@ extension ReaderPageView {
         } catch is CancellationError {
             return false
         } catch {
-            // Cached presentation is optional: a renderer failure must not turn
-            // an already decoded page into an image-download failure.
+            // Cached presentation is optional; a renderer failure is not a download failure.
             guard !Task.isCancelled, issued == imageLoadGeneration else { return false }
             ReaderTranslationDiagnostics.record("loaded_presentation_fallback")
             setPageImage(image, gifData: gifData)
@@ -608,7 +614,12 @@ extension ReaderPageView {
 
     func setPageImage(_ image: UIImage?, gifData: Data? = nil, prepared: ReaderTranslationPreparedImage? = nil) {
         guard !Task.isCancelled else { return }
-        removeTextView()
+        if let textView {
+            textView.willMove(toParent: nil)
+            textView.view.removeFromSuperview()
+            textView.removeFromParent()
+            self.textView = nil
+        }
         if imageView.image !== image { translationPage.reset() }
         imageView.image = image
         fixImageSize()
@@ -628,15 +639,6 @@ extension ReaderPageView {
         }
     }
 
-    // remove text view if it exists
-    private func removeTextView() {
-        guard let textView else { return }
-        textView.willMove(toParent: nil)
-        textView.view.removeFromSuperview()
-        textView.removeFromParent()
-        self.textView = nil
-    }
-
     func releasePageResources() {
         imageDownloadDemand.end()
         imageLoadGeneration = UUID()
@@ -650,8 +652,7 @@ extension ReaderPageView {
         translationPage.reset()
         translationPage.sourcePage = nil
         currentPage = nil
-        // Retained page controllers must release decoded GIF frames as well
-        // as their still image when they leave the working set.
+        // Retained page controllers must release decoded GIF frames too.
         imageView.prepareForReuse()
         imageView.image = nil
         currentImageRequest = nil

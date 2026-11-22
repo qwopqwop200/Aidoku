@@ -13,14 +13,18 @@ struct ReaderPageIdentityTests {
              zipURL: entry == nil ? nil : url.absoluteString)
     }
 
-    private func rawPage(color: UIColor = .red) -> Page {
+    private func solidImage(width: Int = 12, height: Int = 12, color: UIColor = .red) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 12), format: format).image { context in
+        let size = CGSize(width: width, height: height)
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
             color.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 12, height: 12))
+            context.fill(CGRect(origin: .zero, size: size))
         }
-        return Page(sourceId: "raw-image-source", chapterId: "chapter", image: image)
+    }
+
+    private func rawPage(color: UIColor = .red) -> Page {
+        Page(sourceId: "raw-image-source", chapterId: "chapter", image: solidImage(color: color))
     }
 
     @Test func replacedLocalFileGetsNewTranslationAndPixelIdentity() async throws {
@@ -91,12 +95,8 @@ struct ReaderPageIdentityTests {
         defer { for (key, value) in zip(keys, saved) { UserDefaults.standard.set(value, forKey: key) } }
         let pipeline = ImagePipeline { $0.dataCache = nil; $0.imageCache = Nuke.ImageCache() }
         for (source, width) in [("source-a", 2), ("source-b", 4), ("source-b", 6)] {
-            let format = UIGraphicsImageRendererFormat(); format.scale = 1
-            let image = UIGraphicsImageRenderer(size: CGSize(width: CGFloat(width), height: 3), format: format).image { context in
-                UIColor.red.setFill(); context.fill(CGRect(x: 0, y: 0, width: CGFloat(width), height: 3))
-            }
-            let page = Page(sourceId: source, chapterId: "same-chapter", index: 0,
-                            base64: try #require(image.pngData()).base64EncodedString())
+            let png = try #require(solidImage(width: width, height: 3).pngData())
+            let page = Page(sourceId: source, chapterId: "same-chapter", index: 0, base64: png.base64EncodedString())
             let view = ReaderPageView(temporaryPageStore: ReaderTemporaryPageStore(), imagePipeline: pipeline)
             view.isTranslationPreload = true
             #expect(await view.setPage(page))
@@ -131,9 +131,8 @@ struct ReaderPageIdentityTests {
         let plain = ImageRequest(url: URL(string: "https://cache-recovery.invalid/\(UUID())")!)
         var processed = plain
         processed.processors = [ImageProcessors.Resize(size: CGSize(width: 10, height: 10))]
-        let image = try #require(rawPage().image)
         pipeline.cache.storeCachedData(Data("bytes".utf8), for: plain)
-        pipeline.cache.storeCachedImage(ImageContainer(image: image), for: processed)
+        pipeline.cache.storeCachedImage(ImageContainer(image: solidImage()), for: processed)
         ReaderImageDownloadCache.removeCachedImageAndOriginal(for: processed, pipeline: pipeline)
         #expect(!pipeline.cache.containsCachedImage(for: plain))
         #expect(!pipeline.cache.containsCachedImage(for: processed))

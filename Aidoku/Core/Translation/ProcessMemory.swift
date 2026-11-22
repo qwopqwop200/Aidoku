@@ -1,24 +1,19 @@
 import Foundation
 import os
 
-/// Process memory headroom shared by translation admission (image work budget,
-/// Core ML recognizer). Extracted from the reader translation session.
+/// Process memory headroom shared by translation admission.
 enum ProcessMemory {
     static func available() -> UInt64 {
         #if os(macOS)
-        // Mac host tools: os_proc_available_memory is iOS-only. Use the same
-        // free + inactive vm_statistics64 estimate as the image-translation host.
+        // os_proc_available_memory is iOS-only.
         return hostFreeAndInactiveMemory()
         #else
         let reported = UInt64(os_proc_available_memory())
         #if targetEnvironment(simulator)
-        // Simulator reports zero when process headroom is unavailable. Explicit
-        // test budgets and all physical-device values still use the normal gate.
+        // The simulator reports zero when headroom is unavailable.
         return reported == 0 ? UInt64.max : reported
         #else
-        // An iPhone/iPad app on Apple silicon Mac (or Catalyst) has no jetsam
-        // limit, so os_proc_available_memory reports 0. Treating that as "no
-        // headroom" permanently refused every translation admission there.
+        // iOS apps on Mac (and Catalyst) have no jetsam limit and report 0.
         if reported == 0, ProcessInfo.processInfo.isiOSAppOnMac || ProcessInfo.processInfo.isMacCatalystApp {
             return hostFreeAndInactiveMemory()
         }

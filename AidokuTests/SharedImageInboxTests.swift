@@ -69,15 +69,11 @@ struct SharedImageInboxTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let corrupt = root.appendingPathComponent("corrupt", isDirectory: true)
         let missing = root.appendingPathComponent("missing", isDirectory: true)
-        let valid = root.appendingPathComponent("valid", isDirectory: true)
-        for directory in [corrupt, missing, valid] {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        }
+        try FileManager.default.createDirectory(at: corrupt, withIntermediateDirectories: true)
         try Data("{".utf8).write(to: corrupt.appendingPathComponent("manifest.json"))
-        let manifest = Data(#"{"title":"Shared","files":["00000001.image"]}"#.utf8)
-        try manifest.write(to: missing.appendingPathComponent("manifest.json"))
-        try manifest.write(to: valid.appendingPathComponent("manifest.json"))
-        try Data([1]).write(to: valid.appendingPathComponent("00000001.image"))
+        try makeBatch(in: root, name: "missing")
+        try FileManager.default.removeItem(at: missing.appendingPathComponent("00000001.image"))
+        try makeBatch(in: root, name: "valid")
         try Data([1]).write(to: root.appendingPathComponent("stray-file"))
         let batches = try SharedImageInbox(root: root).pendingBatches()
         #expect(batches.map(\.directory.lastPathComponent) == ["valid"])
@@ -88,8 +84,8 @@ struct SharedImageInboxTests {
     @Test func failingBatchIsDiscardedAfterBoundedAttemptsWithoutBlockingOthers() throws {
         let root = try temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        _ = try makeBatch(in: root, name: "a-failing")
-        _ = try makeBatch(in: root, name: "b-valid")
+        try makeBatch(in: root, name: "a-failing")
+        try makeBatch(in: root, name: "b-valid")
         let inbox = SharedImageInbox(root: root)
         var rounds = 0
         // Simulate repeated launches where the first batch always fails to import.
@@ -137,21 +133,19 @@ struct SharedImageInboxTests {
         return try #require(context.makeImage())
     }
 
-    private func imageInfo(at url: URL) throws -> (type: String, width: Int, height: Int) {
+    private func imageInfo(at url: URL) throws -> (width: Int, height: Int) {
         let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
-        let type = try #require(CGImageSourceGetType(source) as String?)
         let properties = try #require(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
         let width = try #require((properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue)
         let height = try #require((properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue)
-        return (type, width, height)
+        return (width, height)
     }
 
-    private func makeBatch(in root: URL, name: String) throws -> URL {
+    private func makeBatch(in root: URL, name: String) throws {
         let directory = root.appendingPathComponent(name, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try Data(#"{"title":"\#(name)","files":["00000001.image"]}"#.utf8)
             .write(to: directory.appendingPathComponent("manifest.json"))
         try Data([1]).write(to: directory.appendingPathComponent("00000001.image"))
-        return directory
     }
 }

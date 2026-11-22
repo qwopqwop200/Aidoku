@@ -31,8 +31,7 @@ actor DownloadTask: Identifiable {
     private weak var delegate: DownloadTaskDelegate?
 
     private var worker: Task<Void, Never>?
-    // A drained/cancelled worker cannot be revived while its terminal delegate
-    // callback is awaiting the queue; new entries belong to a successor.
+    // A drained or cancelled worker is never revived; new entries go to a successor.
     private var retired = false
     private var controlGeneration = 0
     private var enqueueGeneration: UInt64 = 0
@@ -69,8 +68,7 @@ actor DownloadTask: Identifiable {
         running = true
         let previousWorker = worker
         worker = Task(priority: .utility) {
-            // A cancelled render/network operation must finish unwinding before
-            // a replacement touches the same chapter files and counters.
+            // Let a cancelled worker unwind before touching the same files and counters.
             await previousWorker?.value
             guard !Task.isCancelled, running else { return }
             await next()
@@ -109,19 +107,15 @@ actor DownloadTask: Identifiable {
             downloads.removeAll(where: matches)
         }
         if !cancelledCurrent, !cancelAll {
-            // Editing future queue entries does not invalidate the active page
-            // worker, its staged files, or a pending manual pause/resume join.
+            // Removing future entries leaves the active worker running.
             if let warmedPages, cancelled.contains(where: { $0.chapterIdentifier == warmedPages.chapter }) {
                 warmedPages.task.cancel()
                 self.warmedPages = nil
             }
-            for download in cancelled {
-                if cache.isSafe(chapter: download.chapterIdentifier) {
-                    cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
-                }
+            for download in cancelled where cache.isSafe(chapter: download.chapterIdentifier) {
+                cache.tmpDirectory(for: download.chapterIdentifier).removeItem()
             }
-            // Finish filesystem cleanup before yielding: a delegate callback can
-            // re-enqueue a cancelled identifier and start its replacement work.
+            // Clean up before yielding: a delegate callback may re-enqueue the chapter.
             let generation = enqueueGeneration
             for download in cancelled {
                 if enqueueGeneration != generation, downloads.contains(download) { continue }
@@ -170,34 +164,24 @@ actor DownloadTask: Identifiable {
 }
 
 extension DownloadTask {
-    // Iterate rather than recurse: each chapter previously nested another async
-    // frame (next -> download -> finish -> next), retaining every finished chapter's
-    // page lists until the whole queue drained.
+    // Iterate rather than recurse, so finished chapters' pages are released.
     private func next() async {
         while await advance() {}
     }
 
-    /// Processes the head of the queue. Returns true when the caller should continue
-    /// with the next entry, false when this worker stops (drained, paused, cancelled).
+    /// Processes the head of the queue; returns false when this worker stops.
     private func advance() async -> Bool {
         guard running, !Task.isCancelled else { return false }
 
-        // done with all downloads
-        if downloads.isEmpty {
-            running = false
-            retired = true
-            await delegate?.taskFinished(task: self)
-            return false
-        }
-
-        // Reject malformed identifiers before any file lookup, failure marker,
-        // staging cleanup, or source callback can touch their derived paths.
+        // Reject malformed identifiers before anything touches their derived paths.
         while let download = downloads.first, !cache.isSafe(chapter: download.chapterIdentifier) {
             downloads.removeFirst()
             await delegate?.downloadFailed(download: download)
             guard running, !Task.isCancelled else { return false }
         }
-        guard !downloads.isEmpty else {
+
+        // done with all downloads
+        if downloads.isEmpty {
             running = false
             retired = true
             await delegate?.taskFinished(task: self)
@@ -253,8 +237,7 @@ extension DownloadTask {
         let file: (staging: URL, destination: URL)?
     }
 
-    // perform download
-    /// Returns true once the chapter reached a terminal state and the queue may advance.
+    // perform download; returns true once the queue may advance
     private func download(from source: AidokuRunner.Source) async -> Bool {
         guard running && !downloads.isEmpty else { return false }
 
@@ -337,10 +320,7 @@ extension DownloadTask {
             if page.hasDescription { descriptions.append((page, targetPath, i + 1)) }
         }
 
-        // Keep compressed files in the bounded queue, never decoded images. A
-        // completed request immediately opens a slot; a slow retry cannot stall
-        // every page in a fixed-size batch. Heavy image work remains serial;
-        // at most two translated pages can overlap their text-only API waits.
+        // A sliding window of page requests that hold files, not decoded images.
         await withTaskGroup(of: PageDownloadResult.self) { group in
             let ceiling = translationSettings == nil ? Self.maxConcurrentPageTasks : 2
             let limit = AppSettings.downloads.parallel.get()
@@ -381,8 +361,7 @@ extension DownloadTask {
             }
         }
 
-        // Metadata must finish before chapter promotion, but must not delay
-        // the first image request. Descriptions use one bounded source request.
+        // Descriptions are fetched after images but before chapter promotion.
         for (page, target, pageNumber) in descriptions {
             guard !Task.isCancelled, running, downloads.first == download else { return false }
             var description = page.description
@@ -393,8 +372,7 @@ extension DownloadTask {
                     try data.write(to: target.appendingPathExtension("desc.txt"))
                 } catch {
                     descriptionWriteFailed = true
-                    // Present metadata must not be silently dropped by a successful
-                    // chapter promotion. Count each failed page at most once.
+                    // A lost description counts as a failed page (once per page).
                     if !failedPageNumbers.contains(pageNumber) {
                         failedPageNumbers.append(pageNumber)
                         failedPages += 1
@@ -409,8 +387,7 @@ extension DownloadTask {
         return false
     }
 
-    // Every producer returns a file, including sources that transform images.
-    // This bounds queued decoded output even when translation is much slower.
+    // Every result is a file, so queued output never holds decoded images.
     private func downloadPage(_ page: NetworkPage, source: AidokuRunner.Source, tmpDirectory: URL,
                               translationSettings: ReaderTranslationSettings?) async -> PageDownloadResult {
         let request = await source.getModifiedImageRequest(url: page.url, context: page.context)
@@ -472,8 +449,7 @@ extension DownloadTask {
     private func fetchPageData(for urlRequest: URLRequest, tmpDirectory: URL) async -> (URL, URLResponse)? {
         var attempt = 0
         while !Task.isCancelled {
-            // Release the shared transport slot before decoding, provider waits,
-            // or retry backoff; queued cancellation never starts a request.
+            // The shared transport slot is held only for the request itself.
             let result = try? await bulkAdmission.withPermit { try await SourceNetwork.shared.download(for: urlRequest) }
 
             // response was okay, bail out
@@ -544,8 +520,7 @@ extension DownloadTask {
                                    language: download.chapter.language ?? source.languages.first) }
     }
 
-    // Source lookup crosses an actor boundary. Queue membership and the control
-    // generation must be checked afterward, before indexing or starting prefetch.
+    // Recheck queue state after the source lookup's actor hop.
     private func warmNextChapter(after download: Download) async {
         guard downloads.count > 1, warmedPages == nil else { return }
         let generation = controlGeneration
@@ -559,8 +534,7 @@ extension DownloadTask {
 
     private func handleChapterDownloadFinish(download: Download) async -> Bool {
         let tmpDirectory = cache.tmpDirectory(for: download.chapterIdentifier)
-        // Overlap only lightweight next-chapter metadata with finalization.
-        // Pixel downloads wait for the existing bounded queue to own the chapter.
+        // Prefetch only the next chapter's page list during finalization.
         await warmNextChapter(after: download)
         guard !Task.isCancelled, running, downloads.first == download else { return false }
 
@@ -647,8 +621,7 @@ extension DownloadTask {
         return true
     }
 
-    // Keep the worker actor available for suspension. Cancellation interrupts ZIP
-    // writes, and the caller joins the writer before promoting or removing its file.
+    // Runs off the actor; cancellation interrupts the ZIP write.
     @concurrent
     nonisolated static func writeChapterArchive(from directory: URL, to archive: URL) async throws {
         let progress = Progress(totalUnitCount: 0)

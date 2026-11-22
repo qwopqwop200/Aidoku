@@ -151,7 +151,10 @@ struct HomeListView: View {
     @ContentBuilder
     func view(for entry: HomeComponent.Value.Link, position: Int) -> some View {
         let label = HStack(spacing: 12) {
-            let mangaKey = entry.manga?.key
+            let mangaKey: String? = switch entry.value {
+                case .manga(let manga): manga.key
+                default: nil
+            }
             MangaCoverView(
                 source: source,
                 coverImage: entry.imageUrl ?? "",

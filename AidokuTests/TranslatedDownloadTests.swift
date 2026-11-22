@@ -6,11 +6,6 @@ import Testing
 @Suite(.serialized)
 @MainActor
 struct TranslatedDownloadTests {
-    private func download() -> Download {
-        .from(manga: AidokuRunner.Manga(sourceKey: "test", key: "manga", title: "Test"),
-              chapter: AidokuRunner.Chapter(key: "chapter", title: "Chapter"))
-    }
-
     @Test func backgroundSuspensionRetainsTranslatedQueueAndManualPause() async throws {
         let savedQueue = UserDefaults.standard.data(forKey: "Data.downloadQueueState")
         defer { UserDefaults.standard.set(savedQueue, forKey: "Data.downloadQueueState") }
@@ -32,7 +27,8 @@ struct TranslatedDownloadTests {
     }
 
     @Test func translationChoiceSurvivesQueuePersistenceAndOldQueuesStillDecode() throws {
-        var item = download()
+        var item = Download.from(manga: AidokuRunner.Manga(sourceKey: "test", key: "manga", title: "Test"),
+                                 chapter: AidokuRunner.Chapter(key: "chapter", title: "Chapter"))
         item.translatesImages = true
         let encoded = try JSONEncoder().encode(item)
         let restored = try JSONDecoder().decode(Download.self, from: encoded)

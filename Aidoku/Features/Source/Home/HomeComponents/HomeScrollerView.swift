@@ -69,7 +69,10 @@ struct HomeScrollerView: View {
                         ForEach(entries.indices, id: \.self) { offset in
                             let entry = entries[offset]
                             let label = VStack(alignment: .leading) {
-                                let mangaKey = entry.manga?.key
+                                let mangaKey: String? = switch entry.value {
+                                    case .manga(let manga): manga.key
+                                    default: nil
+                                }
                                 MangaCoverView(
                                     source: source,
                                     coverImage: entry.imageUrl ?? "",
@@ -80,21 +83,12 @@ struct HomeScrollerView: View {
                                 )
 
                                 VStack(alignment: .leading, spacing: 0) {
-                                    Group {
-                                        if case .manga = entry.value {
-                                            TranslatedTitleText(entry.title, kind: .manga)
-                                        } else {
-                                            TranslatedTitleText(entry.title, kind: .sourceLabel)
-                                        }
-                                    }
+                                    TranslatedTitleText(entry.title, kind: entry.manga != nil ? .manga : .sourceLabel)
                                         .lineLimit(2)
                                         .multilineTextAlignment(.leading)
 
                                     if let subtitle = entry.subtitle {
-                                        TranslatedTitleText(
-                                            subtitle,
-                                            kind: entry.subtitleTranslationKind
-                                        )
+                                        TranslatedTitleText(subtitle, kind: entry.subtitleTranslationKind)
                                             .foregroundStyle(.secondary)
                                             .font(.footnote)
                                             .lineLimit(1)

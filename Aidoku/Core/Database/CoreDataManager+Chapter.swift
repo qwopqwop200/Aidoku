@@ -55,6 +55,39 @@ extension CoreDataManager {
         }
     }
 
+    /// Create a chapter object.
+    @discardableResult
+    func createChapter(
+        _ chapter: AidokuRunner.Chapter,
+        mangaId: MangaIdentifier,
+        sourceOrder: Int,
+        mangaObject: MangaObject? = nil,
+        context: NSManagedObjectContext
+    ) -> ChapterObject? {
+        guard let mangaObject = mangaObject ?? getManga(
+            mangaId: mangaId,
+            context: context
+        ) else {
+            return nil
+        }
+        let object = ChapterObject(context: context)
+        object.load(
+            from: chapter,
+            mangaId: mangaId,
+            sourceOrder: sourceOrder
+        )
+        object.manga = mangaObject
+        object.history = getHistory(
+            chapterId: .init(
+                sourceKey: mangaId.sourceKey,
+                mangaKey: mangaId.mangaKey,
+                chapterKey: chapter.id
+            ),
+            context: context
+        )
+        return object
+    }
+
     /// Check if a chapter exists in the data store.
     func hasChapter(chapterId: ChapterIdentifier, context: NSManagedObjectContext) -> Bool {
         let request = ChapterObject.fetchRequest()
@@ -103,8 +136,7 @@ extension CoreDataManager {
             if object.manga !== manga { object.manga = manga }
             if becameUnlocked { newChaptersCreated.append(object) }
         }
-        // A later duplicate can own the download. Consolidate its relationships
-        // before deciding whether an absent chapter can safely be removed.
+        // Duplicates were merged above, so a kept row may now own the download.
         for (key, object) in existing where incoming[key] == nil && object.fileInfo == nil {
             context.delete(object)
         }
@@ -208,12 +240,7 @@ extension CoreDataManager {
         context: NSManagedObjectContext
     ) -> Int {
         // An empty saved filter means "all scanlators", matching unreadCount.
-        // `scanlator IN {}` would otherwise count zero read chapters.
-        let scanlators: [String]? = if scanlators?.isEmpty ?? true {
-            nil
-        } else {
-            scanlators
-        }
+        let scanlators = scanlators?.isEmpty == false ? scanlators : nil
         let request = ChapterObject.fetchRequest()
         if let scanlators, let lang {
             request.predicate = NSPredicate(

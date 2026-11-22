@@ -1,44 +1,22 @@
 # Native runtime map
 
-The reader's translation display and final image export use native code.
-Installed source packages run their WASM and the dictionary popup is a web view,
-as upstream Aidoku does. Browser-dependent login and interactive challenges
-still use WebKit. The app as a whole therefore still has a browser component.
+Reader translation display and image export are native. As upstream, installed sources run WASM and the dictionary
+popup is a web view; browser-dependent login and interactive challenges still use WebKit.
 
 | Area | Current execution | Main entry points |
 | --- | --- | --- |
-| Page translation (V2) | Core ML layout/OCR/inpainting plus Swift grouping, removal mask, style and Core Text paint | `ReaderTranslationV2Service`, `V2Pipeline` (`Docs/translation-v2.md`) |
-| OCR models | Core ML PP-OCRv6 manga detector and recognizer, run by V2 | `NativeCoreMLDetector`, `V2Recognition` |
-| Translation requests | Swift URLSession transport, parsing and bounded batching | `RemoteTranslationClient`, `ReaderTranslationService` |
-| Reader display and export | The finished V2 page bitmap is attached above the source image and saved as is | `ReaderTranslationPage`, `ReaderTranslationImageExporter` |
-| Dictionary popup | Upstream web popup (`popup.js`) in a WKWebView | `PopupView`, `PopupWebView` |
-| Installed sources | `main.wasm` on the AidokuRunner interpreter, or the legacy runtime for 0.6-API packages | `SourceManager`, `Core/Sources/Legacy`, AidokuRunner package (fork) |
-| Web login, challenge solving and user agent | WebKit for browser-dependent flows | `WebView`, `CloudflareHandler`, `UserAgentProvider` |
-| Image translation CLI | Native production algorithms with an AppKit/Core Graphics host adapter | `Scripts/image-translation.swift` |
+| Page translation (V2) | Core ML layout/OCR/inpainting, Swift grouping, mask, style and Core Text paint | `ReaderTranslationV2Service`, `V2Pipeline` ([V2](translation-v2.md)) |
+| OCR models | Core ML PP-OCRv6 manga detector and recognizer | `NativeCoreMLDetector`, `V2Recognition` |
+| Translation requests | URLSession transport, parsing and bounded batching | `RemoteTranslationClient`, `ReaderTranslationService` |
+| Reader display and export | Finished V2 bitmap above the source image, saved as is | `ReaderTranslationPage`, `ReaderTranslationImageExporter` |
+| Dictionary popup | Upstream `popup.js` in a WKWebView | `PopupView`, `PopupWebView` |
+| Installed sources | `main.wasm` on AidokuRunner, or the legacy runtime for 0.6-API packages | `SourceManager`, `Core/Sources/Legacy` |
+| Web login, challenges, user agent | WebKit | `WebView`, `CloudflareHandler`, `UserAgentProvider` |
+| Image translation CLI | Production algorithms with an AppKit/Core Graphics host adapter | `Scripts/image-translation.swift` |
 
-Historical `Browser…` names can remain on pure Swift OCR data types. A type
-name alone does not imply browser execution.
+`Browser…` names on pure Swift OCR data types are historical. Host font and raster output of the CLI
+([README](../Scripts/image-translation/README.md)) is not proof of exact iPhone output.
 
-## Host image translation
-
-```sh
-swift Scripts/image-translation.swift /path/to/page.png
-swift Scripts/image-translation.swift --ocr-only /path/to/page.png
-```
-
-The launcher builds the V2 pipeline (`Docs/translation-v2.md`) from current
-source with incremental object/model caches on Apple Silicon macOS 15+ with the
-Xcode command-line tools. See [CLI configuration and outputs](../Scripts/image-translation/README.md).
-Host font and raster behavior is not proof of exact iPhone output.
-
-## Native allocation policy
-
-Translation-cache SQLite compressed reads borrow the BLOB only within the
-synchronous statement and return owned decoded bytes. Writes retain their source
-buffer until SQLite finalizes the statement. Dictionary raster attachments decode
-at their display size and retain one size/trait-specific rendered bitmap;
-explicit pixelated images preserve their original pixels.
-
-## Verification
-
-See [test commands](../Scripts/TESTING.md).
+Translation-cache SQLite reads borrow the compressed BLOB only within the statement and return owned bytes; writes
+keep their buffer until the statement finalizes. Dictionary raster attachments decode at display size and keep one
+rendered bitmap per size/trait; explicitly pixelated images keep their original pixels.

@@ -2,13 +2,10 @@ import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
 
-// Resident model set for the V2 pipeline. Every model is loaded exactly once
-// per process and shared by all pages; stages receive this value and never
-// load, purge or cache models themselves. See Docs/translation-v2.md.
+// Resident V2 model set: loaded once per process and shared by all pages.
 
-/// Canonical page raster shared by the pixel stages (RF-DETR, AOT): sRGB,
-/// RGBA8 premultipliedLast on a white matte, top-left row order. Opaque manga
-/// pages are therefore their exact RGB bytes with alpha 255.
+/// Canonical page raster of the pixel stages (RF-DETR, AOT): sRGB RGBA8
+/// premultipliedLast on a white matte, top-left row order.
 struct V2PageRaster: Sendable {
     let width: Int
     let height: Int
@@ -45,8 +42,7 @@ struct V2PageRaster: Sendable {
     }
 }
 
-/// Runs blocking Core ML work on a dedicated serial queue so synchronous
-/// predictions never occupy Swift's cooperative thread pool.
+/// Runs blocking Core ML work on a serial queue, off Swift's cooperative pool.
 final class V2SerialExecutor: @unchecked Sendable {
     private let queue: DispatchQueue
 
@@ -61,9 +57,8 @@ final class V2SerialExecutor: @unchecked Sendable {
     }
 }
 
-/// FIFO pool of resident, non-shareable instances. The legacy
-/// `NativeCoreMLDetector` is "newest request wins" (a second concurrent
-/// `detect` cancels the first), so each instance serves one page at a time.
+/// FIFO pool of resident instances that serve one page at a time (a second concurrent
+/// legacy `NativeCoreMLDetector.detect` cancels the first).
 final class V2InstancePool<Element: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private var free: [Element]
@@ -122,14 +117,10 @@ final class V2Models: @unchecked Sendable {
 
     static let detectorResourceName = "PP-OCRv6-Manga-DetShapes"
 
-    /// S2 text detectors (PP-OCRv6 manga DB, legacy implementation), resident.
-    /// Use `detectors.with { ... }`; never call one instance concurrently.
+    /// S2 PP-OCRv6 manga DB detectors; use `detectors.with { ... }`.
     let detectors: V2InstancePool<NativeCoreMLDetector>
-    /// S3 recognizer: independent resident handles (owned by V2Recognition.swift).
     let recognition: V2RecognitionEngine
-    /// S1 RF-DETR 648 layout model.
     let layout: V2RFDETRModel
-    /// S7 AOT 1024 inpainting models (independent instances; one prediction each at a time).
     let inpainters: V2InstancePool<V2AOTModel>
     /// Wall-clock milliseconds spent loading each model, for the run summary.
     let loadMilliseconds: [String: Double]
@@ -143,9 +134,8 @@ final class V2Models: @unchecked Sendable {
         self.loadMilliseconds = loadMilliseconds
     }
 
-    /// Loads all models from compiled `.mlmodelc` resources in `bundle`.
-    /// The detector's Core ML program is loaded lazily by the legacy class;
-    /// call `warmUp()` once before the first page to make it resident.
+    /// Loads all models from compiled `.mlmodelc` resources; the detector program loads
+    /// lazily, so call `warmUp()` before the first page.
     static func load(bundle: Bundle = .main, detectorInstances: Int = 2, inpainterInstances: Int = 2) throws -> V2Models {
         var timings: [String: Double] = [:]
         func timed<T>(_ name: String, _ body: () throws -> T) rethrows -> T {
@@ -173,9 +163,8 @@ final class V2Models: @unchecked Sendable {
                         loadMilliseconds: timings)
     }
 
-    /// Makes every model resident and specialized: one throwaway prediction per
-    /// model (and per detector instance) on a blank page, so the first real page
-    /// does not pay Core ML's first-prediction compilation.
+    /// One throwaway prediction per model instance on a blank page, so the first real
+    /// page does not pay Core ML's first-prediction compilation.
     func warmUp() async throws {
         let side = 512
         let raster = V2PageRaster(width: side, height: side, rgba: [UInt8](repeating: 255, count: side * side * 4))

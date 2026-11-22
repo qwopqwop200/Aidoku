@@ -1,8 +1,7 @@
 import AidokuRunner
 import Foundation
 
-/// Keeps subscription cleanup tied to the caller that installed it and tags the
-/// actual source invocation so late partials cannot be delivered to its successor.
+/// Ties partial-home sink cleanup to its caller so late partials never reach a successor.
 enum SourceHomeSubscription {
     static func load(
         publisher: SinglePublisher<Home>?,

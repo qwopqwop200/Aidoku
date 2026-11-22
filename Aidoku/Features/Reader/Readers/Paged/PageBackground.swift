@@ -15,9 +15,7 @@ enum PageBackground {
     // swiftlint:disable:next cyclomatic_complexity
     static func choose(for image: UIImage, isLandscape: Bool) -> PageBackground {
         guard let cgImage = image.cgImage else { return .color(.white) }
-        // Normalize every input format (including grayscale and BGRA) into a
-        // bounded RGBA bitmap. Sampling raw provider bytes assumes a pixel layout
-        // UIImage does not promise and confuses point sizes with pixel sizes.
+        // Draw into a bounded RGBA bitmap: raw provider bytes have no guaranteed pixel layout.
         let sampleScale = min(1, 512 / CGFloat(max(cgImage.width, cgImage.height)))
         let width = max(1, Int(CGFloat(cgImage.width) * sampleScale))
         let height = max(1, Int(CGFloat(cgImage.height) * sampleScale))

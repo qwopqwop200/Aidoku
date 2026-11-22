@@ -68,8 +68,7 @@ actor DownloadQueue {
                 title: NSLocalizedString("DOWNLOADING"),
                 subtitle: NSLocalizedString("PROCESSING_QUEUE")
             )
-            // Do not leave a visible foreground download queued behind the
-            // system's continued-processing scheduler.
+            // Never leave a foreground download queued behind the scheduler.
             request.strategy = .fail
             backgroundRequestPending = true
             do {
@@ -90,8 +89,7 @@ actor DownloadQueue {
             guard cancelAllTask == nil, !paused, !suspendedForBackground, canUseNetwork else { return }
             guard let downloads = queue[sourceKey], !downloads.isEmpty else { continue }
             if tasks[sourceKey] == nil {
-                // Publish a fully initialized worker without an actor suspension;
-                // foreground and scheduler callbacks may both arrive here.
+                // No suspension here: foreground and scheduler callbacks may both arrive.
                 tasks[sourceKey] = DownloadTask(id: sourceKey, cache: cache, downloads: downloads, delegate: self)
             }
             guard cancelAllTask == nil, !paused, !suspendedForBackground, canUseNetwork else { return }
@@ -103,8 +101,7 @@ actor DownloadQueue {
         await start()
     }
 
-    // System suspension preserves the user's intent to run the queue. A manual
-    // pause remains authoritative even if it happens while the app is hidden.
+    // Background suspension keeps the queue's intent; a manual pause still wins.
     func suspendForBackground() async {
         guard !paused, !queue.isEmpty else { return }
         suspendedForBackground = true
@@ -115,8 +112,7 @@ actor DownloadQueue {
     }
 
     func applicationDidEnterBackground() async {
-        // Ordinary URLSession downloads also need suspension when no continued
-        // processing grant exists (older iOS, disabled setting, denied request).
+        // Suspend when no continued-processing grant exists, or translation is queued.
         guard bgTask == nil || queue.values.joined().contains(where: { $0.translatesImages == true }) else { return }
         await suspendForBackground()
     }
@@ -147,8 +143,7 @@ actor DownloadQueue {
 
     private func pauseTasksIfNeeded() async {
         for task in tasks.values {
-            // A newer resume/foreground/network event can arrive while awaiting
-            // a different source. Do not let an older pause stop it afterward.
+            // A newer resume may arrive while awaiting; do not pause after it.
             guard paused || suspendedForBackground || !canUseNetwork else { return }
             await task.pause()
         }
@@ -167,12 +162,10 @@ actor DownloadQueue {
 
     @discardableResult
     func add(chapters: [AidokuRunner.Chapter], manga: AidokuRunner.Manga, autoStart: Bool = true, translatesImages: Bool = false) async -> [Download] {
-        // Entries arriving during cancel-all are accepted after its joined
-        // cleanup, never published into a directory the old operation can erase.
+        // Entries arriving during cancel-all wait for its cleanup.
         while let cancellation = cancelAllTask { await cancellation.value }
         var downloads: [Download] = []
-        // Verify stored identities once for the whole batch; a per-chapter check
-        // reopens every downloaded sibling archive (quadratic for "download all").
+        // Verify stored identities once for the whole batch.
         let safeChapters = cache.safeChapters(chapters.map {
             ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: $0.key)
         })
@@ -189,8 +182,7 @@ actor DownloadQueue {
             while let cancellation = cancelAllTask { await cancellation.value }
             guard queue[manga.sourceKey]?.contains(where: { $0.chapterIdentifier == identifier }) != true else { continue }
 
-            // The worker rejects invalid identifiers, but queue preparation runs
-            // first. Never touch their derived paths while recording queue state.
+            // Never touch the derived paths of unsafe identifiers.
             if safeChapters.contains(identifier) {
                 let tmpDirectory = cache.tmpDirectory(for: identifier)
                 tmpDirectory.removeItem() // remove a previous failed download
@@ -205,8 +197,7 @@ actor DownloadQueue {
             } else {
                 queue[manga.sourceKey]?.append(download)
             }
-            // A source row may have drained while its worker's terminal callback
-            // is still pending. Reconcile both states, not just the row-present case.
+            // The source row may have drained while its worker is still finishing.
             await tasks[manga.sourceKey]?.add(download: download)
         }
         totalDownloads += downloads.count
@@ -285,8 +276,7 @@ actor DownloadQueue {
             cancellationNotificationDepth -= 1
             NotificationCenter.default.post(name: .downloadsCancelled, object: nil)
             saveQueueState()
-            // Clear before completing, so a joining add cannot observe a finished
-            // task as a still-active cancellation boundary.
+            // Clear before completing so a joining add does not wait on it again.
             cancelAllTask = nil
         }
         cancelAllTask = cancellation
@@ -396,8 +386,7 @@ extension DownloadQueue: DownloadTaskDelegate {
     func taskFinished(task: DownloadTask) async {
         guard tasks[task.id] === task else { return }
         tasks.removeValue(forKey: task.id)
-        // Accepted entries may have arrived after this worker retired. They are
-        // authoritative queue state and must survive the old terminal callback.
+        // Keep entries that arrived after this worker retired.
         if queue[task.id]?.isEmpty == true { queue.removeValue(forKey: task.id) }
         finishBackgroundTaskIfEmpty()
         saveQueueState()

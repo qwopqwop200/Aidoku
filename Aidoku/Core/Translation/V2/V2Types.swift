@@ -1,10 +1,7 @@
 import CoreGraphics
 import Foundation
 
-// Shared value types for the speed-first V2 image translation pipeline.
-// Every V2 stage consumes and produces these plain values; stages never reach
-// into the legacy NativeEngine orchestration, singletons or task-locals.
-// See Docs/translation-v2.md for the stage contracts and quality/speed gates.
+// Plain values shared by the V2 stages (contracts: Docs/translation-v2.md).
 
 /// One input page in original-image pixel coordinates (top-left origin).
 struct V2Page: Sendable {
@@ -16,8 +13,7 @@ struct V2Page: Sendable {
     var height: Int { image.height }
 }
 
-/// Block/panel reading order for S4. Manga reads right-to-left, comics and
-/// LTR books left-to-right, and vertical strips (webtoon) top-to-bottom.
+/// Block/panel reading order for S4 (manga, comics, webtoon strips).
 enum V2ReadingDirection: String, Sendable, Codable, CaseIterable {
     case rightToLeft, leftToRight, topToBottom
 }
@@ -44,8 +40,7 @@ struct V2LayoutRegion: Sendable, Codable, Equatable {
 }
 
 enum V2Role: String, Sendable, Codable {
-    /// `narration`: a caption or story text (provider roles narration/story_text); painted
-    /// like dialogue except that horizontal lines start at the frame's left edge.
+    /// `narration`: captions/story text, painted like dialogue but left-aligned when horizontal.
     case dialogue, sfx, background, narration
 }
 
@@ -109,8 +104,7 @@ struct V2PlacedText: Sendable, Codable, Equatable {
     var fontPixels: CGFloat
     var vertical: Bool
     var lines: [String]
-    /// Source tilt in radians (clockwise, about the frame centre); nil when upright.
-    /// `frame` is the unrotated text rectangle.
+    /// Source tilt in radians (clockwise, about the frame centre) of the unrotated `frame`; nil when upright.
     var angle: CGFloat?
     /// Horizontal scale of every line about the frame centre (0.9 condense); nil when 1.
     var condense: CGFloat?
@@ -124,11 +118,6 @@ struct V2PlacedText: Sendable, Codable, Equatable {
 /// Per-stage wall-clock milliseconds for one page.
 struct V2Timings: Sendable, Codable, Equatable {
     var stages: [String: Double] = [:]
-    mutating func record<T>(_ stage: String, _ body: () throws -> T) rethrows -> T {
-        let start = DispatchTime.now().uptimeNanoseconds
-        defer { stages[stage, default: 0] += Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000 }
-        return try body()
-    }
     mutating func record<T>(_ stage: String, _ body: () async throws -> T) async rethrows -> T {
         let start = DispatchTime.now().uptimeNanoseconds
         defer { stages[stage, default: 0] += Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000 }

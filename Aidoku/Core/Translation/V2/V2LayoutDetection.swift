@@ -2,13 +2,9 @@ import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
 
-// S1: RF-DETR 648 layout regions (text, SFX, balloon, frame) for the V2 pipeline.
-//
-// Numerics follow the legacy NativeRFDETRLayoutTensorContract exactly: sRGB
-// white-matted RGB, PyTorch antialiased triangle resize to 648x648 with
-// half-pixel centers, ImageNet normalization, global top-160 (query, class)
-// ranking with per-class floors. The 31 MB mask output is never read (Core ML
-// materializes it lazily).
+// S1: RF-DETR 648 layout regions (text, SFX, balloon, frame). Numerics follow the legacy
+// tensor contract exactly: PyTorch antialiased triangle resize, ImageNet normalization,
+// global top-160 (query, class) ranking with per-class floors. The mask output is never read.
 
 @available(iOS 18.0, macOS 15.0, *)
 final class V2RFDETRModel: @unchecked Sendable {
@@ -102,9 +98,8 @@ final class V2RFDETRModel: @unchecked Sendable {
         let horizontal: Taps
         let vertical: Taps
 
-        // Same arithmetic, accumulation order and normalization as the legacy
-        // kernel (per-row horizontal pass, then vertical accumulation from 0);
-        // the horizontal rows of one band live in one contiguous scratch buffer.
+        // The legacy kernel's arithmetic and order (horizontal pass per row, then vertical
+        // accumulation from 0); a band's horizontal rows share one scratch buffer.
         func write(rows outputRows: Range<Int>) {
             let side = V2RFDETRModel.side, plane = side * side
             guard let firstRow = outputRows.first.map({ vertical.first[$0] }),

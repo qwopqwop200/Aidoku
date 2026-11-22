@@ -115,8 +115,7 @@ struct SourceHomeContentView: View {
                 if listingSelection > maxListings {
                     headerListingSelection = 0
                 } else if !source.features.providesHome || (source.features.providesHome && listingSelection > 0) {
-                    // Initial discovery or a changed listing needs a load. A refresh already
-                    // loading this listing must not issue the same first-page request twice.
+                    // Skip if a refresh is already loading this listing.
                     if listingModel.currentListing != currentListing {
                         Task { await loadListing() }
                     }

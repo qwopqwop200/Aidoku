@@ -6,8 +6,7 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     let rect: CGRect // Normalized image coordinates, top-left origin.
     let source: String
     var translation: String?
-    /// A classified effect retains its source pixels even though its translated
-    /// text is stored for diagnostics and cache reuse.
+    /// A classified effect keeps its source pixels; its translation is only stored.
     var keepsClassifiedSFXSource = false
     /// Changed symbol-only output may need typesetting; identical output keeps source pixels.
     var rendersUnchangedSymbols = false
@@ -23,8 +22,7 @@ struct ReaderTranslationRegion: Equatable, Sendable {
     var translationRecoveryFailure: String? = nil
 
     mutating func applyTranslation(_ segment: RemoteTranslatedSegment) {
-        // A false OCR detection is not lettering: keep its original pixels and
-        // ignore any schema-required text returned with the error role.
+        // A false OCR detection keeps its original pixels.
         if segment.textRole == .error {
             translation = source
             keepsClassifiedSFXSource = false
@@ -41,8 +39,6 @@ struct ReaderTranslationRegion: Equatable, Sendable {
                 CharacterSet.punctuationCharacters.contains($0) || CharacterSet.symbols.contains($0) ||
                     CharacterSet.whitespacesAndNewlines.contains($0)
             }
-        // Object lettering is translated by the provider for diagnostics, but
-        // its original pixels must not receive a speech-style overlay.
         translation = effectiveText
         keepsClassifiedSFXSource = keepSFX
         rendersUnchangedSymbols = renderSymbols

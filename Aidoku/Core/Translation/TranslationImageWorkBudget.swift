@@ -6,58 +6,26 @@ import Nuke
 /// retain compressed bytes or file URLs, never a queue of decoded page images.
 final class TranslationImageWorkBudget: Sendable {
     static let shared = TranslationImageWorkBudget()
-    /// 1.25 GB normally; lower in `AIDOKU_DEVELOPER_PERFORMANCE` builds (`V2PerformanceProfile`).
-    static var minimumHeadroom: UInt64 { V2PerformanceProfile.current.minimumHeadroom }
     private static let reclamationGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
     private let gate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 1)
-    private let availableMemory: @Sendable () -> UInt64
-
-    init(availableMemory: @escaping @Sendable () -> UInt64 = { ProcessMemory.available() }) {
-        self.availableMemory = availableMemory
-    }
 
     enum AdmissionError: Error { case insufficientMemory, imageTooLarge }
 
-    /// Reclaim page caches first, then the resident V2 models only if headroom is
-    /// still short. Waiting on headroom without releasing these owners can
-    /// otherwise stall indefinitely, but reloading models that did not need to
-    /// be released costs the next page a cold OCR start.
-    @discardableResult
-    static func reclaimIdleResources(
-        requiredHeadroom: UInt64 = minimumHeadroom,
-        availableMemory: @escaping @Sendable () -> UInt64 = { ProcessMemory.available() }
-    ) async -> Bool {
-        await reclaimIdleResources(requiredHeadroom: requiredHeadroom, availableMemory: availableMemory, purgeCaches: {
-            await MainActor.run { ImagePipeline.shared.configuration.imageCache?.removeAll() }
-            if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.clearMemory() }
-        }, purgeModels: {
-            if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.releaseModels() }
-        })
-    }
-
-    /// Returns whether the OCR models were purged.
-    @discardableResult
-    static func reclaimIdleResources(
-        requiredHeadroom: UInt64,
-        availableMemory: @escaping @Sendable () -> UInt64,
-        purgeCaches: @escaping @Sendable () async -> Void,
-        purgeModels: @escaping @Sendable () async -> Void
-    ) async -> Bool {
-        // Another worker may have released its images after this caller failed
-        // admission. Avoid evicting warm reader resources once pressure passed.
-        guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
-        // Reader and download waiters share recovery too: after the first
-        // purge restores headroom, queued recoveries must recheck instead of
-        // evicting the newly warm caches/models again. Never hold image admission
-        // while waiting for this gate or for headroom to recover.
+    /// Reclaims page caches first, then the resident V2 models only if headroom is still
+    /// short; each step rechecks so queued recoveries do not evict warm resources again.
+    /// Returns whether the models were purged.
+    private static func reclaimIdleResources(requiredHeadroom: UInt64) async -> Bool {
+        @Sendable func short() -> Bool { !Task.isCancelled && ProcessMemory.available() < requiredHeadroom }
+        guard short() else { return false }
         do {
             return try await reclamationGate.withPermit {
-                guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
+                guard short() else { return false }
                 ReaderTranslationDiagnostics.record("memory_reclaim_begin")
                 defer { ReaderTranslationDiagnostics.record("memory_reclaim_end") }
-                await purgeCaches()
-                guard !Task.isCancelled, availableMemory() < requiredHeadroom else { return false }
-                await purgeModels()
+                await MainActor.run { ImagePipeline.shared.configuration.imageCache?.removeAll() }
+                if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.clearMemory() }
+                guard short() else { return false }
+                if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.releaseModels() }
                 return true
             }
         } catch { return false } // A cancelled waiter must not evict resources.
@@ -92,7 +60,7 @@ final class TranslationImageWorkBudget: Sendable {
     func checkHeadroom(decodedBytes: UInt64) throws {
         let required = Self.requiredHeadroom(decodedBytes: decodedBytes)
         guard required < ProcessInfo.processInfo.physicalMemory else { throw AdmissionError.imageTooLarge }
-        guard availableMemory() >= required else { throw AdmissionError.insufficientMemory }
+        guard ProcessMemory.available() >= required else { throw AdmissionError.insufficientMemory }
     }
 
     func withPermit<Value: Sendable>(
@@ -106,22 +74,18 @@ final class TranslationImageWorkBudget: Sendable {
         while true {
             try Task.checkCancellation()
             do {
-                return try await gate.withPermit(priority: priority) { [availableMemory] in
-                    guard availableMemory() >= required else { throw AdmissionError.insufficientMemory }
+                return try await gate.withPermit(priority: priority) {
+                    guard ProcessMemory.available() >= required else { throw AdmissionError.insufficientMemory }
                     return try await operation()
                 }
             } catch AdmissionError.insufficientMemory {
                 try Task.checkCancellation()
                 // Caches go first; OCR models only once caches alone were insufficient.
-                if !purgedModels {
-                    purgedModels = await Self.reclaimIdleResources(requiredHeadroom: required, availableMemory: availableMemory)
-                }
+                if !purgedModels { purgedModels = await Self.reclaimIdleResources(requiredHeadroom: required) }
                 try Task.checkCancellation()
-                // Successful reclamation need not add a fixed 250 ms to the
-                // visible page. Re-enter the priority-aware gate, never bypass it.
-                if availableMemory() >= required { continue }
-                // Release admission before waiting so a background download
-                // cannot hold the foreground reader's slot during pressure.
+                // Re-enter the priority-aware gate at once after a successful reclamation.
+                if ProcessMemory.available() >= required { continue }
+                // Wait outside admission so a background download cannot hold the reader's slot.
                 try await Task.sleep(nanoseconds: 250_000_000)
             }
         }

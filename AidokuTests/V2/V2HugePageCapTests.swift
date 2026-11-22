@@ -25,14 +25,6 @@ struct V2HugePageCapTests {
         return try #require(image)
     }
 
-    private func png(width: Int, height: Int) throws -> Data {
-        let image = try solidImage(width: width, height: height)
-        let data = NSMutableData()
-        let destination = try #require(CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil))
-        CGImageDestinationAddImage(destination, image, nil)
-        #expect(CGImageDestinationFinalize(destination))
-        return data as Data
-    }
 
     @Test func cappedSizeKeepsAspectAndNeverExceedsTheCap() {
         #expect(!ImagePixelCap.exceeds(width: 100, height: 100, maxPixels: 10_000))
@@ -68,7 +60,11 @@ struct V2HugePageCapTests {
     }
 
     @Test func nukeDecoderDownsamplesOverCapPagesRegardlessOfTheReaderSetting() throws {
-        let data = try png(width: 300, height: 200)
+        let png = NSMutableData()
+        let destination = try #require(CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try solidImage(width: 300, height: 200), nil)
+        #expect(CGImageDestinationFinalize(destination))
+        let data = png as Data
         let request = ImageRequest(url: URL(string: "https://example.invalid/page.png"))
         let context = ImageDecodingContext(request: request, data: data)
 

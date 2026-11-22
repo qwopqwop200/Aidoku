@@ -63,8 +63,7 @@ class SourceSearchViewController: MangaCollectionViewController {
         viewModel.$error
             .sink { [weak self] error in
                 guard let self else { return }
-                // Search failures leave an empty result list, without an error overlay.
-                // A failed next page keeps the results that have already loaded.
+                // No error overlay; a failed next page keeps already loaded results.
                 self.errorView.hide(animated: false)
                 if error != nil && self.viewModel.entries.isEmpty {
                     self.clearEntries()

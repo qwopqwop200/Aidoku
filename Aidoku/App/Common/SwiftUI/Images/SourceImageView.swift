@@ -25,8 +25,7 @@ struct SourceImageView: View {
 
     private var requestIdentity: [String] { [source?.key ?? "", imageUrl] }
 
-    // History covers and local files need no source callback. Supply their
-    // request on the first body evaluation so a memory hit needs no extra task.
+    // Requests needing no source callback are built synchronously so memory hits need no task.
     var resolvedImageRequest: ImageRequest? {
         let url = URL(string: imageUrl)
         if let fileUrl = url?.toAidokuFileUrl() {

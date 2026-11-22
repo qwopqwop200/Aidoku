@@ -1,11 +1,9 @@
 import CoreGraphics
 import Foundation
 
-// S4 balloon-unit join (legacy ReaderTranslationBalloonMerger.joinBalloonUnits, simplified):
-// a fragment (tail, ruby, stray punctuation; < 3 letters) printed on the same enclosed paper
-// component as another line, within 1.6 glyphs of it, joins that line's paragraph even when
-// the column/row geometry of V2ParagraphGrouping does not link them. Two full blocks never
-// join here. Enclosure is measured on the S4 gray raster (legacy ComponentMap rule).
+// S4 balloon-unit join (legacy joinBalloonUnits): a fragment (< 3 letters) on the same enclosed
+// paper component as another line, within 1.6 glyphs, joins that line's paragraph even when
+// the column/row geometry does not link them.
 final class V2BalloonUnits {
     private let boxes: [CGRect]
     private let letters: [Int]

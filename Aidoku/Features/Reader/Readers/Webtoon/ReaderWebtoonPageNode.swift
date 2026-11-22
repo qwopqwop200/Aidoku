@@ -19,7 +19,6 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
     let page: Page
     let temporaryPageStore: ReaderTemporaryPageStore
     let pillarboxLayoutState: ReaderPillarboxLayoutState
-    private let imagePipeline = ImagePipeline.shared
     @MainActor private lazy var imageDownloadDemand = ReaderImageDownloadDemand()
     private var imageDownloadDemandToken: UUID?
 
@@ -32,8 +31,7 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
         }
     }
     private var preparedTranslation: ReaderTranslationPreparedImage?
-    // GIFImageNode consumes animatedData before its asynchronous decoder
-    // has necessarily installed any frames. Keep the loader's evidence.
+    // animatedData is consumed before frames decode, so record failures separately.
     private var hasLoadFailure = false
     var text: String?
     var ratio: CGFloat?
@@ -185,12 +183,7 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
 
     override func didEnterVisibleState() {
         super.didEnterVisibleState()
-        imageTask?.priority = .high
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            imageDownloadDemand.updatePriority(isVisible ? .high : .low)
-        }
-        Task { @MainActor in NotificationCenter.default.post(name: ReaderTranslationPage.imageChanged, object: nil) }
+        updateVisibleImagePriority(.high)
         displayPage()
     }
 
@@ -201,7 +194,11 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
 
     override func didExitVisibleState() {
         super.didExitVisibleState()
-        imageTask?.priority = .low
+        updateVisibleImagePriority(.low)
+    }
+
+    private func updateVisibleImagePriority(_ priority: ImageRequest.Priority) {
+        imageTask?.priority = priority
         Task { @MainActor [weak self] in
             guard let self else { return }
             imageDownloadDemand.updatePriority(isVisible ? .high : .low)
@@ -398,8 +395,7 @@ extension ReaderWebtoonPageNode {
         }
     }
 
-    // Request admission owns UI-backed progress state and must resume on main
-    // after source hooks. Nuke processing and fallback decoding stay off-main.
+    // Main-actor for progress state after source hooks; processing and decoding stay off-main.
     @MainActor
     private func loadImage(url: URL, context: PageContext?, archiveRequest: ImageRequest? = nil) async {
         let issued = pageLoadGeneration
@@ -432,8 +428,7 @@ extension ReaderWebtoonPageNode {
             processors.append(DownsampleProcessor(width: width))
         }
 
-        // A source hook or processor setup can finish after this node left the
-        // preload range. Never enqueue obsolete work or overwrite a newer task.
+        // Setup can finish after this node left the preload range; never enqueue obsolete work.
         guard !Task.isCancelled, issued == pageLoadGeneration else { return }
 
         var request = archiveRequest ?? ImageRequest(
@@ -461,7 +456,7 @@ extension ReaderWebtoonPageNode {
         self.currentImageRequest = request
 
         let demand = await imageDownloadDemand.start(
-            request: request, pipeline: imagePipeline, priority: isVisible ? .high : .low
+            request: request, pipeline: ImagePipeline.shared, priority: isVisible ? .high : .low
         )
         defer { imageDownloadDemand.end(demand) }
         guard !Task.isCancelled, issued == pageLoadGeneration else { return }
@@ -469,7 +464,7 @@ extension ReaderWebtoonPageNode {
         request.priority = isVisible ? .high : .low
         self.currentImageRequest = request
 
-        let imageTask = imagePipeline.loadImage(
+        let imageTask = ImagePipeline.shared.loadImage(
             with: request,
             progress: { [weak progressView] _, completed, total in
                 // Responses without Content-Length report a zero total.
@@ -548,12 +543,12 @@ extension ReaderWebtoonPageNode {
         progressNode.isHidden = false
 
         // check cache
-        if let cached = imagePipeline.cache.cachedImage(for: request, caches: .memory) {
+        if let cached = ImagePipeline.shared.cache.cachedImage(for: request, caches: .memory) {
             await prepareAndDisplayImage(cached.image)
             return
         }
 
-        let pipeline = imagePipeline
+        let pipeline = ImagePipeline.shared
         let gate = await ReaderPageView.base64Gate
         let processingTask = Task.detached { () -> UIImage? in
             try? await gate.withPermit {
@@ -633,8 +628,7 @@ extension ReaderWebtoonPageNode {
             return false
         }
         let issued = pageLoadGeneration
-        // Keep decoded source pixels for OCR and save/share. The backing view
-        // receives them together with this source-aspect translated canvas.
+        // Keep source pixels for OCR and save/share alongside the translated canvas.
         func install(_ prepared: ReaderTranslationPreparedImage?, force: Bool) -> Bool {
             _translationPage?.reset()
             preparedTranslation = prepared
@@ -673,8 +667,7 @@ extension ReaderWebtoonPageNode {
             await finishingLoad?.value
             guard let self, issued == pageLoadGeneration, self.image === image,
                   preparedTranslation?.isCurrent(for: image) == false else { return }
-            // A late Texture backing view can bind after rotation/settings changed.
-            // Retry from the retained decoded image; generation deduplicates callbacks.
+            // A late backing view can bind after settings changed; re-prepare the retained image.
             pageLoadGeneration = UUID()
             let refresh = pageLoadGeneration
             pageLoadTask = Task { @MainActor [weak self] in
@@ -942,6 +935,6 @@ extension ReaderWebtoonPageNode {
     /// Clears the cache entry for the current image
     private func clearCurrentImageCache() {
         guard let currentImageRequest else { return }
-        ReaderImageDownloadCache.removeCachedImageAndOriginal(for: currentImageRequest, pipeline: imagePipeline)
+        ReaderImageDownloadCache.removeCachedImageAndOriginal(for: currentImageRequest, pipeline: ImagePipeline.shared)
     }
 }

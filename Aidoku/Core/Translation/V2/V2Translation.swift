@@ -1,13 +1,8 @@
 import CoreGraphics
 import Foundation
 
-// S5: page translation.
-//
-// Live mode sends ONE request per page (all dialogue blocks in reading order,
-// chunked only above the provider's 64-segment limit) through the legacy
-// RemoteTranslationClient / TranslationHTTPCodec with a caller-injected
-// transport. Replay mode fills translations from a saved legacy run so the
-// pipeline can be evaluated end to end without any LLM call.
+// S5: one provider request per page (blocks in reading order, chunked above the 64-segment
+// limit) through RemoteTranslationClient; replay fills translations from a saved run.
 
 @available(iOS 18.0, macOS 15.0, *)
 enum V2Translation {
@@ -31,9 +26,7 @@ enum V2Translation {
             request.imageJPEG = imageJPEG
             request.filtersSFX = true
             request.filtersBackground = true
-            // The page-lettering contract (legacy page requests and the settings connection
-            // test): page role descriptions in the prompt and one call per request, without
-            // source-alignment retries, protocol fallback or image downgrade. It needs the image.
+            // The page-lettering contract (page roles, one call, no retries/fallbacks) needs the image.
             if imageJPEG != nil { request.translatesPageLettering = true }
             return request
         }
@@ -47,8 +40,7 @@ enum V2Translation {
                 Double(r.width / pageSize.width), Double(r.height / pageSize.height)]
     }
 
-    /// Live translation. A provider failure leaves `translation` nil (the
-    /// block keeps its source pixels downstream); the page is never dropped.
+    /// Live translation; a missing reply leaves `translation` nil (source pixels are kept).
     static func translate(_ blocks: [V2Block], pageSize: CGSize, client: any RemoteTranslating,
                           configuration: RemoteTranslationConfiguration, sourceLanguage: String = "ja",
                           targetLanguage: String = "ko", imageJPEG: Data? = nil) async throws -> [V2Block] {
@@ -70,9 +62,8 @@ enum V2Translation {
             guard let segment = lookup(block) else { return output }
             // Legacy reply repair: JSON escapes leaked as literal text (backslash-n, backslash-u + hex) are decoded.
             let text = TranslationHTTPCodec.decodingLeakedEscapes(in: segment.text, source: block.sourceText)
-            // A reply that only repeats lettered source text (an untranslated line, a sign kept
-            // as is), or is still Japanese prose with no Hangul at all (legacy wrong-language rule;
-            // any Korean counts as translated), keeps the source pixels instead of repainting it.
+            // A reply that repeats lettered source text, or is still Japanese prose without any
+            // Hangul (legacy wrong-language rule), keeps the source pixels.
             guard !V2TranslationLengthCap.copiesSource(text, block.sourceText), segment.isSFX == true
                     || text.unicodeScalars.contains(where: V2ReplyText.isHangul)
                     || !V2ReplyText.isUntranslatedJapaneseReply(
@@ -80,8 +71,7 @@ enum V2Translation {
             output.translation = V2TranslationLengthCap.capped(text, sourceText: block.sourceText)
             if segment.isSFX == true || segment.textRole == .sfx { output.role = .sfx }
             if segment.textRole == .narration || segment.textRole == .storyText { output.role = .narration }
-            // A provider "error" (not text: misread art, noise) keeps its source pixels, as
-            // background text does (the legacy restore-source rule).
+            // A provider "error" (misread art, noise) keeps its source pixels like background text.
             if segment.textRole == .background || segment.textRole == .error { output.role = .background }
             return output
         }
@@ -98,9 +88,8 @@ enum V2ReplyText {
         (0xAC00...0xD7A3).contains(scalar.value) || (0x1100...0x11FF).contains(scalar.value) || (0x3130...0x318F).contains(scalar.value)
     }
 
-    /// A Japanese sentence re-punctuated by the provider is not a Korean translation.
-    /// Exact copies remain valid for explicit SFX/background preservation; short names
-    /// and quoted terms remain outside this narrow rejection.
+    /// A Japanese sentence re-punctuated by the provider is not a Korean translation; exact
+    /// copies (SFX/background preservation), short names and quoted terms are not rejected.
     static func isUntranslatedJapaneseReply(source: String, translation: String, target: String,
                                            preservesExactSource: Bool = true) -> Bool {
         guard target == "ko",
@@ -114,9 +103,7 @@ enum V2ReplyText {
         return !letters.contains(where: isHangul)
     }
 
-    /// A Korean fragment must not certify an otherwise copied Japanese clause.
-    /// Require a long source-matching run with substantial hiragana grammar; names,
-    /// short interjections and explicitly quoted terms are not enough evidence.
+    /// A long source-matching run with hiragana grammar is a copied clause, even beside Korean.
     private static func containsCopiedJapaneseClause(source: String, translation: String) -> Bool {
         func japanese(_ scalar: Unicode.Scalar) -> Bool {
             (0x3040...0x30FF).contains(scalar.value) || (0x3400...0x9FFF).contains(scalar.value) ||
@@ -149,14 +136,8 @@ enum V2ReplyText {
     }
 }
 
-/// Per-block bound on translation text, relative to the block's source.
-///
-/// A runaway provider reply (one segment repeating for hundreds of KB) would
-/// otherwise reach S9 shaping, S10 painting and the block/layout caches. The
-/// codec only bounds a segment at `TranslationHTTPCodec.maximumTranslationBytes`
-/// (512 KiB), which is right for metadata descriptions but far too much for a
-/// speech balloon. Normal dialogue is a small multiple of its source length,
-/// so these limits never touch a real translation.
+/// Per-block bound on translation text relative to its source, so a runaway reply (the codec
+/// allows 512 KiB per segment) never reaches S9/S10 or the caches; real dialogue stays far below.
 enum V2TranslationLengthCap {
     /// Allowance for any block, even one with very short or empty source text.
     static let minimumCharacters = 256
@@ -167,8 +148,7 @@ enum V2TranslationLengthCap {
 
     /// Maximum translation length, in Characters (grapheme clusters).
     static func limit(sourceText: String) -> Int {
-        // A source longer than the ceiling cannot raise the limit further, so
-        // counting stops there instead of walking an arbitrarily long string.
+        // Counting stops at the source length that reaches the ceiling.
         let ceilingSource = maximumCharacters / charactersPerSourceCharacter
         let sourceCount = sourceText.utf8.count <= ceilingSource ? sourceText.count
             : sourceText.prefix(ceilingSource).count
@@ -194,11 +174,8 @@ enum V2TranslationLengthCap {
     }
 }
 
-/// Saved legacy translations for LLM-free evaluation.
-///
-/// Layout: `<root>/page-index.json` maps page id -> {dir}. Each page dir has
-/// `final.json` (regions with `source`, normalized `rect`, `translation`) and
-/// `NNN-translation-result.json` (provider roles by region id).
+/// Saved legacy translations for LLM-free evaluation: `<root>/page-index.json` maps page id ->
+/// {dir}, whose `final.json` has the regions and `NNN-translation-result.json` the provider roles.
 struct V2TranslationReplay: Sendable {
     struct Entry: Sendable, Codable, Equatable {
         var id: String

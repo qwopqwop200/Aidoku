@@ -12,8 +12,6 @@ struct TrackerInfo: Sendable {
     let scoreType: TrackScoreType
     /// An array of options paired with scores to use if score type is an option list.
     var scoreOptions: [(String, Int)] = []
-    /// Whether the tracker can read and update reading start and finish dates.
     var supportsReadingDates: Bool = true
-    /// Whether score changes can be saved by this tracker.
     var supportsScores: Bool = true
 }

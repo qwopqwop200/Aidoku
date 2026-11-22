@@ -26,8 +26,7 @@ struct CoverInterceptorProcessor: ImageProcessing {
         }.get()
 
         var container = container
-        // The app's empty decoder attaches untyped transport bytes for this callback.
-        // Keep payloads from format-specific decoders with their images.
+        // Drop the untyped transport bytes the app's empty decoder attaches for this callback.
         if context.request.userInfo[.processesKey] as? Bool == true, container.type == nil, container.image.size == .zero {
             container.data = nil
         }
@@ -118,8 +117,7 @@ extension CoverInterceptorProcessor: Hashable {
     }
 }
 
-/// Source interceptors can replace all pixels (and may start from Nuke's empty
-/// decoder). Apply display sizing only after the final source image exists.
+/// Source interceptors can replace all pixels; apply display sizing only after them.
 enum CoverImageProcessing {
     @MainActor
     static func load(
@@ -134,8 +132,7 @@ enum CoverImageProcessing {
             return nil
         }
 
-        // Original data can suppress the fade, but only the complete display
-        // variant can be delivered directly to an offscreen or visible cell.
+        // Original data only suppresses the fade; just the display variant is delivered directly.
         var original = request
         original.processors = []
         let wasCached = cached != nil || cache.containsCachedImage(for: original) || cache.containsCachedImage(for: request, caches: .disk)

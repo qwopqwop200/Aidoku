@@ -5,6 +5,8 @@
 //  Created by Skitty on 6/15/25.
 //
 
+import AidokuRunner
+import SwiftSoup
 import WebKit
 
 // handles requests blocked by cloudflare, retrieving new cookies from a webview
@@ -87,8 +89,7 @@ actor CloudflareHandler: NSObject {
         try Task.checkCancellation()
         guard let url = request.url, request.httpBodyStream == nil else { throw HandleError.invalidRequest }
 
-        // Another request may have obtained clearance since this request was sent.
-        // Only safe reads get this extra native retry; writes are replayed once below.
+        // Another request may have obtained clearance meanwhile; only safe reads get this extra retry.
         if CloudflareResponsePolicy.mayRetryCachedClearance(request),
            let clearance = CloudflareResponsePolicy.usableClearance(for: url),
            clearance.value != CloudflareResponsePolicy.clearance(in: request) {
@@ -169,8 +170,7 @@ extension CloudflareHandler {
     }
 
     private func finishChallenge(expectedID: UUID?, with result: Result<Void, Error> = .success(())) async {
-        // Check the generation and take its continuation in one actor-isolated step.
-        // A callback may have suspended while another challenge acquired the browser.
+        // Check the generation and take its continuation in one step; callbacks may be stale.
         guard let expectedID, activeChallengeID == expectedID, let continuation = finishContinuation else { return }
 
         // Clear first, so queued browser callbacks cannot finish this continuation twice.
@@ -476,8 +476,7 @@ extension CloudflareHandler {
 }
 
 extension HTTPCookieStorage {
-    /// Keep historical header ordering, but only include cookies Foundation allows
-    /// on this request's scheme, host and path. Cache clearing uses allCookies below.
+    /// `allCookies` ordering, limited to cookies Foundation allows for this scheme, host and path.
     func requestCookies(for url: URL) -> [HTTPCookie]? {
         guard let allowed = cookies(for: url) else { return nil }
         return allCookies(for: url)?.filter { cookie in

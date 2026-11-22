@@ -166,8 +166,7 @@ final class DictionaryOverlayButton: UIButton {
         var sourceIndex = 0
         var hits: [LocalCharHit] = []
 
-        // OCR hits use Swift characters. UTF-16 code units split supplementary
-        // kanji and combining sequences, shifting every subsequent lookup.
+        // OCR hits are per Swift character, not per UTF-16 code unit.
         for characterIndex in displayText.indices {
             if sourceIndex >= sourceHits.count { break }
             let character = displayText[characterIndex]

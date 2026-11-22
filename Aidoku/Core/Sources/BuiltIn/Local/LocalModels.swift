@@ -51,20 +51,8 @@ struct ImportFileInfo: Hashable {
 // Keeps a prepared image alive through the import sheet and removes it on cancellation or completion.
 final class TemporaryLocalImageFile: Hashable {
     let directory: URL
-
-    init(directory: URL) {
-        self.directory = directory
-    }
-
-    deinit {
-        try? FileManager.default.removeItem(at: directory)
-    }
-
-    static func == (lhs: TemporaryLocalImageFile, rhs: TemporaryLocalImageFile) -> Bool {
-        lhs === rhs
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(ObjectIdentifier(self))
-    }
+    init(directory: URL) { self.directory = directory }
+    deinit { try? FileManager.default.removeItem(at: directory) }
+    static func == (lhs: TemporaryLocalImageFile, rhs: TemporaryLocalImageFile) -> Bool { lhs === rhs }
+    func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(self)) }
 }

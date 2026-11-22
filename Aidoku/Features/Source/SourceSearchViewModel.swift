@@ -57,8 +57,7 @@ class SourceSearchViewModel: ObservableObject {
         loadingSearch = false
         searchIsDebouncing = false
         loadingInitial = false
-        // Preserve completed content; a dismissed initial request may be retried
-        // if this controller is deliberately presented again.
+        // Keep completed content; an unfinished initial request is retried on next appearance.
         if entries.isEmpty {
             hasAppeared = false
             currentSearch = nil

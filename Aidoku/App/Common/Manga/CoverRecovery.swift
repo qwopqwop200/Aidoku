@@ -41,8 +41,7 @@ enum CoverRecovery {
     }
 }
 
-/// Shares the recovery result, not just admission. One cancelled/reused cell
-/// cannot discard a replacement that another visible consumer still needs.
+/// Shares the recovery result so a cancelled cell cannot discard one another cell needs.
 actor CoverRecoveryCoordinator {
     private struct Key: Hashable { let identifier: MangaIdentifier; let failedURL: URL? }
     private struct Entry { let failedURL: URL?; let value: URL?; let expires: Date; let serial: UInt64 }
@@ -55,8 +54,7 @@ actor CoverRecoveryCoordinator {
         guard !Task.isCancelled else { return nil }
         let key = Key(identifier: identifier, failedURL: failedURL)
         if let entry = completed[identifier], entry.expires > Date() {
-            // If the recovered URL itself failed, stop instead of creating a
-            // cache-hit retry loop. Later demand can retry after the cooldown.
+            // A failing recovered URL must not loop; retry only after the cooldown.
             if failedURL != nil, entry.value == failedURL { return nil }
             if entry.failedURL == failedURL { return entry.value }
         }

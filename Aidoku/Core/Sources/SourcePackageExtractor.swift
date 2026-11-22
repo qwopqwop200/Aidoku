@@ -2,20 +2,13 @@ import AidokuRunner
 import Foundation
 import ZIPFoundation
 
-/// Extracts `.aix` source packages with resource and path limits.
-///
-/// A source package is an untrusted ZIP archive. ZIPFoundation's `unzipItem` checks
-/// containment but writes as many bytes as the archive expands to, so a small download
-/// could fill the device. This validates every entry before writing anything, counts the
-/// bytes actually inflated (declared sizes can be understated), and removes the whole
-/// extraction directory when any step fails.
+/// Extracts untrusted `.aix` packages: `unzipItem` writes however much an archive inflates to,
+/// so validate every entry first, count inflated bytes, and remove partial output on failure.
 enum SourcePackageExtractor {
     struct Limits: Sendable {
         var maximumEntryCount = 10_000
         var maximumEntryBytes: UInt64 = 128 * 1024 * 1024
         var maximumTotalBytes: UInt64 = 256 * 1024 * 1024
-
-        static let standard = Limits()
     }
 
     enum Failure: Error, Equatable {
@@ -29,9 +22,8 @@ enum SourcePackageExtractor {
         case cannotCreateFile(String)
     }
 
-    /// Extracts `archiveURL` into `destination`, which must not exist yet.
-    /// On any failure `destination` is removed, so no partial package remains.
-    static func extract(_ archiveURL: URL, to destination: URL, limits: Limits = .standard) throws {
+    /// `destination` must not exist yet and is removed on any failure.
+    static func extract(_ archiveURL: URL, to destination: URL, limits: Limits = .init()) throws {
         let fileManager = FileManager.default
         guard !fileManager.fileExists(atPath: destination.path) else { throw Failure.destinationExists }
         let archive = try Archive(url: archiveURL, accessMode: .read)
@@ -90,8 +82,7 @@ enum SourcePackageExtractor {
         }
     }
 
-    /// Normalizes an archive path to a relative path inside the destination, or nil when it
-    /// is absolute, escapes with `..`, or contains a NUL. An empty result denotes the root.
+    /// Relative path inside the destination ("" is the root), or nil if absolute, escaping or NUL-containing.
     static func safeRelativePath(_ path: String) -> String? {
         guard !path.isEmpty, !path.hasPrefix("/"), !path.hasPrefix("\\"), !path.contains("\0") else { return nil }
         // Windows drive prefixes such as `C:` are also absolute.

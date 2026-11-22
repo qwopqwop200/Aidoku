@@ -10,8 +10,7 @@ import Gifu
 import VisionKit
 
 class GIFImageNode: ASControlNode {
-    /// Gifu's default keeps 50 decoded full-resolution frames per animation.
-    /// Reader pages can retain several GIFs, so trade a little CPU for memory.
+    /// Gifu buffers 50 full-resolution frames by default; pages may retain several GIFs.
     static let readerFrameBufferSize = 8
 
     var imageView: GIFImageView?
@@ -67,8 +66,7 @@ class GIFImageNode: ASControlNode {
                 self?.storedInteractions = []
             }
             self?.imageView = gifView
-            // The view can appear after decoding. Install raw pixels and the prepared
-            // canvas in one main-actor turn before publishing readiness.
+            // The view can appear after decoding; install pixels and prepared canvas in one turn.
             Task { @MainActor [weak self] in
                 guard let self, imageView === gifView else { return }
                 commitImage()

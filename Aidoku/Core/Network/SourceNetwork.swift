@@ -144,8 +144,7 @@ final class SourceImageDataLoader: DataLoading, @unchecked Sendable {
         private var cancelled = false
         private var priority: Float = URLSessionTask.defaultPriority
         func setPriority(_ priority: Float) {
-            // Serialize binding and priority updates so an older value cannot
-            // overwrite promotion while imageLoader() is still being prepared.
+            // Serialized so an older priority cannot overwrite a newer one.
             lock.lock()
             self.priority = priority
             (load as? any DataLoadingPriorityUpdating)?.setPriority(priority)

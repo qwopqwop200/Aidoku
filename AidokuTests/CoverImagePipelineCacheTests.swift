@@ -31,11 +31,10 @@ struct CoverImagePipelineCacheTests {
             processors: CoverImageProcessing.processors(source: source, downsampleWidth: 100),
             userInfo: [.processesKey: true]
         )
-        let expectedWidth = Int(100 * UIScreen.main.scale)
         let decoded = try #require(UIImage(data: loader.data))
         let expected = try #require(DownsampleProcessor(width: 100).process(decoded)?.pngData())
         let cold = try await pipeline.image(for: request)
-        #expect(cold.cgImage?.width == expectedWidth)
+        #expect(cold.cgImage?.width == Int(100 * UIScreen.main.scale))
         #expect(cold.cgImage?.height == Int(150 * UIScreen.main.scale))
         #expect(cold.pngData() == expected)
         let entry = try #require(pipeline.cache[request])
@@ -43,8 +42,6 @@ struct CoverImagePipelineCacheTests {
         #expect(entry.data == nil)
         #expect(memoryCache.totalCost == bitmap.bytesPerRow * bitmap.height)
         #expect(loader.count == 1)
-        let pixels = try #require(cold.cgImage)
-        #expect(pixels.width * pixels.height < 1200 * 1800)
     }
 }
 

@@ -15,8 +15,7 @@ extension CoreDataManager {
         return clear(request: HistoryObject.fetchRequest(), context: context)
     }
 
-    // Invalidate again after this context's current save/rollback block, so
-    // a recovery racing the deletion cannot leave a late disk entry.
+    // Clear again after the context's current block so a racing recovery cannot leave an entry.
     private func clearHistoryMetadata(context: NSManagedObjectContext) {
         HistoryMetadataCache.shared.clear()
         context.perform { HistoryMetadataCache.shared.clear() }
@@ -26,9 +25,7 @@ extension CoreDataManager {
     @discardableResult
     func clearHistoryExcludingLibrary(context: NSManagedObjectContext) -> Bool {
         clearHistoryMetadata(context: context)
-        // A per-manga OR predicate exceeds SQLite's expression depth (1000) and
-        // bound-variable limits for large libraries, making the batch delete fail.
-        // Select the rows in memory by identity and delete them by object ID instead.
+        // A per-manga OR predicate exceeds SQLite's expression depth for large libraries.
         let libraryKeys = Set(getLibraryManga(context: context).compactMap { $0.manga?.identifier })
         let request = HistoryObject.fetchRequest()
         request.propertiesToFetch = ["sourceId", "mangaId"]

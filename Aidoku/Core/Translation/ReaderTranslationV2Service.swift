@@ -4,34 +4,17 @@ import ImageIO
 import UIKit
 import UniformTypeIdentifiers
 
-/// App-side owner of the opt-in speed-first V2 page pipeline
-/// (`Core/Translation/V2`, see Docs/translation-v2.md). The V2 folder itself
-/// stays platform-neutral so the Mac host compiles it unchanged; this file
-/// adds the iOS resource policy, the live provider call, page admission and
-/// the durable cache. Results are fully rendered page bitmaps.
+/// App-side owner of the V2 page pipeline (Docs/translation-v2.md): iOS resource
+/// policy, the live provider call, page admission and the durable cache.
 @available(iOS 18.0, *)
 actor ReaderTranslationV2Service {
     static let shared = ReaderTranslationV2Service()
-    /// Bump whenever the translated blocks for the same page/settings can change (S1-S5:
-    /// OCR, grouping, request or response handling). Keys both cache rows.
+    /// Bump when the translated blocks (S1-S5) can change; keys both cache rows.
     static let version = "v2-pipeline-1"
-    /// Bump whenever only the rendering can change (S6-S10 and the S4b lettering boxes): the
-    /// image row is re-rendered from the stored blocks without a new provider call.
+    /// Bump when only rendering (S4b boxes, S6-S10) can change; re-renders from stored blocks.
     static let renderVersion = "v2-render-3"
 
     enum Failure: Error { case imageUnavailable }
-
-    struct PoolSizes: Equatable, Sendable {
-        var recognizer: Int
-        var detector: Int
-        var inpainter: Int
-    }
-
-    /// iOS pools: recognizer 2 (3 at >= 7 GB physical memory), detector 1-2, AOT 1.
-    static func poolSizes(physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory) -> PoolSizes {
-        let large = physicalMemory >= 7 * 1_024 * 1_024 * 1_024
-        return PoolSizes(recognizer: large ? 3 : 2, detector: large ? 2 : 1, inpainter: 1)
-    }
 
     typealias ModelLoader = @Sendable () throws -> V2Models
     typealias BlockTranslator = @Sendable (
@@ -46,19 +29,15 @@ actor ReaderTranslationV2Service {
     private var loading: Task<V2Models, Error>?
     private var loadID: UInt64 = 0
     private var modelGeneration: UInt64 = 0
-    /// The last released set while a running page still holds it. Reused instead of
-    /// loading a second copy next to it (release happens under memory pressure).
+    /// A released set still held by a running page; reused instead of loading a second copy.
     private weak var retiredModels: V2Models?
-    /// Non-LLM compute admission: S1-S4 (before the provider call) and the back
-    /// work have separate slots. The back slot brackets the overlapped S8/S6/S7
-    /// (which run during the provider call) and, separately, the S9/S10 tail; it
-    /// is never held while merely waiting for the provider.
+    /// Compute admission for S1-S4 (front) and S6-S10 (back); neither is held while
+    /// merely waiting for the provider.
     nonisolated let frontSlots: V2ComputeSlots
     nonisolated let backSlots: V2ComputeSlots
     /// Coalesced page work (visible demand joins and promotes a look-ahead).
     private var inflight: [String: Flight] = [:]
-    /// Finished bitmaps by cache key, including pages that are never written
-    /// to disk (temporary sessions), so scrolling back reuses them.
+    /// Finished bitmaps by cache key, including non-persisted (temporary) pages.
     private var memory = V2PageMemoryCache()
     private let availableMemory: @Sendable () -> UInt64
     private let memoryProfile: V2PerformanceProfile
@@ -77,8 +56,9 @@ actor ReaderTranslationV2Service {
 
     init(
         loadModels: @escaping ModelLoader = {
-            let sizes = ReaderTranslationV2Service.poolSizes()
-            return try V2Models.load(bundle: .main, detectorInstances: sizes.detector, inpainterInstances: sizes.inpainter)
+            // Two detector instances at >= 7 GB physical memory.
+            let large = ProcessInfo.processInfo.physicalMemory >= 7 * 1_024 * 1_024 * 1_024
+            return try V2Models.load(bundle: .main, detectorInstances: large ? 2 : 1, inpainterInstances: 1)
         },
         translateBlocks: @escaping BlockTranslator = { blocks, size, settings, jpeg, priority in
             try await ReaderTranslationService.shared.translateV2(blocks, pageSize: size, settings: settings,
@@ -112,8 +92,6 @@ actor ReaderTranslationV2Service {
 
     deinit { memoryObserver.map(NotificationCenter.default.removeObserver) }
 
-    // MARK: Models
-
     /// Loads every V2 model once per session (lazily, off the cooperative pool).
     func residentModels() async throws -> V2Models {
         if let models { return models }
@@ -121,8 +99,7 @@ actor ReaderTranslationV2Service {
             models = retiredModels
             return retiredModels
         }
-        // A load that was running when the set was released is still joined: it cannot be
-        // stopped, and starting another would hold two model sets at once.
+        // Join a load that outlived a release rather than holding two model sets.
         if let loading { return try await loading.value }
         let generation = modelGeneration
         let loader = loadModels
@@ -148,9 +125,7 @@ actor ReaderTranslationV2Service {
     /// Reader-open warm-up; failures surface on the first page instead.
     func prewarm() async { _ = try? await residentModels() }
 
-    /// Memory pressure: drop the resident set. Pages already running keep their
-    /// own reference until they finish (a page starting meanwhile reuses it); the
-    /// next page after that reloads lazily.
+    /// Memory pressure: drop the resident set; running pages keep their reference.
     func releaseModels() {
         modelGeneration &+= 1
         if let models { retiredModels = models }
@@ -159,8 +134,6 @@ actor ReaderTranslationV2Service {
 
     /// Drops the in-memory page bitmaps (memory pressure; settings reset).
     func clearMemory() { memory.removeAll() }
-
-    // MARK: Cache identity
 
     static func cacheKey(page: String, crop: CGRect, settings: ReaderTranslationSettings) -> String {
         let config = settings.configuration
@@ -174,18 +147,14 @@ actor ReaderTranslationV2Service {
             ReaderTranslationCacheIdentity.encoded(ReaderTranslationLanguageFilter.identity(settings: settings) ?? []),
             ReaderTranslationLanguageFilter.v2SourcePolicy
         ]
-        // Right-to-left adds nothing, so rows cached before direction-aware
-        // ordering (always right-to-left) stay valid.
+        // Right-to-left adds nothing, so older (always right-to-left) rows stay valid.
         if settings.readingDirection != .rightToLeft { parts.append("direction:" + settings.readingDirection.rawValue) }
         let identity = ReaderTranslationCacheIdentity.encoded(parts)
-        // Distinct prefix: legacy and V2 rows can never be read as each other.
         return "v2-" + version + "-" + identity
     }
 
     private static func imageKey(_ key: String) -> String { key + "-image-" + renderVersion }
     private static func blocksKey(_ key: String) -> String { key + "-blocks" }
-
-    // MARK: Pages
 
     struct PageOutput: Sendable {
         let image: CGImage
@@ -193,9 +162,8 @@ actor ReaderTranslationV2Service {
         let fromCache: Bool
     }
 
-    /// A finished page without computing: the in-memory bitmap, then (for
-    /// persisted pages) the disk row. Used to present a cached translation in
-    /// the same commit as the source image, so the source never flashes.
+    /// A finished page without computing (memory, then disk for persisted pages),
+    /// so a cached translation is presented without flashing the source.
     func cachedPage(cacheKey key: String, persists: Bool = true) async -> CGImage? {
         if let image = memory.image(for: key) { return image }
         guard persists, let diskCache, let data = try? await diskCache.data(for: Self.imageKey(key), kind: .layout),
@@ -209,11 +177,8 @@ actor ReaderTranslationV2Service {
         memory.insert(image, for: key, limit: limit)
     }
 
-    /// Translates one upright page and returns the fully rendered page bitmap.
-    /// Concurrent calls for the same cache key share one computation; a
-    /// foreground caller promotes a running look-ahead. The shared work is
-    /// cancelled when its last consumer is cancelled. `persists == false`
-    /// (temporary pages) keeps the result in memory only.
+    /// Translates one upright page into a rendered bitmap. Calls for the same key share
+    /// one computation (foreground promotes a look-ahead), cancelled with its last consumer.
     func translatePage(
         _ source: CGImage, cacheKey key: String?, persists: Bool = true, settings: ReaderTranslationSettings,
         priority: TranslationRequestPriority = .foreground
@@ -247,8 +212,7 @@ actor ReaderTranslationV2Service {
     }
 
     private func consumerCancelled(_ key: String, _ flight: Flight) {
-        // Count the cancellation now so the shared work stops immediately
-        // when nobody is left, without waiting for the awaiting consumer.
+        // Stop the shared work as soon as nobody is left.
         flight.cancelledConsumers += 1
         if flight.consumers - flight.cancelledConsumers <= 0 {
             flight.task.cancel()
@@ -293,8 +257,7 @@ actor ReaderTranslationV2Service {
         defer { hold.releaseAll() }
         try await hold.acquireFront(priority: priority)
         let page = V2Page(id: key ?? UUID().uuidString, image: source, readingDirection: settings.readingDirection)
-        // The provider only receives the page JPEG when the setting asks for it; encode it
-        // concurrently with S1-S4 so it is ready when S5 starts.
+        // Encode the provider's page JPEG concurrently with S1-S4.
         let jpegTask: Task<Data, Error>? = replayBlocks == nil && settings.includePageImage
             ? Task.detached(priority: .userInitiated) {
                 try ReaderTranslationImagePreparation.translationJPEG(UIImage(cgImage: source))
@@ -309,9 +272,8 @@ actor ReaderTranslationV2Service {
                     try Task.checkCancellation()
                     let pageSize = CGSize(width: page.width, height: page.height)
                     let ids = Set(eligible.map(\.id))
-                    // A sent provider request is paid for: when the page is left (cancelled)
-                    // while it runs, the call finishes on its own and its translations are
-                    // stored, so coming back replays them instead of paying again.
+                    // A sent request is paid for: if the page is left, it still finishes and
+                    // stores its translations so coming back replays them.
                     let request = Task { () throws -> [V2Block] in
                         let translated = try await translate(eligible, pageSize, settings, jpeg, priority)
                         if let key, let cache, let translationGeneration,
@@ -344,8 +306,7 @@ actor ReaderTranslationV2Service {
         try Task.checkCancellation()
         if let error = failure.error { throw error }
         guard let output = result.output else { throw Failure.imageUnavailable }
-        // Paid provider output is kept even when only rendering failed (S7 inpaint, S9
-        // placement, back admission), so a retry re-renders without a new provider call.
+        // Paid output is kept when only rendering failed, so a retry needs no provider call.
         let rendered = result.failure == nil
         let translated = rendered || Self.renderOnlyFailure(result.failure)
         if let key, let cache, translated {
@@ -372,9 +333,7 @@ actor ReaderTranslationV2Service {
         }
     }
 
-    /// Source-language policy (the legacy `ReaderTranslationLanguageFilter`
-    /// rule with the manga recognizer, plus shared-Han recall): only eligible blocks
-    /// are sent; excluded blocks keep no translation and their source pixels.
+    /// Source-language policy: only eligible blocks are sent; others keep their source pixels.
     static func eligibleForTranslation(_ blocks: [V2Block], settings: ReaderTranslationSettings) -> Set<Int> {
         Set(V2Translation.translatable(blocks).filter {
             ReaderTranslationLanguageFilter.allowsV2Source($0.sourceText, settings: settings)
@@ -423,8 +382,7 @@ actor ReaderTranslationV2Service {
     }
 }
 
-/// Bounded LRU of finished V2 page bitmaps. The normal budget is at least 32 MB, otherwise a quarter
-/// of the headroom above the image-work reserve, at most 192 MB (`V2PerformanceProfile` relaxes it in developer builds).
+/// Bounded LRU of finished V2 page bitmaps; the budget comes from `V2PerformanceProfile`.
 struct V2PageMemoryCache {
     static let minimumBytes = 32 * 1_024 * 1_024
     static let maximumBytes = 192 * 1_024 * 1_024
@@ -576,8 +534,7 @@ final class V2SlotHold: @unchecked Sendable {
     }
 }
 
-/// Records the provider error so a failed S5 fails the page instead of
-/// presenting an untranslated "translated" bitmap.
+/// Records the provider error so a failed S5 fails the page.
 final class V2TranslationFailureBox: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Error?
@@ -585,16 +542,11 @@ final class V2TranslationFailureBox: @unchecked Sendable {
     func store(_ error: Error) { lock.withLock { if stored == nil { stored = error } } }
 }
 
-/// Build-time V2 performance profile. Builds compiled with the
-/// `AIDOKU_DEVELOPER_PERFORMANCE` condition (`Aidoku/Aidoku.xcconfig`) relax the
-/// memory caps that make V2 refuse, wait or evict, and raise page compute,
-/// look-ahead and provider concurrency, scaled by physical memory and cores.
-/// Every other build (and any test host) uses `normal`, today's values.
-/// Live admission still compares against `ProcessMemory.available()`; the
-/// developer headroom never drops below `safetyMargin`, and memory warnings
-/// still release the models and the page cache.
+/// Build-time V2 performance profile. `AIDOKU_DEVELOPER_PERFORMANCE` builds (`Aidoku.xcconfig`)
+/// relax memory caps and raise concurrency by physical memory and cores; every other build
+/// and any test host uses `normal`.
 struct V2PerformanceProfile: Equatable, Sendable {
-    /// Image admission: required headroom = max(minimum, decoded * multiplier + reserve).
+    /// Image admission: max(minimum, decoded * multiplier + reserve).
     var minimumHeadroom: UInt64
     var decodeWorkingMultiplier: UInt64
     var decodeReserve: UInt64
@@ -620,28 +572,22 @@ struct V2PerformanceProfile: Equatable, Sendable {
         pageCacheMinimumBytes: 32 * Int(mib), pageCacheMaximumBytes: 192 * Int(mib), pageCacheSpareDivisor: 4,
         frontSlots: 2, backSlots: 2, lookaheadExtraPages: 0, providerConcurrencyCap: 3)
 
-    static var isDeveloperBuild: Bool {
-#if AIDOKU_DEVELOPER_PERFORMANCE
-        true
-#else
-        false
-#endif
-    }
-
     /// The profile of this process (fixed at first use).
     static let current: Self = {
+#if AIDOKU_DEVELOPER_PERFORMANCE
         let environment = ProcessInfo.processInfo.environment
         let testHost = environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil
             || NSClassFromString("XCTestCase") != nil
-        return resolve(developer: isDeveloperBuild && !testHost, physicalMemory: ProcessInfo.processInfo.physicalMemory,
-                       processorCount: ProcessInfo.processInfo.activeProcessorCount)
+        if testHost { return normal }
+        return developer(physicalMemory: ProcessInfo.processInfo.physicalMemory,
+                         processorCount: ProcessInfo.processInfo.activeProcessorCount)
+#else
+        normal
+#endif
     }()
 
-    /// Pure: the profile for a build flag, physical memory and core count.
-    /// Device classes use the physical memory iOS reports (a "6 GB" iPhone
-    /// reports about 5.5 GiB); below that class the developer build stays normal.
-    static func resolve(developer: Bool, physicalMemory: UInt64, processorCount: Int) -> Self {
-        guard developer else { return normal }
+    /// Device classes use the physical memory iOS reports (a "6 GB" iPhone reports about 5.5 GiB).
+    private static func developer(physicalMemory: UInt64, processorCount: Int) -> Self {
         var profile: Self
         if physicalMemory >= 11 * gib {
             profile = Self(
@@ -661,9 +607,7 @@ struct V2PerformanceProfile: Equatable, Sendable {
         } else {
             return normal
         }
-        // Safety clamps: never below the normal values for concurrency, never
-        // more compute slots than half the cores, headroom above the margin and
-        // the page cache within a sixteenth of physical memory.
+        // Clamp slots to [normal, cores / 2], headroom above the margin, cache to 1/16 of memory.
         let slotCeiling = max(normal.frontSlots, max(1, processorCount) / 2)
         profile.frontSlots = max(normal.frontSlots, min(profile.frontSlots, slotCeiling))
         profile.backSlots = max(normal.backSlots, min(profile.backSlots, slotCeiling))
@@ -675,23 +619,19 @@ struct V2PerformanceProfile: Equatable, Sendable {
         return profile
     }
 
-    /// Image-work headroom for a decode of `decodedBytes` (saturating).
     func requiredHeadroom(decodedBytes: UInt64) -> UInt64 {
         let (working, overflow) = decodedBytes.multipliedReportingOverflow(by: decodeWorkingMultiplier)
         let (total, additionOverflow) = working.addingReportingOverflow(decodeReserve)
         return overflow || additionOverflow ? .max : max(minimumHeadroom, total)
     }
 
-    /// The reader's look-ahead page count for an automatic count.
     func lookaheadCount(automatic: Int) -> Int { automatic + lookaheadExtraPages }
 
-    /// V2 provider concurrency for the user's request-concurrency setting.
     func providerConcurrency(setting: Int) -> Int { max(1, min(providerConcurrencyCap, setting)) }
 }
 
-/// Awaits a provider request without cancelling it when the waiting page is cancelled:
-/// the waiter throws `CancellationError` at once, the request keeps running (at most
-/// `maximumOrphans` at a time; beyond that it is cancelled as before) and stores its result.
+/// Awaits a provider request; a cancelled waiter throws at once while the request keeps
+/// running (at most `maximumOrphans` at a time, otherwise it is cancelled).
 enum V2PaidRequest {
     static let maximumOrphans = 2
     private static let orphans = V2OrphanCounter()
@@ -725,12 +665,10 @@ final class V2OrphanCounter: @unchecked Sendable {
         count += 1
         Task { [weak self] in
             _ = await request.result
-            self?.release()
+            self?.lock.withLock { self?.count -= 1 }
         }
         return true
     }
-
-    private func release() { lock.lock(); count -= 1; lock.unlock() }
 }
 
 /// Resumes a continuation exactly once (result or cancellation, whichever comes first),

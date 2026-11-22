@@ -159,7 +159,8 @@
 			);
 			name = Aidoku;
 			packageProductDependencies = (
-                A1D0C0000000000000000031 /* SVGKit */,				FB7B7ED7278CE949001E6EAF /* ZIPFoundation */,
+                A1D0C0000000000000000031 /* SVGKit */,
+				FB7B7ED7278CE949001E6EAF /* ZIPFoundation */,
 				FB17114A296770CC00AD523D /* NukeUI */,
 				FBE53F0B29CC015E00899601 /* AsyncDisplayKit */,
 				FB3737D02D17458400AB1551 /* AidokuRunner */,
@@ -268,7 +269,8 @@
 			);
 			mainGroup = FB1B4825277CE18D0056D02C;
 			packageReferences = (
-                A1D0C0000000000000000032 /* SVGKit */,				FB7B7ED6278CE949001E6EAF /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+                A1D0C0000000000000000032 /* SVGKit */,
+				FB7B7ED6278CE949001E6EAF /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				FB171149296770CC00AD523D /* XCRemoteSwiftPackageReference "Nuke" */,
 				FBE53F0A29CC015E00899601 /* XCRemoteSwiftPackageReference "Texture" */,
 				FB662EDC2DA816CF00007514 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
@@ -706,14 +708,6 @@
 				kind = branch;
 			};
 		};
-		FBFDF5F62DF799180064F603 /* XCRemoteSwiftPackageReference "AidokuRunner" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/qwopqwop200/AidokuRunner";
-			requirement = {
-				branch = aidoku;
-				kind = branch;
-			};
-		};
         A1D0C0000000000000000032 /* SVGKit */ = {
             isa = XCRemoteSwiftPackageReference;
             repositoryURL = "https://github.com/SVGKit/SVGKit.git";
@@ -767,7 +761,14 @@
 				minimumVersion = 3.1.1;
 			};
 		};
-
+		FBFDF5F62DF799180064F603 /* XCRemoteSwiftPackageReference "AidokuRunner" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/qwopqwop200/AidokuRunner";
+			requirement = {
+				branch = aidoku;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */

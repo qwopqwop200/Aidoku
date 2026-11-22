@@ -21,8 +21,7 @@ extension Archive {
         return first { $0.path.matchesArchivePath(lowercased: target) }
     }
 
-    /// Extracts an entry into memory, refusing entries larger than `limit` bytes. The declared size is
-    /// checked first, then the streamed byte count, because a hostile archive can understate its size.
+    /// Extracts an entry into memory up to `limit` bytes, checking the declared and streamed sizes.
     func extractData(_ entry: Entry, limit: Int) throws -> Data {
         guard limit >= 0, entry.uncompressedSize <= UInt64(limit) else { throw ArchiveEntryReadError.entryTooLarge }
         var data = Data()

@@ -7,15 +7,6 @@ struct NativeCoreMLDetectionMap: Equatable, Sendable {
     let width: Int
     let height: Int
     let values: [Float]
-
-    init(width: Int, height: Int, values: [Float]) {
-        precondition(width > 0 && height > 0)
-        let count = width.multipliedReportingOverflow(by: height)
-        precondition(!count.overflow && values.count == count.partialValue)
-        self.width = width
-        self.height = height
-        self.values = values
-    }
 }
 
 @available(iOS 18.0, *)
@@ -28,41 +19,20 @@ struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
     let boxThreshold: Double
     let unclipRatio: Double
     let maximumCandidates: Int
-    init(threshold: Double, boxThreshold: Double, unclipRatio: Double, maximumCandidates: Int) {
-        precondition((0 ... 1).contains(threshold))
-        precondition((0 ... 1).contains(boxThreshold))
-        precondition(unclipRatio > 0 && unclipRatio.isFinite)
-        precondition(maximumCandidates > 0)
-        self.threshold = threshold
-        self.boxThreshold = boxThreshold
-        self.unclipRatio = unclipRatio
-        self.maximumCandidates = maximumCandidates
-    }
 }
 
-/// Native DBNet postprocessing for PP-OCR detector output.
-/// It uses 8-connected binary components, convex hulls, minimum-area
-/// rectangles, the fast polygon score, and the DB unclip distance. The mask
-/// and score thresholds intentionally use the production overrides rather
-/// than the lower values embedded in the upstream inference YAML.
+/// DBNet postprocessing for PP-OCR detector output: 8-connected components,
+/// convex hulls, minimum-area rectangles, the fast polygon score and DB unclip.
 @available(iOS 18.0, *)
 enum NativeCoreMLDBPostprocessor {
     private static let minimumBoxSide = 3.0
 
-    /// Largest Float not above `threshold`. For every finite Float `value`,
-    /// `Double(value) > threshold` is exactly `value > cutoff`: a Float above
-    /// the cutoff is at least its successor, which exceeds `threshold` by
-    /// construction. NaN thresholds stay NaN and therefore reject everything.
-    static func foregroundCutoff(threshold: Double) -> Float {
-        let cutoff = Float(threshold)
-        return Double(cutoff) > threshold ? cutoff.nextDown : cutoff
-    }
-
-    /// 1 for finite values strictly above `threshold`, otherwise 0. Equivalent
-    /// to `value.isFinite && Double(value) > threshold` per element, but a
-    /// branch-free Float comparison over contiguous storage.
-    static func foregroundState(values: [Float], threshold: Double) -> [UInt8] {
-        let cutoff = foregroundCutoff(threshold: threshold)
+    /// 1 for finite values strictly above `threshold`, otherwise 0. The cutoff
+    /// is the largest Float not above `threshold`, so `value > cutoff` is
+    /// exactly `Double(value) > threshold`.
+    private static func foregroundState(values: [Float], threshold: Double) -> [UInt8] {
+        let rounded = Float(threshold)
+        let cutoff = Double(rounded) > threshold ? rounded.nextDown : rounded
         let count = values.count
         return [UInt8](unsafeUninitializedCapacity: count) { state, initializedCount in
             values.withUnsafeBufferPointer { source in
@@ -91,15 +61,11 @@ enum NativeCoreMLDBPostprocessor {
         // 0 = background, 1 = unvisited foreground, 2 = visited foreground.
         var state = foregroundState(values: map.values, threshold: configuration.threshold)
 
-        // Queue horizontal runs rather than every foreground pixel. Dense text
-        // components commonly collapse from thousands of queue entries to a
-        // few dozen rows, and adjacent-row scanning preserves exact
-        // 8-connectivity by extending the overlap one pixel on each side.
+        // Queue horizontal runs, not pixels; scanning adjacent rows one pixel
+        // past each run's ends preserves exact 8-connectivity.
         var queue: [ForegroundSpan] = []
         queue.reserveCapacity(256)
-        // The convex hull of a set of raster pixels is completely determined
-        // by the left-most and right-most pixel on each occupied row. Keeping
-        // those extrema avoids collecting and sorting every contour pixel.
+        // The convex hull of raster pixels only needs each row's extreme pixels.
         var rowMinimumX = [Int](repeating: map.width, count: map.height)
         var rowMaximumX = [Int](repeating: -1, count: map.height)
         var touchedRows: [Int] = []
@@ -113,8 +79,6 @@ enum NativeCoreMLDBPostprocessor {
             let row = y * map.width
             var nextSeedX = 0
             while nextSeedX < map.width {
-                // Search only this row of the current mutable state; visiting
-                // a component may change later bytes before the next search.
                 let start = row + nextSeedX
                 let offset = state.withUnsafeBufferPointer { buffer -> Int? in
                     let base = UnsafeRawPointer(buffer.baseAddress!)
@@ -139,8 +103,6 @@ enum NativeCoreMLDBPostprocessor {
                     if cursor & 1_023 == 0 { try cancellationCheck() }
                     let span = queue[cursor]
                     cursor += 1
-                    // Same order as `[y - 1, y + 1]` without allocating an
-                    // array for every queued span.
                     for nextY in stride(from: span.y - 1, through: span.y + 1, by: 2)
                     where nextY >= 0 && nextY < map.height {
                         var nextX = max(0, span.left - 1)
@@ -157,8 +119,6 @@ enum NativeCoreMLDBPostprocessor {
                             )
                             queue.append(nextSpan)
                             componentPixelCount += nextSpan.pixelCount
-                            // The whole run is now visited, including any part
-                            // extending beyond this span's overlap window.
                             nextX = nextSpan.right + 1
                         }
                     }
@@ -360,17 +320,14 @@ enum NativeCoreMLDBPostprocessor {
     }
 
     private static func boxScore(
-        map: NativeCoreMLDetectionMap, polygon: [CGPoint], cancellationCheck: () throws -> Void = {}
+        map: NativeCoreMLDetectionMap, polygon: [CGPoint], cancellationCheck: () throws -> Void
     ) throws -> Double {
         let minimumX = max(0, min(map.width - 1, Int(floor(polygon.map(\.x).min() ?? 0))))
         let maximumX = max(0, min(map.width - 1, Int(ceil(polygon.map(\.x).max() ?? 0))))
         let minimumY = max(0, min(map.height - 1, Int(floor(polygon.map(\.y).min() ?? 0))))
         let maximumY = max(0, min(map.height - 1, Int(ceil(polygon.map(\.y).max() ?? 0))))
-        // Preserve the legacy fast-score contract: polygon vertices are
-        // truncated to integer coordinates before rasterization. The polygon
-        // is a convex minimum-area rectangle, so each scan row has one
-        // inclusive span. Computing the two edge intersections once per row
-        // replaces four edge tests (and divisions) for every map pixel.
+        // Fast-score contract: vertices are truncated to integers before
+        // rasterization; the convex rectangle has one inclusive span per row.
         let rasterPolygon = polygon.map { CGPoint(x: Int($0.x), y: Int($0.y)) }
         var sum = 0.0
         var count = 0

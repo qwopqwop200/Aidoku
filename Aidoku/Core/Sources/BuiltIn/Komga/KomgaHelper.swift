@@ -36,8 +36,7 @@ struct KomgaHelper: Sendable {
         return serverUrl
     }
 
-    /// Reads a response body without letting a misconfigured or hostile server make one
-    /// API call buffer an unbounded body (`unpaged=true` chapter lists are the largest).
+    /// Caps the response body (`unpaged=true` chapter lists are the largest).
     static func limitedBody(
         for request: URLRequest,
         session: URLSession,

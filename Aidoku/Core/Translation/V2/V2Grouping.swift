@@ -1,11 +1,8 @@
 import CoreGraphics
 import Foundation
 
-// S4: recognized lines -> paragraph/balloon blocks in reading order, then a
-// conservative pre-LLM role split. Pure geometry over V2 values; the
-// paragraph graph is V2ParagraphGrouping (V2 copy of the legacy simple graph)
-// and the panel order is ReaderTranslationPanelOrder, mirrored for left-to-right
-// books; top-to-bottom strips use geometric bands only.
+// S4: recognized lines -> paragraph/balloon blocks (V2ParagraphGrouping) in reading order
+// (ReaderTranslationPanelOrder, mirrored for left-to-right; strips use bands only).
 
 /// Downsampled 8-bit gray page for panel-gutter ordering (<= 768 px side).
 struct V2GrayRaster: Sendable {
@@ -71,11 +68,7 @@ struct V2GrayRaster: Sendable {
 }
 
 enum V2Grouping {
-    static let textScopeKind = V2LayoutKind.text
-    static let balloonScopeKind = V2LayoutKind.balloon
-
-    /// Groups lines into blocks; `readingOrder` is 0-based and `id` equals it.
-    /// `raster` (page gray pixels) improves panel order; without it the
+    /// Groups lines into blocks (`id` == 0-based `readingOrder`); without `raster` the
     /// layout frames stand in for panel borders.
     static func group(
         _ lines: [V2Line],
@@ -99,15 +92,13 @@ enum V2Grouping {
                 confidence: Double(line.confidence), source: line.text)
         }
         let units = V2BalloonUnits(lines: usable, raster: raster, pageSize: pageSize)
-        let groups = V2ParagraphGrouping.group(inputs, textScopes: scopes(textScopeKind),
-                                               balloons: scopes(balloonScopeKind), joins: units.gap)
+        let groups = V2ParagraphGrouping.group(inputs, textScopes: scopes(.text), balloons: scopes(.balloon), joins: units.gap)
             // Invalid scope geometry: keep every line as its own block.
             ?? usable.indices.map { index in
-                V2ParagraphGrouping.Group(members: [index], representative: index, readingOrder: [index],
-                    polygon: usable[index].polygon, vertical: usable[index].vertical,
-                    singleVerticalColumn: usable[index].vertical)
+                V2ParagraphGrouping.Group(members: [index], readingOrder: [index], polygon: usable[index].polygon,
+                                          vertical: usable[index].vertical)
             }
-        let balloons = layout.filter { $0.kind == balloonScopeKind && $0.bounds.isFinite && !$0.bounds.isEmpty }
+        let balloons = layout.filter { $0.kind == .balloon && $0.bounds.isFinite && !$0.bounds.isEmpty }
         var blocks = groups.map { group -> V2Block in
             let members = group.readingOrder.map { usable[$0] }
             let bounds = members.reduce(CGRect.null) { $0.union(polygonBounds($1.polygon)) }
@@ -126,10 +117,8 @@ enum V2Grouping {
         return blocks
     }
 
-    /// Top-to-bottom bands of overlapping rows, then the direction inside a
-    /// band: right-to-left (manga) or left-to-right. Paged directions then
-    /// apply panel-hierarchy ranks from gutters (mirrored for left-to-right);
-    /// top-to-bottom strips keep the bands, left-to-right inside each band.
+    /// Top-to-bottom bands of overlapping rows, ordered inside by the reading direction
+    /// (left-to-right for strips); paged directions then apply panel ranks from gutters.
     static func readingOrder(_ blocks: [V2Block], layout: [V2LayoutRegion], pageSize: CGSize,
                              raster: V2GrayRaster?, direction: V2ReadingDirection = .rightToLeft) -> [Int] {
         guard blocks.count > 1 else { return Array(blocks.indices) }

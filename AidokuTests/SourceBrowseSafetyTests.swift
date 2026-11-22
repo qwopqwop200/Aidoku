@@ -10,15 +10,10 @@ struct SourceBrowseSafetyTests {
         let ownSetting = key + ".login.password"
         let siblingSetting = key + "-1.login.password"
         let defaults = UserDefaults.standard
-        defer {
-            defaults.removeObject(forKey: ownSetting)
-            defaults.removeObject(forKey: siblingSetting)
-        }
+        defer { [ownSetting, siblingSetting].forEach(defaults.removeObject(forKey:)) }
         defaults.set("own", forKey: ownSetting)
         defaults.set("sibling", forKey: siblingSetting)
-
         SourceManager.shared.removeSettings(from: key)
-
         #expect(defaults.string(forKey: ownSetting) == nil)
         #expect(defaults.string(forKey: siblingSetting) == "sibling")
     }
