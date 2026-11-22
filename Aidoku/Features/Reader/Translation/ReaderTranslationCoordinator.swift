@@ -288,7 +288,7 @@ final class ReaderTranslationCoordinator {
         dismissFailureNotice()
         button.accessibilityHint = nil
         // The settings notification resynchronizes (or hides) visible pages.
-        ReaderTranslationSettings.setAutomaticTranslation(!ReaderTranslationSettings().automaticallyTranslate)
+        ReaderTranslationSettings.setAutomaticTranslation(!ReaderTranslationSettings().showsTranslation)
         visiblePagesDidChange()
     }
 
@@ -357,6 +357,7 @@ final class ReaderTranslationCoordinator {
         guard isVisible, let owner else { return }
         let settings = ReaderTranslationSettings()
         applyButtonState(enabled: settings.automaticallyTranslate)
+        if #available(iOS 16.0, *) { button.isHidden = !settings.translatePages }
         updateMetadataActivity(active: settings.shouldProcessReaderPages)
         let visible = owner.translationVisiblePages
         // Pages that scrolled away stop their pipeline (and provider) work.
@@ -444,7 +445,7 @@ extension ReaderTranslationCoordinator {
     /// One page after the viewport while visible pages are pending, two once they are presented
     /// (or in background-only mode), plus the performance profile's extra pages; once presented the
     /// reading pace and look-ahead cost move it between two and twice that (memory permitting),
-    /// bounded by the pretranslation limit. A page that becomes visible joins its running computation. Wide
+    /// A page that becomes visible joins its running computation. Wide
     /// pages shown as halves are translated per half.
     private func updateV2Lookahead() {
         guard #available(iOS 18.0, *), let owner, isVisible, owner.translationPersistsCache else {
@@ -455,7 +456,7 @@ extension ReaderTranslationCoordinator {
         guard settings.shouldProcessReaderPages else { cancelV2Lookahead(); return }
         let (base, grows) = Self.v2LookaheadBaseCount(visible: owner.translationVisiblePages, settings: settings)
         v2LookaheadCount = lookaheadPace.count(
-            base: base, limit: settings.maximumPretranslatedPages, growth: grows ? Self.v2LookaheadMemoryGrowth(base: base) : 0)
+            base: base, limit: nil, growth: grows ? Self.v2LookaheadMemoryGrowth(base: base) : 0)
         let targets = Self.v2LookaheadPages(
             upcoming: owner.translationUpcomingPages, visible: owner.translationVisiblePages,
             currentIndex: owner.translationCurrentPageIndex, settings: settings, count: v2LookaheadCount)
@@ -532,7 +533,7 @@ extension ReaderTranslationCoordinator {
         visible: [ReaderTranslationPage], settings: ReaderTranslationSettings
     ) -> (count: Int, grows: Bool) {
         let visiblePresented = !visible.isEmpty && visible.allSatisfy(\.isPresentingV2)
-        let backgroundOnly = !settings.automaticallyTranslate && settings.translateInBackground
+        let backgroundOnly = settings.translatePages && !settings.showsTranslation
         let grows = backgroundOnly || visiblePresented
         return (V2PerformanceProfile.current.lookaheadCount(automatic: grows ? 2 : 1), grows)
     }
@@ -550,7 +551,7 @@ extension ReaderTranslationCoordinator {
     ) -> [Page] {
         guard settings.shouldProcessReaderPages else { return [] }
         let visibleKeys = Set(visible.compactMap { $0.sourcePage?.translationCacheKey })
-        let backgroundOnly = !settings.automaticallyTranslate && settings.translateInBackground
+        let backgroundOnly = settings.translatePages && !settings.showsTranslation
         let unit = ReaderTranslationSplitGeometry.unit
         func whole(_ page: Page) -> Bool { page.translationSourceRect == nil || page.translationSourceRect == unit }
         // Background-only mode also prepares the visible pages without presenting them.

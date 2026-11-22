@@ -213,7 +213,6 @@ struct TranslationServiceCacheTests {
 
     private func imageConfiguration() -> RemoteTranslationConfiguration {
         var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "ImageSettings.\(UUID().uuidString)")!)
-        settings.provider = .custom
         settings.custom.baseURL = "https://image-support-tests.example/\(UUID().uuidString)/v1"
         settings.custom.apiProtocol = .chatCompletions
         settings.model = "text-model"

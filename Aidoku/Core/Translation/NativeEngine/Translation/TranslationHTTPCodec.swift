@@ -4,8 +4,6 @@ enum TranslationHTTPCodec {
     static let maxOutputTokens = 8192
     static let samplingTemperature: Double = 1
     static let samplingTopP = 0.95
-    static let samplingTopK = 64
-    static let samplingRepetitionPenalty = 1.08
     static let roleVerificationPolicy = "source-bound-focused-role-verification-v262"
     static let backgroundPolicy = "background-v15-explicit-objects-and-screens"
     static let textOnlyBackgroundPolicy = "llm-background-text-v4-defined-roles"
@@ -165,10 +163,6 @@ enum TranslationHTTPCodec {
         }
         // vLLM-compatible extensions; the body is serialized with sorted keys.
         func addCustomExtensions(to root: inout [String: Any]) throws {
-            if configuration.provider == .custom {
-                root["top_k"] = samplingTopK
-                root["repetition_penalty"] = samplingRepetitionPenalty
-            }
             // Opt-in fresh 256-bit cache_salt isolates a call from vLLM's warm prefix cache.
             if ProcessInfo.processInfo.environment["AIDOKU_VLLM_FRESH_PREFIX"] == "1" {
                 var generator = SystemRandomNumberGenerator()

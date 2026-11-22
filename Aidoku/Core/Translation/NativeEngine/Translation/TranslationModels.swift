@@ -22,6 +22,16 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
     case privateTailnetUnavailable
     case refused
 
+    static func httpStatusKey(_ status: Int) -> String {
+        switch status {
+        case 401, 403: "TRANSLATION_ERROR_HTTP_KEY"
+        case 404: "TRANSLATION_ERROR_HTTP_NOT_FOUND"
+        case 429: "TRANSLATION_ERROR_HTTP_LIMIT"
+        case 500...: "TRANSLATION_ERROR_HTTP_SERVER"
+        default: "TRANSLATION_ERROR_HTTP"
+        }
+    }
+
     var errorDescription: String? {
         // Keep diagnostic payloads in the error for logging; user-facing text is localized.
         switch self {
@@ -33,9 +43,9 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
         case .insecureEndpoint: NSLocalizedString("TRANSLATION_ERROR_ENDPOINT")
         case .redirectRejected: NSLocalizedString("TRANSLATION_ERROR_REDIRECT")
         case .responseTooLarge: NSLocalizedString("TRANSLATION_ERROR_RESPONSE_SIZE")
-        case let .httpStatus(status, requestID?):
-            String(format: NSLocalizedString("TRANSLATION_ERROR_HTTP_REQUEST"), status, requestID)
-        case let .httpStatus(status, nil): String(format: NSLocalizedString("TRANSLATION_ERROR_HTTP"), status)
+        // The request ID stays in the error for logs; people get the likely cause.
+        case let .httpStatus(status, _):
+            String(format: NSLocalizedString(Self.httpStatusKey(status)), status)
         case let .transport(code): String(format: NSLocalizedString("TRANSLATION_ERROR_NETWORK_CODE"), code.rawValue)
         case .privateTailnetUnavailable: NSLocalizedString("TRANSLATION_ERROR_CONNECTION")
         case .refused: NSLocalizedString("TRANSLATION_ERROR_REFUSED")
@@ -51,6 +61,14 @@ enum RemoteTranslationProtocol: String, Codable, Hashable, Sendable {
 enum RemoteTranslationProvider: String, Codable, Hashable, Sendable {
     case openAI = "openai"
     case custom
+
+    /// The endpoint host decides: https api.openai.com is OpenAI, every other server is custom.
+    init(baseURL: String) {
+        let url = URLComponents(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines))
+        let isOpenAI = url?.scheme?.lowercased() == "https" && url?.host?.lowercased() == "api.openai.com" &&
+            (url?.port ?? 443) == 443
+        self = isOpenAI ? .openAI : .custom
+    }
 }
 
 enum OpenAIReasoningEffort: String, Codable, CaseIterable, Hashable, Sendable {
@@ -277,9 +295,6 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
         guard (4 * 1024...4 * 1024 * 1024).contains(maximumResponseBytes) else {
             throw RemoteTranslationError.invalidConfiguration("response limit is outside the supported range")
         }
-        guard provider != .openAI || apiProtocol == .responses else {
-            throw RemoteTranslationError.invalidConfiguration("the OpenAI provider requires the Responses API")
-        }
         guard provider == .custom || !allowsInsecureLocalhostForDevelopment else {
             throw RemoteTranslationError.invalidConfiguration("the OpenAI provider cannot enable insecure development transport")
         }
@@ -317,8 +332,6 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
     let reasoningEffort: OpenAIReasoningEffort
     let samplingTemperature: Double?
     let samplingTopP: Double?
-    let samplingTopK: Int?
-    let samplingRepetitionPenalty: Double?
     let maxOutputTokens: Int
 
     init(configuration: RemoteTranslationConfiguration, endpoint: URL, request: RemoteTranslationRequest) {
@@ -348,8 +361,6 @@ struct TranslationCacheKey: Codable, Hashable, Sendable {
         reasoningEffort = configuration.reasoningEffort
         samplingTemperature = TranslationHTTPCodec.samplingTemperature == 0 ? nil : TranslationHTTPCodec.samplingTemperature
         samplingTopP = TranslationHTTPCodec.samplingTopP
-        samplingTopK = configuration.provider == .custom ? TranslationHTTPCodec.samplingTopK : nil
-        samplingRepetitionPenalty = configuration.provider == .custom ? TranslationHTTPCodec.samplingRepetitionPenalty : nil
         maxOutputTokens = TranslationHTTPCodec.maxOutputTokens
     }
 }

@@ -207,8 +207,8 @@ struct TranslationHTTPCodecTests {
         }
         let data = try ReaderTranslationImagePreparation.translationJPEG(image)
         let decoded = try #require(UIImage(data: data)?.cgImage)
-        #expect(decoded.width == 2048)
-        #expect(decoded.height == 1024)
+        #expect(decoded.width == 1024)
+        #expect(decoded.height == 512)
         #expect(data.prefix(2) == Data([0xff, 0xd8]))
     }
 
@@ -446,9 +446,8 @@ private enum TranslationWireContractChecks {
                         for root in [standard, compact] {
                             try check((root["temperature"] as? NSNumber)?.doubleValue == 1.0, "Wrong temperature")
                             try check((root["top_p"] as? NSNumber)?.doubleValue == 0.95, "Wrong top_p")
-                            try check((root["top_k"] as? NSNumber)?.intValue == 64, "Wrong top_k")
-                            try check(root["min_p"] == nil, "Unsupported min_p")
-                            try check((root["repetition_penalty"] as? NSNumber)?.doubleValue == 1.08, "Wrong repetition_penalty")
+                            try check(root["top_k"] == nil && root["min_p"] == nil && root["repetition_penalty"] == nil,
+                                "Unsupported sampling extension")
                             try check((root[proto == .responses ? "max_output_tokens" : "max_tokens"] as? NSNumber)?.intValue == 8192, "Wrong output cap")
                             try check(root["store"] as? Bool == false, "Stored translation request")
                             if proto == .responses {

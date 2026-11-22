@@ -10,6 +10,7 @@ struct ReaderTranslationSettingsView: View {
     @StateObject private var connectionTest = ReaderTranslationConnectionTest()
     @FocusState private var keyFocused: Bool
     @State private var pendingChange: Task<Void, Never>?
+    @State private var autoCheck: Task<Void, Never>?
 
     private let languages: [(String, String)] = [
         ("ko", "한국어"), ("en", "English"), ("ja", "日本語"), ("zh-Hans", "简体中文"),
@@ -21,9 +22,7 @@ struct ReaderTranslationSettingsView: View {
         List {
             providerSection
             languageSection
-            pageTranslationSection
             translationTargetsSection
-            translationOptionsSection
             cacheSection
         }
         .navigationTitle(NSLocalizedString("TRANSLATION_TITLE"))
@@ -35,12 +34,18 @@ struct ReaderTranslationSettingsView: View {
             publishPendingChange()
             connectionTest.reset()
         }
-        .onChange(of: settings.configuration) { _ in connectionTest.reset() }
+        // Each provider change re-checks the connection once editing pauses.
+        .onChange(of: settings.configuration) { _ in scheduleConnectionCheck() }
         .onChange(of: settings.sourceLanguage) { _ in connectionTest.reset() }
         .onChange(of: settings.targetLanguage) { _ in connectionTest.reset() }
         .onChange(of: apiKey) { _ in connectionTest.reset() }
         // Like Aidoku text settings, save the key when the field loses focus.
-        .onChange(of: keyFocused) { focused in if !focused { saveKey() } }
+        .onChange(of: keyFocused) { focused in
+            guard !focused else { return }
+            let typed = !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            saveKey()
+            if typed { scheduleConnectionCheck() }
+        }
         .alert(NSLocalizedString("TRANSLATION_TITLE"), isPresented: Binding(
             get: { message != nil }, set: { if !$0 { message = nil } }
         )) {
@@ -83,6 +88,8 @@ struct ReaderTranslationSettingsView: View {
 
     private var translationTargetsSection: some View {
         Section {
+            toggleWithHelp("TRANSLATION_AUTOMATIC", isOn: persistedSettings.translatePages,
+                           id: "translation.automatic", help: "TRANSLATION_AUTOMATIC_HELP")
             targetRows("TRANSLATION_MANGA_TITLES", \.translateMangaTitles, id: "translation.mangaTitles",
                        filter: "TRANSLATION_MANGA_TITLE_FILTER", \.mangaTitleSourceLanguages, filterID: "translation.mangaTitleFilter")
             targetRows("TRANSLATION_CHAPTER_TITLES", \.translateChapterTitles, id: "translation.chapterTitles",
@@ -103,43 +110,6 @@ struct ReaderTranslationSettingsView: View {
             Text(NSLocalizedString("TRANSLATION_TARGETS"))
         } footer: {
             Text(NSLocalizedString("TRANSLATION_TITLES_HELP"))
-        }
-    }
-
-    private var pageTranslationSection: some View {
-        Section {
-            toggleWithHelp("TRANSLATION_AUTOMATIC", isOn: persistedSettings.automaticallyTranslate,
-                           id: "translation.automatic", help: "TRANSLATION_AUTOMATIC_HELP")
-            toggleWithHelp("TRANSLATION_BACKGROUND", isOn: persistedSettings.translateInBackground,
-                           id: "translation.background", help: "TRANSLATION_BACKGROUND_HELP")
-            Picker(NSLocalizedString("TRANSLATION_PRETRANSLATION_LIMIT"), selection: persistedSettings.maximumPretranslatedPages) {
-                Text(NSLocalizedString("TRANSLATION_UNLIMITED")).tag(Optional<Int>.none)
-                Text(NSLocalizedString("TRANSLATION_VISIBLE_PAGES_ONLY")).tag(Optional(0))
-                ForEach([1, 2, 3, 5, 10, 20, 50, 100], id: \.self) { count in
-                    Text(count, format: .number).tag(Optional(count))
-                }
-            }
-            .accessibilityIdentifier("translation.pretranslationLimit")
-        } header: {
-            Text(NSLocalizedString("TRANSLATION_PAGE_SETTINGS"))
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_PRETRANSLATION_LIMIT_HELP"))
-        }
-    }
-
-    private var translationOptionsSection: some View {
-        Section {
-            Picker(NSLocalizedString("TRANSLATION_REASONING"), selection: persistedSettings.reasoningEffort) {
-                ForEach(OpenAIReasoningEffort.allCases, id: \.self) { effort in
-                    Text(reasoningTitle(effort)).tag(effort)
-                }
-            }
-            .accessibilityIdentifier("translation.reasoning")
-            Picker(NSLocalizedString("TRANSLATION_CONCURRENCY"), selection: concurrency) {
-                ForEach(concurrencyChoices, id: \.self) { Text(String($0)).tag($0) }
-            }
-        } header: {
-            Text(NSLocalizedString("TRANSLATION_ADVANCED"))
         }
     }
 
@@ -253,20 +223,8 @@ struct ReaderTranslationSettingsView: View {
     @ViewBuilder
     private var providerSection: some View {
         Section {
-            Picker(NSLocalizedString("TRANSLATION_PROVIDER"), selection: persistedSettings.provider) {
-                Text("OpenAI").tag(RemoteTranslationProvider.openAI)
-                Text(NSLocalizedString("TRANSLATION_CUSTOM_PROVIDER")).tag(RemoteTranslationProvider.custom)
-            }
-            .accessibilityIdentifier("translation.provider")
-            if settings.provider == .custom {
-                textRow("TRANSLATION_BASE_URL", text: persistedSettings.custom.baseURL,
-                        placeholder: "https://example.com/v1", id: "translation.baseURL", url: true)
-                Picker(NSLocalizedString("TRANSLATION_API_FORMAT"), selection: persistedSettings.custom.apiProtocol) {
-                    Text("Responses").tag(RemoteTranslationProtocol.responses)
-                    Text("Chat Completions").tag(RemoteTranslationProtocol.chatCompletions)
-                }
-                .accessibilityIdentifier("translation.apiProtocol")
-            }
+            textRow("TRANSLATION_BASE_URL", text: persistedSettings.custom.baseURL,
+                    placeholder: ReaderCustomTranslationSettings.openAIBaseURL, id: "translation.baseURL", url: true)
             textRow("TRANSLATION_MODEL", text: persistedSettings.model, placeholder: settings.provider == .openAI ? "gpt-5-mini" : "", id: "translation.model")
             HStack {
                 Text(NSLocalizedString("TRANSLATION_KEY")).lineLimit(1)
@@ -281,59 +239,79 @@ struct ReaderTranslationSettingsView: View {
                     .onSubmit(saveKey)
                     .accessibilityIdentifier("translation.apiKey")
             }
-            if hasKey {
-                Button(NSLocalizedString("TRANSLATION_KEY_DELETE"), role: .destructive, action: deleteKey)
+            // Typing a new key replaces the saved one; swipe the row to delete it.
+            .swipeActions {
+                if hasKey {
+                    Button(NSLocalizedString("TRANSLATION_KEY_DELETE"), role: .destructive, action: deleteKey)
+                }
             }
-            if settings.provider == .openAI {
-                Link(NSLocalizedString("TRANSLATION_GET_KEY"), destination: URL(string: "https://platform.openai.com/api-keys")!)
+            connectionTestRows
+            DisclosureGroup(NSLocalizedString("ADVANCED")) {
+                Picker(NSLocalizedString("TRANSLATION_API_FORMAT"), selection: persistedSettings.custom.apiProtocol) {
+                    Text("Responses").tag(RemoteTranslationProtocol.responses)
+                    Text("Chat Completions").tag(RemoteTranslationProtocol.chatCompletions)
+                }
+                .accessibilityIdentifier("translation.apiProtocol")
+                Picker(NSLocalizedString("TRANSLATION_REASONING"), selection: persistedSettings.reasoningEffort) {
+                    ForEach(OpenAIReasoningEffort.allCases, id: \.self) { effort in
+                        Text(reasoningTitle(effort)).tag(effort)
+                    }
+                }
+                .accessibilityIdentifier("translation.reasoning")
+                Picker(NSLocalizedString("TRANSLATION_CONCURRENCY"), selection: concurrency) {
+                    ForEach(concurrencyChoices, id: \.self) { Text(String($0)).tag($0) }
+                }
             }
         } header: {
             Text(NSLocalizedString("TRANSLATION_PROVIDER"))
         } footer: {
-            if settings.provider == .custom {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(NSLocalizedString("TRANSLATION_CUSTOM_HELP"))
-                    if let endpoint = try? TranslationEndpointPolicy.endpoint(for: settings.configuration) {
-                        Text(endpoint.absoluteString).textSelection(.enabled)
-                    }
+            VStack(alignment: .leading, spacing: 8) {
+                Text(NSLocalizedString("TRANSLATION_CUSTOM_HELP"))
+                if let endpoint = try? TranslationEndpointPolicy.endpoint(for: settings.configuration) {
+                    Text(endpoint.absoluteString).textSelection(.enabled)
                 }
             }
-        }
-        Section {
-            connectionTestRows
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_TEST_HELP"))
         }
     }
 
     @ViewBuilder
     private var connectionTestRows: some View {
+        // The section's only action keeps the accent colour; the trailing icon carries the result.
         Button(action: testConnection) {
             HStack {
                 Text(NSLocalizedString(connectionTest.state == .running ? "TRANSLATION_TEST_RUNNING" : "TRANSLATION_TEST"))
                 Spacer()
-                if connectionTest.state == .running { ProgressView() }
+                switch connectionTest.state {
+                case .running: ProgressView()
+                case .success: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                case .failure: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.red)
+                case .idle: EmptyView()
+                }
             }
         }
         .disabled(connectionTest.state == .running)
         .accessibilityIdentifier("translation.test")
         switch connectionTest.state {
         case .success(let translated):
-            VStack(alignment: .leading, spacing: 6) {
-                Label(NSLocalizedString("TRANSLATION_TEST_SUCCESS"), systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text(translated).font(.footnote).textSelection(.enabled)
-            }
-            .accessibilityIdentifier("translation.test.success")
+            Text(translated).font(.footnote).textSelection(.enabled)
+                .accessibilityLabel(NSLocalizedString("TRANSLATION_TEST_SUCCESS") + ", " + translated)
+                .accessibilityIdentifier("translation.test.success")
         case .failure(let error):
-            VStack(alignment: .leading, spacing: 6) {
-                Label(NSLocalizedString("TRANSLATION_TEST_FAILURE"), systemImage: "exclamationmark.circle.fill")
-                    .foregroundStyle(.red)
-                Text(error).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
-            }
-            .accessibilityIdentifier("translation.test.failure")
+            Text(error).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
+                .accessibilityLabel(NSLocalizedString("TRANSLATION_TEST_FAILURE") + ", " + error)
+                .accessibilityIdentifier("translation.test.failure")
         case .idle, .running:
             EmptyView()
+        }
+    }
+
+    private func scheduleConnectionCheck() {
+        connectionTest.reset()
+        autoCheck?.cancel()
+        autoCheck = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled, hasKey, !keyFocused else { return }
+            testConnection()
         }
     }
 

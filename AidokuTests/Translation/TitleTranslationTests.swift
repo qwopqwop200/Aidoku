@@ -21,7 +21,7 @@ struct TitleTranslationTests {
         settings.translateMangaTitles = true
         let identity = TitleTranslation.settingsIdentity(kind: .manga, settings: settings)
         var unrelated = settings
-        unrelated.automaticallyTranslate.toggle()
+        unrelated.translatePages.toggle()
         unrelated.maximumConcurrentRequests = 3
         var target = settings
         target.targetLanguage = "ja"
@@ -89,7 +89,7 @@ struct TitleTranslationTests {
         settings.targetLanguage = "ko"
         settings.translateMangaTitles = false
         settings.translateChapterTitles = true
-        settings.automaticallyTranslate = false
+        settings.translatePages = false
         let source = "これは日本語のタイトルです"
         #expect(await TitleTranslation.translate(source, kind: .manga, settings: settings, service: service, diskCache: fixture.disk) == source)
         #expect(await client.requests.isEmpty)
