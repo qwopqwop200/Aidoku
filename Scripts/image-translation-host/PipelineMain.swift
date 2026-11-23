@@ -194,11 +194,10 @@ enum PipelineMain {
 
         let loadStart = DispatchTime.now().uptimeNanoseconds
         let bundle = try prepareBundle(root: root, cache: cache)
-        // AIDOKU_PIPELINE_DETECTORS / AIDOKU_PIPELINE_INPAINTERS override the resident pool sizes (default 2/1:
-        // the Neural Engine runs one AOT prediction at a time, so a second inpainter only costs memory).
-        let pool = { (name: String, fallback: Int) in max(1, Int(shell[name] ?? "") ?? fallback) }
-        let models = try PipelineModels.load(bundle: bundle, detectorInstances: pool("AIDOKU_PIPELINE_DETECTORS", 2),
-                                       inpainterInstances: pool("AIDOKU_PIPELINE_INPAINTERS", 1))
+        // AIDOKU_PIPELINE_DETECTORS / AIDOKU_PIPELINE_INPAINTERS override the resident pool sizes (default 2/2).
+        let pool = { (name: String) in max(1, Int(shell[name] ?? "") ?? 2) }
+        let models = try PipelineModels.load(bundle: bundle, detectorInstances: pool("AIDOKU_PIPELINE_DETECTORS"),
+                                       inpainterInstances: pool("AIDOKU_PIPELINE_INPAINTERS"))
         try await models.warmUp()
         let loadMilliseconds = TranslationPipeline.milliseconds(since: loadStart)
         log("Models resident in \(Int(loadMilliseconds)) ms; \(settings.images.count) page(s), jobs \(settings.jobs), mode \(mode.rawValue)")
