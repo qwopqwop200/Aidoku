@@ -33,6 +33,26 @@ enum V2RoleFilter {
         }
     }
 
+    /// Speech rescue (fit on train folds against GT text regions): short text the LLM called SFX is
+    /// still speech when RF-DETR sees it inside a balloon (score x coverage >= `rescueBalloon`) and
+    /// not inside an SFX region (score x coverage < `rescueSFX`). Train folds: 15 of 21 such speech
+    /// blocks painted, 1 of 441 SFX wrongly painted; held-out dev+test 3 rescued, 1 wrong.
+    static let rescueBalloon: CGFloat = 0.5
+    static let rescueSFX: CGFloat = 0.1
+
+    static func rescuingSpeech(_ blocks: [V2Block], layout: [V2LayoutRegion]) -> [V2Block] {
+        func evidence(_ kind: V2LayoutKind, _ bounds: CGRect) -> CGFloat {
+            layout.lazy.filter { $0.kind == kind }.map { CGFloat($0.score) * covered(bounds, by: $0.bounds) }.max() ?? 0
+        }
+        return blocks.map { block in
+            guard block.role == .sfx, block.translation != nil, keepsSource(block),
+                  evidence(.balloon, block.bounds) >= rescueBalloon, evidence(.sfx, block.bounds) < rescueSFX else { return block }
+            var block = block
+            block.role = .dialogue
+            return block
+        }
+    }
+
     static func classify(_ blocks: [V2Block], layout: [V2LayoutRegion]) -> [V2Block] {
         blocks.map { block in
             var result = block

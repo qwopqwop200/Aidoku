@@ -175,7 +175,7 @@ enum V2Pipeline {
         switch translation {
         case .success(let output):
             let interior = Dictionary(candidates.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            blocks = output.map { block in
+            blocks = V2RoleFilter.rescuingSpeech(output, layout: layout).map { block in
                 guard let source = interior[block.id] else { return block }
                 var block = block
                 block.balloon = source.balloon

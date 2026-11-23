@@ -579,6 +579,19 @@ struct V2StageTests {
         #expect(V2RoleFilter.classify([block("6", confidence: 0.4)], layout: [])[0].role == .background)
     }
 
+    @Test func shortSFXInsideAnRFBalloonIsSpeech() {
+        var block = placedBlock(0, CGRect(x: 100, y: 100, width: 40, height: 80), "あっ")
+        block.sourceText = "あっ"
+        block.role = .sfx
+        let balloon = V2LayoutRegion(kind: .balloon, bounds: CGRect(x: 80, y: 80, width: 120, height: 160), score: 0.9)
+        let sfx = V2LayoutRegion(kind: .sfx, bounds: CGRect(x: 90, y: 90, width: 80, height: 120), score: 0.9)
+        #expect(V2RoleFilter.keepsSource(block))
+        #expect(V2RoleFilter.rescuingSpeech([block], layout: [balloon])[0].role == .dialogue)
+        // RF also sees an SFX region there, or no balloon at all: the LLM's SFX stands.
+        #expect(V2RoleFilter.rescuingSpeech([block], layout: [balloon, sfx])[0].role == .sfx)
+        #expect(V2RoleFilter.rescuingSpeech([block], layout: [])[0].role == .sfx)
+    }
+
     @Test func providerErrorsAndSourceCopiesKeepTheSource() {
         let block = V2Block(id: 3, lines: [], bounds: .zero, polygon: [], vertical: true, readingOrder: 0, sourceText: "SALE")
         let error = V2Translation.apply([block]) { _ in RemoteTranslatedSegment(id: "x", text: "x", textRole: .error) }
