@@ -92,12 +92,16 @@ enum PipelineLineEnds {
         for i in 0..<length {
             let along = lo + i
             guard along >= 0, along < alongLimit else { continue }
-            var hits = [Int](repeating: 0, count: deltas.count)
+            // Two thresholds (`deltas`), counted without a per-row array.
+            let low = deltas[0], high = deltas[1]
+            var lowHits = 0, highHits = 0
             for cross in a..<c {
                 let d = abs(Double(vertical ? gray(cross, along) : gray(along, cross)) - background)
-                for k in deltas.indices where d > deltas[k] { hits[k] += 1 }
+                if d > low { lowHits += 1 }
+                if d > high { highHits += 1 }
             }
-            for k in deltas.indices { profiles[k][i] = Double(hits[k]) / Double(c - a) }
+            profiles[0][i] = Double(lowHits) / Double(c - a)
+            profiles[1][i] = Double(highHits) / Double(c - a)
         }
         let first = Int(alongLow.rounded(.down)) - lo, last = Int(alongHigh.rounded(.up)) - lo
         let cx = (x0 + x1) / 2, cy = (y0 + y1) / 2
