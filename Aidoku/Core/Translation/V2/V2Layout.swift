@@ -24,8 +24,9 @@ enum V2Layout {
     static let widthSlack: CGFloat = 0.97
     /// Smallest whole-word size, relative to the split-word size, that is preferred over splitting.
     static let wholeWordRatio: CGFloat = 0.85
-    /// Horizontal scale of a condensed fit (whole words narrowed rather than split).
-    static let condenseScale: CGFloat = 0.9
+    /// Horizontal scale of a condensed fit (whole words narrowed rather than split); 0.85 beat 0.9
+    /// on every fold (compare.py +23, test +7; 0.8 +19, 0.875 +7, 0.95 -62).
+    static let condenseScale: CGFloat = 0.85
     /// Tilted text keeps the source tilt down to this share of its upright size.
     static let rotationSizeRatio: CGFloat = 0.9
     /// The strict Korean line-break rules yield when the fit they allow is below this share of the relaxed one.
