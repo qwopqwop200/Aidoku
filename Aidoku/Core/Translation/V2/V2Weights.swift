@@ -4,10 +4,10 @@ import Foundation
 /// scripts (scripts-mask/export_weights.py, scripts-style/export_swift.py; TRAIN split only). fillPass2 is a
 /// LightGBM lambdarank over each block's candidates (`port-eval/colorfix/export_fill.py`; base 0, rate 1).
 /// An optional fourth forest, fillPeaks, ranks the pick against its density peaks (`train_peaks.py`).
-/// Each table is a UInt32 element count followed by little-endian elements, in the order read below.
+/// Each table is a UInt32 element count followed by little-endian elements, in the order read below. The
+/// first two tables (the former S6 MLP, replaced by `V2MaskNet`) are unused and skipped.
 private enum V2WeightFile {
     struct Tables {
-        let stage1: [Float], stage2: [Float]
         let fillPass1: V2StyleForest, fillPass2: V2StyleForest, outline: V2StyleForest
         /// Optional trailing forest: the density-peak ranker (absent in older files).
         let fillPeaks: V2StyleForest?
@@ -37,23 +37,13 @@ private enum V2WeightFile {
                                  threshold: read(Double.self), left: read(Int32.self), right: read(Int32.self),
                                  value: read(Double.self))
         }
-        let stage1 = read(Float.self), stage2 = read(Float.self)
+        _ = read(Float.self); _ = read(Float.self)
         let fillPass1 = forest(), fillPass2 = forest(), outline = forest()
-        let tables = Tables(stage1: stage1, stage2: stage2, fillPass1: fillPass1, fillPass2: fillPass2, outline: outline,
+        let tables = Tables(fillPass1: fillPass1, fillPass2: fillPass2, outline: outline,
                             fillPeaks: offset < data.count ? forest() : nil)
         precondition(offset == data.count, "V2Weights.bin has trailing data")
         return tables
     }()
-}
-
-/// Layout per stage: W1[hidden x features] (input standardisation folded in), b1, W2[hidden x hidden], b2, w3[hidden], b3.
-enum V2RemovalMaskWeights {
-    static let stage1Features = 29
-    static let stage1Hidden = 48
-    static let stage2Features = 39
-    static let stage2Hidden = 64
-    static var stage1: [Float] { V2WeightFile.tables.stage1 }
-    static var stage2: [Float] { V2WeightFile.tables.stage2 }
 }
 
 enum V2StyleParameters {
