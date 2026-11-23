@@ -65,7 +65,9 @@ final class PipelineRecognitionEngine: @unchecked Sendable {
         let count = Self.defaultHandleCount
         // The legacy configuration: every compute unit, frequent reshapes.
         let configuration = MLModelConfiguration()
-#if targetEnvironment(simulator)
+#if targetEnvironment(simulator) || os(macOS)
+        // On the Mac every unit runs this flexible-width program on the CPU (bit-identical
+        // outputs); CPU-only skips the GPU/ANE planning, so each handle loads and warms faster.
         configuration.computeUnits = .cpuOnly
 #else
         configuration.computeUnits = .all
