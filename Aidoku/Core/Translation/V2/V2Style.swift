@@ -30,10 +30,22 @@ extension V2Style {
                                               characters: blocks.map { $0.sourceText.unicodeScalars.count })
         // Layout reads the corrected size; the colour measurement above keeps the geometric one.
         let layoutFonts = V2FontCorrection.corrected(blocks, fonts: fonts, groups: groups)
+        // Bold: ridge width of the fill body / layout font and its line cover (`boldMeasure`).
+        let measured = analyses.map { $0 != nil }
+        let bold = UnsafeMutableBufferPointer<Bool>.allocate(capacity: blocks.count)
+        bold.initialize(repeating: false)
+        defer { bold.deallocate() }
+        DispatchQueue.concurrentPerform(iterations: blocks.count) { index in
+            guard measured[index] else { return }
+            let m = V2StyleEstimator.boldMeasure(page.image, block: blocks[index], font: Double(layoutFonts[index]),
+                                                 fill: styles[index].textColor, raster: raster)
+            bold[index] = m.map(V2StyleParameters.isBold) ?? false
+        }
         return blocks.indices.map { index in
             var block = blocks[index]
             block.style = styles[index]
             block.style?.fontPixels = layoutFonts[index]
+            block.style?.bold = bold[index]
             return block
         }
     }
@@ -354,7 +366,7 @@ enum V2StyleEstimator {
     }
 
     private static func makeCrop(_ image: CGImage, block: V2Block, font: Double,
-                                 raster: V2PageRaster?) -> (crop: Crop, scale: Double)? {
+                                 raster: V2PageRaster?, limit: Int = maximumPixels) -> (crop: Crop, scale: Double)? {
         let W = image.width, H = image.height
         let m = max(6, 0.5 * font)
         let box = block.bounds
@@ -365,7 +377,7 @@ enum V2StyleEstimator {
         let x0 = pixel(Double(box.minX) - m, W), y0 = pixel(Double(box.minY) - m, H)
         let x1 = pixel((Double(box.maxX) + m).rounded(.up), W), y1 = pixel((Double(box.maxY) + m).rounded(.up), H)
         guard x1 - x0 >= 4, y1 - y0 >= 4 else { return nil }
-        var s = min(1, (Double(maximumPixels) / Double((x1 - x0) * (y1 - y0))).squareRoot())
+        var s = min(1, (Double(limit) / Double((x1 - x0) * (y1 - y0))).squareRoot())
         var w = x1 - x0, h = y1 - y0
         if s < 1 {
             w = max(4, Int(Double(x1 - x0) * s)); h = max(4, Int(Double(y1 - y0) * s))
@@ -1142,7 +1154,6 @@ extension V2StyleEstimator {
                             let background = (rings.isEmpty ? f.ringBackground : median(rings.suffix(3).map(\.median)))
                                 .map { $0.rounded(.toNearestOrEven) }
                             results[index].textColor = rgb(f.clusters[j].core)
-                            results[index].bold = f.clusters[j].strokeWidth / f.font >= P.boldStrokeRatio
                             let observation = outlineObservation(f, fill: j, rings: profile, background: background)
                             if let observation {
                                 observations[index] = observation
@@ -1297,5 +1308,80 @@ enum V2StyleConsistency {
             }
         }
         return result
+    }
+}
+
+// MARK: - Bold (source weight)
+
+/// Body of the picked fill inside the lines: pixels within deltaE 15 of the fill in the line polygons grown by
+/// 0.1 font, minus the components that reach the grown region's edge (balloon/background of the fill colour).
+/// `ridge`: 75th percentile of the body's distance-transform ridge (local 3x3 maxima) as full width / font;
+/// `cover`: body share of the line polygon area. Rule and thresholds: `port-eval/bold/bo` (TRAIN folds).
+extension V2StyleEstimator {
+    struct BoldMeasure { var ridge: Double; var cover: Double }
+    static let boldMaximumPixels = 2_000_000
+
+    static func boldMeasure(_ image: CGImage, block: V2Block, font: Double, fill: V2RGB,
+                            raster: V2PageRaster?) -> BoldMeasure? {
+        guard font.isFinite, font > 0,
+              let (crop, s) = makeCrop(image, block: block, font: font, raster: raster, limit: boldMaximumPixels) else { return nil }
+        let w = crop.width, h = crop.height, n = w * h
+        let lineCount = crop.lines.reduce(0) { $0 + ($1 ? 1 : 0) }
+        guard lineCount >= 16 else { return nil }
+        let grow = max(1, Int(0.1 * font * s))
+        let lineDistance2 = squaredDistance(to: crop.lines, width: w, height: h)
+        let roi = lineDistance2.map { Int($0) <= grow * grow }
+        let linear: [Double] = (0..<256).map { v in
+            let c = Double(v) / 255
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        let target = lab([Double(fill.r), Double(fill.g), Double(fill.b)])
+        func f(_ t: Double) -> Double { t > 0.008856 ? cbrt(t) : 7.787 * t + 16.0 / 116 }
+        var body = [Bool](repeating: false, count: n)
+        for i in 0..<n where roi[i] {
+            let r = linear[Int(crop.rgb[3 * i])], g = linear[Int(crop.rgb[3 * i + 1])], b = linear[Int(crop.rgb[3 * i + 2])]
+            let fx = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), fy = f(0.2126 * r + 0.7152 * g + 0.0722 * b)
+            let fz = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883)
+            let dl = 116 * fy - 16 - target[0], da = 500 * (fx - fy) - target[1], db = 200 * (fy - fz) - target[2]
+            body[i] = dl * dl + da * da + db * db < 225
+        }
+        // Drop body components (4-connected) holding a pixel on the edge of the grown region.
+        var stack: [Int] = []
+        for i in 0..<n where body[i] {
+            let x = i % w, y = i / w
+            if x == 0 || y == 0 || x == w - 1 || y == h - 1 || !roi[i - 1] || !roi[i + 1] || !roi[i - w] || !roi[i + w] {
+                body[i] = false; stack.append(i)
+            }
+        }
+        func visit(_ j: Int) { if body[j] { body[j] = false; stack.append(j) } }
+        while let i = stack.popLast() {
+            let x = i % w
+            if x > 0 { visit(i - 1) }
+            if x < w - 1 { visit(i + 1) }
+            if i >= w { visit(i - w) }
+            if i + w < n { visit(i + w) }
+        }
+        var bodyCount = 0, covered = 0
+        for i in 0..<n where body[i] { bodyCount += 1; if crop.lines[i] { covered += 1 } }
+        guard bodyCount >= 30 else { return nil }
+        let distance2 = squaredDistance(to: body.map { !$0 }, width: w, height: h)
+        var ridge: [Double] = []
+        for i in 0..<n where body[i] {
+            let x = i % w, y = i / w, d = distance2[i]
+            var top = true
+            for dy in -1...1 where top {
+                let yy = y + dy
+                guard yy >= 0, yy < h else { continue }
+                for dx in -1...1 {
+                    let xx = x + dx
+                    if xx >= 0, xx < w, distance2[yy * w + xx] > d { top = false; break }
+                }
+            }
+            if top { ridge.append(2 * Double(d).squareRoot()) }
+        }
+        ridge.sort()
+        let q = 0.75 * Double(ridge.count - 1), lo = Int(q), hi = min(ridge.count - 1, lo + 1)
+        let p75 = ridge[lo] + (ridge[hi] - ridge[lo]) * (q - Double(lo))
+        return BoldMeasure(ridge: p75 / (font * s), cover: Double(covered) / Double(lineCount))
     }
 }
