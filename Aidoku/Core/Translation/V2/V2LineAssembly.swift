@@ -23,7 +23,7 @@ enum V2LineAssembly {
     static let balloonInside: CGFloat = 0.5
     /// A fragment outside every balloon joins a balloon member only with this share inside it.
     static let balloonOutside: CGFloat = 0.15
-    static let balloonMinimumScore: Float = 0.5
+    static let balloonMinimumScore: Float = V2LayoutRegion.balloonFloor
 
     static func assemble(_ lines: [V2Line], layout: [V2LayoutRegion]) -> [V2Line] {
         guard lines.count > 1 else { return lines }

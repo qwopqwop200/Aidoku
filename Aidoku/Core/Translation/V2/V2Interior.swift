@@ -92,7 +92,7 @@ enum V2Interior {
     /// Detected balloons that do not hold the block: exterior text never grows into them.
     static func avoided(_ block: V2Block, layout: [V2LayoutRegion]) -> [CGRect] {
         let centre = CGPoint(x: block.bounds.midX, y: block.bounds.midY)
-        return layout.filter { $0.kind == .balloon && $0.score >= 0.5 && !$0.bounds.contains(centre) }.map(\.bounds)
+        return layout.filter { $0.kind == .balloon && $0.score >= V2LayoutRegion.balloonFloor && !$0.bounds.contains(centre) }.map(\.bounds)
     }
 
     private static func grow(_ block: V2Block, start: Box, raster: V2GrayRaster, cells: (CGRect) -> Box?,

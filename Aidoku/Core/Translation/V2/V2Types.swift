@@ -37,6 +37,11 @@ struct V2LayoutRegion: Sendable, Codable, Equatable {
     var kind: V2LayoutKind
     var bounds: CGRect
     var score: Float
+
+    /// Least balloon score S1 keeps and S2b/S4/S4b use (fit on train folds against GT balloon masks:
+    /// recall 0.90 -> 0.93 at IoU 0.5, GT text-in-balloon disagreements 70 -> 37; 0.35-0.45 is an
+    /// end-to-end plateau).
+    static let balloonFloor: Float = 0.40
 }
 
 enum V2Role: String, Sendable, Codable {

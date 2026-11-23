@@ -172,7 +172,7 @@ enum V2Grouping {
     static func enclosingBalloon(_ bounds: CGRect, _ balloons: [V2LayoutRegion]) -> CGRect? {
         guard !bounds.isNull, bounds.width > 0, bounds.height > 0 else { return nil }
         let area = bounds.width * bounds.height
-        return balloons.filter { $0.score >= 0.5 }.map(\.bounds).filter { balloon in
+        return balloons.filter { $0.score >= V2LayoutRegion.balloonFloor }.map(\.bounds).filter { balloon in
             let overlap = balloon.intersection(bounds)
             return !overlap.isNull && overlap.width * overlap.height >= area / 2
         }.min { $0.width * $0.height < $1.width * $1.height }

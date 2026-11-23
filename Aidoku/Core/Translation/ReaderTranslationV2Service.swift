@@ -12,7 +12,7 @@ actor ReaderTranslationV2Service {
         ReaderTranslationService.shared.warmProviderConnection(settings: $0)
     })
     /// Bump when the translated blocks (S1-S5) can change; keys both cache rows.
-    static let version = "v2-pipeline-1"
+    static let version = "v2-pipeline-2"
     /// Bump when only rendering (S4b boxes, S6-S10) can change; re-renders from stored blocks.
     static let renderVersion = "v2-render-9"
 

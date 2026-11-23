@@ -285,7 +285,7 @@ enum V2ParagraphGrouping {
               }) else { return nil }
         var atoms = inputs.map { input -> Atom in
             let box = bounds(input.polygon)
-            let owners = balloons.filter { $0.confidence >= 0.5 && V2LineAssembly.coverage(box, $0.box) >= 0.9 }
+            let owners = balloons.filter { $0.confidence >= Double(V2LayoutRegion.balloonFloor) && V2LineAssembly.coverage(box, $0.box) >= 0.9 }
             let text = Set(textScopes.filter { $0.confidence >= 0.25 && V2LineAssembly.coverage(box, $0.box) >= 0.8 }.map(\.owner))
             return .init(input: input, box: box, along: axis(input), balloon: owners.count == 1 ? owners[0] : nil,
                          text: text.isEmpty ? nil : text)

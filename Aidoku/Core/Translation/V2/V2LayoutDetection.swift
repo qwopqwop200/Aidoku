@@ -16,7 +16,7 @@ final class V2RFDETRModel: @unchecked Sendable {
     static let mean: [Float] = [0.485, 0.456, 0.406]
     static let std: [Float] = [0.229, 0.224, 0.225]
     /// Per-class floors in model class order: text, SFX, balloon, frame.
-    static let thresholds: [Float] = [0.25, 0.20, 0.50, 0.50]
+    static let thresholds: [Float] = [0.25, 0.20, V2LayoutRegion.balloonFloor, 0.50]
     static let selectedCount = 160
 
     enum Failure: Error { case modelContract(String), nonfiniteOutput }
