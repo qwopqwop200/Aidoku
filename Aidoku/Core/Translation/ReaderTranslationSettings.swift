@@ -1,11 +1,11 @@
 import CryptoKit
 import Foundation
 
-// The one provider (stored as `custom`); new users start on OpenAI.
+// The one provider (stored as `custom`); new users start on the OpenAI URL and pick a model.
 struct ReaderCustomTranslationSettings: Equatable, Codable, Sendable {
     static let openAIBaseURL = "https://api.openai.com/v1"
     var baseURL = Self.openAIBaseURL
-    var model = "gpt-5-mini"
+    var model = ""
     var apiProtocol: RemoteTranslationProtocol = .responses
     var reasoningEffort: OpenAIReasoningEffort = .none
 }

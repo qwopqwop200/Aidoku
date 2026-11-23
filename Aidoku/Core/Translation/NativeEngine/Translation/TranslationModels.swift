@@ -13,6 +13,7 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
     case invalidRequest(String)
     case invalidResponse(String)
     case missingCredential
+    case missingModel
     case credentialAccessFailed
     case insecureEndpoint
     case redirectRejected
@@ -39,6 +40,7 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
         case .invalidRequest: NSLocalizedString("TRANSLATION_ERROR_REQUEST")
         case .invalidResponse: NSLocalizedString("TRANSLATION_ERROR_RESPONSE")
         case .missingCredential: NSLocalizedString("TRANSLATION_ERROR_KEY_REQUIRED")
+        case .missingModel: NSLocalizedString("TRANSLATION_ERROR_MODEL_REQUIRED")
         case .credentialAccessFailed: NSLocalizedString("TRANSLATION_ERROR_KEY_ACCESS")
         case .insecureEndpoint: NSLocalizedString("TRANSLATION_ERROR_ENDPOINT")
         case .redirectRejected: NSLocalizedString("TRANSLATION_ERROR_REDIRECT")
@@ -288,6 +290,9 @@ struct RemoteTranslationConfiguration: Hashable, Sendable {
             value == value.trimmingCharacters(in: .whitespacesAndNewlines) && !value.isEmpty &&
                 value.utf8.count <= maximumBytes &&
                 !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+        }
+        guard !model.isEmpty else {
+            throw RemoteTranslationError.missingModel
         }
         guard isTrimmedPlainText(model, maximumBytes: 256) else {
             throw RemoteTranslationError.invalidConfiguration("model is invalid")

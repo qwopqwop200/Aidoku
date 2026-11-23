@@ -20,11 +20,9 @@ struct ReaderTranslationSettingsView: View {
 
     var body: some View {
         List {
-            pagesSection
+            translateSection
             providerSection
             requestSection
-            languageSection
-            appTextSection
             cacheSection
         }
         .navigationTitle(NSLocalizedString("TRANSLATION_TITLE"))
@@ -57,26 +55,6 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    private var languageSection: some View {
-        Section {
-            Picker(NSLocalizedString("TRANSLATION_TARGET"), selection: persistedSettings.targetLanguage) {
-                ForEach(languages, id: \.0) { code, title in Text(title).tag(code) }
-            }
-        } header: {
-            Text(NSLocalizedString("TRANSLATION_LANGUAGE"))
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_SOURCE_HELP"))
-        }
-    }
-
-    /// The main switch first: everything below configures it.
-    private var pagesSection: some View {
-        Section {
-            toggleWithHelp("TRANSLATION_AUTOMATIC", isOn: persistedSettings.translatePages,
-                           id: "translation.automatic", help: "TRANSLATION_AUTOMATIC_HELP")
-        }
-    }
-
     private typealias AppTextKind = (key: String, isOn: WritableKeyPath<ReaderTranslationSettings, Bool>, id: String)
 
     private static let appTextKinds: [AppTextKind] = [
@@ -88,9 +66,12 @@ struct ReaderTranslationSettingsView: View {
         ("TRANSLATION_SHORT_SOURCE_LABELS", \.translateSourceLabels, "translation.sourceLabels"),
     ]
 
-    /// Titles, names, tags, descriptions and source menus; the source language above filters them too.
-    private var appTextSection: some View {
+    /// Everything that gets translated, then the language it is translated into: pages first,
+    /// then metadata (titles, names, tags, descriptions and source menus, in any source language).
+    private var translateSection: some View {
         Section {
+            Toggle(NSLocalizedString("TRANSLATION_AUTOMATIC"), isOn: persistedSettings.translatePages)
+                .accessibilityIdentifier("translation.automatic")
             ForEach(Self.appTextKinds.indices, id: \.self) { index in
                 let kind = Self.appTextKinds[index]
                 Toggle(NSLocalizedString(kind.key), isOn: persistedSettings[dynamicMember: kind.isOn])
@@ -99,6 +80,9 @@ struct ReaderTranslationSettingsView: View {
                     Toggle(NSLocalizedString("TRANSLATION_LARGE_FILTER_OPTIONS"), isOn: persistedSettings.translateLargeFilterOptions)
                         .accessibilityIdentifier("translation.largeFilterOptions")
                 }
+            }
+            Picker(NSLocalizedString("TRANSLATION_TARGET"), selection: persistedSettings.targetLanguage) {
+                ForEach(languages, id: \.0) { code, title in Text(title).tag(code) }
             }
         } header: {
             Text(NSLocalizedString("TRANSLATION_ALSO"))
@@ -124,18 +108,6 @@ struct ReaderTranslationSettingsView: View {
         case .xhigh: NSLocalizedString("TRANSLATION_REASONING_XHIGH")
         case .max: NSLocalizedString("TRANSLATION_REASONING_MAX")
         }
-    }
-
-    private func toggleWithHelp(_ key: String, isOn: Binding<Bool>, id: String, help: String) -> some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(NSLocalizedString(key))
-                Text(NSLocalizedString(help)).font(.footnote).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle(isOn: isOn) { EmptyView() }.labelsHidden().accessibilityLabel(NSLocalizedString(key))
-        }
-        .accessibilityIdentifier(id)
     }
 
     /// Aidoku text row: title on the left, value field right-aligned in the secondary color.
@@ -215,7 +187,7 @@ struct ReaderTranslationSettingsView: View {
         Section {
             textRow("TRANSLATION_BASE_URL", text: persistedSettings.custom.baseURL,
                     placeholder: ReaderCustomTranslationSettings.openAIBaseURL, id: "translation.baseURL", url: true)
-            textRow("TRANSLATION_MODEL", text: persistedSettings.model, placeholder: settings.provider == .openAI ? "gpt-5-mini" : "", id: "translation.model")
+            textRow("TRANSLATION_MODEL", text: persistedSettings.model, placeholder: NSLocalizedString("TRANSLATION_REQUIRED"), id: "translation.model")
             HStack {
                 Text(NSLocalizedString("TRANSLATION_KEY")).lineLimit(1)
                 Spacer()
@@ -238,8 +210,6 @@ struct ReaderTranslationSettingsView: View {
             connectionTestRows
         } header: {
             Text(NSLocalizedString("TRANSLATION_PROVIDER"))
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_CUSTOM_HELP"))
         }
     }
 
@@ -305,7 +275,6 @@ struct ReaderTranslationSettingsView: View {
         })
     }
 
-    /// One source-language choice; one checked language also fixes the provider's source.
     private var persistedAPIKey: Binding<String> {
         Binding(get: { apiKey }, set: { apiKey = $0 })
     }

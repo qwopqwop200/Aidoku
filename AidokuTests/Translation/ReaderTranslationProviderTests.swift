@@ -34,6 +34,9 @@ struct ReaderTranslationProviderTests {
         let fixture = ProviderSettingsFixture()
         defer { fixture.cleanUp() }
         var settings = ReaderTranslationSettings(defaults: fixture.defaults)
+        // New installs have no model, so nothing can be sent until one is entered.
+        #expect(throws: RemoteTranslationError.missingModel) { try settings.validate() }
+        settings.model = "gpt-5-mini"
         try settings.save(defaults: fixture.defaults, apiKey: "original-key", credentialStore: fixture.keys)
         let original = fixture.defaults.dictionaryRepresentation() as NSDictionary
         settings.model = ""
@@ -75,7 +78,7 @@ struct ReaderTranslationProviderTests {
         // New users, and an old build's OpenAI choice saved without "provider", start on OpenAI.
         let fresh = UserDefaults(suiteName: fixture.suite + ".fresh")!
         defer { fresh.removePersistentDomain(forName: fixture.suite + ".fresh") }
-        #expect(ReaderTranslationSettings(defaults: fresh).configuration == .openAI(model: "gpt-5-mini", reasoningEffort: .none,
+        #expect(ReaderTranslationSettings(defaults: fresh).configuration == .openAI(model: "", reasoningEffort: .none,
                                                                                     timeout: 120))
         fresh.removeObject(forKey: prefix + "provider")
         fresh.set(try JSONEncoder().encode(ReaderCustomTranslationSettings(baseURL: "", model: "")), forKey: prefix + "custom")

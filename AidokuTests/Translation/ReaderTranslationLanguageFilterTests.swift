@@ -84,7 +84,9 @@ struct ReaderTranslationLanguageFilterTests {
     let suite = "language-filter-" + UUID().uuidString
     var defaults: UserDefaults { UserDefaults(suiteName: suite)! }
     var settings: ReaderTranslationSettings {
-        ReaderTranslationSettings(defaults: defaults)
+        var settings = ReaderTranslationSettings(defaults: defaults)
+        settings.model = "gpt-5-mini"
+        return settings
     }
     deinit {
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)

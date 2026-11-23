@@ -885,7 +885,6 @@
 "TRANSLATION_KEY_SAVED" = "Saved";
 "TRANSLATION_KEY_DELETE" = "Delete API Key";
 "TRANSLATION_MODEL" = "Model ID";
-"TRANSLATION_LANGUAGE" = "Languages";
 "TRANSLATION_TARGET" = "Translate To";
 "TRANSLATION_CLEAR_CACHE" = "Clear Translation Cache";
 "TRANSLATION_CACHE_CLEARED" = "Translation cache cleared.";
@@ -896,9 +895,7 @@
 "TRANSLATION_REQUEST_OPTIONS" = "Request Options";
 "TRANSLATION_BASE_URL" = "Server URL";
 "TRANSLATION_API_FORMAT" = "API Format";
-"TRANSLATION_CUSTOM_HELP" = "Keys are saved per server URL. The connection is checked automatically after changes.";
-"TRANSLATION_AUTOMATIC" = "Translate Pages";
-"TRANSLATION_AUTOMATIC_HELP" = "The reader button switches between translated and original pages.";
+"TRANSLATION_AUTOMATIC" = "Pages";
 "TRANSLATION_TEST" = "Check Connection";
 "TRANSLATION_TEST_RUNNING" = "Checking Connection…";
 "TRANSLATION_TEST_SUCCESS" = "Connection Successful";
@@ -990,13 +987,14 @@
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "A Japanese proper-name dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "A frequency dictionary based on the media corpus at https://jiten.moe.";
 "TRANSLATION_OCR_MANGA_HELP" = "Pages are read in Japanese, Chinese, English and other Latin-script languages.";
-"TRANSLATION_SOURCE_HELP" = "Pages translate Japanese, Chinese and English text; other languages stay as they are.";
 "TRANSLATION_SHORT_SOURCE_LABELS" = "Source Menus";
 "TRANSLATION_SHORT_DESCRIPTIONS" = "Descriptions";
 "TRANSLATION_SHORT_TAGS" = "Tags";
 "TRANSLATION_SHORT_AUTHORS" = "Authors";
 "TRANSLATION_SHORT_CHAPTER_TITLES" = "Chapter Titles";
 "TRANSLATION_SHORT_MANGA_TITLES" = "Manga Titles";
-"TRANSLATION_ALSO" = "Also Translate";
+"TRANSLATION_ALSO" = "Translate";
 "HTTPS_BYPASS_TEST_ADDRESS" = "Address";
 "NETWORK_SETTINGS" = "Network";
+"TRANSLATION_REQUIRED" = "Required";
+"TRANSLATION_ERROR_MODEL_REQUIRED" = "Enter a model ID.";
