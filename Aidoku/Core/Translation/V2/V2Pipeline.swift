@@ -343,9 +343,9 @@ enum V2Pipeline {
             // The shared raster holds exactly the bytes V2RemovalMask would convert itself.
             if let raster {
                 return V2RemovalMask.build(rgba: raster.rgba, width: raster.width, height: raster.height,
-                                           blocks: paintable, layout: layout)
+                                           blocks: paintable, layout: layout, net: models.removalMask)
             }
-            return V2RemovalMask.build(page, blocks: paintable, layout: layout)
+            return V2RemovalMask.build(page, blocks: paintable, layout: layout, net: models.removalMask)
         }
         do {
             erased.background = try await timings.record(Stage.inpaint) { () async throws -> CGImage in

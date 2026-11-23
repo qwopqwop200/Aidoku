@@ -184,8 +184,9 @@ struct V2StageTests {
     }
 
     /// A glyph 18-24 px past the end of a 50 px thick line is outside the 15 px ROI square but inside
-    /// the 0.5-thickness line-end extension, so it is erased.
+    /// the 0.5-thickness line-end extension, so the bundled classifier erases it (the polygon fallback would not).
     @Test func removalMaskSearchesPastTheLineEnd() {
+        #expect(V2MaskNet.bundled != nil)
         let width = 400, height = 200
         let stroke = CGRect(x: 288, y: 85, width: 6, height: 30)
         let mask = V2RemovalMask.build(rgba: inkPage([stroke]), width: width, height: height,

@@ -122,12 +122,15 @@ final class V2Models: @unchecked Sendable {
     let recognition: V2RecognitionEngine
     let layout: V2RFDETRModel
     let inpainters: V2InstancePool<V2AOTModel>
+    /// S6 glyph classifier.
+    let removalMask: V2MaskNet
     /// Wall-clock milliseconds spent loading each model, for the run summary.
     let loadMilliseconds: [String: Double]
 
     init(detectors: [NativeCoreMLDetector], recognition: V2RecognitionEngine, layout: V2RFDETRModel,
-         inpainters: [V2AOTModel], loadMilliseconds: [String: Double]) {
+         inpainters: [V2AOTModel], removalMask: V2MaskNet, loadMilliseconds: [String: Double]) {
         self.detectors = V2InstancePool(detectors)
+        self.removalMask = removalMask
         self.recognition = recognition
         self.layout = layout
         self.inpainters = V2InstancePool(inpainters)
@@ -162,7 +165,8 @@ final class V2Models: @unchecked Sendable {
         var recognition: Result<V2RecognitionEngine, Error>?
         var layout: Result<V2RFDETRModel, Error>?
         var inpainters: Result<[V2AOTModel], Error>?
-        DispatchQueue.concurrentPerform(iterations: 3) { index in
+        var removalMask: Result<V2MaskNet, Error>?
+        DispatchQueue.concurrentPerform(iterations: 4) { index in
             switch index {
             case 0:
                 let result = Result { try timed("recognizer") { try V2RecognitionEngine.load(bundle: bundle) } }
@@ -170,6 +174,9 @@ final class V2Models: @unchecked Sendable {
             case 1:
                 let result = Result { try timed("layout") { try V2RFDETRModel(compiledURL: compiled(V2RFDETRModel.resourceName)) } }
                 lock.withLock { layout = result }
+            case 2:
+                let result = Result { try timed("mask") { try V2MaskNet(compiledURL: compiled(V2MaskNet.resourceName)) } }
+                lock.withLock { removalMask = result }
             default:
                 let result = Result { try timed("inpainter") {
                     try (0..<max(1, inpainterInstances)).map { _ in try V2AOTModel(compiledURL: compiled(V2AOTModel.resourceName)) }
@@ -178,7 +185,7 @@ final class V2Models: @unchecked Sendable {
             }
         }
         return try V2Models(detectors: detectors, recognition: recognition!.get(), layout: layout!.get(),
-                            inpainters: inpainters!.get(), loadMilliseconds: timings)
+                            inpainters: inpainters!.get(), removalMask: removalMask!.get(), loadMilliseconds: timings)
     }
 
     /// One throwaway prediction per model instance on a blank page, so the first real

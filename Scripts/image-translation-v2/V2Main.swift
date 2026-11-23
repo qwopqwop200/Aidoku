@@ -62,7 +62,7 @@ enum V2Main {
             .write(to: bundle.appendingPathComponent("Contents/Info.plist"))
         let source = root.appendingPathComponent("Aidoku/Resources/Translation")
         for name in [V2Models.detectorResourceName, V2RecognitionEngine.modelResourceName,
-                     V2RFDETRModel.resourceName, V2AOTModel.resourceName] {
+                     V2RFDETRModel.resourceName, V2AOTModel.resourceName, V2MaskNet.resourceName] {
             let package = source.appendingPathComponent(name + ".mlpackage")
             let destination = resources.appendingPathComponent(name + ".mlmodelc")
             guard let enumerator = FileManager.default.enumerator(at: package,
