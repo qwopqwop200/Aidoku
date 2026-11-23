@@ -13,9 +13,10 @@ enum V2Interior {
     static let inkDistance = 64
     /// Paper levels in this open range (tone, mid-gray art) are not treated as paper.
     static let midGray = 96...160
-    /// Growth reach per side, in source line thicknesses.
+    /// Growth reach per side, in source line thicknesses (vertical 3 on the S1 balloon floor 0.4:
+    /// compare.py +9, 2.5-3 a plateau; 3.5 -5, 5 neutral).
     static let horizontalReach: CGFloat = 8
-    static let verticalReach: CGFloat = 4
+    static let verticalReach: CGFloat = 3
     /// Granted margin around the source before the growth.
     static let baseMargin = (horizontal: CGFloat(3), vertical: CGFloat(1.5))
     /// Growth step in line thicknesses, steps per side and the share of other text a strip may cover.
