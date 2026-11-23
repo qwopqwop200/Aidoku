@@ -295,6 +295,9 @@ enum NativeCoreMLDetectionPreprocessor {
         let deviation0 = channelStandardDeviation[0], deviation1 = channelStandardDeviation[1]
         let deviation2 = channelStandardDeviation[2]
         let bytesPerRow = frame.bytesPerRow
+        // RGBA lane order: lane 2 (blue) uses channel 0's statistics; alpha is unused.
+        let laneMean = SIMD4<Float>(mean2, mean1, mean0, 0)
+        let laneDeviation = SIMD4<Float>(deviation2, deviation1, deviation0, 1)
         let leftOffsets = sourceXs.prefix(width).map { $0.0 * 4 }
         let rightOffsets = sourceXs.prefix(width).map { $0.1 * 4 }
         let xWeights = sourceXs.prefix(width).map { $0.2 }
@@ -343,21 +346,24 @@ enum NativeCoreMLDetectionPreprocessor {
                             let blue = output + y * canvasWidth
                             let green = blue + plane
                             let red = green + plane
+                            let rawTop = UnsafeRawPointer(top), rawBottom = UnsafeRawPointer(bottom)
+                            let topWeight = SIMD4<Float>(repeating: 1 - fy), bottomWeight = SIMD4<Float>(repeating: fy)
                             for x in 0..<width {
                                 let x0 = left[x]
                                 let x1 = right[x]
-                                let fx = weights[x]
-                                @inline(__always) func pixel(_ byte: Int) -> Float {
-                                    let a = Float(top[x0 + byte])
-                                    let b = Float(top[x1 + byte])
-                                    let c = Float(bottom[x0 + byte])
-                                    let d = Float(bottom[x1 + byte])
-                                    return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy
-                                }
+                                let fx = SIMD4<Float>(repeating: weights[x])
+                                // All four RGBA lanes at once; per lane the same IEEE operations
+                                // (no fused multiply-add) as the scalar formula, so bit-identical.
+                                let a = SIMD4<Float>(rawTop.loadUnaligned(fromByteOffset: x0, as: SIMD4<UInt8>.self))
+                                let b = SIMD4<Float>(rawTop.loadUnaligned(fromByteOffset: x1, as: SIMD4<UInt8>.self))
+                                let c = SIMD4<Float>(rawBottom.loadUnaligned(fromByteOffset: x0, as: SIMD4<UInt8>.self))
+                                let d = SIMD4<Float>(rawBottom.loadUnaligned(fromByteOffset: x1, as: SIMD4<UInt8>.self))
+                                let pixel = (a + (b - a) * fx) * topWeight + (c + (d - c) * fx) * bottomWeight
+                                let normalized = (pixel / 255 - laneMean) / laneDeviation
                                 // Detector uses BGR: channel c reads RGBA byte 2 - c.
-                                blue[x] = (pixel(2) / 255 - mean0) / deviation0
-                                green[x] = (pixel(1) / 255 - mean1) / deviation1
-                                red[x] = (pixel(0) / 255 - mean2) / deviation2
+                                blue[x] = normalized[2]
+                                green[x] = normalized[1]
+                                red[x] = normalized[0]
                             }
                         }
                     }
