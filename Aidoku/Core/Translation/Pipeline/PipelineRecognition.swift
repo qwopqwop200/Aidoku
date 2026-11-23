@@ -65,7 +65,9 @@ final class PipelineRecognitionEngine: @unchecked Sendable {
         let count = Self.defaultHandleCount
         // The legacy configuration: every compute unit, frequent reshapes.
         let configuration = MLModelConfiguration()
-#if targetEnvironment(simulator)
+#if targetEnvironment(simulator) || os(macOS)
+        // On the Mac every unit runs this flexible-width program on the CPU (bit-identical
+        // outputs); CPU-only skips the GPU/ANE planning, so each handle loads and warms faster.
         configuration.computeUnits = .cpuOnly
 #else
         configuration.computeUnits = .all
@@ -150,6 +152,29 @@ final class PipelineRecognitionEngine: @unchecked Sendable {
             characters.append(value)
         }
         return characters
+    }
+
+    /// Core ML caches a plan (and its buffers) per input width on each handle, so a width
+    /// sticks to the first handle that ran it: fewer distinct widths, less memory per handle.
+    private let ownerLock = NSLock()
+    private var owners: [Int: ObjectIdentifier] = [:]
+
+    /// Of `widths` (candidate crops, best first), the first one `handle` owns, else the first
+    /// no handle owns yet (now `handle`'s), else the first.
+    func pick(_ widths: [Int], for handle: ObjectIdentifier) -> Int {
+        ownerLock.lock()
+        defer { ownerLock.unlock() }
+        var unowned: Int?
+        for (offset, width) in widths.enumerated() {
+            guard let owner = owners[width] else {
+                if unowned == nil { unowned = offset }
+                continue
+            }
+            if owner == handle { return offset }
+        }
+        guard let unowned else { return 0 }
+        owners[widths[unowned]] = handle
+        return unowned
     }
 
     private final class LoadSlots: @unchecked Sendable {
@@ -316,7 +341,7 @@ enum PipelineRecognition {
         let order = plans.indices.filter { plans[$0] != nil }
             .sorted { (plans[$0]!.bucket.width, $1) > (plans[$1]!.bucket.width, $0) }
         guard !order.isEmpty else { return [] }
-        let queue = WorkQueue(order)
+        let queue = WorkQueue(order, widths: order.map { plans[$0]!.bucket.width })
         let lanes = min(engine.handleCount, order.count)
         var reads = [Read?](repeating: nil, count: lines.count)
         try await withThrowingTaskGroup(of: [(Int, Read?)].self) { group in
@@ -325,7 +350,7 @@ enum PipelineRecognition {
                     var results: [(Int, Read?)] = []
                     while true {
                         let read = try await engine.withHandle(rank: rank) { model -> (Int, Read?)? in
-                            guard let index = queue.next() else { return nil }
+                            guard let index = queue.next(for: model, engine: engine) else { return nil }
                             try Task.checkCancellation()
                             return (index, try await predict(plans[index]!, frame: frame, model: model, engine: engine))
                         }
@@ -451,17 +476,19 @@ enum PipelineRecognition {
         return compact
     }
 
+    /// The page's remaining crops, longest first; a handle takes one whose width it ran before.
     private final class WorkQueue: @unchecked Sendable {
         private let lock = NSLock()
-        private let items: [Int]
-        private var cursor = 0
-        init(_ items: [Int]) { self.items = items }
-        func next() -> Int? {
+        private var items: [Int]
+        private var widths: [Int]
+        init(_ items: [Int], widths: [Int]) { self.items = items; self.widths = widths }
+        func next(for model: MLModel, engine: PipelineRecognitionEngine) -> Int? {
             lock.lock()
             defer { lock.unlock() }
-            guard cursor < items.count else { return nil }
-            cursor += 1
-            return items[cursor - 1]
+            guard !items.isEmpty else { return nil }
+            let offset = engine.pick(widths, for: ObjectIdentifier(model))
+            widths.remove(at: offset)
+            return items.remove(at: offset)
         }
     }
 }
