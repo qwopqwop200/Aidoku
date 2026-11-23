@@ -43,13 +43,15 @@ enum PipelineInterior {
             let y0 = max(0, Int((rect.minY * sy).rounded(.down))), y1 = min(raster.height, Int((rect.maxY * sy).rounded(.up)))
             return x0 < x1 && y0 < y1 ? (x0, y0, x1, y1) : nil
         }
+        // Cells of every non-background block, computed once (each block's growth avoids all the others).
+        let textCells = blocks.map { $0.role != .background ? cells($0.bounds) : nil }
         return blocks.enumerated().map { index, block in
             var block = block
             block.panel = limitBounds(block, layout: layout)
             guard block.role != .background, let start = cells(block.bounds) else { return block }
             var candidates: [CGRect] = []
             var spans: PipelineRowSpans?
-            let others = blocks.indices.filter { $0 != index && blocks[$0].role != .background }.compactMap { cells(blocks[$0].bounds) }
+            let others = blocks.indices.filter { $0 != index }.compactMap { textCells[$0] }
             if let (interior, rows) = grow(block, start: start, raster: raster, cells: cells,
                                            bounds: block.panel, avoid: avoided(block, layout: layout), others: others) {
                 candidates.append(CGRect(x: CGFloat(interior.x0) / sx, y: CGFloat(interior.y0) / sy,
@@ -141,10 +143,19 @@ enum PipelineInterior {
         let own = block.lines.compactMap { cells($0.bounds) }.map {
             (x0: $0.x0 - pad, y0: $0.y0 - pad, x1: $0.x1 + pad, y1: $0.y1 + pad)
         }
-        func dirty(_ x: Int, _ y: Int) -> Bool {
+        func slowDirty(_ x: Int, _ y: Int) -> Bool {
             if blocked.contains(where: { x >= $0.x0 && x < $0.x1 && y >= $0.y0 && y < $0.y1 }) { return true }
             guard abs(Int(raster.pixels[y * width + x]) - paper) > inkDistance else { return false }
             return !own.contains { x >= $0.x0 && x < $0.x1 && y >= $0.y0 && y < $0.y1 }
+        }
+        // `slowDirty` tabulated once over the limit and source (every cell the growth reads on clean paper).
+        let region: Box = toned ? (0, 0, 0, 0) : (min(limit.x0, start.x0), min(limit.y0, start.y0),
+                                                  max(limit.x1, start.x1), max(limit.y1, start.y1))
+        let regionWidth = region.x1 - region.x0
+        let mask = toned ? [] : dirtyMask(region, raster: raster, paper: paper, own: own, blocked: blocked)
+        func dirty(_ x: Int, _ y: Int) -> Bool {
+            guard x >= region.x0, x < region.x1, y >= region.y0, y < region.y1 else { return slowDirty(x, y) }
+            return mask[(y - region.y0) * regionWidth + x - region.x0]
         }
         // Each side in turn (left, right, top, bottom), while the strip spares other text and balloons
         // (and, on clean paper past `edgeGuard`, holds <= `edgeShare` ink).
@@ -167,9 +178,21 @@ enum PipelineInterior {
                       !blocked.contains(where: { overlap(next, $0) > overlap(best, $0) }) else { break }
                 if !toned, area(best) >= edgeGuard * area(start) {
                     var ink = 0
-                    for y in next.y0..<next.y1 {
-                        for x in next.x0..<next.x1 where (x < best.x0 || x >= best.x1 || y < best.y0 || y >= best.y1) && dirty(x, y) {
-                            ink += 1
+                    if best.x0 <= best.x1, best.y0 <= best.y1 {
+                        // `next` holds `best` and differs on one side: count only that strip.
+                        let strip: Box
+                        switch side {
+                        case 0: strip = (next.x0, next.y0, best.x0, next.y1)
+                        case 1: strip = (best.x1, next.y0, next.x1, next.y1)
+                        case 2: strip = (next.x0, next.y0, next.x1, best.y0)
+                        default: strip = (next.x0, best.y1, next.x1, next.y1)
+                        }
+                        for y in strip.y0..<strip.y1 { for x in strip.x0..<strip.x1 where dirty(x, y) { ink += 1 } }
+                    } else {
+                        for y in next.y0..<next.y1 {
+                            for x in next.x0..<next.x1 where (x < best.x0 || x >= best.x1 || y < best.y0 || y >= best.y1) && dirty(x, y) {
+                                ink += 1
+                            }
                         }
                     }
                     guard Double(ink) <= Double(strip) * edgeShare else { break }
@@ -180,7 +203,16 @@ enum PipelineInterior {
         guard best != start else { return nil }
         guard !toned else { return (best, nil) }
         // An enclosed balloon's tail-free lobe replaces the grown box unless it keeps < `lobeShare`.
-        let box = lobeRect(limit, source: start, dirty: dirty).flatMap { Double(area($0)) >= lobeShare * Double(area(best)) ? $0 : nil } ?? best
+        // The limit lies inside the tabulated region: its rows of the mask are the lobe's ink.
+        var ink = [Bool](); let limitWidth = limit.x1 - limit.x0
+        if limitWidth > 4, limit.y1 - limit.y0 > 4 {
+            ink.reserveCapacity(limitWidth * (limit.y1 - limit.y0))
+            for y in limit.y0..<limit.y1 {
+                let row = (y - region.y0) * regionWidth + limit.x0 - region.x0
+                ink.append(contentsOf: mask[row..<(row + limitWidth)])
+            }
+        }
+        let box = lobeRect(limit, source: start, ink: ink).flatMap { Double(area($0)) >= lobeShare * Double(area(best)) ? $0 : nil } ?? best
         // Row spans: per row, the clean half-width about the source centre column, for the contiguous
         // rows around the centre, kept only when some row is wider than the rectangle.
         let centre = (start.x0 + start.x1) / 2, middle = (start.y0 + start.y1) / 2
@@ -201,108 +233,216 @@ enum PipelineInterior {
         return (box, (first: top, centre: centre, halves: halves))
     }
 
+    /// Ink (|gray - paper| > `inkDistance`) outside the own boxes, or inside an avoided balloon, per cell of `region`.
+    private static func dirtyMask(_ region: Box, raster: PipelineGrayRaster, paper: Int, own: [Box], blocked: [Box]) -> [Bool] {
+        let w = region.x1 - region.x0, h = region.y1 - region.y0
+        guard w > 0, h > 0 else { return [] }
+        var mask = [Bool](repeating: false, count: w * h)
+        let width = raster.width
+        // |gray - paper| > inkDistance, as one unsigned compare: gray outside [low, low + span].
+        let low = UInt8(clamping: paper - inkDistance), span = UInt8(clamping: paper + inkDistance) &- low
+        mask.withUnsafeMutableBufferPointer { mask in
+            raster.pixels.withUnsafeBufferPointer { pixels in
+                for y in 0..<h {
+                    let source = (y + region.y0) * width + region.x0, target = y * w
+                    for x in 0..<w { mask[target + x] = pixels[source + x] &- low > span }
+                }
+            }
+            func fill(_ box: Box, _ value: Bool) {
+                let x0 = max(box.x0, region.x0), x1 = min(box.x1, region.x1)
+                let y0 = max(box.y0, region.y0), y1 = min(box.y1, region.y1)
+                guard x0 < x1, y0 < y1 else { return }
+                for y in y0..<y1 {
+                    let row = (y - region.y0) * w - region.x0
+                    for x in x0..<x1 { mask[row + x] = value }
+                }
+            }
+            for box in own { fill(box, false) }
+            for box in blocked { fill(box, true) }
+        }
+        return mask
+    }
+
     /// Balloon lobes: the paper connected to the source is split at its distance cores; the lobe
     /// holding >= 70% of the source yields the largest centred rectangle inscribed in its rows.
     static func lobeRect(_ box: Box, source: Box, dirty: (Int, Int) -> Bool) -> Box? {
         let w = box.x1 - box.x0, h = box.y1 - box.y0
+        guard w > 4, h > 4 else { return nil }
+        var ink = [Bool](repeating: false, count: w * h)
+        for y in 0..<h { for x in 0..<w { ink[y * w + x] = dirty(x + box.x0, y + box.y0) } }
+        return lobeRect(box, source: source, ink: ink)
+    }
+
+    /// `lobeRect` on the box's dirty cells, row-major (`ink[(y - box.y0) * width + x - box.x0]`).
+    /// Flat loops over raw buffers, the fill bounded by its first border cell and the rest by the paper box.
+    static func lobeRect(_ box: Box, source: Box, ink: [Bool]) -> Box? {
+        let w = box.x1 - box.x0, h = box.y1 - box.y0
         // The source must overlap the box (the seed loops below would trap on an inverted range).
-        guard w > 4, h > 4, max(box.x0, source.x0) < min(box.x1, source.x1), max(box.y0, source.y0) < min(box.y1, source.y1)
+        guard w > 4, h > 4, ink.count == w * h, max(box.x0, source.x0) < min(box.x1, source.x1),
+              max(box.y0, source.y0) < min(box.y1, source.y1)
         else { return nil }
-        // Paper 4-connected to the source box.
-        var mask = [Bool](repeating: false, count: w * h), queue: [Int] = []
-        for y in max(box.y0, source.y0)..<min(box.y1, source.y1) {
-            for x in max(box.x0, source.x0)..<min(box.x1, source.x1) where !dirty(x, y) {
-                mask[(y - box.y0) * w + x - box.x0] = true
-                queue.append((y - box.y0) * w + x - box.x0)
-            }
-        }
-        var head = 0
-        while head < queue.count {
-            let cell = queue[head], x = cell % w, y = cell / w
-            head += 1
-            for (nx, ny) in [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)] where nx >= 0 && ny >= 0 && nx < w && ny < h {
-                let next = ny * w + nx
-                guard !mask[next], !dirty(nx + box.x0, ny + box.y0) else { continue }
-                mask[next] = true
-                queue.append(next)
-            }
-        }
-        // Only an enclosed balloon: paper reaching the growth limit is open lettering space.
-        guard !mask.indices.contains(where: { mask[$0] && ($0 % w == 0 || $0 % w == w - 1 || $0 < w || $0 >= w * (h - 1)) }) else {
-            return nil
-        }
-        // Chamfer (3-4) distance to the nearest non-paper cell.
-        var dist = mask.map { $0 ? Int.max / 2 : 0 }
-        for pass in 0..<2 {
-            for k in 0..<(w * h) {
-                let cell = pass == 0 ? k : w * h - 1 - k, x = cell % w, y = cell / w, d = pass == 0 ? -1 : 1
-                guard dist[cell] > 0 else { continue }
-                var best = (x == 0 || y == 0 || x == w - 1 || y == h - 1) ? 3 : dist[cell]
-                for (dx, cost) in [(0, 3), (-1, 4), (1, 4)] where x + dx >= 0 && x + dx < w && y + d >= 0 && y + d < h {
-                    best = min(best, dist[(y + d) * w + x + dx] + cost)
+        let sx0 = max(box.x0, source.x0) - box.x0, sx1 = min(box.x1, source.x1) - box.x0
+        let sy0 = max(box.y0, source.y0) - box.y0, sy1 = min(box.y1, source.y1) - box.y0
+        // Paper 4-connected to the source box. Only an enclosed balloon counts: paper reaching the
+        // growth limit is open lettering space, so the fill stops at the first border cell.
+        let mask = UnsafeMutableBufferPointer<Bool>.allocate(capacity: w * h)
+        mask.initialize(repeating: false)
+        defer { mask.deallocate() }
+        let queue = UnsafeMutableBufferPointer<Int32>.allocate(capacity: w * h)
+        defer { queue.deallocate() }
+        var count = 0
+        let enclosed: Bool = ink.withUnsafeBufferPointer { ink in
+            for y in sy0..<sy1 {
+                for x in sx0..<sx1 where !ink[y * w + x] {
+                    if x == 0 || x == w - 1 || y == 0 || y == h - 1 { return false }
+                    mask[y * w + x] = true
+                    queue[count] = Int32(y * w + x)
+                    count += 1
                 }
-                if x + d >= 0, x + d < w { best = min(best, dist[y * w + x + d] + 3) }
-                dist[cell] = best
+            }
+            var head = 0
+            while head < count {
+                let cell = Int(queue[head]), x = cell % w, y = cell / w
+                head += 1
+                // Left, right, up, down (a step onto the border column or row ends the fill).
+                if x > 0, !mask[cell - 1], !ink[cell - 1] {
+                    if x - 1 == 0 || y == 0 || y == h - 1 { return false }
+                    mask[cell - 1] = true; queue[count] = Int32(cell - 1); count += 1
+                }
+                if x + 1 < w, !mask[cell + 1], !ink[cell + 1] {
+                    if x + 1 == w - 1 || y == 0 || y == h - 1 { return false }
+                    mask[cell + 1] = true; queue[count] = Int32(cell + 1); count += 1
+                }
+                if y > 0, !mask[cell - w], !ink[cell - w] {
+                    if y - 1 == 0 || x == 0 || x == w - 1 { return false }
+                    mask[cell - w] = true; queue[count] = Int32(cell - w); count += 1
+                }
+                if y + 1 < h, !mask[cell + w], !ink[cell + w] {
+                    if y + 1 == h - 1 || x == 0 || x == w - 1 { return false }
+                    mask[cell + w] = true; queue[count] = Int32(cell + w); count += 1
+                }
+            }
+            return true
+        }
+        guard enclosed, count > 0 else { return nil }
+        // Everything below reads only the paper and its zero ring: work in the paper's bounding box
+        // plus one cell (it never touches the box border), mapped back to box cells at the end.
+        var minX = w, maxX = -1, minY = h, maxY = -1
+        for index in 0..<count {
+            let cell = Int(queue[index]), x = cell % w, y = cell / w
+            minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+        }
+        let ox = minX - 1, oy = minY - 1
+        let cw = maxX + 2 - ox, ch = maxY + 2 - oy, cells = cw * ch
+        let paper = UnsafeMutableBufferPointer<Bool>.allocate(capacity: cells)
+        defer { paper.deallocate() }
+        for y in 0..<ch { for x in 0..<cw { paper[y * cw + x] = mask[(y + oy) * w + x + ox] } }
+        // Chamfer (3-4) distance to the nearest non-paper cell.
+        let dist = UnsafeMutableBufferPointer<Int>.allocate(capacity: cells)
+        defer { dist.deallocate() }
+        for cell in 0..<cells { dist[cell] = paper[cell] ? Int.max / 2 : 0 }
+        // Forward pass row-major, backward pass in reverse; each reads the already-swept neighbours.
+        for pass in 0..<2 {
+            let d = pass == 0 ? -1 : 1
+            for k in 0..<ch {
+                let y = pass == 0 ? k : ch - 1 - k
+                for j in 0..<cw {
+                    let x = pass == 0 ? j : cw - 1 - j, cell = y * cw + x
+                    guard dist[cell] > 0 else { continue }
+                    var best = (x == 0 || y == 0 || x == cw - 1 || y == ch - 1) ? 3 : dist[cell]
+                    // The row before (forward pass) or after (backward pass): above/below 3, diagonals 4.
+                    if y + d >= 0, y + d < ch {
+                        let row = (y + d) * cw + x
+                        best = min(best, dist[row] + 3)
+                        if x > 0 { best = min(best, dist[row - 1] + 4) }
+                        if x + 1 < cw { best = min(best, dist[row + 1] + 4) }
+                    }
+                    if x + d >= 0, x + d < cw { best = min(best, dist[cell + d] + 3) }
+                    dist[cell] = best
+                }
             }
         }
-        guard let peak = dist.max(), peak >= 6 else { return nil }
+        var peak = 0
+        for cell in 0..<cells { peak = max(peak, dist[cell]) }
+        guard peak >= 6 else { return nil }
         // Core components, then every paper cell joins its geodesically nearest seed core.
-        let core = dist.map { Double($0) >= Double(peak) * 0.32 }
-        let coreCount = core.filter { $0 }.count
-        var label = [Int](repeating: -1, count: w * h), seeds = 0
-        for start in core.indices where core[start] && label[start] < 0 {
-            var component = [start], index = 0
+        let core = UnsafeMutableBufferPointer<Bool>.allocate(capacity: cells)
+        defer { core.deallocate() }
+        var coreCount = 0
+        for cell in 0..<cells {
+            core[cell] = Double(dist[cell]) >= Double(peak) * 0.32
+            if core[cell] { coreCount += 1 }
+        }
+        let label = UnsafeMutableBufferPointer<Int>.allocate(capacity: cells)
+        label.initialize(repeating: -1)
+        defer { label.deallocate() }
+        // `queue` (w * h >= cells) holds each component, then the frontier.
+        var seeds = 0
+        for start in 0..<cells where core[start] && label[start] < 0 {
+            var size = 1, index = 0
+            queue[0] = Int32(start)
             label[start] = seeds
-            while index < component.count {
-                let cell = component[index], x = cell % w, y = cell / w
+            while index < size {
+                let cell = Int(queue[index]), x = cell % cw, y = cell / cw
                 index += 1
                 for dy in -1...1 {
-                    for dx in -1...1 where x + dx >= 0 && x + dx < w && y + dy >= 0 && y + dy < h {
-                        let next = (y + dy) * w + x + dx
-                        if core[next], label[next] < 0 { label[next] = seeds; component.append(next) }
+                    for dx in -1...1 where x + dx >= 0 && x + dx < cw && y + dy >= 0 && y + dy < ch {
+                        let next = (y + dy) * cw + x + dx
+                        if core[next], label[next] < 0 { label[next] = seeds; queue[size] = Int32(next); size += 1 }
                     }
                 }
             }
-            if component.count >= max(4, coreCount * 3 / 100) { seeds += 1 } else { component.forEach { label[$0] = -2 } }
+            if size >= max(4, coreCount * 3 / 100) {
+                seeds += 1
+            } else {
+                for index in 0..<size { label[Int(queue[index])] = -2 }
+            }
         }
         guard seeds > 0 else { return nil }
-        var frontier = label.indices.filter { label[$0] >= 0 }
-        label = label.map { $0 >= 0 ? $0 : -1 }
-        head = 0
-        while head < frontier.count {
-            let cell = frontier[head], x = cell % w, y = cell / w
+        var frontier = 0
+        for cell in 0..<cells {
+            if label[cell] >= 0 { queue[frontier] = Int32(cell); frontier += 1 } else { label[cell] = -1 }
+        }
+        var head = 0
+        while head < frontier {
+            let cell = Int(queue[head]), x = cell % cw, y = cell / cw
             head += 1
-            for (nx, ny) in [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)] where nx >= 0 && ny >= 0 && nx < w && ny < h {
-                let next = ny * w + nx
-                if mask[next], label[next] < 0 { label[next] = label[cell]; frontier.append(next) }
-            }
+            let own = label[cell]
+            if x > 0, paper[cell - 1], label[cell - 1] < 0 { label[cell - 1] = own; queue[frontier] = Int32(cell - 1); frontier += 1 }
+            if x + 1 < cw, paper[cell + 1], label[cell + 1] < 0 { label[cell + 1] = own; queue[frontier] = Int32(cell + 1); frontier += 1 }
+            if y > 0, paper[cell - cw], label[cell - cw] < 0 { label[cell - cw] = own; queue[frontier] = Int32(cell - cw); frontier += 1 }
+            if y + 1 < ch, paper[cell + cw], label[cell + cw] < 0 { label[cell + cw] = own; queue[frontier] = Int32(cell + cw); frontier += 1 }
         }
         // The lobe covering most of the source, when it covers >= 70%.
         var cover = [Int](repeating: 0, count: seeds)
-        for y in max(box.y0, source.y0)..<min(box.y1, source.y1) {
-            for x in max(box.x0, source.x0)..<min(box.x1, source.x1) where label[(y - box.y0) * w + x - box.x0] >= 0 {
-                cover[label[(y - box.y0) * w + x - box.x0]] += 1
+        let cy0 = max(sy0 - oy, 0), cy1 = min(sy1 - oy, ch), cx0 = max(sx0 - ox, 0), cx1 = min(sx1 - ox, cw)
+        if cy0 < cy1, cx0 < cx1 {
+            for y in cy0..<cy1 {
+                for x in cx0..<cx1 where label[y * cw + x] >= 0 { cover[label[y * cw + x]] += 1 }
             }
         }
         guard let lobe = cover.indices.max(by: { cover[$0] < cover[$1] }),
               Double(cover[lobe]) >= 0.7 * Double((source.x1 - source.x0) * (source.y1 - source.y0)) else { return nil }
         var left = [Int](repeating: w, count: h), right = [Int](repeating: 0, count: h)
         var weight = 0.0, cx = 0.0, cy = 0.0
-        for cell in label.indices where label[cell] == lobe {
-            let x = cell % w, y = cell / w, value = Double(dist[cell] * dist[cell])
+        for row in 0..<ch { for column in 0..<cw where label[row * cw + column] == lobe {
+            let cell = row * cw + column, x = column + ox, y = row + oy, value = Double(dist[cell] * dist[cell])
             left[y] = min(left[y], x)
             right[y] = max(right[y], x + 1)
             weight += value
             cx += Double(x) * value
             cy += Double(y) * value
-        }
+        } }
         cx /= weight
         cy /= weight
         let rows = Set((0...48).map { $0 * h / 48 } + [Int(cy.rounded())]).sorted()
         var best: (score: Double, rect: Box)?
         for (i, a) in rows.enumerated() where Double(a) <= cy {
-            for b in rows[(i + 1)...] where Double(b) >= cy {
-                let lo = left[a..<b].max() ?? w, hi = right[a..<b].min() ?? 0
+            // left[a..<b].max() and right[a..<b].min(), extended as b grows.
+            var lo = Int.min, hi = Int.max, end = a
+            for b in rows[(i + 1)...] {
+                while end < b { lo = max(lo, left[end]); hi = min(hi, right[end]); end += 1 }
+                guard Double(b) >= cy else { continue }
                 guard hi > lo else { continue }
                 let offset = pow((Double(lo + hi) / 2 - cx), 2) + pow(Double(a + b) / 2 - cy, 2)
                 let score = Double((hi - lo) * (b - a)) / (1 + offset / Double(w * h))
