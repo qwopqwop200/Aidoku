@@ -544,13 +544,13 @@
 "TRANSLATION_MODEL" = "모델 ID";
 "TRANSLATION_LANGUAGE" = "언어";
 "TRANSLATION_TARGET" = "번역 결과 언어";
-"TRANSLATION_AUTO" = "자동 감지";
 "TRANSLATION_CLEAR_CACHE" = "번역 캐시 지우기";
 "TRANSLATION_CACHE_CLEARED" = "번역 캐시를 지웠습니다.";
 "TRANSLATION_REASONING" = "추론 강도";
 "TRANSLATION_MODEL_DEFAULT" = "모델 기본값";
 "TRANSLATION_CONCURRENCY" = "동시 요청 수";
 "TRANSLATION_PROVIDER" = "제공업체";
+"TRANSLATION_REQUEST_OPTIONS" = "요청 옵션";
 "TRANSLATION_BASE_URL" = "서버 URL";
 "TRANSLATION_API_FORMAT" = "API 방식";
 "TRANSLATION_CUSTOM_HELP" = "키는 서버 URL별로 저장되며, 변경하면 연결을 자동으로 확인합니다.";
@@ -565,8 +565,6 @@
 "TRANSLATION_CACHE_LIMIT" = "최대 저장 용량";
 "TRANSLATION_CACHE_USED" = "사용 중인 용량";
 "TRANSLATION_CACHE_HELP" = "번역 결과를 기기에 저장합니다. 한도에 도달하면 오래된 결과부터 지웁니다.";
-"TRANSLATION_SOURCE_FILTER" = "번역 대상 원문 언어";
-"TRANSLATION_FILTER_ALL" = "모든 감지 언어";
 "HTTPS_BYPASS" = "HTTPS 차단 우회";
 "HTTPS_BYPASS_HELP" = "통신망에서 막힌 소스에 접속하도록 돕습니다. IP 차단이나 사이트 자체 제한은 우회하지 못합니다.";
 "HTTPS_BYPASS_TEST" = "연결 확인";
@@ -575,8 +573,6 @@
 "HTTPS_BYPASS_TEST_RESULT" = "HTTP %d 수신 · TLS 분할 적용 확인";
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d 수신 · TLS 분할 미확인";
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS 우회 경로로 연결하지 못했습니다.";
-"TRANSLATION_TITLES_HELP" = "번역 중이거나 실패하면 원문이 표시됩니다.";
-"TRANSLATION_PAGE_SOURCE" = "페이지 원문 언어";
 "TRANSLATION_REASONING_NONE" = "없음";
 "TRANSLATION_REASONING_MINIMAL" = "최소";
 "TRANSLATION_REASONING_LOW" = "낮음";
@@ -956,7 +952,7 @@
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 일본어 고유명사 사전입니다.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe의 미디어 말뭉치를 기반으로 한 빈도 사전입니다.";
 "TRANSLATION_OCR_MANGA_HELP" = "페이지는 일본어, 중국어, 영어 및 라틴 문자 언어를 인식합니다.";
-"TRANSLATION_SOURCE_HELP" = "하나를 고르면 그 언어로 고정하고, 여러 개를 고르면 고른 언어만 번역합니다. 제목, 태그, 메뉴에도 적용됩니다.";
+"TRANSLATION_SOURCE_HELP" = "페이지는 일본어, 중국어, 영어만 번역하고 다른 언어는 원문 그대로 둡니다.";
 "TRANSLATION_SHORT_SOURCE_LABELS" = "소스 메뉴";
 "TRANSLATION_SHORT_DESCRIPTIONS" = "설명";
 "TRANSLATION_SHORT_TAGS" = "태그";
@@ -966,6 +962,3 @@
 "TRANSLATION_ALSO" = "함께 번역";
 "HTTPS_BYPASS_TEST_ADDRESS" = "주소";
 "NETWORK_SETTINGS" = "네트워크";
-"TRANSLATION_ENDPOINT" = "요청 주소";
-"TRANSLATION_SOURCE_ROW" = "원문 언어";
-"TRANSLATION_AUTO_SHORT" = "자동";

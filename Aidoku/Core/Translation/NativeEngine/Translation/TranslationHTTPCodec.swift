@@ -19,7 +19,7 @@ enum TranslationHTTPCodec {
     static let textOnlyBackgroundPolicy = "llm-background-text-v4-defined-roles"
     static let textOnlySFXPolicy = "llm-sfx-text-v4-defined-roles"
     static let sfxPolicy = "llm-sfx-v73-dialogue-typography"
-    static let letteringPolicy = "page-lettering-v37-unspecified-auto-source"
+    static let letteringPolicy = "page-lettering-v38-described-auto-source"
 
     static let imageInstructions =
         "Use the full-page image to correct OCR before translating and classify each ID. box_2d=[y1,x1,y2,x2] locates its text on a 0..1000 integer grid."
@@ -142,9 +142,7 @@ enum TranslationHTTPCodec {
         // Some compatible servers do not feed response_format/text.format into
         // the model prompt. The wire schema and the textual contract must agree.
         var rules = [
-            (isAutomaticSource(request.sourceLanguage)
-                ? "Source language: not specified; identify it per segment (segments may differ)."
-                : "Source language: \(sourceLanguage).") + " Target language: \(targetLanguage).",
+            automaticSourceRule(request) ?? "Source language: \(sourceLanguage). Target language: \(targetLanguage).",
             "Translate every ID fully into \(targetLanguage)\(classifiesRole ? " regardless of role" : ""); do not substitute source transcription for translation. Do not omit, invent or move content between IDs. Names: use established target-language forms, otherwise transliterate."
         ]
         if !configuration.instructions.isEmpty {
@@ -313,6 +311,17 @@ enum TranslationHTTPCodec {
     /// "auto": the prompt says the source is unspecified and the data carries no source_language.
     static func isAutomaticSource(_ identifier: String) -> Bool {
         identifier.caseInsensitiveCompare("auto") == .orderedSame
+    }
+
+    /// With no fixed source the prompt describes the input instead of naming a language: pages only
+    /// send Japanese, Chinese and English lettering (`IPhoneOCRSettings.translatedSourceLanguageCodes`);
+    /// metadata can be any language.
+    private static func automaticSourceRule(_ request: RemoteTranslationRequest) -> String? {
+        guard isAutomaticSource(request.sourceLanguage) else { return nil }
+        let target = languageName(request.targetLanguage)
+        return request.translatesPageLettering == true
+            ? "You translate the lettering of one manga page into \(target). It is Japanese, Chinese (Simplified or Traditional) or English, and one page can mix them, so judge each segment on its own."
+            : "You translate short manga metadata into \(target). Segments can be in any language; judge each on its own."
     }
 
     static func languageName(_ identifier: String) -> String {

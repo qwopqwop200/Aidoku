@@ -11,7 +11,6 @@ struct ReaderTranslationSettingsView: View {
     @FocusState private var keyFocused: Bool
     @State private var pendingChange: Task<Void, Never>?
     @State private var autoCheck: Task<Void, Never>?
-    @State private var advancedExpanded = false
 
     private let languages: [(String, String)] = [
         ("ko", "한국어"), ("en", "English"), ("ja", "日本語"), ("zh-Hans", "简体中文"),
@@ -23,6 +22,7 @@ struct ReaderTranslationSettingsView: View {
         List {
             pagesSection
             providerSection
+            requestSection
             languageSection
             appTextSection
             cacheSection
@@ -58,26 +58,14 @@ struct ReaderTranslationSettingsView: View {
     }
 
     private var languageSection: some View {
-        Section(NSLocalizedString("TRANSLATION_LANGUAGE")) {
+        Section {
             Picker(NSLocalizedString("TRANSLATION_TARGET"), selection: persistedSettings.targetLanguage) {
                 ForEach(languages, id: \.0) { code, title in Text(title).tag(code) }
             }
-            NavigationLink {
-                ReaderTranslationLanguageFilterView(selection: sourceSelection,
-                    title: NSLocalizedString("TRANSLATION_PAGE_SOURCE"),
-                    help: NSLocalizedString("TRANSLATION_SOURCE_HELP"),
-                    allowedCodes: settings.supportedOCRSourceLanguageCodes,
-                    allTitle: NSLocalizedString("TRANSLATION_AUTO"))
-            } label: {
-                HStack {
-                    Text(NSLocalizedString("TRANSLATION_SOURCE_ROW"))
-                    Spacer()
-                    Text(settings.translationSourceLanguages.isEmpty ? NSLocalizedString("TRANSLATION_AUTO_SHORT")
-                        : settings.translationSourceLanguages.map(ReaderTranslationLanguageOptions.name).joined(separator: ", "))
-                        .foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            .accessibilityIdentifier("translation.sourceFilter")
+        } header: {
+            Text(NSLocalizedString("TRANSLATION_LANGUAGE"))
+        } footer: {
+            Text(NSLocalizedString("TRANSLATION_SOURCE_HELP"))
         }
     }
 
@@ -86,8 +74,6 @@ struct ReaderTranslationSettingsView: View {
         Section {
             toggleWithHelp("TRANSLATION_AUTOMATIC", isOn: persistedSettings.translatePages,
                            id: "translation.automatic", help: "TRANSLATION_AUTOMATIC_HELP")
-        } footer: {
-            Text(NSLocalizedString("TRANSLATION_TITLES_HELP"))
         }
     }
 
@@ -203,6 +189,28 @@ struct ReaderTranslationSettingsView: View {
     }
 
     @ViewBuilder
+    // Request tuning sits in its own section right below the provider it belongs to.
+    private var requestSection: some View {
+        Section {
+            Picker(NSLocalizedString("TRANSLATION_API_FORMAT"), selection: persistedSettings.custom.apiProtocol) {
+                Text("Responses").tag(RemoteTranslationProtocol.responses)
+                Text("Chat Completions").tag(RemoteTranslationProtocol.chatCompletions)
+            }
+            .accessibilityIdentifier("translation.apiProtocol")
+            Picker(NSLocalizedString("TRANSLATION_REASONING"), selection: persistedSettings.reasoningEffort) {
+                ForEach(OpenAIReasoningEffort.allCases, id: \.self) { effort in
+                    Text(reasoningTitle(effort)).tag(effort)
+                }
+            }
+            .accessibilityIdentifier("translation.reasoning")
+            Picker(NSLocalizedString("TRANSLATION_CONCURRENCY"), selection: concurrency) {
+                ForEach(concurrencyChoices, id: \.self) { Text(String($0)).tag($0) }
+            }
+        } header: {
+            Text(NSLocalizedString("TRANSLATION_REQUEST_OPTIONS"))
+        }
+    }
+
     private var providerSection: some View {
         Section {
             textRow("TRANSLATION_BASE_URL", text: persistedSettings.custom.baseURL,
@@ -228,43 +236,6 @@ struct ReaderTranslationSettingsView: View {
                 }
             }
             connectionTestRows
-            // Expands in place, with the small secondary chevron of the navigation rows beside it.
-            Button {
-                withAnimation { advancedExpanded.toggle() }
-            } label: {
-                HStack {
-                    Text(NSLocalizedString("ADVANCED")).foregroundStyle(Color(uiColor: .label))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Color(uiColor: .tertiaryLabel))
-                        .rotationEffect(.degrees(advancedExpanded ? 90 : 0))
-                }
-                .contentShape(Rectangle())
-            }
-            .accessibilityIdentifier("translation.advanced")
-            if advancedExpanded {
-                Picker(NSLocalizedString("TRANSLATION_API_FORMAT"), selection: persistedSettings.custom.apiProtocol) {
-                    Text("Responses").tag(RemoteTranslationProtocol.responses)
-                    Text("Chat Completions").tag(RemoteTranslationProtocol.chatCompletions)
-                }
-                .accessibilityIdentifier("translation.apiProtocol")
-                Picker(NSLocalizedString("TRANSLATION_REASONING"), selection: persistedSettings.reasoningEffort) {
-                    ForEach(OpenAIReasoningEffort.allCases, id: \.self) { effort in
-                        Text(reasoningTitle(effort)).tag(effort)
-                    }
-                }
-                .accessibilityIdentifier("translation.reasoning")
-                Picker(NSLocalizedString("TRANSLATION_CONCURRENCY"), selection: concurrency) {
-                    ForEach(concurrencyChoices, id: \.self) { Text(String($0)).tag($0) }
-                }
-                if let endpoint = try? TranslationEndpointPolicy.endpoint(for: settings.configuration) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(NSLocalizedString("TRANSLATION_ENDPOINT"))
-                        Text(endpoint.absoluteString).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
-                    }
-                }
-            }
         } header: {
             Text(NSLocalizedString("TRANSLATION_PROVIDER"))
         } footer: {
@@ -335,14 +306,6 @@ struct ReaderTranslationSettingsView: View {
     }
 
     /// One source-language choice; one checked language also fixes the provider's source.
-    private var sourceSelection: Binding<[String]> {
-        Binding(get: { settings.translationSourceLanguages }, set: { codes in
-            var value = settings
-            value.selectSourceLanguages(codes)
-            persistedSettings.wrappedValue = value
-        })
-    }
-
     private var persistedAPIKey: Binding<String> {
         Binding(get: { apiKey }, set: { apiKey = $0 })
     }

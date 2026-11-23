@@ -80,7 +80,6 @@ enum TitleTranslation {
         result.sourceLanguage = "auto"
         // Metadata has no page image; inheriting this would reject every uncached request.
         result.includePageImage = false
-        // The one source selection (`translationSourceLanguages`) also filters metadata.
         result.metadataInstructions = kind.instructions
         result.filterSFXWithLLM = false
         result.filterBackgroundWithLLM = false

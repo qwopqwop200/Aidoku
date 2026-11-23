@@ -21,24 +21,19 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(!ReaderTranslationLanguageFilter.allowsModelSource("Это русский текст"))
     }
 
-    @Test func oneSourceSelectionFixesTheSourceLanguage() {
-        var settings = LanguageFilterFixture().settings
-        settings.selectSourceLanguages(["zh"])
-        #expect(settings.sourceLanguage == "zh-Hans" && settings.translationSourceLanguages == ["zh"])
-        settings.selectSourceLanguages(["ja", "zh"])
-        #expect(settings.sourceLanguage == "auto" && settings.translationSourceLanguages == ["ja", "zh"])
-        settings.selectSourceLanguages([])
+    @Test func pagesTranslateOnlyJapaneseChineseAndEnglish() {
+        let fixture = LanguageFilterFixture()
+        // Retired source choices are ignored: the app always detects.
+        fixture.defaults.set("fr", forKey: ReaderTranslationSettings.keyPrefix + "sourceLanguage")
+        fixture.defaults.set(["fr"], forKey: ReaderTranslationSettings.keyPrefix + "translationSourceLanguages")
+        let settings = fixture.settings
         #expect(settings.sourceLanguage == "auto" && settings.translationSourceLanguages.isEmpty)
-        // A legacy fixed source with an inactive filter becomes its one-language selection.
-        settings.sourceLanguage = "ja"
-        settings.translationSourceLanguages = ["en"]
-        settings.normalizeOCRSourceLanguages()
-        #expect(settings.sourceLanguage == "ja" && settings.translationSourceLanguages == ["ja"])
-        // A legacy automatic source filtered to one language now tells the provider that language.
-        settings.sourceLanguage = "auto"
-        settings.translationSourceLanguages = ["en"]
-        settings.normalizeOCRSourceLanguages()
-        #expect(settings.sourceLanguage == "en")
+        for text in ["Wait, where did everyone go?", "Hey, are you even listening to me?", "WHAT?!", "OK", "どうしてここにいるの？", "你到底在这里干什么？"] {
+            #expect(ReaderTranslationLanguageFilter.allowsSource(text, settings: settings), "\(text)")
+        }
+        for text in ["¿Qué demonios estás haciendo aquí?", "Je ne vais pas abandonner maintenant !", "Was zum Teufel machst du hier?"] {
+            #expect(!ReaderTranslationLanguageFilter.allowsSource(text, settings: settings), "\(text)")
+        }
     }
 
     @Test func wrongLanguageProviderReplyRetriesAndReplacesOldBatchCache() async throws {

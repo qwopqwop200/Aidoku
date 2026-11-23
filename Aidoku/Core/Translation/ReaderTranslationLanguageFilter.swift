@@ -82,7 +82,7 @@ enum ReaderTranslationLanguageFilter {
     static func identity(settings: ReaderTranslationSettings) -> [String]? {
         var language = languageIdentity(settings: settings)
         if settings.usesOCRLanguagePolicy {
-            language = ["ocr-source-manga-v3-latin-neutral-symbols"] + (language ?? [])
+            language = ["ocr-source-manga-v4-ja-zh-en"] + (language ?? [])
         }
         if settings.filterBackgroundWithLLM { language = (language ?? []) + [TranslationHTTPCodec.backgroundPolicy] }
         if settings.filterSFXWithLLM { language = (language ?? []) + [TranslationHTTPCodec.sfxPolicy] }
@@ -103,7 +103,7 @@ enum ReaderTranslationLanguageFilter {
     static func allowsModelSource(_ text: String) -> Bool {
         if isLanguageNeutralSymbols(text) { return true }
         if let detected = AutomaticSourceLanguageDetector.detect(text) {
-            return IPhoneOCRSettings.mangaSourceLanguageCodes.contains(detected)
+            return IPhoneOCRSettings.translatedSourceLanguageCodes.contains(detected)
         }
         // Unclassifiable short text: keep scripts the recognizer can spell (not Hangul/Cyrillic).
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }

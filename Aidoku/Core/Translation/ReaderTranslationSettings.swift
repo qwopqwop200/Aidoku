@@ -57,37 +57,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var translationSourceLanguages: [String] = []
     // Metadata has no OCR model and must retain its independent language choices.
     var usesOCRLanguagePolicy = true
-    /// The page pipeline has one fixed manga detector/recognizer.
-    var supportedOCRSourceLanguageCodes: Set<String> { IPhoneOCRSettings.mangaSourceLanguageCodes }
-
-    mutating func normalizeOCRSourceLanguages() {
-        if sourceLanguage != "auto", !supportedOCRSourceLanguageCodes.contains(ReaderTranslationLanguageFilter.canonical(sourceLanguage)) {
-            sourceLanguage = "auto"
-        }
-        // Match the source-language picker's explicit Simplified Chinese tag.
-        if sourceLanguage == "zh" { sourceLanguage = "zh-Hans" }
-        translationSourceLanguages = ReaderTranslationLanguageFilter.normalized(translationSourceLanguages)
-            .filter { supportedOCRSourceLanguageCodes.contains($0) }
-        // One "source language" choice: a single checked language is the fixed source the
-        // provider is told; none or several stay automatic. A legacy fixed source becomes its
-        // one-language selection.
-        if sourceLanguage != "auto" {
-            translationSourceLanguages = [ReaderTranslationLanguageFilter.canonical(sourceLanguage)]
-        } else if translationSourceLanguages.count == 1 {
-            sourceLanguage = Self.sourceTag(translationSourceLanguages[0])
-        }
-    }
-
-    /// The fixed source tag of one selected language (the selection stores Simplified Chinese as "zh").
-    static func sourceTag(_ code: String) -> String { code == "zh" ? "zh-Hans" : code }
-
-    /// Sets the source selection and the fixed source it implies.
-    mutating func selectSourceLanguages(_ codes: [String]) {
-        let codes = ReaderTranslationLanguageFilter.normalized(codes)
-        sourceLanguage = codes.count == 1 ? Self.sourceTag(codes[0]) : "auto"
-        translationSourceLanguages = codes
-        normalizeOCRSourceLanguages()
-    }
+    /// Fixed sources the page pipeline accepts (the host CLI's `--source`); the app always detects.
+    var supportedOCRSourceLanguageCodes: Set<String> { IPhoneOCRSettings.translatedSourceLanguageCodes }
 
     /// Transient chapter direction from the reader; V2 orders blocks and panels by it.
     var readingDirection: V2ReadingDirection = .rightToLeft
@@ -101,13 +72,15 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var credentialGeneration: UInt64 = 0
     var cacheLimitBytes: Int64 = ReaderTranslationDiskCache.defaultBytes
     /// Retired preference keys: ignored on load and removed on save.
-    // Per-kind metadata language filters are retired: metadata follows the one source selection.
+    // Source-language choices are retired: pages translate Japanese, Chinese and English only,
+    // and metadata translates every language.
     static let retiredKeys = ["Reader.translationPipelineV2", keyPrefix + "authorSourceLanguages",
         keyPrefix + "sourceLabelSourceLanguages", keyPrefix + "mangaTagSourceLanguages",
         keyPrefix + "mangaDescriptionSourceLanguages", keyPrefix + "mangaTitleSourceLanguages",
         keyPrefix + "chapterTitleSourceLanguages", keyPrefix + "ocr", keyPrefix + "modelTier",
         keyPrefix + "includePageImage", keyPrefix + "filterSFXWithLLM", keyPrefix + "filterBackgroundWithLLM",
-        keyPrefix + "pretranslationLimit", keyPrefix + "background"] + legacyOpenAIKeys
+        keyPrefix + "pretranslationLimit", keyPrefix + "background", keyPrefix + "sourceLanguage",
+        keyPrefix + "translationSourceLanguages"] + legacyOpenAIKeys
     /// The retired picker's OpenAI-only model and reasoning effort.
     static let legacyOpenAIKeys = [keyPrefix + "model", keyPrefix + "reasoningEffort"]
 
@@ -116,10 +89,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         credentialStore: (any TranslationCredentialManaging)? = nil
     ) {
         Self.migrateProvider(defaults, credentialStore: credentialStore)
-        func languages(_ key: String) -> [String] {
-            ReaderTranslationLanguageFilter.normalized(defaults.stringArray(forKey: Self.keyPrefix + key) ?? [])
-                .filter { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
-        }
         showsTranslation = defaults.object(forKey: Self.keyPrefix + "automatic") as? Bool ?? showsTranslation
         if let pages = defaults.object(forKey: Self.keyPrefix + "pages") as? Bool {
             translatePages = pages
@@ -138,8 +107,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         if let data = defaults.data(forKey: Self.keyPrefix + "custom"),
            let value = try? JSONDecoder().decode(ReaderCustomTranslationSettings.self, from: data) { custom = value }
         targetLanguage = defaults.string(forKey: Self.keyPrefix + "targetLanguage") ?? targetLanguage
-        sourceLanguage = defaults.string(forKey: Self.keyPrefix + "sourceLanguage") ?? sourceLanguage
-        translationSourceLanguages = languages("translationSourceLanguages")
         if let data = defaults.data(forKey: Self.keyPrefix + "overlay"),
            let value = try? JSONDecoder().decode(IPhoneOverlaySettings.self, from: data) { overlay = value }
         overlay.enforceSourceReplacement()
@@ -147,7 +114,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         credentialGeneration = Self.savedGeneration(defaults)
         if let value = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber,
            ReaderTranslationDiskCache.limitChoices.contains(value.int64Value) { cacheLimitBytes = value.int64Value }
-        normalizeOCRSourceLanguages()
     }
 
     /// One-time fold of the retired OpenAI/custom picker into the single provider. "provider" stays
@@ -283,8 +249,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(customData, forKey: Self.keyPrefix + "custom")
         defaults.set(maximumConcurrentRequests, forKey: Self.keyPrefix + "concurrency")
         defaults.set(targetLanguage, forKey: Self.keyPrefix + "targetLanguage")
-        defaults.set(sourceLanguage, forKey: Self.keyPrefix + "sourceLanguage")
-        defaults.set(translationSourceLanguages.sorted(), forKey: Self.keyPrefix + "translationSourceLanguages")
         defaults.set(Int(clamping: generation), forKey: Self.keyPrefix + "credentialGeneration")
         let previousCacheLimit = defaults.object(forKey: Self.keyPrefix + "cacheLimitBytes") as? NSNumber
         defaults.set(cacheLimitBytes, forKey: Self.keyPrefix + "cacheLimitBytes")

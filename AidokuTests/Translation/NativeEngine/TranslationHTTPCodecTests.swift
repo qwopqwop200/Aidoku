@@ -354,9 +354,11 @@ private enum TranslationWireContractChecks {
                         parts = (messages[1]["content"] as? [[String: Any]]) ?? [["text": messages[1]["content"]!]]
                     }
                     let auto = source == "auto"
-                    let sourceRule = auto ? "Source language: not specified; identify it per segment (segments may differ)."
-                        : "Source language: \(sourceName)."
-                    try check(prompt.hasPrefix(sourceRule + " Target language: \(targetName).\n"),
+                    // Pages only carry Japanese, Chinese and English lettering; other auto text is unspecified.
+                    let sourceRule = !auto ? "Source language: \(sourceName). Target language: \(targetName)."
+                        : image ? "You translate the lettering of one manga page into \(targetName). It is Japanese, Chinese (Simplified or Traditional) or English, and one page can mix them, so judge each segment on its own."
+                        : "You translate short manga metadata into \(targetName). Segments can be in any language; judge each on its own."
+                    try check(prompt.hasPrefix(sourceRule + "\n"),
                               "Wrong translation direction: \(source)/\(target)")
                     try check(prompt.contains("Translate every ID fully into \(targetName)") &&
                               !prompt.contains("into target_language"), "Output language is not explicit")
