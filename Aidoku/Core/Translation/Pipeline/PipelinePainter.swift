@@ -9,13 +9,41 @@ enum PipelinePainter {
     static func paint(background: CGImage, blocks: [PipelineBlock], placed: [PipelinePlacedText]) -> CGImage {
         let width = background.width, height = background.height
         guard width > 0, height > 0, !placed.isEmpty,
-              let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+              let space = CGColorSpace(name: CGColorSpace.sRGB) else { return background }
+        // A canonical background is cloned copy-on-write into an owned buffer that becomes the
+        // output image: only the pages the text touches are ever copied.
+        if let canvas = Canvas(cloning: background, space: space) {
+            let painted: Bool = {
+                guard let context = CGContext(data: canvas.bytes, width: width, height: height, bitsPerComponent: 8,
+                                              bytesPerRow: canvas.stride, space: space,
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+                draw(blocks: blocks, placed: placed, into: context, space: space)
+                return true
+            }()
+            if painted, let image = canvas.image(width: width, height: height, space: space) { return image }
+            canvas.release()
+            return paintCopy(background: background, blocks: blocks, placed: placed, space: space)
+        }
+        return paintCopy(background: background, blocks: blocks, placed: placed, space: space)
+    }
+
+    private static func paintCopy(background: CGImage, blocks: [PipelineBlock], placed: [PipelinePlacedText],
+                                  space: CGColorSpace) -> CGImage {
+        let width = background.width, height = background.height
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                       space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
         else { return background }
         if !copyPixels(of: background, into: context) {
             context.draw(background, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
+        draw(blocks: blocks, placed: placed, into: context, space: space)
+        return context.makeImage() ?? background
+    }
+
+    /// Paints `placed` over the background already in `context` (a fresh bitmap in default state).
+    private static func draw(blocks: [PipelineBlock], placed: [PipelinePlacedText], into context: CGContext,
+                             space: CGColorSpace) {
+        let width = context.width, height = context.height
         let page = CGRect(x: 0, y: 0, width: width, height: height)
         configure(context, height: height, page: page)
         let byID = Dictionary(blocks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -47,7 +75,66 @@ enum PipelinePainter {
         } else {
             for job in jobs { draw(job, metrics: metrics, context: context, page: page) }
         }
-        return context.makeImage() ?? background
+    }
+
+    /// Page-aligned VM buffer holding a clone of a canonical background (sRGB RGBA8 premultipliedLast,
+    /// as produced by PipelinePageRaster), with the source row stride.
+    private struct Canvas {
+        let bytes: UnsafeMutableRawPointer
+        let stride: Int
+        let size: Int
+
+        init?(cloning image: CGImage, space: CGColorSpace) {
+            let order = image.bitmapInfo.intersection(.byteOrderMask)
+            guard image.bitsPerComponent == 8, image.bitsPerPixel == 32, image.alphaInfo == .premultipliedLast,
+                  order.rawValue == CGImageByteOrderInfo.orderDefault.rawValue
+                    || order.rawValue == CGImageByteOrderInfo.order32Big.rawValue,
+                  !image.bitmapInfo.contains(.floatComponents), image.decode == nil, !image.isMask,
+                  let imageSpace = image.colorSpace, CFEqual(imageSpace, space),
+                  let data = image.dataProvider?.data else { return nil }
+            // Rows padded to 32 bytes, as a `CGContext` with automatic row bytes lays them out.
+            let rowBytes = image.width * 4, stride = (rowBytes + 31) / 32 * 32, sourceStride = image.bytesPerRow
+            let length = (image.height - 1) * sourceStride + rowBytes
+            guard image.height > 0, sourceStride >= rowBytes, CFDataGetLength(data) >= length,
+                  let source = CFDataGetBytePtr(data) else { return nil }
+            let page = Int(vm_page_size)
+            let size = (image.height * stride + page - 1) / page * page
+            var address: vm_address_t = 0
+            guard vm_allocate(mach_task_self_, &address, vm_size_t(size), VM_FLAGS_ANYWHERE) == KERN_SUCCESS,
+                  let bytes = UnsafeMutableRawPointer(bitPattern: UInt(address)) else { return nil }
+            if sourceStride == stride {
+                // Whole source pages are mapped copy-on-write; the unaligned rest is copied.
+                var copied = 0
+                if UInt(bitPattern: source) % UInt(page) == 0, length >= page {
+                    let aligned = length / page * page
+                    if vm_copy(mach_task_self_, vm_address_t(UInt(bitPattern: source)), vm_size_t(aligned), address)
+                        == KERN_SUCCESS { copied = aligned }
+                }
+                if copied < length { (bytes + copied).copyMemory(from: source + copied, byteCount: length - copied) }
+            } else {
+                for row in 0..<image.height {
+                    (bytes + row * stride).copyMemory(from: source + row * sourceStride, byteCount: rowBytes)
+                }
+            }
+            self.bytes = bytes
+            self.stride = stride
+            self.size = size
+        }
+
+        func release() {
+            vm_deallocate(mach_task_self_, vm_address_t(UInt(bitPattern: bytes)), vm_size_t(size))
+        }
+
+        /// The painted buffer as an image (the format `CGContext.makeImage` gives); owns the buffer.
+        func image(width: Int, height: Int, space: CGColorSpace) -> CGImage? {
+            // vm_deallocate rounds the length up to the whole pages allocated.
+            guard let provider = CGDataProvider(dataInfo: nil, data: bytes, size: height * stride, releaseData: { _, data, length in
+                vm_deallocate(mach_task_self_, vm_address_t(UInt(bitPattern: data)), vm_size_t(length))
+            }) else { return nil }
+            return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: stride,
+                           space: space, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                           provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+        }
     }
 
     private struct Job: @unchecked Sendable {
