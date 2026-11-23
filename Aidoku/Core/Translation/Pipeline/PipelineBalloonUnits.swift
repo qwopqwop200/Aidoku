@@ -46,7 +46,10 @@ final class PipelinePaperComponents {
     }
     private let raster: PipelineGrayRaster
     private let sx: CGFloat, sy: CGFloat
-    private var labels: [Int32]
+    /// Allocated on the first labelled cell (most pages never ask).
+    private var labels: [Int32] = []
+    /// Fill stack shared by every component (each cell is pushed at most once in all).
+    private var stack: [Int32] = []
     private var stats: [Stats] = []
     static let light: UInt8 = 225
 
@@ -54,7 +57,6 @@ final class PipelinePaperComponents {
         self.raster = raster
         sx = CGFloat(raster.width) / max(1, pageSize.width)
         sy = CGFloat(raster.height) / max(1, pageSize.height)
-        labels = [Int32](repeating: -1, count: raster.pixels.count)
     }
 
     func enclosing(_ rect: CGRect) -> Int? {
@@ -64,17 +66,21 @@ final class PipelinePaperComponents {
         let x0 = Int((rect.minX * sx).rounded()), y0 = Int((rect.minY * sy).rounded())
         let x1 = Int((rect.maxX * sx).rounded()) - 1, y1 = Int((rect.maxY * sy).rounded()) - 1
         guard x0 > 0, y0 > 0, x1 < width - 1, y1 < height - 1, x1 - x0 >= 3, y1 - y0 >= 3 else { return nil }
-        var tally: [Int: Int] = [:], light = 0
+        // Light cells per component id (ids are dense); the largest tally wins, ties to the lower id.
+        var tally: [Int] = [], light = 0
         for y in y0...y1 {
             for x in x0...x1 where raster.pixels[y * width + x] >= Self.light {
                 light += 1
-                tally[label(y * width + x), default: 0] += 1
+                let id = label(y * width + x)
+                if id >= tally.count { tally += [Int](repeating: 0, count: id + 1 - tally.count) }
+                tally[id] += 1
             }
         }
         let area = (x1 - x0 + 1) * (y1 - y0 + 1)
-        guard light * 10 >= area * 3,
-              let (id, count) = tally.max(by: { $0.value != $1.value ? $0.value < $1.value : $0.key > $1.key }),
-              count * 10 >= light * 6 else { return nil }
+        guard light * 10 >= area * 3 else { return nil }
+        var id = 0
+        for candidate in tally.indices where tally[candidate] > tally[id] { id = candidate }
+        guard tally[id] * 10 >= light * 6 else { return nil }
         let c = stats[id], cx = (x0 + x1) / 2, cy = (y0 + y1) / 2
         guard !c.edge, c.minX < cx, c.maxX > cx, c.minY < cy, c.maxY > cy,
               (c.maxX - c.minX) * 4 < width * 3, (c.maxY - c.minY) * 4 < height * 3, c.count >= area * 3 / 2 else { return nil }
@@ -82,22 +88,40 @@ final class PipelinePaperComponents {
     }
 
     private func label(_ seed: Int) -> Int {
+        if labels.isEmpty {
+            labels = [Int32](repeating: -1, count: raster.pixels.count)
+            stack = [Int32](repeating: 0, count: raster.pixels.count)
+        }
         if labels[seed] >= 0 { return Int(labels[seed]) }
         let width = raster.width, height = raster.height, id = Int32(stats.count)
-        var value = Stats(), queue = [seed], cursor = 0
         labels[seed] = id
-        while cursor < queue.count {
-            let point = queue[cursor]
-            cursor += 1
-            let x = point % width, y = point / width
-            value.count += 1
-            value.minX = min(value.minX, x); value.maxX = max(value.maxX, x)
-            value.minY = min(value.minY, y); value.maxY = max(value.maxY, y)
-            if x == 0 || y == 0 || x == width - 1 || y == height - 1 { value.edge = true }
-            for (nx, ny) in [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)] where nx >= 0 && nx < width && ny >= 0 && ny < height {
-                let next = ny * width + nx
-                if labels[next] < 0, raster.pixels[next] >= Self.light { labels[next] = id; queue.append(next) }
-            }
+        // Stats are order-free, so a stack (LIFO) visits the same component as the queue did.
+        let value = raster.pixels.withUnsafeBufferPointer { pixels in
+            labels.withUnsafeMutableBufferPointer { labels in stack.withUnsafeMutableBufferPointer { stack in
+                var value = Stats(), top = 1
+                stack[0] = Int32(seed)
+                while top > 0 {
+                    top -= 1
+                    let point = Int(stack[top]), x = point % width, y = point / width
+                    value.count += 1
+                    value.minX = min(value.minX, x); value.maxX = max(value.maxX, x)
+                    value.minY = min(value.minY, y); value.maxY = max(value.maxY, y)
+                    if x == 0 || y == 0 || x == width - 1 || y == height - 1 { value.edge = true }
+                    if x > 0, labels[point - 1] < 0, pixels[point - 1] >= Self.light {
+                        labels[point - 1] = id; stack[top] = Int32(point - 1); top += 1
+                    }
+                    if x + 1 < width, labels[point + 1] < 0, pixels[point + 1] >= Self.light {
+                        labels[point + 1] = id; stack[top] = Int32(point + 1); top += 1
+                    }
+                    if y > 0, labels[point - width] < 0, pixels[point - width] >= Self.light {
+                        labels[point - width] = id; stack[top] = Int32(point - width); top += 1
+                    }
+                    if y + 1 < height, labels[point + width] < 0, pixels[point + width] >= Self.light {
+                        labels[point + width] = id; stack[top] = Int32(point + width); top += 1
+                    }
+                }
+                return value
+            } }
         }
         stats.append(value)
         return Int(id)

@@ -126,6 +126,32 @@ enum ReaderTranslationPanelOrder {
         return Task.isCancelled ? unchanged : ranks
     }
 
+    /// White (>= 245) and black (<= 100) cells of one row, 16 at a time in byte lanes (the
+    /// scalar reduction does not vectorize); lanes are widened every 255 vectors.
+    private static func rowCounts(_ row: UnsafePointer<UInt8>, _ count: Int) -> (Int32, Int32) {
+        let vectors = count / 16, raw = UnsafeRawPointer(row)
+        let whiteFloor = SIMD16<UInt8>(repeating: 244), blackCeiling = SIMD16<UInt8>(repeating: 101)
+        let one = SIMD16<UInt8>(repeating: 1)
+        var white: Int32 = 0, black: Int32 = 0, done = 0
+        while done < vectors {
+            let end = min(vectors, done + 255)
+            var whiteLanes = SIMD16<UInt8>(), blackLanes = SIMD16<UInt8>()
+            for vector in done..<end {
+                let cells = raw.loadUnaligned(fromByteOffset: vector * 16, as: SIMD16<UInt8>.self)
+                whiteLanes &+= SIMD16<UInt8>().replacing(with: one, where: cells .> whiteFloor)
+                blackLanes &+= SIMD16<UInt8>().replacing(with: one, where: cells .< blackCeiling)
+            }
+            white &+= Int32(SIMD16<UInt16>(truncatingIfNeeded: whiteLanes).wrappedSum())
+            black &+= Int32(SIMD16<UInt16>(truncatingIfNeeded: blackLanes).wrappedSum())
+            done = end
+        }
+        for x in (vectors * 16)..<count {
+            white &+= row[x] >= 245 ? 1 : 0
+            black &+= row[x] <= 100 ? 1 : 0
+        }
+        return (white, black)
+    }
+
     /// White (>= 245) and black (<= 100) cell counts of each row (`rows`) or column of the area.
     private static func counts(_ pixels: [UInt8], width: Int, x0: Int, y0: Int, x1: Int, y1: Int,
                                rows: Bool) -> ([Int32], [Int32]) {
@@ -138,11 +164,7 @@ enum ReaderTranslationPanelOrder {
                     for y in y0..<y1 {
                         let row = base + y * width + x0
                         if rows {
-                            var whiteCount: Int32 = 0, blackCount: Int32 = 0
-                            for x in 0..<(x1 - x0) {
-                                whiteCount &+= row[x] >= 245 ? 1 : 0
-                                blackCount &+= row[x] <= 100 ? 1 : 0
-                            }
+                            let (whiteCount, blackCount) = rowCounts(row, x1 - x0)
                             white[y - y0] = whiteCount
                             black[y - y0] = blackCount
                         } else {

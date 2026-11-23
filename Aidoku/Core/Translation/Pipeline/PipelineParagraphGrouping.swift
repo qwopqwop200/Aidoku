@@ -35,6 +35,9 @@ enum PipelineParagraphGrouping {
         let along: CGPoint
         let balloon: Scope?
         let text: Set<Int>?
+        /// Non-whitespace characters and an unclosed quote of `input.source` (read per pair).
+        var letters = 0
+        var openQuote = false
     }
     private struct Edge {
         let distance: CGFloat
@@ -152,11 +155,11 @@ enum PipelineParagraphGrouping {
         // Same-column continuation: a 2 glyph gap, 4 below an unclosed quote; a shared RF text scope
         // lifts the width-fit limit, and one RF balloon allows a wider gutter.
         let sameBalloon = a.balloon != nil && a.balloon?.owner == b.balloon?.owner
-        let sameLimit = glyph*(hasOpenQuote((x.start <= y.start ? a : b).input.source) ? 4 : 2)
+        let sameLimit = glyph*((x.start <= y.start ? a : b).openQuote ? 4 : 2)
         let parallelLimit = glyph*(sameBalloon ? 1.25 : 1)
         let epsilon = max(max(x.maxULP, y.maxULP), max(max(glyph.ulp, sameLimit.ulp), max(ag.ulp, cg.ulp)))*4
         // A one- or two-glyph fragment cut off a column or row end continues it, measured in the full line's glyphs.
-        let fragments = [a, b].map { $0.input.source.filter { !$0.isWhitespace }.count <= 2 }
+        let fragments = [a.letters <= 2, b.letters <= 2]
         if fragments[0] != fragments[1] {
             let (f, o) = fragments[0] ? (x, y) : (y, x)
             let thick = o.high-o.low
@@ -288,7 +291,8 @@ enum PipelineParagraphGrouping {
             let owners = balloons.filter { $0.confidence >= Double(PipelineLayoutRegion.balloonFloor) && PipelineLineAssembly.coverage(box, $0.box) >= 0.9 }
             let text = Set(textScopes.filter { $0.confidence >= 0.25 && PipelineLineAssembly.coverage(box, $0.box) >= 0.8 }.map(\.owner))
             return .init(input: input, box: box, along: axis(input), balloon: owners.count == 1 ? owners[0] : nil,
-                         text: text.isEmpty ? nil : text)
+                         text: text.isEmpty ? nil : text, letters: input.source.filter { !$0.isWhitespace }.count,
+                         openQuote: hasOpenQuote(input.source))
         }
         var parent = Array(atoms.indices)
         var owners = atoms.map { $0.balloon?.owner }, texts = atoms.map(\.text), members = atoms.indices.map { [$0] }
@@ -298,11 +302,12 @@ enum PipelineParagraphGrouping {
             return i
         }
         // A one-glyph line's direction is a guess: it may join a column or a row (legacy P:4447-4460).
-        func guessed(_ atom: Atom) -> Bool { atom.input.source.filter { !$0.isWhitespace }.count == 1 }
+        func guessed(_ atom: Atom) -> Bool { atom.letters == 1 }
         func flipped(_ atom: Atom) -> Atom {
             let input = Input(polygon: atom.input.polygon, vertical: !atom.input.vertical, confidence: atom.input.confidence,
                               source: atom.input.source)
-            return .init(input: input, box: atom.box, along: axis(input), balloon: atom.balloon, text: atom.text)
+            return .init(input: input, box: atom.box, along: axis(input), balloon: atom.balloon, text: atom.text,
+                         letters: atom.letters, openQuote: atom.openQuote)
         }
         func quoted(_ root: Int) -> Bool { members[root].contains { atoms[$0].input.source.contains(where: "「」『』".contains) } }
         let rails = rubyRails(atoms)
