@@ -122,6 +122,16 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     static let maximumSegmentTextBytes = 16 * 1024
     static let maximumSourceBytes = 128 * 1024
 
+    /// Provider sampling seed; a truncated page answer retries once with another seed. Not part of
+    /// the request identity (equality, coding, cache keys).
+    var samplingSeed = 0
+
+    func withSamplingSeed(_ seed: Int) -> Self {
+        var copy = self
+        copy.samplingSeed = seed
+        return copy
+    }
+
     var imageJPEG: Data? = nil {
         didSet {
             imageDigestMemo = imageJPEG == nil ? nil : TranslationImageDigestMemo()

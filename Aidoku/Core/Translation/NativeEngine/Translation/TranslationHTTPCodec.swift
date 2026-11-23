@@ -2,6 +2,16 @@ import Foundation
 
 enum TranslationHTTPCodec {
     static let maxOutputTokens = 8192
+
+    /// Page lettering without reasoning answers in ~26 tokens per block (dev/train p99 478, max
+    /// 621). Rare sampling loops ran to the 8192 cap (~55 s); this cap keeps >= 3x headroom over
+    /// every measured page and ends a loop in a few seconds. Reasoning spends output tokens, so
+    /// other efforts and non-page calls keep the full cap.
+    static func outputTokenLimit(_ configuration: RemoteTranslationConfiguration, _ request: RemoteTranslationRequest) -> Int {
+        guard request.translatesPageLettering == true, configuration.reasoningEffort == .none else { return maxOutputTokens }
+        let characters = request.segments.reduce(0) { $0 + $1.text.count }
+        return min(maxOutputTokens, 512 + 48 * request.segments.count + 2 * characters)
+    }
     static let samplingTemperature: Double = 1
     static let samplingTopP = 0.95
     static let roleVerificationPolicy = "source-bound-focused-role-verification-v262"
@@ -187,8 +197,8 @@ enum TranslationHTTPCodec {
                 "store": false,
                 "temperature": samplingTemperature,
                 "top_p": samplingTopP,
-                "max_output_tokens": maxOutputTokens,
-                "seed": 0,
+                "max_output_tokens": outputTokenLimit(configuration, request),
+                "seed": request.samplingSeed,
                 "instructions": instructions,
                 "input": [["role": "user", "content": responsesContent]],
                 "text": [
@@ -217,11 +227,11 @@ enum TranslationHTTPCodec {
                 ],
                 "temperature": samplingTemperature,
                 "top_p": samplingTopP,
-                "seed": 0,
+                "seed": request.samplingSeed,
             ]
             chatRoot[configuration.provider == .openAI ||
                 (configuration.reasoningEffort != .none && configuration.reasoningEffort != .modelDefault)
-                ? "max_completion_tokens" : "max_tokens"] = maxOutputTokens
+                ? "max_completion_tokens" : "max_tokens"] = outputTokenLimit(configuration, request)
             try addCustomExtensions(to: &chatRoot)
             if !chatOptions.compactStructuredOutput {
                 chatRoot["response_format"] = [

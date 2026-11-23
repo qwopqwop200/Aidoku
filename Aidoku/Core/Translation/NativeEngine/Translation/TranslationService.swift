@@ -421,14 +421,22 @@ actor TranslationService {
                                         networkTask: networkTask, priorities: priorities, waiters: [waiterID: continuation])
     }
 
+    static func isTruncation(_ error: Error) -> Bool {
+        guard case let RemoteTranslationError.invalidResponse(reason) = error else { return false }
+        return reason == "the Responses API response is incomplete" || reason == "the chat completion was truncated"
+    }
+
     private static func requestProvider(
         client: RemoteTranslating, request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration,
         providerRequestLimiter: TranslationProviderRequestLimiter?, priority: TranslationRequestPriority,
         allowsParallelSplit: Bool = true, maximumRetries: Int = maximumStructuredOutputRetries
     ) async throws -> RemoteTranslationBatchResult {
         var attempt = 0
+        var seed = 0
+        let primary = request
         while true {
             attempt += 1
+            let request = primary.withSamplingSeed(seed)
             let attemptStartedAt = ProcessInfo.processInfo.systemUptime
             let segmentCount = request.segments.count
             let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(in: request)
@@ -467,6 +475,14 @@ actor TranslationService {
                     ]
                     ReaderTranslationDiagnostics.record("api_invalid_response", count: attempt,
                                                         code: knownReasons.firstIndex(of: reason).map { $0 + 1 } ?? 0)
+                }
+                // A page answer cut off at the output cap is a sampling loop, not a format
+                // error: try once more with another seed.
+                if request.translatesPageLettering == true, seed == 0, Self.isTruncation(error) {
+                    ReaderTranslationDiagnostics.record("api_truncation_retry", count: attempt)
+                    try Task.checkCancellation()
+                    seed = 1
+                    continue
                 }
                 // Page batches have one primary call, including malformed or
                 // untranslated answers. Non-page callers retain format

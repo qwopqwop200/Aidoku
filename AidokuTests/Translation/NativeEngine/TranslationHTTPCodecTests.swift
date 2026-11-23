@@ -198,6 +198,37 @@ struct TranslationHTTPCodecTests {
         #expect(calls >= 1 + leafAttempts && calls <= 1 + 2 * (1 + 2 * leafAttempts), "calls=\(calls)")
     }
 
+    @Test func truncatedPageAnswerRetriesOnceWithAnotherSeed() async throws {
+        let client = TruncatingClient()
+        let service = TranslationService(client: client, cache: TranslationCache(maxSizeMiB: 1))
+        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
+            segments: [.init(id: "a", text: "文"), .init(id: "b", text: "言葉")])
+        request.translatesPageLettering = true
+        let result = try await service.translate(request, configuration: .openAI(model: "truncation"))
+        #expect(result.translations.count == 2)
+        #expect(await client.seeds == [0, 1])
+        // Other requests keep a single primary call per format: no seed retry.
+        let other = TruncatingClient(alwaysTruncates: true)
+        let otherService = TranslationService(client: other, cache: TranslationCache(maxSizeMiB: 1))
+        request.translatesPageLettering = nil
+        await #expect(throws: RemoteTranslationError.self) {
+            _ = try await otherService.translate(request, configuration: .openAI(model: "truncation-other"))
+        }
+        #expect(await other.seeds.allSatisfy { $0 == 0 })
+    }
+
+    @Test func pageOutputCapScalesWithTheRequestWithoutReasoning() {
+        var request = RemoteTranslationRequest(sourceLanguage: "ja", targetLanguage: "ko",
+            segments: [.init(id: "a", text: "あいう"), .init(id: "b", text: "えお")])
+        var configuration = RemoteTranslationConfiguration.openAI(model: "cap")
+        configuration.reasoningEffort = .none
+        #expect(TranslationHTTPCodec.outputTokenLimit(configuration, request) == TranslationHTTPCodec.maxOutputTokens)
+        request.translatesPageLettering = true
+        #expect(TranslationHTTPCodec.outputTokenLimit(configuration, request) == 512 + 48 * 2 + 2 * 5)
+        configuration.reasoningEffort = .low
+        #expect(TranslationHTTPCodec.outputTokenLimit(configuration, request) == TranslationHTTPCodec.maxOutputTokens)
+    }
+
     @Test func pageImageEncodingResizesAndProducesJPEG() throws {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
@@ -245,6 +276,21 @@ private actor MalformedBatchClient: RemoteTranslating {
         if alwaysMalformed { throw RemoteTranslationError.invalidResponse("structured translation is not valid JSON") }
         if request.segments.count > 1 {
             throw RemoteTranslationError.invalidResponse("structured translation does not match the required schema")
+        }
+        return RemoteTranslationBatchResult(translations: request.segments.map { .init(id: $0.id, text: "번역 " + $0.text) },
+                                            source: .network, providerRequestID: nil)
+    }
+}
+
+private actor TruncatingClient: RemoteTranslating {
+    var seeds: [Int] = []
+    let alwaysTruncates: Bool
+    init(alwaysTruncates: Bool = false) { self.alwaysTruncates = alwaysTruncates }
+    func translate(_ request: RemoteTranslationRequest,
+                   configuration: RemoteTranslationConfiguration) async throws -> RemoteTranslationBatchResult {
+        seeds.append(request.samplingSeed)
+        if alwaysTruncates || request.samplingSeed == 0 {
+            throw RemoteTranslationError.invalidResponse("the Responses API response is incomplete")
         }
         return RemoteTranslationBatchResult(translations: request.segments.map { .init(id: $0.id, text: "번역 " + $0.text) },
                                             source: .network, providerRequestID: nil)
