@@ -21,6 +21,26 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(!ReaderTranslationLanguageFilter.allowsModelSource("Это русский текст"))
     }
 
+    @Test func oneSourceSelectionFixesTheSourceLanguage() {
+        var settings = LanguageFilterFixture().settings
+        settings.selectSourceLanguages(["zh"])
+        #expect(settings.sourceLanguage == "zh-Hans" && settings.translationSourceLanguages == ["zh"])
+        settings.selectSourceLanguages(["ja", "zh"])
+        #expect(settings.sourceLanguage == "auto" && settings.translationSourceLanguages == ["ja", "zh"])
+        settings.selectSourceLanguages([])
+        #expect(settings.sourceLanguage == "auto" && settings.translationSourceLanguages.isEmpty)
+        // A legacy fixed source with an inactive filter becomes its one-language selection.
+        settings.sourceLanguage = "ja"
+        settings.translationSourceLanguages = ["en"]
+        settings.normalizeOCRSourceLanguages()
+        #expect(settings.sourceLanguage == "ja" && settings.translationSourceLanguages == ["ja"])
+        // A legacy automatic source filtered to one language now tells the provider that language.
+        settings.sourceLanguage = "auto"
+        settings.translationSourceLanguages = ["en"]
+        settings.normalizeOCRSourceLanguages()
+        #expect(settings.sourceLanguage == "en")
+    }
+
     @Test func wrongLanguageProviderReplyRetriesAndReplacesOldBatchCache() async throws {
         let fixture = LanguageFilterFixture()
         let source = "これからも毎日おいしいパンを作ってみんなに届けます"

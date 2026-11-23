@@ -211,7 +211,8 @@ enum MetadataPromptContractChecks {
                         try check(prompt.contains("Target language: \(TranslationHTTPCodec.languageName(language))."),
                                   "Explicit output language missing")
                         let payload = try JSONSerialization.jsonObject(with: Data(payloadText.utf8)) as! [String: Any]
-                        try check(payload["source_language"] as? String == "Auto-detect from input" &&
+                        try check(payload["source_language"] == nil &&
+                                  prompt.hasPrefix("Source language: not specified; identify it per segment (segments may differ).") &&
                                   payload["target_language"] as? String == TranslationHTTPCodec.languageName(language),
                                   "Language settings lost")
                         let sent = payload["segments"] as! [[String: Any]]

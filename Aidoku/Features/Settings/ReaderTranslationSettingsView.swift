@@ -55,34 +55,27 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    // The page pipeline always uses the manga recognizer and its language set.
-    private let allOCRSourceLanguagesTitle = NSLocalizedString("TRANSLATION_OCR_SUPPORTED_LANGUAGES")
-
     private var languageSection: some View {
         Section(NSLocalizedString("TRANSLATION_LANGUAGE")) {
             Picker(NSLocalizedString("TRANSLATION_TARGET"), selection: persistedSettings.targetLanguage) {
                 ForEach(languages, id: \.0) { code, title in Text(title).tag(code) }
             }
-            Picker(NSLocalizedString("TRANSLATION_PAGE_SOURCE"), selection: persistedSettings.sourceLanguage) {
-                Text(NSLocalizedString("TRANSLATION_AUTO")).tag("auto")
-                ForEach(ReaderTranslationLanguageOptions.codes.filter { settings.supportedOCRSourceLanguageCodes.contains($0) }, id: \.self) { code in
-                    Text(ReaderTranslationLanguageOptions.name(code)).tag(code == "zh" ? "zh-Hans" : code)
+            NavigationLink {
+                ReaderTranslationLanguageFilterView(selection: sourceSelection,
+                    title: NSLocalizedString("TRANSLATION_PAGE_SOURCE"),
+                    help: NSLocalizedString("TRANSLATION_SOURCE_HELP"),
+                    allowedCodes: settings.supportedOCRSourceLanguageCodes,
+                    allTitle: NSLocalizedString("TRANSLATION_AUTO"))
+            } label: {
+                HStack {
+                    Text(NSLocalizedString("TRANSLATION_SOURCE_ROW"))
+                    Spacer()
+                    Text(settings.translationSourceLanguages.isEmpty ? NSLocalizedString("TRANSLATION_AUTO_SHORT")
+                        : settings.translationSourceLanguages.map(ReaderTranslationLanguageOptions.name).joined(separator: ", "))
+                        .foregroundStyle(.secondary).lineLimit(1)
                 }
             }
-            if settings.sourceLanguage == "auto" {
-                NavigationLink {
-                    ReaderTranslationLanguageFilterView(selection: persistedSettings.translationSourceLanguages,
-                        help: NSLocalizedString("TRANSLATION_OCR_MANGA_HELP"),
-                        allowedCodes: settings.supportedOCRSourceLanguageCodes,
-                        allTitle: allOCRSourceLanguagesTitle)
-                } label: {
-                    filterLabel("TRANSLATION_SOURCE_FILTER", settings.translationSourceLanguages, allTitle: allOCRSourceLanguagesTitle)
-                }
-                .accessibilityIdentifier("translation.sourceFilter")
-            } else {
-                Text(NSLocalizedString("TRANSLATION_FIXED_SOURCE_FILTER_HELP"))
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
+            .accessibilityIdentifier("translation.sourceFilter")
         }
     }
 
@@ -333,6 +326,15 @@ struct ReaderTranslationSettingsView: View {
                 refreshCredential()
             }
             autosave()
+        })
+    }
+
+    /// One source-language choice; one checked language also fixes the provider's source.
+    private var sourceSelection: Binding<[String]> {
+        Binding(get: { settings.translationSourceLanguages }, set: { codes in
+            var value = settings
+            value.selectSourceLanguages(codes)
+            persistedSettings.wrappedValue = value
         })
     }
 

@@ -9,7 +9,7 @@ enum TranslationHTTPCodec {
     static let textOnlyBackgroundPolicy = "llm-background-text-v4-defined-roles"
     static let textOnlySFXPolicy = "llm-sfx-text-v4-defined-roles"
     static let sfxPolicy = "llm-sfx-v73-dialogue-typography"
-    static let letteringPolicy = "page-lettering-v36-gt-preserving-role-definitions"
+    static let letteringPolicy = "page-lettering-v37-unspecified-auto-source"
 
     static let imageInstructions =
         "Use the full-page image to correct OCR before translating and classify each ID. box_2d=[y1,x1,y2,x2] locates its text on a 0..1000 integer grid."
@@ -132,7 +132,9 @@ enum TranslationHTTPCodec {
         // Some compatible servers do not feed response_format/text.format into
         // the model prompt. The wire schema and the textual contract must agree.
         var rules = [
-            "Source language: \(sourceLanguage). Target language: \(targetLanguage).",
+            (isAutomaticSource(request.sourceLanguage)
+                ? "Source language: not specified; identify it per segment (segments may differ)."
+                : "Source language: \(sourceLanguage).") + " Target language: \(targetLanguage).",
             "Translate every ID fully into \(targetLanguage)\(classifiesRole ? " regardless of role" : ""); do not substitute source transcription for translation. Do not omit, invent or move content between IDs. Names: use established target-language forms, otherwise transliterate."
         ]
         if !configuration.instructions.isEmpty {
@@ -298,14 +300,18 @@ enum TranslationHTTPCodec {
     }
 
     /// Resolved only at the model boundary, in a fixed English locale (keeps zh-Hant, pt-BR distinct).
+    /// "auto": the prompt says the source is unspecified and the data carries no source_language.
+    static func isAutomaticSource(_ identifier: String) -> Bool {
+        identifier.caseInsensitiveCompare("auto") == .orderedSame
+    }
+
     static func languageName(_ identifier: String) -> String {
         if identifier.caseInsensitiveCompare("auto") == .orderedSame { return "Auto-detect from input" }
         return Locale(identifier: "en_US_POSIX").localizedString(forIdentifier: identifier) ?? identifier
     }
 
     private static func encodedTranslationData(_ request: RemoteTranslationRequest) throws -> String {
-        let root: [String: Any] = [
-            "source_language": languageName(request.sourceLanguage),
+        var root: [String: Any] = [
             "target_language": languageName(request.targetLanguage),
             "segments": request.segments.map { segment -> [String: Any] in
                 var item: [String: Any] = ["id": segment.id, "text": segment.text]
@@ -316,6 +322,7 @@ enum TranslationHTTPCodec {
                 return item
             },
         ]
+        if !isAutomaticSource(request.sourceLanguage) { root["source_language"] = languageName(request.sourceLanguage) }
         guard JSONSerialization.isValidJSONObject(root) else {
             throw RemoteTranslationError.invalidRequest("translation data cannot be represented as JSON")
         }

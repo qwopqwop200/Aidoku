@@ -74,6 +74,25 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         if sourceLanguage == "zh" { sourceLanguage = "zh-Hans" }
         translationSourceLanguages = ReaderTranslationLanguageFilter.normalized(translationSourceLanguages)
             .filter { supportedOCRSourceLanguageCodes.contains($0) }
+        // One "source language" choice: a single checked language is the fixed source the
+        // provider is told; none or several stay automatic. A legacy fixed source becomes its
+        // one-language selection.
+        if sourceLanguage != "auto" {
+            translationSourceLanguages = [ReaderTranslationLanguageFilter.canonical(sourceLanguage)]
+        } else if translationSourceLanguages.count == 1 {
+            sourceLanguage = Self.sourceTag(translationSourceLanguages[0])
+        }
+    }
+
+    /// The fixed source tag of one selected language (the selection stores Simplified Chinese as "zh").
+    static func sourceTag(_ code: String) -> String { code == "zh" ? "zh-Hans" : code }
+
+    /// Sets the source selection and the fixed source it implies.
+    mutating func selectSourceLanguages(_ codes: [String]) {
+        let codes = ReaderTranslationLanguageFilter.normalized(codes)
+        sourceLanguage = codes.count == 1 ? Self.sourceTag(codes[0]) : "auto"
+        translationSourceLanguages = codes
+        normalizeOCRSourceLanguages()
     }
 
     /// Transient chapter direction from the reader; V2 orders blocks and panels by it.

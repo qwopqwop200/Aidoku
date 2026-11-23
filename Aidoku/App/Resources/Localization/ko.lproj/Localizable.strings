@@ -567,7 +567,6 @@
 "TRANSLATION_CACHE_HELP" = "번역 결과를 기기에 저장합니다. 한도에 도달하면 오래된 결과부터 지웁니다.";
 "TRANSLATION_SOURCE_FILTER" = "번역 대상 원문 언어";
 "TRANSLATION_FILTER_ALL" = "모든 감지 언어";
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "이 언어로 판별된 텍스트만 번역합니다.";
 "HTTPS_BYPASS" = "HTTPS 차단 우회";
 "HTTPS_BYPASS_HELP" = "소스 요청, 이미지, 다운로드, 소스 웹 뷰에 TLS 분할과 암호화 DNS(Cloudflare)를 사용합니다. 새 연결부터 적용됩니다. IP 차단이나 사이트 자체의 접속 제한은 우회하지 못합니다.";
 "HTTPS_BYPASS_TEST" = "연결 테스트";
@@ -971,4 +970,6 @@
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 일본어 고유명사 사전입니다.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe의 미디어 말뭉치를 기반으로 한 빈도 사전입니다.";
 "TRANSLATION_OCR_MANGA_HELP" = "페이지는 일본어, 중국어, 영어 및 라틴 문자 언어를 인식합니다.";
-"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "지원되는 모든 OCR 언어";
+"TRANSLATION_SOURCE_HELP" = "하나를 고르면 그 언어로 고정하고, 여러 개를 고르면 고른 언어만 번역합니다.";
+"TRANSLATION_SOURCE_ROW" = "원문 언어";
+"TRANSLATION_AUTO_SHORT" = "자동";

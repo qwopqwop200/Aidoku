@@ -910,7 +910,6 @@
 "TRANSLATION_CACHE_HELP" = "Translations are kept on this device. The oldest results are removed when the limit is reached.";
 "TRANSLATION_SOURCE_FILTER" = "Translation Source Language Filter";
 "TRANSLATION_FILTER_ALL" = "All Detected Languages";
-"TRANSLATION_FIXED_SOURCE_FILTER_HELP" = "Only text in this language is translated.";
 "HTTPS_BYPASS" = "HTTPS Blocking Bypass";
 "HTTPS_BYPASS_HELP" = "Use TLS fragmentation and encrypted DNS (Cloudflare) for source requests, images, downloads and source web views. Applies to new connections. IP blocks and restrictions imposed by the website are not bypassed.";
 "HTTPS_BYPASS_TEST" = "Test Connection";
@@ -1009,4 +1008,6 @@
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "A Japanese proper-name dictionary maintained by the Electronic Dictionary Research and Development Group (EDRDG).";
 "RECOMMENDED_JITEN_DESCRIPTION" = "A frequency dictionary based on the media corpus at https://jiten.moe.";
 "TRANSLATION_OCR_MANGA_HELP" = "Pages are read in Japanese, Chinese, English and other Latin-script languages.";
-"TRANSLATION_OCR_SUPPORTED_LANGUAGES" = "All Supported OCR Languages";
+"TRANSLATION_SOURCE_HELP" = "Pick one to fix the language, or several to translate only those.";
+"TRANSLATION_SOURCE_ROW" = "Source Language";
+"TRANSLATION_AUTO_SHORT" = "Auto";

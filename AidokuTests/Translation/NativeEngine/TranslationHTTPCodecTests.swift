@@ -307,13 +307,16 @@ private enum TranslationWireContractChecks {
                         prompt = messages[0]["content"] as! String
                         parts = (messages[1]["content"] as? [[String: Any]]) ?? [["text": messages[1]["content"]!]]
                     }
-                    try check(prompt.hasPrefix("Source language: \(sourceName). Target language: \(targetName).\n"),
+                    let auto = source == "auto"
+                    let sourceRule = auto ? "Source language: not specified; identify it per segment (segments may differ)."
+                        : "Source language: \(sourceName)."
+                    try check(prompt.hasPrefix(sourceRule + " Target language: \(targetName).\n"),
                               "Wrong translation direction: \(source)/\(target)")
                     try check(prompt.contains("Translate every ID fully into \(targetName)") &&
                               !prompt.contains("into target_language"), "Output language is not explicit")
                     let text = parts.first { $0["text"] is String }!["text"] as! String
                     let payload = try JSONSerialization.jsonObject(with: Data(text.utf8)) as! [String: Any]
-                    try check(payload["source_language"] as? String == sourceName &&
+                    try check((auto ? payload["source_language"] == nil : payload["source_language"] as? String == sourceName) &&
                               payload["target_language"] as? String == targetName, "Wire language disagrees with prompt")
                     try check(parts.filter { $0["type"] as? String == "input_image" ||
                         $0["type"] as? String == "image_url" }.count == (image ? 1 : 0), "Image count changed")
