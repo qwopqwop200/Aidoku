@@ -36,6 +36,9 @@ final class PipelineRFDETRModel: @unchecked Sendable {
 #else
         configuration.computeUnits = .cpuAndGPU
 #endif
+        // Fixed-shape GPU program: fast-prediction specialization is bit-identical on the replay
+        // set and trims the per-page prediction.
+        configuration.optimizationHints.specializationStrategy = .fastPrediction
         configuration.modelDisplayName = "Koharu RF-DETR648 V2"
         model = try MLModel(contentsOf: compiledURL, configuration: configuration)
         guard let input = model.modelDescription.inputDescriptionsByName["image"]?.multiArrayConstraint,
