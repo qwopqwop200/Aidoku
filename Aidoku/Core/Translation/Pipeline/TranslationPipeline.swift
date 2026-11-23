@@ -380,11 +380,13 @@ enum TranslationPipeline {
     }
 
     private static func runFront(_ page: PipelinePage, models: PipelineModels) async -> Front {
-        async let gray: PipelineGrayRaster? = PipelineGrayRaster(image: page.image)
         var front = Front()
         let decodeStart = DispatchTime.now().uptimeNanoseconds
         let pixels = decodePixels(page.image)
         front.stages[Stage.decode] = milliseconds(since: decodeStart)
+        // Started after the decode: a lazily decoded page then reuses ImageIO's decoded pixels instead of
+        // parking a pool thread on the decode lock (same bytes either way).
+        async let gray: PipelineGrayRaster? = PipelineGrayRaster(image: page.image)
         front.stages[Stage.conversions] = Double(pixels.conversions)
         let frame = pixels.frame
         // One RGBA frame feeds both the detector and the recognizer (S3 reuses it).
@@ -433,6 +435,8 @@ enum TranslationPipeline {
     static func canShare(_ image: CGImage, frame: NativeOCRRGBAFrame) -> Bool {
         guard frame.width <= 16_384, frame.height <= 16_384, frame.bytesPerRow == frame.width * 4,
               image.colorSpace?.name == CGColorSpace.sRGB else { return false }
+        // An alpha-free source draws fully opaque: no scan needed.
+        if !image.isMask, [.none, .noneSkipLast, .noneSkipFirst].contains(image.alphaInfo) { return true }
         return isOpaque(frame.bytes)
     }
 
