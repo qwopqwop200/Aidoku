@@ -3,7 +3,8 @@ import Foundation
 
 // S9 size cohorts (legacy page font clusters): text whose source lettering shared a size
 // and style is painted at a common size.
-// 1. Key: orientation and bold (colour and S8 outline presence are too noisy).
+// 1. Key: orientation (colour, S8 outline presence and S8 bold are too noisy; bold text shares its
+//    source size with regular peers, so it keeps their size and changes only the weight).
 // 2. Snap: within a key, sources within 1.08x of a band's first value take the band median.
 // 3. Families: same key, chained while max/min <= 1.22, >= 2 members; a lone block joins the
 //    nearest family of its key within 1.08x. Members share the cap median source x largest cap ratio.
@@ -18,11 +19,10 @@ enum V2Cohort {
 
     struct Key: Hashable {
         var vertical: Bool
-        var bold: Bool
     }
 
     static func key(_ block: V2Block) -> Key {
-        Key(vertical: block.vertical, bold: block.style?.bold ?? false)
+        Key(vertical: block.vertical)
     }
 
     struct Plan {

@@ -65,5 +65,9 @@ enum V2StyleParameters {
     static let outlineWidthRing: Double = 0.49653723604023625
     static let outlineWidthFont: Double = 0.042260916827793475
     static let outlineWidthBias: Double = -0.04776139182973868
-    static let boldStrokeRatio: Double = 9
+    /// Bold when the fill body's ridge width / font and its line-polygon cover both reach these
+    /// (`V2StyleEstimator.boldMeasure`; rule and thresholds from TRAIN-fold CV, `port-eval/bold/bo`).
+    static let boldRidgeRatio: Double = 0.151
+    static let boldLineCover: Double = 0.181
+    static func isBold(_ m: V2StyleEstimator.BoldMeasure) -> Bool { m.ridge >= boldRidgeRatio && m.cover >= boldLineCover }
 }
