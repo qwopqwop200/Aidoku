@@ -16,6 +16,31 @@ enum PipelinePainter {
         if !copyPixels(of: background, into: context) {
             context.draw(background, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
+        render(into: context, space: space, blocks: blocks, placed: placed)
+        return context.makeImage() ?? background
+    }
+
+    /// `paint(background:)` in place over canonical page bytes (`PipelinePageRaster` layout), so no
+    /// second page bitmap is made; the result wraps `pixels` (nil when they do not form an image).
+    static func paint(pixels: inout [UInt8], width: Int, height: Int, blocks: [PipelineBlock],
+                      placed: [PipelinePlacedText]) -> CGImage? {
+        guard width > 0, height > 0, pixels.count == width * height * 4 else { return nil }
+        if !placed.isEmpty, let space = CGColorSpace(name: CGColorSpace.sRGB) {
+            pixels.withUnsafeMutableBytes { bytes in
+                guard let context = CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                              bytesPerRow: width * 4, space: space,
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+                else { return }
+                render(into: context, space: space, blocks: blocks, placed: placed)
+            }
+        }
+        return try? PipelinePageRaster.image(owning: pixels, width: width, height: height)
+    }
+
+    /// Paints `placed` into `context`, which holds the restored page.
+    private static func render(into context: CGContext, space: CGColorSpace, blocks: [PipelineBlock],
+                               placed: [PipelinePlacedText]) {
+        let width = context.width, height = context.height
         let page = CGRect(x: 0, y: 0, width: width, height: height)
         configure(context, height: height, page: page)
         let byID = Dictionary(blocks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -47,7 +72,6 @@ enum PipelinePainter {
         } else {
             for job in jobs { draw(job, metrics: metrics, context: context, page: page) }
         }
-        return context.makeImage() ?? background
     }
 
     private struct Job: @unchecked Sendable {

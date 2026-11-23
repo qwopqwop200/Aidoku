@@ -298,14 +298,11 @@ enum PipelineRemovalMask {
         for i in 0..<frame.pixels where grown[i] != 0 && regions.roi[i] == 0 { ring.append(i) }
         if ring.count < 8 { ring = (0..<frame.pixels).filter { regions.roi[$0] != 0 && regions.poly[$0] == 0 } }
         if ring.count < 8 { ring = (0..<frame.pixels).filter { regions.roi[$0] != 0 } }
-        var channels = [[Float]](repeating: [Float](repeating: 0, count: frame.pixels), count: 3)
-        for y in 0..<h {
-            let source = ((frame.y + y) * width + frame.x) * 4
-            for x in 0..<w {
-                for c in 0..<3 { channels[c][y * w + x] = Float(pixels[source + 4 * x + c]) / 255 }
-            }
+        // Only the ring samples are read: gathered straight from the page, no frame-size channel planes.
+        let m = (0..<3).map { c in
+            var values = ring.map { i in Float(pixels[((frame.y + i / w) * width + frame.x + i % w) * 4 + c]) / 255 }
+            return median(selecting: &values)
         }
-        let m = channels.map { plane in plane.withUnsafeBufferPointer { orderMedian($0.baseAddress!, at: ring) } }
         return (m[0], m[1], m[2])
     }
 
@@ -400,8 +397,13 @@ enum PipelineRemovalMask {
     }
 
     static func orderMedian(_ plane: UnsafePointer<Float>, at indices: [Int]) -> Float {
-        guard !indices.isEmpty else { return 0 }
         var values = gathered(plane, at: indices)
+        return median(selecting: &values)
+    }
+
+    /// The median of `values` (reordered in place); 0 when empty.
+    static func median(selecting values: inout [Float]) -> Float {
+        guard !values.isEmpty else { return 0 }
         return values.withUnsafeMutableBufferPointer { buffer in
             let a = buffer.baseAddress!, c = buffer.count
             select(a, count: c, c / 2)
