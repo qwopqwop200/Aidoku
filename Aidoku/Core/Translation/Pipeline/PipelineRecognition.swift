@@ -73,12 +73,21 @@ final class PipelineRecognitionEngine: @unchecked Sendable {
         configuration.optimizationHints.reshapeFrequency = .frequent
         configuration.optimizationHints.specializationStrategy = .fastPrediction
         configuration.modelDisplayName = "PP-OCRv6 Dynamic Width V2"
-        // Separate loads are separate runtimes; one handle serializes work.
-        let slots = LoadSlots(count: count)
-        DispatchQueue.concurrentPerform(iterations: count) { index in
-            slots.store(index, Result { try MLModel(contentsOf: compiledURL, configuration: configuration) })
+        // Separate loads are separate runtimes; one handle serializes work. All start at once; the
+        // engine is ready after the first `readyCount` (the rest join the pool as they finish).
+        let arrivals = Arrivals(ready: Self.readyHandleCount(count))
+        for _ in 0..<count {
+            DispatchQueue.global(qos: .userInitiated).async {
+                arrivals.arrive(Result {
+                    let model = try MLModel(contentsOf: compiledURL, configuration: configuration)
+                    // Its cold first prediction right away, overlapping the other handles' loads.
+                    try? PipelineRecognition.warmUpSync(model)
+                    return model
+                })
+            }
         }
-        pool = PipelineHandlePool(try slots.models(), idleSeconds: Self.idleSeconds) {
+        let initial = try arrivals.waitForReady()
+        pool = PipelineHandlePool(initial, capacity: count, idleSeconds: Self.idleSeconds) {
             // Same URL and configuration as the initial handles, so a regrown handle reads identically.
             let model: MLModel? = await withCheckedContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
@@ -90,6 +99,17 @@ final class PipelineRecognitionEngine: @unchecked Sendable {
             return model
         }
         handleCount = count
+        arrivals.forward(to: pool)
+    }
+
+    /// Handles the engine waits for before it is ready: all of them on iOS (two or three); on macOS
+    /// at most four of the ten, as the concurrent loads finish one after another.
+    static func readyHandleCount(_ count: Int) -> Int {
+#if os(macOS)
+        min(count, 4)
+#else
+        count
+#endif
     }
 
     static func load(bundle: Bundle = .main) throws -> PipelineRecognitionEngine {
@@ -152,16 +172,60 @@ final class PipelineRecognitionEngine: @unchecked Sendable {
         return characters
     }
 
-    private final class LoadSlots: @unchecked Sendable {
-        private let lock = NSLock()
-        private var results: [Result<MLModel, Error>?]
-        init(count: Int) { results = Array(repeating: nil, count: count) }
-        func store(_ index: Int, _ result: Result<MLModel, Error>) {
-            lock.lock()
-            results[index] = result
-            lock.unlock()
+    /// The initial handle loads: `waitForReady` returns the handles finished once `ready` have
+    /// (throwing the first error among them); each later one joins the pool `forward` names.
+    private final class Arrivals: @unchecked Sendable {
+        private let condition = NSCondition()
+        private let ready: Int
+        private var models: [MLModel] = []
+        private var error: Error?
+        private var finished = 0
+        private var handedOut = false
+        private var late: [MLModel?] = []
+        private var pool: PipelineHandlePool<MLModel>?
+
+        init(ready: Int) { self.ready = ready }
+
+        func arrive(_ result: Result<MLModel, Error>) {
+            condition.lock()
+            guard handedOut else {
+                finished += 1
+                switch result {
+                case .success(let model): models.append(model)
+                case .failure(let failure): if error == nil { error = failure }
+                }
+                condition.broadcast()
+                condition.unlock()
+                return
+            }
+            let model = try? result.get()
+            guard let pool else {
+                late.append(model)
+                condition.unlock()
+                return
+            }
+            condition.unlock()
+            Task { await pool.deliver(model) }
         }
-        func models() throws -> [MLModel] { try results.map { try $0!.get() } }
+
+        func waitForReady() throws -> [MLModel] {
+            condition.lock()
+            defer { condition.unlock() }
+            while finished < ready { condition.wait() }
+            if let error { throw error }
+            handedOut = true
+            defer { models = [] }
+            return models
+        }
+
+        func forward(to pool: PipelineHandlePool<MLModel>) {
+            condition.lock()
+            self.pool = pool
+            let early = late
+            late = []
+            condition.unlock()
+            for model in early { Task { await pool.deliver(model) } }
+        }
     }
 }
 
@@ -185,12 +249,14 @@ actor PipelineHandlePool<Element: AnyObject> {
     private let idleNanoseconds: UInt64?
     private let load: @Sendable () async -> Element?
 
-    init(_ elements: [Element], idleSeconds: Double?, load: @escaping @Sendable () async -> Element?) {
+    /// `capacity` above `elements.count`: that many loads are already in flight, each ending in `deliver`.
+    init(_ elements: [Element], capacity: Int? = nil, idleSeconds: Double?, load: @escaping @Sendable () async -> Element?) {
         precondition(!elements.isEmpty)
         free = elements
-        capacity = elements.count
+        self.capacity = max(elements.count, capacity ?? elements.count)
         resident = elements.count
-        limit = elements.count
+        loading = self.capacity - elements.count
+        limit = self.capacity
         idleNanoseconds = idleSeconds.map { UInt64($0 * 1_000_000_000) }
         self.load = load
     }
@@ -212,9 +278,6 @@ actor PipelineHandlePool<Element: AnyObject> {
         }
         if busy == 0 { becameIdle() }
     }
-
-    /// Free handles right now (the initial warm-up runs before any page checks one out).
-    func freeElements() -> [Element] { free }
 
     /// Down to one handle; `cooldownSeconds` keeps checkouts from regrowing it that long.
     func shrink(cooldownSeconds: Double = 0) {
@@ -239,6 +302,9 @@ actor PipelineHandlePool<Element: AnyObject> {
             }
         }
     }
+
+    /// A load started outside the pool (see `init`) finished; nil when it failed.
+    func deliver(_ element: Element?) { loaded(element) }
 
     private func loaded(_ element: Element?) {
         loading -= 1
@@ -347,20 +413,6 @@ enum PipelineRecognition {
         }
     }
 
-    /// One prediction on every handle: each is a separate runtime whose first prediction costs
-    /// about 0.3 s, which a cold page otherwise pays on every lane.
-    static func warmUp(_ page: PipelinePage, line: PipelineLine, engine: PipelineRecognitionEngine) async throws {
-        guard let frame = NativeOCRCGImageAdapter.makeRGBAFrame(from: page.image), let plan = plan(line.polygon) else {
-            throw PipelineRecognitionEngine.Failure.imageConversionFailed
-        }
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            for model in await engine.pool.freeElements() {
-                group.addTask { _ = try await predict(plan, frame: frame, model: model, engine: engine) }
-            }
-            try await group.waitForAll()
-        }
-    }
-
     /// Legacy crop plan for the full-frame manga policy (dynamic width, publisher width rule,
     /// reading-order quad) on the padded line polygon.
     static func plan(_ polygon: [CGPoint]) -> NativeCoreMLRecognitionPreprocessor.Plan? {
@@ -403,6 +455,14 @@ enum PipelineRecognition {
         guard let plan = plan(polygon) else { return }
         let input = try MLMultiArray(shape: [1, 3, 48, NSNumber(value: plan.bucket.width)], dataType: .float32)
         _ = try await model.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x": MLFeatureValue(multiArray: input)]))
+    }
+
+    /// `warmUp(_:)` for a handle not yet shared (synchronous; on its loading thread).
+    static func warmUpSync(_ model: MLModel) throws {
+        let polygon = [CGPoint(x: 16, y: 50), CGPoint(x: 48, y: 50), CGPoint(x: 48, y: 350), CGPoint(x: 16, y: 350)]
+        guard let plan = plan(polygon) else { return }
+        let input = try MLMultiArray(shape: [1, 3, 48, NSNumber(value: plan.bucket.width)], dataType: .float32)
+        _ = try model.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x": MLFeatureValue(multiArray: input)]))
     }
 
     /// Legacy compact layout: row 0 indices, row 1 scores, then four
