@@ -100,7 +100,8 @@ final class PipelineRFDETRModel: @unchecked Sendable {
         let vertical: Taps
 
         // The legacy kernel's arithmetic and order (horizontal pass per row, then vertical
-        // accumulation from 0); a band's horizontal rows share one scratch buffer.
+        // accumulation from 0), vectorized across channels / output columns only, so every float
+        // is bit-identical; a band's horizontal rows share one scratch buffer.
         func write(rows outputRows: Range<Int>) {
             let side = PipelineRFDETRModel.side, plane = side * side
             guard let firstRow = outputRows.first.map({ vertical.first[$0] }),
@@ -108,42 +109,84 @@ final class PipelineRFDETRModel: @unchecked Sendable {
             let rowCount = lastRow - firstRow
             let scratch = UnsafeMutablePointer<Float>.allocate(capacity: rowCount * 3 * side)
             defer { scratch.deallocate() }
+            // One source row as unit floats (r, g, b, unused): each tap is one SIMD4 multiply then
+            // add, the same per-channel operations in the same order as the scalar legacy kernel.
+            let line = UnsafeMutablePointer<SIMD4<Float>>.allocate(capacity: sourceWidth)
+            defer { line.deallocate() }
             PipelineRFDETRModel.unit.withUnsafeBufferPointer { unitBuffer in
                 horizontal.weights.withUnsafeBufferPointer { weightBuffer in
+                horizontal.first.withUnsafeBufferPointer { firstBuffer in
+                horizontal.count.withUnsafeBufferPointer { countBuffer in
+                horizontal.offset.withUnsafeBufferPointer { offsetBuffer in
                     let unit = unitBuffer.baseAddress!, weights = weightBuffer.baseAddress!
+                    let firsts = firstBuffer.baseAddress!, counts = countBuffer.baseAddress!
+                    let offsets = offsetBuffer.baseAddress!
                     for row in firstRow..<lastRow {
                         let rowBytes = source + row * sourceWidth * 4
+                        var x = 0
+                        let floats = UnsafeMutableRawPointer(line)
+                        while x + 4 <= sourceWidth {
+                            let bytes = UnsafeRawPointer(rowBytes + x * 4).loadUnaligned(as: SIMD16<UInt8>.self)
+                            floats.storeBytes(of: SIMD16<Float>(bytes) / 255, toByteOffset: x * 16, as: SIMD16<Float>.self)
+                            x += 4
+                        }
+                        while x < sourceWidth {
+                            let pixel = rowBytes + x * 4
+                            line[x] = SIMD4(unit[Int(pixel[0])], unit[Int(pixel[1])], unit[Int(pixel[2])], 0)
+                            x += 1
+                        }
                         let resized = scratch + (row - firstRow) * 3 * side
-                        for x in 0..<side {
-                            let tap = weights + horizontal.offset[x]
-                            var pixel = rowBytes + horizontal.first[x] * 4
-                            var red: Float = 0, green: Float = 0, blue: Float = 0
-                            for j in 0..<horizontal.count[x] {
-                                let weight = tap[j]
-                                red += unit[Int(pixel[0])] * weight
-                                green += unit[Int(pixel[1])] * weight
-                                blue += unit[Int(pixel[2])] * weight
-                                pixel += 4
+                        x = 0
+                        while x + 2 <= side {
+                            let tapA = weights + offsets[x], pixelsA = line + firsts[x], countA = counts[x]
+                            let tapB = weights + offsets[x + 1], pixelsB = line + firsts[x + 1], countB = counts[x + 1]
+                            var sumA = SIMD4<Float>(repeating: 0), sumB = SIMD4<Float>(repeating: 0)
+                            let shared = min(countA, countB)
+                            for j in 0..<shared {
+                                sumA += pixelsA[j] * tapA[j]
+                                sumB += pixelsB[j] * tapB[j]
                             }
-                            resized[x] = red
-                            resized[side + x] = green
-                            resized[2 * side + x] = blue
+                            for j in shared..<countA { sumA += pixelsA[j] * tapA[j] }
+                            for j in shared..<countB { sumB += pixelsB[j] * tapB[j] }
+                            resized[x] = sumA[0]; resized[side + x] = sumA[1]; resized[2 * side + x] = sumA[2]
+                            resized[x + 1] = sumB[0]; resized[side + x + 1] = sumB[1]; resized[2 * side + x + 1] = sumB[2]
+                            x += 2
+                        }
+                        while x < side {
+                            let tap = weights + offsets[x], pixels = line + firsts[x]
+                            var sum = SIMD4<Float>(repeating: 0)
+                            for j in 0..<counts[x] { sum += pixels[j] * tap[j] }
+                            resized[x] = sum[0]; resized[side + x] = sum[1]; resized[2 * side + x] = sum[2]
+                            x += 1
                         }
                     }
-                }
+                }}}}
             }
-            for y in outputRows {
-                let first = vertical.first[y], count = vertical.count[y], offset = vertical.offset[y]
-                for channel in 0..<3 {
-                    let target = output + channel * plane + y * side
-                    target.initialize(repeating: 0, count: side)
-                    for j in 0..<count {
-                        let weight = vertical.weights[offset + j]
-                        let pixels = scratch + (first + j - firstRow) * 3 * side + channel * side
-                        for x in 0..<side { target[x] += pixels[x] * weight }
+            // Vertical taps summed in registers from 0, per element in the legacy order.
+            typealias Lanes = SIMD8<Float>
+            vertical.weights.withUnsafeBufferPointer { weightBuffer in
+                for y in outputRows {
+                    let count = vertical.count[y], tap = weightBuffer.baseAddress! + vertical.offset[y]
+                    for channel in 0..<3 {
+                        let target = output + channel * plane + y * side
+                        let rows = scratch + (vertical.first[y] - firstRow) * 3 * side + channel * side
+                        let mean = PipelineRFDETRModel.mean[channel], std = PipelineRFDETRModel.std[channel]
+                        var x = 0
+                        while x + Lanes.scalarCount <= side {
+                            var sum = Lanes(repeating: 0)
+                            for j in 0..<count {
+                                sum += UnsafeRawPointer(rows + j * 3 * side + x).loadUnaligned(as: Lanes.self) * tap[j]
+                            }
+                            UnsafeMutableRawPointer(target + x).storeBytes(of: (sum - mean) / std, as: Lanes.self)
+                            x += Lanes.scalarCount
+                        }
+                        while x < side {
+                            var sum: Float = 0
+                            for j in 0..<count { sum += rows[j * 3 * side + x] * tap[j] }
+                            target[x] = (sum - mean) / std
+                            x += 1
+                        }
                     }
-                    let mean = PipelineRFDETRModel.mean[channel], std = PipelineRFDETRModel.std[channel]
-                    for x in 0..<side { target[x] = (target[x] - mean) / std }
                 }
             }
         }
