@@ -592,6 +592,17 @@ struct V2StageTests {
         #expect(V2RoleFilter.rescuingSpeech([block], layout: [])[0].role == .sfx)
     }
 
+    @Test func shortLatinTextIsPaintedOnlyWhenTheLLMCallsItSpeech() {
+        var block = placedBlock(0, CGRect(x: 0, y: 0, width: 80, height: 40), "안 돼!")
+        block.sourceText = "NO!"
+        block.role = .sfx
+        #expect(V2RoleFilter.keepsSource(block))
+        block.role = .dialogue
+        #expect(!V2RoleFilter.keepsSource(block))
+        block.role = .narration
+        #expect(!V2RoleFilter.keepsSource(block))
+    }
+
     @Test func providerErrorsAndSourceCopiesKeepTheSource() {
         let block = V2Block(id: 3, lines: [], bounds: .zero, polygon: [], vertical: true, readingOrder: 0, sourceText: "SALE")
         let error = V2Translation.apply([block]) { _ in RemoteTranslatedSegment(id: "x", text: "x", textRole: .error) }

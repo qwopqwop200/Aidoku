@@ -34,6 +34,10 @@ struct ReaderTranslationLanguageFilterTests {
         for text in ["¿Qué demonios estás haciendo aquí?", "Je ne vais pas abandonner maintenant !", "Was zum Teufel machst du hier?"] {
             #expect(!ReaderTranslationLanguageFilter.allowsSource(text, settings: settings), "\(text)")
         }
+        // Short Latin lines are translated whatever language they are detected as.
+        for text in ["Obrigado!", "Danke schön", "Merci beaucoup"] {
+            #expect(ReaderTranslationLanguageFilter.allowsModelSource(text), "\(text)")
+        }
     }
 
     @Test func wrongLanguageProviderReplyRetriesAndReplacesOldBatchCache() async throws {

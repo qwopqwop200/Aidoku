@@ -82,7 +82,7 @@ enum ReaderTranslationLanguageFilter {
     static func identity(settings: ReaderTranslationSettings) -> [String]? {
         var language = languageIdentity(settings: settings)
         if settings.usesOCRLanguagePolicy {
-            language = ["ocr-source-manga-v4-ja-zh-en"] + (language ?? [])
+            language = ["ocr-source-manga-v5-ja-zh-en-short-latin"] + (language ?? [])
         }
         if settings.filterBackgroundWithLLM { language = (language ?? []) + [TranslationHTTPCodec.backgroundPolicy] }
         if settings.filterSFXWithLLM { language = (language ?? []) + [TranslationHTTPCodec.sfxPolicy] }
@@ -99,19 +99,26 @@ enum ReaderTranslationLanguageFilter {
         return ["source-filter-v3-excluded-source-ownership", "fixed", source]
     }
 
+    /// Latin-only text shorter than this many letters is translated whatever language it is detected
+    /// as: NaturalLanguage names the wrong Latin language for short English and romanized lines. On the
+    /// 830 GT pages 10-30 is one plateau on train folds (speech wrongly dropped 1 -> 0, dev 1 -> 0,
+    /// test 2 -> 0; `port-eval/langid`); 20 is its middle.
+    static let shortLatinLetters = 20
+
+    private static func isLatin(_ scalar: Unicode.Scalar) -> Bool {
+        (0x41...0x5A).contains(scalar.value) || (0x61...0x7A).contains(scalar.value) || (0xC0...0x24F).contains(scalar.value)
+    }
+
     /// Classify against the complete language set, not just the model's list.
     static func allowsModelSource(_ text: String) -> Bool {
         if isLanguageNeutralSymbols(text) { return true }
+        let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
         if let detected = AutomaticSourceLanguageDetector.detect(text) {
-            return IPhoneOCRSettings.translatedSourceLanguageCodes.contains(detected)
+            if IPhoneOCRSettings.translatedSourceLanguageCodes.contains(detected) { return true }
+            return letters.count < shortLatinLetters && letters.allSatisfy(isLatin)
         }
         // Unclassifiable short text: keep scripts the recognizer can spell (not Hangul/Cyrillic).
-        let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
-        func latin(_ scalar: Unicode.Scalar) -> Bool {
-            (0x41...0x5A).contains(scalar.value) || (0x61...0x7A).contains(scalar.value) ||
-                (0xC0...0x24F).contains(scalar.value)
-        }
-        return !letters.isEmpty && letters.allSatisfy { isKana($0) || isHan($0) || latin($0) }
+        return !letters.isEmpty && letters.allSatisfy { isKana($0) || isHan($0) || isLatin($0) }
     }
 
     /// Punctuation and symbols have no source language to reject.

@@ -177,9 +177,10 @@ enum V2Layout {
 
     static let referenceSize: CGFloat = 100
 
-    /// The legacy overlay face: Apple SD Gothic Neo Medium (Bold for bold lettering).
+    /// The legacy overlay face: Apple SD Gothic Neo Medium; bold lettering takes the Heavy weight so the
+    /// emphasis reads clearly against Medium (Bold was barely distinguishable).
     static func font(size: CGFloat, bold: Bool = false) -> CTFont {
-        CTFontCreateWithName((bold ? "AppleSDGothicNeo-Bold" : "AppleSDGothicNeo-Medium") as CFString, size, nil)
+        CTFontCreateWithName((bold ? "AppleSDGothicNeo-Heavy" : "AppleSDGothicNeo-Medium") as CFString, size, nil)
     }
 
     static func isBold(_ block: V2Block) -> Bool { block.style?.bold ?? false }
