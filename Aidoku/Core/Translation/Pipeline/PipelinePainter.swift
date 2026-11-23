@@ -40,6 +40,23 @@ enum PipelinePainter {
         return context.makeImage() ?? background
     }
 
+    /// `paint(background:)` in place over canonical page bytes (`PipelinePageRaster` layout), so no
+    /// second page bitmap is made; the result wraps `pixels` (nil when they do not form an image).
+    static func paint(pixels: inout [UInt8], width: Int, height: Int, blocks: [PipelineBlock],
+                      placed: [PipelinePlacedText]) -> CGImage? {
+        guard width > 0, height > 0, pixels.count == width * height * 4 else { return nil }
+        if !placed.isEmpty, let space = CGColorSpace(name: CGColorSpace.sRGB) {
+            pixels.withUnsafeMutableBytes { bytes in
+                guard let context = CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                              bytesPerRow: width * 4, space: space,
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+                else { return }
+                draw(blocks: blocks, placed: placed, into: context, space: space)
+            }
+        }
+        return try? PipelinePageRaster.image(owning: pixels, width: width, height: height)
+    }
+
     /// Paints `placed` over the background already in `context` (a fresh bitmap in default state).
     private static func draw(blocks: [PipelineBlock], placed: [PipelinePlacedText], into context: CGContext,
                              space: CGColorSpace) {

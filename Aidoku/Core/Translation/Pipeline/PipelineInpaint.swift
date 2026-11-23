@@ -63,26 +63,29 @@ final class PipelineAOTModel: @unchecked Sendable {
 
     /// Synchronous restore of `removal` (page-sized, nonzero = erase); call through `executor`.
     func restoreImage(_ raster: PipelinePageRaster, removal: [UInt8]) throws -> CGImage {
-        try restoreImage(raster, removal: removal, canvas: Self.canvas(raster, removal: removal))
+        let canvas = try Self.canvas(raster, removal: removal)
+        return try PipelinePageRaster.image(owning: restorePixels(PipelineRasterHandoff(raster), removal: removal, canvas: canvas),
+                                            width: raster.width, height: raster.height)
     }
 
-    /// Restore from a prebuilt `canvas` (nil: `removal` is empty); call through `executor`.
-    func restoreImage(_ raster: PipelinePageRaster, removal: [UInt8], canvas: Canvas?) throws -> CGImage {
-        guard removal.count == raster.width * raster.height else { throw Failure.maskSize }
-        let width = raster.width, height = raster.height
+    /// Restore as canonical page bytes from a prebuilt `canvas` (nil: `removal` is empty). The handoff's
+    /// raster is taken only for the final write, so the restore reuses its bytes when no other stage
+    /// still holds them (else writes a copy), and no page copy is resident while the prediction runs.
+    func restorePixels(_ source: PipelineRasterHandoff, removal: [UInt8], canvas: Canvas?) throws -> [UInt8] {
+        guard let (width, height) = source.size, removal.count == width * height else { throw Failure.maskSize }
         guard let prepared = canvas else {
-            return try PipelinePageRaster.image(raster.rgba.withUnsafeBytes { Data($0) }, width: width, height: height)
+            guard let raster = source.take() else { throw Failure.maskSize }
+            return raster.rgba
         }
         let patch = prepared.patch
         let content = try predict(rgba: prepared.rgba, removal: prepared.mask, width: patch.size.0, height: patch.size.1)
         guard content == patch.size else { throw Failure.modelContract }
-        // The page copy is made only now, so it is not resident while the prediction runs.
-        var data = raster.rgba.withUnsafeBytes { Data($0) }
-        try data.withUnsafeMutableBytes { bytes in
-            try Self.scatter(into: bytes.bindMemory(to: UInt8.self), mask: removal, width: width, height: height,
+        guard var restored = source.take()?.rgba else { throw Failure.maskSize }
+        try restored.withUnsafeMutableBufferPointer { bytes in
+            try Self.scatter(into: bytes, mask: removal, width: width, height: height,
                              raw: output, content: patch.size, region: patch.rect, origin: patch.origin)
         }
-        return try PipelinePageRaster.image(data, width: width, height: height)
+        return restored
     }
 
     /// A page rect (x0, y0, x1, y1; exclusive) drawn at `origin` of the model canvas at `size`.
@@ -366,11 +369,56 @@ enum PipelineInpaint {
 
     /// Restore of `raster` (see `PipelineAOTModel.restoreImage`) as an image, with one page copy.
     static func restoreImage(_ raster: PipelinePageRaster, mask: [UInt8], models: PipelineModels) async throws -> CGImage {
-        guard mask.count == raster.width * raster.height else { throw PipelineAOTModel.Failure.maskSize }
+        try PipelinePageRaster.image(owning: await restorePixels(PipelineRasterHandoff(raster), mask: mask, models: models),
+                                     width: raster.width, height: raster.height)
+    }
+
+    /// `restoreImage` as canonical page bytes (see `PipelineAOTModel.restorePixels`).
+    static func restorePixels(_ source: PipelineRasterHandoff, mask: [UInt8], models: PipelineModels) async throws -> [UInt8] {
+        guard let (width, height) = source.size, mask.count == width * height else { throw PipelineAOTModel.Failure.maskSize }
         // The canvas is instance-free: building it before the hold keeps the instances on predictions.
-        guard let canvas = try PipelineAOTModel.canvas(raster, removal: mask) else { return try raster.image() }
-        return try await models.inpainters.with { model in
-            try await model.executor.run { try model.restoreImage(raster, removal: mask, canvas: canvas) }
+        let canvas: PipelineAOTModel.Canvas?
+        do {
+            guard let raster = source.current else { throw PipelineAOTModel.Failure.maskSize }
+            canvas = try PipelineAOTModel.canvas(raster, removal: mask)
         }
+        guard let canvas else {
+            guard let raster = source.take() else { throw PipelineAOTModel.Failure.maskSize }
+            return raster.rgba
+        }
+        return try await models.inpainters.with { model in
+            try await model.executor.run { try model.restorePixels(source, removal: mask, canvas: canvas) }
+        }
+    }
+}
+
+/// A page raster passed on to its last reader: `take()` hands the bytes over, so S7 restores into
+/// them in place once no other stage holds them, instead of into a page copy.
+final class PipelineRasterHandoff: @unchecked Sendable {
+    private let lock = NSLock()
+    private var raster: PipelinePageRaster?
+    let size: (width: Int, height: Int)?
+
+    init(_ raster: PipelinePageRaster) {
+        self.raster = raster
+        size = (raster.width, raster.height)
+    }
+
+    /// A shared reference for reading (the handoff keeps its own).
+    var current: PipelinePageRaster? { lock.withLock { raster } }
+
+    /// The raster, which the handoff no longer holds.
+    func take() -> PipelinePageRaster? { lock.withLock { defer { raster = nil }; return raster } }
+}
+
+extension PipelinePageRaster {
+    /// Canonical-format image over `bytes` without copying them (the image keeps them alive).
+    static func image(owning bytes: [UInt8], width: Int, height: Int) throws -> CGImage {
+        guard !bytes.isEmpty else { throw Failure.invalidImage }
+        let data = bytes.withUnsafeBytes { raw in
+            Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: raw.baseAddress!), count: raw.count,
+                 deallocator: .custom { _, _ in withExtendedLifetime(bytes) {} })
+        }
+        return try image(data, width: width, height: height)
     }
 }
