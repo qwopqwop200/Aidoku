@@ -60,20 +60,20 @@ struct ReaderTranslationLanguageFilterTests {
         #expect(await client.calls == 2)
     }
 
-    @Test func v2SourceRuleKeepsTheSourceFilterInTheV2CacheIdentity() {
+    @Test func pipelineSourceRuleKeepsTheSourceFilterInThePipelineCacheIdentity() {
         var settings = LanguageFilterFixture().settings
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
         settings.translationSourceLanguages = []
-        let all = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        let all = ReaderTranslationPipelineService.cacheKey(page: "p", crop: unit, settings: settings)
         settings.translationSourceLanguages = ["ja"]
-        let japanese = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        let japanese = ReaderTranslationPipelineService.cacheKey(page: "p", crop: unit, settings: settings)
         settings.translationSourceLanguages = ["ja", "zh"]
-        let han = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        let han = ReaderTranslationPipelineService.cacheKey(page: "p", crop: unit, settings: settings)
         settings.translationSourceLanguages = ["en", "ja"]
-        let latin = ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings)
+        let latin = ReaderTranslationPipelineService.cacheKey(page: "p", crop: unit, settings: settings)
         #expect(Set([all, japanese, han, latin]).count == 4)
         settings.translationSourceLanguages = ["zh", "ja"]
-        #expect(ReaderTranslationV2Service.cacheKey(page: "p", crop: unit, settings: settings) == han)
+        #expect(ReaderTranslationPipelineService.cacheKey(page: "p", crop: unit, settings: settings) == han)
     }
 
     nonisolated static let mixed: [ReaderTranslationRegion] = [

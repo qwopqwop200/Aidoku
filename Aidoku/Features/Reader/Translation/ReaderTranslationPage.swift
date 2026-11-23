@@ -1,7 +1,7 @@
 import UIKit
 
 /// The translation presentation of one reader image view. Every page renders
-/// through V2 (`processV2`): the result is a complete page bitmap attached
+/// through the pipeline (`processPipeline`): the result is a complete page bitmap attached
 /// through the cached-page canvas above the source image.
 @MainActor
 final class ReaderTranslationPage {
@@ -25,13 +25,13 @@ final class ReaderTranslationPage {
     private var diagnosticContext: ReaderTranslationDiagnostics.Context?
     private var generation = UUID()
     private var cachedOverlay: ReaderTranslationCachedPageView?
-    // One fully rendered V2 page bitmap per source image.
-    private var v2Task: Task<Void, Never>?
-    private var v2Identity: String?
-    private weak var v2Source: UIImage?
-    private var v2Failed = false
-    private(set) var isPresentingV2 = false
-    var hasV2Work: Bool { v2Task != nil }
+    // One fully rendered pipeline page bitmap per source image.
+    private var pipelineTask: Task<Void, Never>?
+    private var pipelineIdentity: String?
+    private weak var pipelineSource: UIImage?
+    private var pipelineFailed = false
+    private(set) var isPresentingPipeline = false
+    var hasPipelineWork: Bool { pipelineTask != nil }
 
     /// Live pages, so a page finished by look-ahead attaches before it turns or scrolls into view.
     private static let live = NSHashTable<ReaderTranslationPage>.weakObjects()
@@ -43,29 +43,29 @@ final class ReaderTranslationPage {
         Self.live.add(self)
     }
 
-    deinit { v2Task?.cancel() }
+    deinit { pipelineTask?.cancel() }
 
     func reset() {
         generation = UUID()
-        cancelV2Work()
+        cancelPipelineWork()
         releaseOverlay()
     }
 
     private func releaseOverlay() {
         cachedOverlay?.removeFromSuperview()
         cachedOverlay = nil
-        isPresentingV2 = false
-        if v2Task == nil {
-            v2Identity = nil
-            v2Failed = false
+        isPresentingPipeline = false
+        if pipelineTask == nil {
+            pipelineIdentity = nil
+            pipelineFailed = false
         }
     }
 
-    /// Only a presented V2 page bitmap can be saved; it is the finished page.
-    var canExportTranslation: Bool { isPresentingV2 && cachedOverlay?.snapshotImage != nil }
+    /// Only a presented pipeline page bitmap can be saved; it is the finished page.
+    var canExportTranslation: Bool { isPresentingPipeline && cachedOverlay?.snapshotImage != nil }
 
     func exportTranslatedImage() throws -> UIImage {
-        guard isPresentingV2, let snapshot = cachedOverlay?.snapshotImage else {
+        guard isPresentingPipeline, let snapshot = cachedOverlay?.snapshotImage else {
             throw ReaderTranslationImageExporter.ExportError.unavailable
         }
         return snapshot
@@ -74,8 +74,8 @@ final class ReaderTranslationPage {
     /// Called inside the loader's synchronous source + presentation commit.
     func displayLoadedImage(_ prepared: ReaderTranslationPreparedImage) {
         guard !Task.isCancelled, let source = imageView?.image, prepared.isCurrent(for: source),
-              let key = prepared.v2CacheKey else { return }
-        displayLoadedV2(prepared.image, key: key, source: source, settings: prepared.settings)
+              let key = prepared.pipelineCacheKey else { return }
+        displayLoadedPipeline(prepared.image, key: key, source: source, settings: prepared.settings)
     }
 
     private func displaySnapshot(_ snapshot: UIImage, settings: ReaderTranslationSettings) {
@@ -98,94 +98,94 @@ final class ReaderTranslationPage {
     }
 }
 
-// MARK: - V2 pipeline presentation
+// MARK: - Pipeline presentation
 
 extension ReaderTranslationPage {
-    /// Starts (or keeps) V2 translation of the displayed image. Repeated calls for the same
-    /// source and identity are free, and a failure is not retried until `retryV2()`.
-    func processV2(settings: ReaderTranslationSettings, persistsCache: Bool,
+    /// Starts (or keeps) pipeline translation of the displayed image. Repeated calls for the same
+    /// source and identity are free, and a failure is not retried until `retryPipeline()`.
+    func processPipeline(settings: ReaderTranslationSettings, persistsCache: Bool,
                    onPresented: @escaping @MainActor () -> Void,
                    onFailure: @escaping @MainActor (Error) -> Void) {
         guard #available(iOS 18.0, *), let imageView, let image = imageView.image, let sourcePage else { return }
         let crop = sourcePage.translationSourceRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
-        let key = ReaderTranslationV2Service.cacheKey(page: sourcePage.translationCacheKey, crop: crop, settings: settings)
-        if v2Identity == key, v2Source === image {
-            if isPresentingV2 {
+        let key = ReaderTranslationPipelineService.cacheKey(page: sourcePage.translationCacheKey, crop: crop, settings: settings)
+        if pipelineIdentity == key, pipelineSource === image {
+            if isPresentingPipeline {
                 cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
                 // Already translated when it became visible (cache or look-ahead): no wait.
-                ReaderTranslationDiagnostics.record("v2_visible_ready", page: sourcePage.index + 1, elapsedMilliseconds: 0, outcome: 2)
+                ReaderTranslationDiagnostics.record("pipeline_visible_ready", page: sourcePage.index + 1, elapsedMilliseconds: 0, outcome: 2)
             }
             return
         }
         begin(key: key, source: image)
         let issued = generation
         let visibleStart = ProcessInfo.processInfo.systemUptime
-        v2Task = Task { [weak self] in
+        pipelineTask = Task { [weak self] in
             do {
                 let pixels = await Task.detached(priority: .userInitiated) {
                     ReaderTranslationImagePreparation.uprightSourceImage(image).cgImage
                 }.value
                 try Task.checkCancellation()
                 guard let pixels else { throw NativeCoreMLDetectorError.imageConversionFailed }
-                let output = try await ReaderTranslationV2Service.shared.translatePage(
+                let output = try await ReaderTranslationPipelineService.shared.translatePage(
                     pixels, cacheKey: key, persists: persistsCache, settings: settings, priority: .foreground)
                 try Task.checkCancellation()
-                guard let self, generation == issued, v2Identity == key, self.imageView?.image === image else { return }
-                v2Task = nil
+                guard let self, generation == issued, pipelineIdentity == key, self.imageView?.image === image else { return }
+                pipelineTask = nil
                 if let timings = output.timings {
-                    ReaderTranslationDiagnostics.record("v2_page", page: sourcePage.index + 1,
-                        elapsedMilliseconds: timings.stages[V2Pipeline.Stage.nonLLM])
+                    ReaderTranslationDiagnostics.record("pipeline_page", page: sourcePage.index + 1,
+                        elapsedMilliseconds: timings.stages[TranslationPipeline.Stage.nonLLM])
                     for (stage, ms) in timings.stages {
-                        ReaderTranslationDiagnostics.record("v2s_" + stage, page: sourcePage.index + 1, elapsedMilliseconds: ms)
+                        ReaderTranslationDiagnostics.record("stage_" + stage, page: sourcePage.index + 1, elapsedMilliseconds: ms)
                     }
                 }
                 // Visible request to presented bitmap: the wait a reader actually sees (0 work = cache/look-ahead join).
-                ReaderTranslationDiagnostics.record("v2_visible_ready", page: sourcePage.index + 1,
+                ReaderTranslationDiagnostics.record("pipeline_visible_ready", page: sourcePage.index + 1,
                     elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - visibleStart) * 1000,
                     outcome: output.timings == nil ? 1 : 0)
-                displayV2(UIImage(cgImage: output.image, scale: image.scale, orientation: .up), source: image, settings: settings)
+                displayPipeline(UIImage(cgImage: output.image, scale: image.scale, orientation: .up), source: image, settings: settings)
                 onPresented()
             } catch {
-                guard let self, generation == issued, v2Identity == key else { return }
-                v2Task = nil
-                guard !(error is CancellationError) else { v2Identity = nil; return }
-                v2Failed = true
+                guard let self, generation == issued, pipelineIdentity == key else { return }
+                pipelineTask = nil
+                guard !(error is CancellationError) else { pipelineIdentity = nil; return }
+                pipelineFailed = true
                 onFailure(error)
             }
         }
     }
 
-    /// Cancels in-flight V2 work for a page leaving the viewport. A finished
+    /// Cancels in-flight pipeline work for a page leaving the viewport. A finished
     /// presentation stays attached; unfinished work restarts when visible again.
-    func cancelV2Work() {
-        guard let v2Task else { return }
-        v2Task.cancel()
-        self.v2Task = nil
-        if !isPresentingV2, !v2Failed { v2Identity = nil }
+    func cancelPipelineWork() {
+        guard let pipelineTask else { return }
+        pipelineTask.cancel()
+        self.pipelineTask = nil
+        if !isPresentingPipeline, !pipelineFailed { pipelineIdentity = nil }
     }
 
-    /// Removes the V2 presentation and any pending V2 work.
-    func hideV2() {
-        guard isPresentingV2 || v2Task != nil || v2Identity != nil else { return }
+    /// Removes the pipeline presentation and any pending pipeline work.
+    func hidePipeline() {
+        guard isPresentingPipeline || pipelineTask != nil || pipelineIdentity != nil else { return }
         reset()
-        v2Identity = nil
-        v2Failed = false
+        pipelineIdentity = nil
+        pipelineFailed = false
     }
 
-    func retryV2() {
-        guard v2Failed else { return }
-        v2Failed = false
-        v2Identity = nil
+    func retryPipeline() {
+        guard pipelineFailed else { return }
+        pipelineFailed = false
+        pipelineIdentity = nil
     }
 
-    /// A cached V2 bitmap attached in the loader's source commit; a later `processV2` is then free.
-    private func displayLoadedV2(_ output: UIImage, key: String, source: UIImage, settings: ReaderTranslationSettings) {
-        if isPresentingV2, v2Identity == key, v2Source === source {
+    /// A cached pipeline bitmap attached in the loader's source commit; a later `processPipeline` is then free.
+    private func displayLoadedPipeline(_ output: UIImage, key: String, source: UIImage, settings: ReaderTranslationSettings) {
+        if isPresentingPipeline, pipelineIdentity == key, pipelineSource === source {
             cachedOverlay?.setPresentationHidden(!settings.overlay.visible)
             return
         }
         begin(key: key, source: source)
-        displayV2(output, source: source, settings: settings)
+        displayPipeline(output, source: source, settings: settings)
     }
 
     /// Attaches a page that finished elsewhere (look-ahead) to every live view showing its source,
@@ -194,19 +194,19 @@ extension ReaderTranslationPage {
         guard #available(iOS 18.0, *) else { return }
         finishedGeneration &+= 1
         for page in live.allObjects {
-            // A page with its own V2 task joins the same computation and presents it itself.
-            guard page.v2Task == nil, !(page.isPresentingV2 && page.v2Identity == key),
+            // A page with its own pipeline task joins the same computation and presents it itself.
+            guard page.pipelineTask == nil, !(page.isPresentingPipeline && page.pipelineIdentity == key),
                   let source = page.imageView?.image, let sourcePage = page.sourcePage, fits(output, source: source),
-                  ReaderTranslationV2Service.cacheKey(page: sourcePage.translationCacheKey,
+                  ReaderTranslationPipelineService.cacheKey(page: sourcePage.translationCacheKey,
                       crop: sourcePage.translationSourceRect ?? ReaderTranslationSplitGeometry.unit, settings: settings) == key
             else { continue }
-            ReaderTranslationDiagnostics.record("v2_lookahead_attached", page: sourcePage.index + 1)
-            page.displayLoadedV2(UIImage(cgImage: output, scale: source.scale, orientation: .up),
+            ReaderTranslationDiagnostics.record("pipeline_lookahead_attached", page: sourcePage.index + 1)
+            page.displayLoadedPipeline(UIImage(cgImage: output, scale: source.scale, orientation: .up),
                                  key: key, source: source, settings: settings)
         }
     }
 
-    /// A V2 bitmap is the upright source: it must match the source's pixel size.
+    /// A pipeline bitmap is the upright source: it must match the source's pixel size.
     static func fits(_ output: CGImage, source image: UIImage) -> Bool {
         let upright = [.up, .upMirrored, .down, .downMirrored].contains(image.imageOrientation)
         let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
@@ -216,17 +216,17 @@ extension ReaderTranslationPage {
 
     private func begin(key: String, source: UIImage) {
         reset()
-        v2Identity = key
-        v2Source = source
-        v2Failed = false
+        pipelineIdentity = key
+        pipelineSource = source
+        pipelineFailed = false
     }
 
-    private func displayV2(_ output: UIImage, source: UIImage, settings: ReaderTranslationSettings) {
-        let identity = v2Identity
+    private func displayPipeline(_ output: UIImage, source: UIImage, settings: ReaderTranslationSettings) {
+        let identity = pipelineIdentity
         displaySnapshot(output, settings: settings)
-        v2Identity = identity
-        v2Source = source
-        isPresentingV2 = true
+        pipelineIdentity = identity
+        pipelineSource = source
+        isPresentingPipeline = true
     }
 }
 

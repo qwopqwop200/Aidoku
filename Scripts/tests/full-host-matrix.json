@@ -28,14 +28,14 @@
       ]
     },
     {
-      "name": "maintained-host: V2 host .env/shell/CLI settings resolution and phone import",
+      "name": "maintained-host: pipeline host .env/shell/CLI settings resolution and phone import",
       "command": [
         "$PYTHON",
         "Scripts/tests/run-image-environment-smoke.py"
       ]
     },
     {
-      "name": "maintained-host: V2 host OCR-only, live mock provider, replay, ordering and credential exclusion",
+      "name": "maintained-host: pipeline host OCR-only, live mock provider, replay, ordering and credential exclusion",
       "command": [
         "$PYTHON",
         "Scripts/tests/run-image-translation-smoke.py"
@@ -71,6 +71,6 @@
     }
   ],
   "notes": [
-    "Host tooling and V2 host checks, plus OCR/translation contracts over files the V2 pipeline compiles."
+    "Host tooling and pipeline host checks, plus OCR/translation contracts over files the pipeline compiles."
   ]
 }

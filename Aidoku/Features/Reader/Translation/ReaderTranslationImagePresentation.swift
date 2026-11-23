@@ -6,8 +6,8 @@ import UIKit
 struct ReaderTranslationPreparedImage {
     let image: UIImage
     let settings: ReaderTranslationSettings
-    /// Set for a cached V2 page bitmap: the V2 cache key it was stored under.
-    var v2CacheKey: String? = nil
+    /// Set for a cached pipeline page bitmap: the pipeline cache key it was stored under.
+    var pipelineCacheKey: String? = nil
     var isCurrent: @MainActor () -> Bool = { true }
     var matchesSourceImage: @MainActor (UIImage) -> Bool = { _ in true }
 

@@ -89,7 +89,7 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    private var concurrencyChoices: [Int] { Array(1...V2PerformanceProfile.current.providerConcurrencyCap) }
+    private var concurrencyChoices: [Int] { Array(1...PipelinePerformanceProfile.current.providerConcurrencyCap) }
 
     // Shows the effective value; larger saved values are capped by the device anyway.
     private var concurrency: Binding<Int> {
@@ -145,7 +145,7 @@ struct ReaderTranslationSettingsView: View {
                     do {
                         try await ReaderTranslationDiskCache.shared.clear()
                         try await ReaderTranslationService.shared.clearCache()
-                        if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.clearMemory() }
+                        if #available(iOS 18.0, *) { await ReaderTranslationPipelineService.shared.clearMemory() }
                         cachedBytes = (try? await ReaderTranslationDiskCache.shared.statistics().bytes) ?? 0
                         message = NSLocalizedString("TRANSLATION_CACHE_CLEARED")
                     } catch { message = error.localizedDescription }

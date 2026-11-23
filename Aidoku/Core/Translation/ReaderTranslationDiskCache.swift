@@ -198,12 +198,12 @@ actor ReaderTranslationDiskCache {
 
     static let legacyPipelinePurgeMarker = "legacy-pipeline-purge-v1"
 
-    /// V2 page rows (layout JPEGs, translation block JSON) survive the legacy purge.
-    static func isV2PageRow(kind: Kind, unpacked data: Data, linkedToRegionBase: Bool) -> Bool {
+    /// Pipeline page rows (layout JPEGs, translation block JSON) survive the legacy purge.
+    static func isPipelinePageRow(kind: Kind, unpacked data: Data, linkedToRegionBase: Bool) -> Bool {
         guard !linkedToRegionBase else { return false }
         switch kind {
         case .layout: return data.starts(with: [0xFF, 0xD8, 0xFF])
-        case .translation: return (try? JSONDecoder().decode([V2Block].self, from: data)) != nil
+        case .translation: return (try? JSONDecoder().decode([PipelineBlock].self, from: data)) != nil
         case .metadata: return true
         case .ocr, .snapshot: return false
         }
@@ -224,7 +224,7 @@ actor ReaderTranslationDiskCache {
             cursor = row.name
             let kind = Kind.allCases.first { row.name.hasPrefix($0.rawValue + "-") } ?? .ocr
             let unpacked = (try? ReaderTranslationCacheCodec.unpack(row.data)) ?? Data()
-            if !Self.isV2PageRow(kind: kind, unpacked: unpacked, linkedToRegionBase: row.linked) {
+            if !Self.isPipelinePageRow(kind: kind, unpacked: unpacked, linkedToRegionBase: row.linked) {
                 try database.delete(row.name)
                 deleted += 1
             }
@@ -245,7 +245,7 @@ actor ReaderTranslationDiskCache {
         guard let database else { return }
         var cursor = ""
         var processed = 0
-        // Rows that are not legacy region JSON (V2 blocks, "[]") never convert; scan once, not every launch.
+        // Rows that are not legacy region JSON (pipeline blocks, "[]") never convert; scan once, not every launch.
         let regionsUpgraded = try database.hasMarker("region-archive-v1")
         while !regionsUpgraded,
               let row = try database.nextRow("SELECT name,data FROM cache WHERE name>? AND (name LIKE 'ocr-%' OR name LIKE 'translation-%' "

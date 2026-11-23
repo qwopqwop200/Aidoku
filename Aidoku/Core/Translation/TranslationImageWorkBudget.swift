@@ -11,7 +11,7 @@ final class TranslationImageWorkBudget: Sendable {
 
     enum AdmissionError: Error { case insufficientMemory, imageTooLarge }
 
-    /// Reclaims page caches first, then the resident V2 models only if headroom is still
+    /// Reclaims page caches first, then the resident pipeline models only if headroom is still
     /// short; each step rechecks so queued recoveries do not evict warm resources again.
     /// Returns whether the models were purged.
     static func reclaimIdleResources(requiredHeadroom: UInt64) async -> Bool {
@@ -23,16 +23,16 @@ final class TranslationImageWorkBudget: Sendable {
                 ReaderTranslationDiagnostics.record("memory_reclaim_begin")
                 defer { ReaderTranslationDiagnostics.record("memory_reclaim_end") }
                 await MainActor.run { ImagePipeline.shared.configuration.imageCache?.removeAll() }
-                if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.clearMemory() }
+                if #available(iOS 18.0, *) { await ReaderTranslationPipelineService.shared.clearMemory() }
                 guard short() else { return false }
-                if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.releaseModels() }
+                if #available(iOS 18.0, *) { await ReaderTranslationPipelineService.shared.releaseModels() }
                 return true
             }
         } catch { return false } // A cancelled waiter must not evict resources.
     }
 
     static func requiredHeadroom(decodedBytes: UInt64) -> UInt64 {
-        V2PerformanceProfile.current.requiredHeadroom(decodedBytes: decodedBytes)
+        PipelinePerformanceProfile.current.requiredHeadroom(decodedBytes: decodedBytes)
     }
 
     static func decodedBytes(in data: Data) -> UInt64 {
@@ -80,7 +80,7 @@ final class TranslationImageWorkBudget: Sendable {
                 }
             } catch AdmissionError.insufficientMemory {
                 try Task.checkCancellation()
-                // Caches go first; V2 models only once caches alone were insufficient.
+                // Caches go first; pipeline models only once caches alone were insufficient.
                 if !purgedModels { purgedModels = await Self.reclaimIdleResources(requiredHeadroom: required) }
                 try Task.checkCancellation()
                 // Re-enter the priority-aware gate at once after a successful reclamation.

@@ -109,7 +109,7 @@ class ReaderWebtoonPageNode: BaseObservingCellNode {
                     return false
                 }
                 self.translationPage?.displayLoadedImage(prepared)
-            } else if let page = self.translationPage, !page.isPresentingV2, !page.hasV2Work,
+            } else if let page = self.translationPage, !page.isPresentingPipeline, !page.hasPipelineWork,
                       self.preparedGeneration != ReaderTranslationPage.finishedGeneration {
                 // The view loaded after a cache miss and a page finished since: attach it if it is this one.
                 self.attachFinishedPage(image)
@@ -696,7 +696,7 @@ extension ReaderWebtoonPageNode {
         Task { @MainActor [weak self, page = self.page] in
             guard let prepared = try? await self?.delegate?.delegate?.prepareCachedTranslationForDisplay(image: image, page: page),
                   let self, issued == pageLoadGeneration, self.image === image, preparedTranslation == nil,
-                  let translationPage = _translationPage, !translationPage.isPresentingV2, !translationPage.hasV2Work
+                  let translationPage = _translationPage, !translationPage.isPresentingPipeline, !translationPage.hasPipelineWork
             else { return }
             preparedTranslation = prepared
             translationPage.displayLoadedImage(prepared)

@@ -104,6 +104,6 @@ class TestPlanScopeTests(unittest.TestCase):
         self.assertFalse(set(selected) - declarations)
         self.assertNotIn('ReaderMixedNetworkABTests', selected)
         self.assertNotIn('NativeOCRRecognitionPerformanceTests', selected)
-        self.assertIn('V2ReaderPipelineTests', selected)
+        self.assertIn('ReaderPipelineTests', selected)
         self.assertIn('TranslationHTTPCodecTests', selected)
         self.assertIn('SourcePaginationTests', selected)

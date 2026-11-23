@@ -15,9 +15,9 @@ enum ReaderTranslationLanguageFilter {
         (0x3400...0x9FFF).contains(scalar.value) || (0x20000...0x323AF).contains(scalar.value)
     }
 
-    /// A Japanese sentence re-punctuated by the provider is not a Korean translation (`V2ReplyText`).
+    /// A Japanese sentence re-punctuated by the provider is not a Korean translation (`PipelineReplyText`).
     static func isUntranslatedJapaneseReply(source: String, translation: String, target: String) -> Bool {
-        V2ReplyText.isUntranslatedJapaneseReply(source: source, translation: translation, target: canonical(target))
+        PipelineReplyText.isUntranslatedJapaneseReply(source: source, translation: translation, target: canonical(target))
     }
 
     /// Completed-provider check; classifier-preserved effects keep their existing policy.
@@ -56,7 +56,7 @@ enum ReaderTranslationLanguageFilter {
         let language: String
     }
 
-    /// The same text is rechecked (V2 paint prediction and request; metadata lookup and `apply`).
+    /// The same text is rechecked (pipeline paint prediction and request; metadata lookup and `apply`).
     private static let targetLanguageCache = LanguageDetectionLRUCache<TargetLanguageKey, Bool>(capacity: 512)
 
     private static func isConfidentlyUnmixed(_ text: String, language: String) -> Bool {
@@ -144,12 +144,12 @@ enum ReaderTranslationLanguageFilter {
             AutomaticSourceLanguageDetector.allowsOCRText(text, configuredSourceLanguage: source, automaticLanguageFilter: languages))
     }
 
-    /// V2 cache identity of `allowsV2Source` (manga recognizer, shared-Han recall).
-    static let v2SourcePolicy = "v2-source-filter-v3-manga-latin-shared-han"
+    /// Cache identity of `allowsPipelineSource` (manga recognizer, shared-Han recall).
+    static let pipelineSourcePolicy = "v2-source-filter-v3-manga-latin-shared-han"
 
     /// The legacy rule, plus Han-only text (which NaturalLanguage cannot split
     /// between Japanese and Chinese) whenever any Han-script language is allowed.
-    static func allowsV2Source(_ text: String, settings: ReaderTranslationSettings) -> Bool {
+    static func allowsPipelineSource(_ text: String, settings: ReaderTranslationSettings) -> Bool {
         if allowsSource(text, settings: settings) { return true }
         let letters = text.unicodeScalars.filter { $0.properties.isAlphabetic }
         guard !letters.isEmpty, letters.allSatisfy({ isHan($0) || (0xF900...0xFAFF).contains($0.value) }) else { return false }

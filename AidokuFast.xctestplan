@@ -60,9 +60,9 @@
           { "name" : "TranslationHTTPCodecTests" },
           { "name" : "TranslationServiceCacheTests" },
           { "name" : "TranslationStreamingTests" },
-          { "name" : "V2PaidRequestTests" },
-          { "name" : "V2ReaderPipelineTests" },
-          { "name" : "V2StageTests" }
+          { "name" : "PipelinePaidRequestTests" },
+          { "name" : "ReaderPipelineTests" },
+          { "name" : "PipelineStageTests" }
         ]
       },
       "target" : {

@@ -101,7 +101,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
         try await detect(providedFrame: nil, image: image, configuration: configuration)
     }
 
-    /// Geometry-only detection from caller-owned pixels (V2 shares one frame with recognition).
+    /// Geometry-only detection from caller-owned pixels (the pipeline shares one frame with recognition).
     func detectGeometry(
         frame: NativeOCRRGBAFrame,
         configuration: NativeCoreMLDBPostprocessConfiguration = .manga

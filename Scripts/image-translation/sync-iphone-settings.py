@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Copy the installed app's provider/language settings from iPhone into the local ignored .env.
-The existing API key stays in .env; Keychain is never read or modified. The V2 host
-(swift Scripts/image-translation.swift) reads these values; V2 has no OCR or overlay settings.
+The existing API key stays in .env; Keychain is never read or modified. The pipeline host
+(swift Scripts/image-translation.swift) reads these values; pipeline has no OCR or overlay settings.
 """
 import argparse
 from datetime import datetime, timezone
@@ -20,7 +20,7 @@ RETIRED = ('AIDOKU_OCR_', 'AIDOKU_IPHONE_OVERLAY_JSON', 'AIDOKU_IPHONE_SCHEDULIN
 
 
 def profile(prefs):
-    """Provider and language settings the V2 host reads (Scripts/image-translation-v2/V2HostSettings.swift)."""
+    """Provider and language settings the pipeline host reads (Scripts/image-translation-host/PipelineHostSettings.swift)."""
     def get(name, default=None):
         value = prefs.get(PREFIX + name, default)
         return json.loads(value) if isinstance(value, bytes) else value

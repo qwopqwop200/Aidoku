@@ -294,7 +294,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
         ImagePipeline.shared.configuration.imageCache?.removeAll()
-        if #available(iOS 18.0, *) { Task { await ReaderTranslationV2Service.shared.clearMemory() } }
+        if #available(iOS 18.0, *) { Task { await ReaderTranslationPipelineService.shared.clearMemory() } }
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

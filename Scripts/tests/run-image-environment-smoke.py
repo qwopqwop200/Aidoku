@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""V2 host .env and settings resolution: the real V2HostSettings.swift and production
+"""pipeline host .env and settings resolution: the real PipelineHostSettings.swift and production
 translation model types, compiled standalone. No model, image decode or network call."""
 import json
 import os
@@ -10,7 +10,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 TRANSLATION = ROOT / 'Aidoku/Core/Translation/NativeEngine/Translation'
-SOURCES = [ROOT / 'Scripts/image-translation-v2/V2HostSettings.swift',
+SOURCES = [ROOT / 'Scripts/image-translation-host/PipelineHostSettings.swift',
            ROOT / 'Aidoku/Extensions/Foundation/NSLocalizedString.swift'] + [
     TRANSLATION / f'{name}.swift' for name in (
         'TranslationModels', 'TranslationEndpointPolicy', 'TranslationHTTPCodec', 'TranslationImageSupport',
@@ -21,8 +21,8 @@ import Foundation
     static func main() {
         do {
             let root = URL(fileURLWithPath: CommandLine.arguments[1])
-            let environment = try V2DotEnv.merged(root: root, environment: ProcessInfo.processInfo.environment)
-            let settings = try V2HostSettings.parse(Array(CommandLine.arguments.dropFirst(2)),
+            let environment = try PipelineDotEnv.merged(root: root, environment: ProcessInfo.processInfo.environment)
+            let settings = try PipelineHostSettings.parse(Array(CommandLine.arguments.dropFirst(2)),
                                                     environment: environment, root: root)
             var value = settings.describe()
             // Exposes only whether the resolved key equals the fixture, never the key itself.
@@ -136,7 +136,7 @@ with tempfile.TemporaryDirectory(prefix='aidoku-env-') as temporary:
     assert run(['--ocr-only', '--limit', '1', folder])['images'] == [{'pageID': 'a', 'path': str(folder / 'a.jpg')}]
     assert 'does not exist' in run(['--ocr-only', profile / 'missing.png'], expected=2)
 
-# The phone import keeps only settings the V2 host reads and never touches the key.
+# The phone import keeps only settings the pipeline host reads and never touches the key.
 profile = runpy.run_path(str(ROOT / 'Scripts/image-translation/sync-iphone-settings.py'))['profile']
 imported = profile({
     'Reader.translation.provider': 'custom',

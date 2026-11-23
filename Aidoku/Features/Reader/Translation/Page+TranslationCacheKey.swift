@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// The stable page identity behind V2 cache keys and look-ahead bookkeeping.
+/// The stable page identity behind pipeline cache keys and look-ahead bookkeeping.
 extension Page {
     var translationCacheKey: String {
         if let translationOriginalKey { return translationOriginalKey }

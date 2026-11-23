@@ -7,13 +7,13 @@ import UniformTypeIdentifiers
 enum DownloadImageTranslator {
     private static let pipelineGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 2)
 
-    /// Pages in the V2 pipeline at once: enough to keep all but one provider slot busy (the one
+    /// Pages in the pipeline at once: enough to keep all but one provider slot busy (the one
     /// left serves the reader), never fewer than 2. Waiting pages hold no pixels.
     nonisolated static func pipelineWidth(settings: ReaderTranslationSettings) -> Int {
-        max(2, V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests) - 1)
+        max(2, PipelinePerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests) - 1)
     }
 
-    /// The reader's V2 cache key for `page` (whole page), when the reader translates the same raster:
+    /// The reader's pipeline cache key for `page` (whole page), when the reader translates the same raster:
     /// no reader image processors or source page processing, a remote URL or base64 page, and not a
     /// temporary shared-image session (never persisted). Nil translates without the cache.
     nonisolated static func readerCacheKey(
@@ -28,7 +28,7 @@ enum DownloadImageTranslator {
         } else if page.base64 == nil {
             return nil
         }
-        return ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: ReaderTranslationSplitGeometry.unit,
+        return ReaderTranslationPipelineService.cacheKey(page: page.translationCacheKey, crop: ReaderTranslationSplitGeometry.unit,
                                                    settings: settings)
     }
 
@@ -60,7 +60,7 @@ enum DownloadImageTranslator {
         return try await encode(output)
     }
 
-    /// The V2 page pipeline: the rendered page needs no reader host or overlay renderer. With the
+    /// The page pipeline: the rendered page needs no reader host or overlay renderer. With the
     /// reader's key, stored translations are replayed (no provider call, pixels as a fresh
     /// translation) and new results are stored for the reader.
     private nonisolated static func translateAdmitted(
@@ -72,7 +72,7 @@ enum DownloadImageTranslator {
             ? cacheKey : nil
         let image = try await decode(data)
         guard let pixels = image.cgImage else { throw ReaderTranslationImageExporter.ExportError.unavailable }
-        let output = try await ReaderTranslationV2Service.shared.translatePage(
+        let output = try await ReaderTranslationPipelineService.shared.translatePage(
             pixels, cacheKey: key, settings: settings, priority: .prefetch, reusesImage: false)
         try Task.checkCancellation()
         return output.image

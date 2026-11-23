@@ -8,14 +8,14 @@ protocol ReaderTranslationOwner: AnyObject {
     var translationPreviewPages: [ReaderTranslationPage] { get }
     var translationChapterKey: String { get }
     var translationCurrentPageIndex: Int { get }
-    var translationReadingDirection: V2ReadingDirection { get }
+    var translationReadingDirection: PipelineReadingDirection { get }
     var translationPersistsCache: Bool { get }
     func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout
 }
 
 extension ReaderViewController: ReaderTranslationOwner {
     var translationPersistsCache: Bool { !isTemporaryImageSession }
-    var translationReadingDirection: V2ReadingDirection {
+    var translationReadingDirection: PipelineReadingDirection {
         switch readingMode {
         case .rtl: .rightToLeft
         case .ltr: .leftToRight
@@ -91,8 +91,8 @@ struct ReaderTranslationLookaheadPace {
 }
 
 /// Reader page translation: every visible page renders through
-/// `ReaderTranslationV2Service`, and the next
-/// pages are pre-translated into the V2 caches.
+/// `ReaderTranslationPipelineService`, and the next
+/// pages are pre-translated into the pipeline caches.
 @MainActor
 final class ReaderTranslationCoordinator {
     private weak var owner: (any ReaderTranslationOwner)?
@@ -112,15 +112,15 @@ final class ReaderTranslationCoordinator {
     private var initialSynchronizationPending = true
     private var isScrubbing = false
     private var navigationDebounce = ReaderTranslationNavigationDebounce()
-    private let v2Pages = NSHashTable<ReaderTranslationPage>.weakObjects()
-    /// V2 look-ahead consumers by the whole-page V2 cache key (pages after the viewport).
-    private var v2Lookahead: [String: Task<Void, Never>] = [:]
+    private let pipelinePages = NSHashTable<ReaderTranslationPage>.weakObjects()
+    /// Look-ahead consumers by the whole-page pipeline cache key (pages after the viewport).
+    private var pipelineLookahead: [String: Task<Void, Never>] = [:]
     /// Look-ahead keys already translated in this session, so synchronization never re-decodes them.
-    private var v2LookaheadFinished: Set<String> = []
+    private var pipelineLookaheadFinished: Set<String> = []
     private var lookaheadPace = ReaderTranslationLookaheadPace()
     /// Pages ahead chosen by the last look-ahead update; a turn keeps work within it.
-    private var v2LookaheadCount = 0
-    private let v2Loader: ReaderTranslationImageLoader
+    private var pipelineLookaheadCount = 0
+    private let pipelineLoader: ReaderTranslationImageLoader
 
     private struct ScrollVisibility: Equatable {
         struct PageState: Equatable {
@@ -142,7 +142,7 @@ final class ReaderTranslationCoordinator {
     }
 
     init(owner: any ReaderTranslationOwner, temporaryPageStore: ReaderTemporaryPageStore) {
-        self.v2Loader = ReaderTranslationImageLoader(temporaryStore: temporaryPageStore)
+        self.pipelineLoader = ReaderTranslationImageLoader(temporaryStore: temporaryPageStore)
         self.owner = owner
         for name in [ReaderTranslationPage.sourceImageReady, ReaderTranslationSettings.changed,
                      ReaderTranslationPage.imageChanged, UIApplication.didBecomeActiveNotification] {
@@ -157,7 +157,7 @@ final class ReaderTranslationCoordinator {
             forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
         ) { [weak self] _ in
             // Visible pages keep their work; offscreen look-ahead restarts later.
-            Task { @MainActor in self?.cancelV2Lookahead() }
+            Task { @MainActor in self?.cancelPipelineLookahead() }
         })
     }
 
@@ -171,7 +171,7 @@ final class ReaderTranslationCoordinator {
         }
         failureNoticeTask?.cancel()
         synchronizationTask?.cancel()
-        v2Lookahead.values.forEach { $0.cancel() }
+        pipelineLookahead.values.forEach { $0.cancel() }
         observers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
@@ -231,7 +231,7 @@ final class ReaderTranslationCoordinator {
             guard let self else { return }
             dismissFailureNotice()
             button.accessibilityHint = nil
-            owner?.translationVisiblePages.forEach { $0.retryV2() }
+            owner?.translationVisiblePages.forEach { $0.retryPipeline() }
             visiblePagesDidChange()
         }, for: .touchUpInside)
         let stack = UIStackView(arrangedSubviews: [label, retry])
@@ -263,7 +263,7 @@ final class ReaderTranslationCoordinator {
         guard #available(iOS 18.0, *), let owner else { return }
         // Start the model load at viewDidLoad, not after the push transition (viewDidAppear).
         if ReaderTranslationSettings().shouldProcessReaderPages {
-            Task(priority: .userInitiated) { await ReaderTranslationV2Service.shared.prewarm() }
+            Task(priority: .userInitiated) { await ReaderTranslationPipelineService.shared.prewarm() }
         }
         button.accessibilityLabel = NSLocalizedString("TRANSLATION_TITLE")
         button.accessibilityIdentifier = "reader.translation.toggle"
@@ -296,8 +296,8 @@ final class ReaderTranslationCoordinator {
 
     func suspend() {
         // A completed departure releases the attached bitmaps; returning to the
-        // reader re-presents them from the V2 memory cache.
-        stop { $0.hideV2() }
+        // reader re-presents them from the pipeline memory cache.
+        stop { $0.hidePipeline() }
         navigationDebounce.reset()
         navigationIdentity = nil
         initialSynchronizationPending = true
@@ -306,12 +306,12 @@ final class ReaderTranslationCoordinator {
     /// Chapter changes: stop page work for the old chapter. The look-ahead is pruned by the
     /// next synchronization instead, so a next-chapter page translated ahead is joined, not lost.
     func cancel() {
-        v2Pages.allObjects.forEach { $0.cancelV2Work() }
+        pipelinePages.allObjects.forEach { $0.cancelPipelineWork() }
     }
 
-    /// The V2 models remain warm across readers; memory pressure releases them.
+    /// The pipeline models remain warm across readers; memory pressure releases them.
     func close() {
-        stop { $0.cancelV2Work() }
+        stop { $0.cancelPipelineWork() }
         owner = nil
     }
 
@@ -321,9 +321,9 @@ final class ReaderTranslationCoordinator {
         cancelSynchronization()
         isVisible = false
         updateMetadataActivity(active: false)
-        v2Pages.allObjects.forEach(releasePage)
-        v2Pages.removeAllObjects()
-        cancelV2Lookahead()
+        pipelinePages.allObjects.forEach(releasePage)
+        pipelinePages.removeAllObjects()
+        cancelPipelineLookahead()
     }
 
     func sliderInteractionBegan() {
@@ -361,9 +361,9 @@ final class ReaderTranslationCoordinator {
         updateMetadataActivity(active: settings.shouldProcessReaderPages)
         let visible = owner.translationVisiblePages
         // Pages that scrolled away stop their pipeline (and provider) work.
-        for page in v2Pages.allObjects where !visible.contains(where: { $0 === page }) {
-            page.cancelV2Work()
-            v2Pages.remove(page)
+        for page in pipelinePages.allObjects where !visible.contains(where: { $0 === page }) {
+            page.cancelPipelineWork()
+            pipelinePages.remove(page)
         }
         let identity = owner.translationChapterKey + ":" + String(owner.translationCurrentPageIndex)
         var delay: UInt64 = 80_000_000
@@ -372,7 +372,7 @@ final class ReaderTranslationCoordinator {
             navigationIdentity = identity
             let now = ProcessInfo.processInfo.systemUptime
             lookaheadPace.pageChanged(chapter: owner.translationChapterKey, index: owner.translationCurrentPageIndex, now: now)
-            pruneV2Lookahead()
+            prunePipelineLookahead()
             delay = navigationDebounce.delay(chapter: owner.translationChapterKey,
                                              index: owner.translationCurrentPageIndex,
                                              now: now)
@@ -396,31 +396,31 @@ final class ReaderTranslationCoordinator {
         let settings = pageSettings()
         let persistsCache = owner.translationPersistsCache
         for page in owner.translationVisiblePages {
-            guard settings.automaticallyTranslate else { page.hideV2(); continue }
-            v2Pages.add(page)
-            page.processV2(settings: settings, persistsCache: persistsCache, onPresented: { [weak self] in
+            guard settings.automaticallyTranslate else { page.hidePipeline(); continue }
+            pipelinePages.add(page)
+            page.processPipeline(settings: settings, persistsCache: persistsCache, onPresented: { [weak self] in
                 // Visible pages done: widen the look-ahead.
-                self?.updateV2Lookahead()
+                self?.updatePipelineLookahead()
             }, onFailure: { [weak self] error in
                 guard let self else { return }
                 button.accessibilityHint = error.localizedDescription
                 showFailureNotice(error)
             })
         }
-        updateV2Lookahead()
+        updatePipelineLookahead()
     }
 
     // MARK: Cached presentation
 
-    /// A cached V2 page bitmap to attach in the same commit as the source image (no source flash).
+    /// A cached pipeline page bitmap to attach in the same commit as the source image (no source flash).
     /// A miss returns nil and the page translates once it is visible.
     func prepareCachedImage(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage? {
         guard #available(iOS 18.0, *), let owner else { return nil }
         let settings = pageSettings()
         guard settings.automaticallyTranslate, settings.overlay.visible else { return nil }
         let crop = page.translationSourceRect ?? ReaderTranslationSplitGeometry.unit
-        let key = ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: crop, settings: settings)
-        let cached = await ReaderTranslationV2Service.shared.cachedPage(cacheKey: key, persists: owner.translationPersistsCache)
+        let key = ReaderTranslationPipelineService.cacheKey(page: page.translationCacheKey, crop: crop, settings: settings)
+        let cached = await ReaderTranslationPipelineService.shared.cachedPage(cacheKey: key, persists: owner.translationPersistsCache)
         try Task.checkCancellation()
         guard let cached else {
             ReaderTranslationDiagnostics.record("loaded_translation_miss")
@@ -429,12 +429,12 @@ final class ReaderTranslationCoordinator {
         guard ReaderTranslationPage.fits(cached, source: image) else { return nil }
         ReaderTranslationDiagnostics.record("loaded_translation_hit")
         return ReaderTranslationPreparedImage(
-            image: UIImage(cgImage: cached, scale: image.scale, orientation: .up), settings: settings, v2CacheKey: key,
+            image: UIImage(cgImage: cached, scale: image.scale, orientation: .up), settings: settings, pipelineCacheKey: key,
             isCurrent: { [weak self] in
                 guard let self, self.owner != nil else { return false }
                 let current = self.pageSettings()
                 return current.automaticallyTranslate && current.overlay.visible &&
-                    ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: crop, settings: current) == key
+                    ReaderTranslationPipelineService.cacheKey(page: page.translationCacheKey, crop: crop, settings: current) == key
             }, matchesSourceImage: { [weak image] candidate in candidate === image })
     }
 }
@@ -447,46 +447,46 @@ extension ReaderTranslationCoordinator {
     /// reading pace and look-ahead cost move it between two and twice that (memory permitting),
     /// A page that becomes visible joins its running computation. Wide
     /// pages shown as halves are translated per half.
-    private func updateV2Lookahead() {
+    private func updatePipelineLookahead() {
         guard #available(iOS 18.0, *), let owner, isVisible, owner.translationPersistsCache else {
-            cancelV2Lookahead()
+            cancelPipelineLookahead()
             return
         }
         let settings = pageSettings()
-        guard settings.shouldProcessReaderPages else { cancelV2Lookahead(); return }
-        let (base, grows) = Self.v2LookaheadBaseCount(visible: owner.translationVisiblePages, settings: settings)
-        v2LookaheadCount = lookaheadPace.count(
-            base: base, limit: nil, growth: grows ? Self.v2LookaheadMemoryGrowth(base: base) : 0)
-        let targets = Self.v2LookaheadPages(
+        guard settings.shouldProcessReaderPages else { cancelPipelineLookahead(); return }
+        let (base, grows) = Self.pipelineLookaheadBaseCount(visible: owner.translationVisiblePages, settings: settings)
+        pipelineLookaheadCount = lookaheadPace.count(
+            base: base, limit: nil, growth: grows ? Self.pipelineLookaheadMemoryGrowth(base: base) : 0)
+        let targets = Self.pipelineLookaheadPages(
             upcoming: owner.translationUpcomingPages, visible: owner.translationVisiblePages,
-            currentIndex: owner.translationCurrentPageIndex, settings: settings, count: v2LookaheadCount)
+            currentIndex: owner.translationCurrentPageIndex, settings: settings, count: pipelineLookaheadCount)
         let unit = ReaderTranslationSplitGeometry.unit
         func key(_ page: Page, _ crop: CGRect = unit) -> String {
-            ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: crop, settings: settings)
+            ReaderTranslationPipelineService.cacheKey(page: page.translationCacheKey, crop: crop, settings: settings)
         }
-        retainV2Lookahead(targets, owner: owner, settings: settings)
+        retainPipelineLookahead(targets, owner: owner, settings: settings)
         for page in targets {
             let taskKey = key(page)
-            guard v2Lookahead[taskKey] == nil, !v2LookaheadFinished.contains(taskKey) else { continue }
+            guard pipelineLookahead[taskKey] == nil, !pipelineLookaheadFinished.contains(taskKey) else { continue }
             let splitsWidePages = owner.translationWidePageLayout(for: page) == .halves
             let direction = settings.readingDirection
-            let loader = v2Loader
-            v2Lookahead[taskKey] = Task { [weak self] in
-                defer { if let self, !Task.isCancelled { self.v2Lookahead[taskKey] = nil } }
+            let loader = pipelineLoader
+            pipelineLookahead[taskKey] = Task { [weak self] in
+                defer { if let self, !Task.isCancelled { self.pipelineLookahead[taskKey] = nil } }
                 let started = ProcessInfo.processInfo.systemUptime
                 do {
                     // Pages rendered before (reopened reader, resumed look-ahead) need no source decode.
                     let probe = splitsWidePages
-                        ? Self.v2LookaheadCrops(imageSize: CGSize(width: 2, height: 1), splitsWidePages: true, direction: direction) : [unit]
+                        ? Self.pipelineLookaheadCrops(imageSize: CGSize(width: 2, height: 1), splitsWidePages: true, direction: direction) : [unit]
                     var cached = true
                     for crop in probe where cached {
-                        cached = await ReaderTranslationV2Service.shared.cachedPage(cacheKey: key(page, crop)) != nil
+                        cached = await ReaderTranslationPipelineService.shared.cachedPage(cacheKey: key(page, crop)) != nil
                     }
                     try Task.checkCancellation()
                     let image: UIImage? = try await cached ? nil : loader.load(page)
                     try Task.checkCancellation()
                     let crops = image.map {
-                        Self.v2LookaheadCrops(imageSize: $0.size, splitsWidePages: splitsWidePages, direction: direction)
+                        Self.pipelineLookaheadCrops(imageSize: $0.size, splitsWidePages: splitsWidePages, direction: direction)
                     } ?? probe
                     for crop in crops {
                         guard let image, let part = ReaderTranslationSplitGeometry.image(image, crop: crop) else { continue }
@@ -495,20 +495,20 @@ extension ReaderTranslationCoordinator {
                         }.value
                         try Task.checkCancellation()
                         guard let pixels else { continue }
-                        let output = try await ReaderTranslationV2Service.shared.translatePage(
+                        let output = try await ReaderTranslationPipelineService.shared.translatePage(
                             pixels, cacheKey: key(page, crop), settings: settings, priority: .prefetch)
                         try Task.checkCancellation()
                         for (stage, ms) in output.timings?.stages ?? [:] {
-                            ReaderTranslationDiagnostics.record("v2s_" + stage, page: page.index + 1, elapsedMilliseconds: ms)
+                            ReaderTranslationDiagnostics.record("stage_" + stage, page: page.index + 1, elapsedMilliseconds: ms)
                         }
                         self?.presentFinished(output.image, key: key(page, crop))
                     }
                     if let self, !Task.isCancelled {
                         if image != nil { lookaheadPace.pageTranslated(started: started, now: ProcessInfo.processInfo.systemUptime) }
-                        if v2LookaheadFinished.count >= 256 { v2LookaheadFinished.removeAll() }
-                        v2LookaheadFinished.insert(taskKey)
+                        if pipelineLookaheadFinished.count >= 256 { pipelineLookaheadFinished.removeAll() }
+                        pipelineLookaheadFinished.insert(taskKey)
                     }
-                    ReaderTranslationDiagnostics.record("v2_lookahead_finished", page: page.index + 1, count: crops.count)
+                    ReaderTranslationDiagnostics.record("pipeline_lookahead_finished", page: page.index + 1, count: crops.count)
                 } catch {
                     // Offscreen failures never surface; the page retries when visible.
                 }
@@ -517,8 +517,8 @@ extension ReaderTranslationCoordinator {
     }
 
     /// The whole page, or both halves (reading order first) when the reader splits wide pages.
-    private nonisolated static func v2LookaheadCrops(
-        imageSize: CGSize, splitsWidePages: Bool, direction: V2ReadingDirection
+    private nonisolated static func pipelineLookaheadCrops(
+        imageSize: CGSize, splitsWidePages: Bool, direction: PipelineReadingDirection
     ) -> [CGRect] {
         guard splitsWidePages, imageSize.height > 0, imageSize.width / imageSize.height > 1 else {
             return [ReaderTranslationSplitGeometry.unit]
@@ -529,24 +529,24 @@ extension ReaderTranslationCoordinator {
     }
 
     /// The fixed count, and whether pace may raise it (only once visible pages no longer compete).
-    private static func v2LookaheadBaseCount(
+    private static func pipelineLookaheadBaseCount(
         visible: [ReaderTranslationPage], settings: ReaderTranslationSettings
     ) -> (count: Int, grows: Bool) {
-        let visiblePresented = !visible.isEmpty && visible.allSatisfy(\.isPresentingV2)
+        let visiblePresented = !visible.isEmpty && visible.allSatisfy(\.isPresentingPipeline)
         let backgroundOnly = settings.translatePages && !settings.showsTranslation
         let grows = backgroundOnly || visiblePresented
-        return (V2PerformanceProfile.current.lookaheadCount(automatic: grows ? 2 : 1), grows)
+        return (PipelinePerformanceProfile.current.lookaheadCount(automatic: grows ? 2 : 1), grows)
     }
 
     /// Up to `base` extra pages, one per 64 MB of memory above the decode headroom
     /// (each in-flight page holds its decoded source while it waits for admission).
-    private static func v2LookaheadMemoryGrowth(base: Int) -> Int {
+    private static func pipelineLookaheadMemoryGrowth(base: Int) -> Int {
         let available = ProcessMemory.available()
         let required = TranslationImageWorkBudget.requiredHeadroom(decodedBytes: 0)
         return available > required ? min(base, Int((available - required) / (64 << 20))) : 0
     }
 
-    private static func v2LookaheadPages(
+    private static func pipelineLookaheadPages(
         upcoming: [Page], visible: [ReaderTranslationPage], currentIndex: Int, settings: ReaderTranslationSettings, count: Int
     ) -> [Page] {
         guard settings.shouldProcessReaderPages else { return [] }
@@ -568,7 +568,7 @@ extension ReaderTranslationCoordinator {
     }
 
     /// Without this a loaded page shows its source until it is visible and the sync debounce
-    /// (180-350 ms after a turn) runs `processV2`, which then finds the page in memory.
+    /// (180-350 ms after a turn) runs `processPipeline`, which then finds the page in memory.
     private func presentFinished(_ output: CGImage, key: String) {
         let settings = pageSettings()
         guard isVisible, settings.automaticallyTranslate, settings.overlay.visible else { return }
@@ -577,31 +577,31 @@ extension ReaderTranslationCoordinator {
 
     /// Cancels look-ahead outside `targets`; visible pages join (and promote) any look-ahead already running for them.
     @available(iOS 18.0, *)
-    private func retainV2Lookahead(_ targets: [Page], owner: any ReaderTranslationOwner, settings: ReaderTranslationSettings) {
+    private func retainPipelineLookahead(_ targets: [Page], owner: any ReaderTranslationOwner, settings: ReaderTranslationSettings) {
         func key(_ page: Page) -> String {
-            ReaderTranslationV2Service.cacheKey(page: page.translationCacheKey, crop: ReaderTranslationSplitGeometry.unit, settings: settings)
+            ReaderTranslationPipelineService.cacheKey(page: page.translationCacheKey, crop: ReaderTranslationSplitGeometry.unit, settings: settings)
         }
         let retained = Set(targets.map(key)).union(owner.translationVisiblePages.compactMap { $0.sourcePage.map(key) })
-        for (stale, task) in v2Lookahead where !retained.contains(stale) {
+        for (stale, task) in pipelineLookahead where !retained.contains(stale) {
             task.cancel()
-            v2Lookahead[stale] = nil
+            pipelineLookahead[stale] = nil
         }
     }
 
     /// A turn cancels look-ahead now behind the reader or beyond the new window (plus one page of slack)
     /// at once; waiting for the debounce, which rapid flips keep restarting, let that work finish.
-    private func pruneV2Lookahead() {
-        guard #available(iOS 18.0, *), !v2Lookahead.isEmpty, let owner else { return }
+    private func prunePipelineLookahead() {
+        guard #available(iOS 18.0, *), !pipelineLookahead.isEmpty, let owner else { return }
         let settings = pageSettings()
-        let keep = Self.v2LookaheadPages(
+        let keep = Self.pipelineLookaheadPages(
             upcoming: owner.translationUpcomingPages, visible: owner.translationVisiblePages,
-            currentIndex: owner.translationCurrentPageIndex, settings: settings, count: v2LookaheadCount + 1)
-        retainV2Lookahead(keep, owner: owner, settings: settings)
+            currentIndex: owner.translationCurrentPageIndex, settings: settings, count: pipelineLookaheadCount + 1)
+        retainPipelineLookahead(keep, owner: owner, settings: settings)
     }
 
-    private func cancelV2Lookahead() {
-        v2Lookahead.values.forEach { $0.cancel() }
-        v2Lookahead.removeAll()
-        v2LookaheadFinished.removeAll()
+    private func cancelPipelineLookahead() {
+        pipelineLookahead.values.forEach { $0.cancel() }
+        pipelineLookahead.removeAll()
+        pipelineLookaheadFinished.removeAll()
     }
 }

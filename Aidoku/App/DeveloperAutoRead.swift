@@ -18,7 +18,7 @@ enum DeveloperAutoRead {
         Task {
             if defaults.bool(forKey: "AidokuAutoReadClearCache") {
                 try? await ReaderTranslationDiskCache.shared.clear()
-                if #available(iOS 18.0, *) { await ReaderTranslationV2Service.shared.clearMemory() }
+                if #available(iOS 18.0, *) { await ReaderTranslationPipelineService.shared.clearMemory() }
             }
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             let id = series.normalized

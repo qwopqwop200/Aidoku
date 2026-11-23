@@ -9,7 +9,7 @@ import UIKit
 struct NativeOCRMangaTests {
 
     @Test func bundledMangaRecognizerAcceptsDynamicNativeABI() throws {
-        let url = try #require(Bundle.main.url(forResource: V2RecognitionEngine.modelResourceName, withExtension: "mlmodelc"))
+        let url = try #require(Bundle.main.url(forResource: PipelineRecognitionEngine.modelResourceName, withExtension: "mlmodelc"))
         let configuration = MLModelConfiguration()
         configuration.computeUnits = .cpuOnly
         let model = try MLModel(contentsOf: url, configuration: configuration)

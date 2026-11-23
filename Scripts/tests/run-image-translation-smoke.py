@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""V2 host smoke: real Core ML OCR, live provider request shape through the production
+"""pipeline host smoke: real Core ML OCR, live provider request shape through the production
 RemoteTranslationClient against a loopback mock, ordering, replay, OCR-only, failures,
 output files and credential exclusion.
 
@@ -20,7 +20,7 @@ import threading
 
 ROOT = Path(__file__).resolve().parents[2]
 ENTRY = ROOT / 'Scripts/image-translation.swift'
-FIXTURE = ROOT / 'Scripts/tests/fixtures/v2-host/VerticalSingleGlyphBalloon.png'
+FIXTURE = ROOT / 'Scripts/tests/fixtures/pipeline-host/VerticalSingleGlyphBalloon.png'
 SECRET = 'image-translation-smoke-secret'
 TRANSLATION = '어서! 빨리 움직여!'
 requests = []
@@ -198,7 +198,7 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
         assert all(row['status'] == 'success' and row['png'] for row in parallel['pageResults'])
         assert_no_secret(parallel_output)
 
-        # Replay from the live V2 run: no provider call, same translations.
+        # Replay from the live pipeline run: no provider call, same translations.
         before = len(requests)
         replay_output = directory / 'replay output'
         run(['--replay-translations', live_output, '--output', replay_output, first],
@@ -235,5 +235,5 @@ with tempfile.TemporaryDirectory(prefix='aidoku image pipeline ') as temporary:
     run(['--ocr-only', '--source', 'en', first], expected=2)
     run(['--ocr-only', '--replay-translations', live_output, first], expected=2)
     run(['--ocr-only', directory / 'missing.png'], expected=2)
-print('PASS: V2 OCR-only blocks, live provider request shape (image, roles, ids), overlap and input ordering, '
-      'V2-run replay without provider calls, output files, failures and credential exclusion')
+print('PASS: pipeline OCR-only blocks, live provider request shape (image, roles, ids), overlap and input ordering, '
+      'Pipeline-run replay without provider calls, output files, failures and credential exclusion')

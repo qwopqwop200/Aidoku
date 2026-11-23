@@ -38,7 +38,7 @@ struct ReaderTranslationPageIdentityTests {
     @Test func downloadUsesTheReaderKeyOnlyForTheSameRaster() throws {
         let defaults = try #require(UserDefaults(suiteName: "download-cache-key-\(UUID().uuidString)"))
         let settings = ReaderTranslationSettings()
-        let readerKey = ReaderTranslationV2Service.cacheKey(page: page().translationCacheKey,
+        let readerKey = ReaderTranslationPipelineService.cacheKey(page: page().translationCacheKey,
                                                             crop: ReaderTranslationSplitGeometry.unit, settings: settings)
         let key = { (page: Page, processes: Bool) in
             DownloadImageTranslator.readerCacheKey(for: page, processesPages: processes, settings: settings, defaults: defaults)

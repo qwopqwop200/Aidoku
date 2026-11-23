@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def host_commands():
-    # Model-loading V2 host smokes and OCR contracts are in the full-host matrix.
+    # Model-loading pipeline host smokes and OCR contracts are in the full-host matrix.
     return [
         [sys.executable, '-m', 'unittest', 'discover', '-s', 'Scripts', '-v'],
         [sys.executable, 'Scripts/validate_localizations.py'],

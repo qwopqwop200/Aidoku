@@ -19,7 +19,7 @@ UBIQUITY_KVSTORE_ID         = $(TeamIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER
 // Dev / sideload build (leave flag 'CANONICAL_BUILD' undefined)
 OTHER_SWIFT_FLAGS = $(inherited) -DCANONICAL_BUILD $(AIDOKU_PERFORMANCE_FLAGS)
 
-// Developer V2 performance profile (see V2PerformanceProfile); set empty for the shipped limits.
+// Developer pipeline performance profile (see PipelinePerformanceProfile); set empty for the shipped limits.
 AIDOKU_PERFORMANCE_FLAGS = -DAIDOKU_DEVELOPER_PERFORMANCE
 
 // Shared image inbox used by the app and its Share extension.

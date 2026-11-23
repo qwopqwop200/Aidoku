@@ -22,7 +22,7 @@ actor ReaderTranslationService {
             if warmsOCROnReaderOpen {
                 let warmsConnection = ReaderTranslationSettings().shouldProcessReaderPages
                 if #available(iOS 18.0, *), warmsConnection {
-                    Task(priority: .utility) { await ReaderTranslationV2Service.shared.prewarm() }
+                    Task(priority: .utility) { await ReaderTranslationPipelineService.shared.prewarm() }
                 }
                 let configuration = ReaderTranslationSettings().configuration
                 Task(priority: .utility) { [client] in
@@ -108,7 +108,7 @@ actor ReaderTranslationService {
             sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage)
         let service = try translationService()
         // The limiter is shared with page requests, so it must use the same per-device cap.
-        let concurrency = V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
+        let concurrency = PipelinePerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
         await limiter.setMaximumConcurrentRequests(concurrency)
         let progress = try ReaderTranslationProgress(regions: regions, plans: plans, configuration: settings.configuration)
         let results = try await BoundedTranslationBatchExecutor.translate(
@@ -144,16 +144,16 @@ actor ReaderTranslationService {
         Task(priority: .utility) { [client] in await client.warmConnection(configuration: configuration) }
     }
 
-    /// V2 S5: one page request through the live client, sharing the provider limit.
+    /// S5: one page request through the live client, sharing the provider limit.
     @available(iOS 18.0, *)
-    func translateV2(
-        _ blocks: [V2Block], pageSize: CGSize, settings: ReaderTranslationSettings, imageJPEG: Data?,
+    func translatePipeline(
+        _ blocks: [PipelineBlock], pageSize: CGSize, settings: ReaderTranslationSettings, imageJPEG: Data?,
         priority: TranslationRequestPriority = .foreground
-    ) async throws -> [V2Block] {
+    ) async throws -> [PipelineBlock] {
         try Task.checkCancellation()
         let configuration = settings.configuration
         _ = try configuration.validatedEndpoint()
-        let concurrency = V2PerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
+        let concurrency = PipelinePerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests)
         await limiter.setMaximumConcurrentRequests(concurrency)
         let client = client
         // Transient failures retry after 1 s and 3 s outside the permit; invalid responses once.
@@ -161,7 +161,7 @@ actor ReaderTranslationService {
         while true {
             do {
                 return try await limiter.withPermit(priority: priority) {
-                    try await V2Translation.translate(
+                    try await PipelineTranslation.translate(
                         blocks, pageSize: pageSize, client: client, configuration: configuration,
                         sourceLanguage: settings.sourceLanguage, targetLanguage: settings.targetLanguage,
                         imageJPEG: imageJPEG)

@@ -2,7 +2,7 @@ import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
 
-// PP-OCRv6 recognition crop preparation and CTC decoding (V2 S3 runs the model).
+// PP-OCRv6 recognition crop preparation and CTC decoding (S3 runs the model).
 
 @available(iOS 18.0, *)
 enum NativeCoreMLRecognizerError: Error, Equatable, LocalizedError {

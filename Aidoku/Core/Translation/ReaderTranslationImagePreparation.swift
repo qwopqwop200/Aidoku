@@ -40,7 +40,7 @@ enum ReaderTranslationImagePreparation {
         guard let data = normalized.jpegData(compressionQuality: quality), data.count <= 4 * 1024 * 1024 else {
             throw RemoteTranslationError.invalidRequest("The page image could not be prepared for translation.")
         }
-        ReaderTranslationDiagnostics.record("v2_jpeg", count: data.count, code: Int(max(size.width, size.height)))
+        ReaderTranslationDiagnostics.record("pipeline_jpeg", count: data.count, code: Int(max(size.width, size.height)))
         return data
     }
 }

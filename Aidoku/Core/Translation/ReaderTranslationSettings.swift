@@ -60,8 +60,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     /// Fixed sources the page pipeline accepts (the host CLI's `--source`); the app always detects.
     var supportedOCRSourceLanguageCodes: Set<String> { IPhoneOCRSettings.translatedSourceLanguageCodes }
 
-    /// Transient chapter direction from the reader; V2 orders blocks and panels by it.
-    var readingDirection: V2ReadingDirection = .rightToLeft
+    /// Transient chapter direction from the reader; the pipeline orders blocks and panels by it.
+    var readingDirection: PipelineReadingDirection = .rightToLeft
     var overlay = IPhoneOverlaySettings(
         visible: true, mode: .translateOnly, colorMode: .white, opacity: 0.84,
         textPlacement: .replace, subtitlePosition: .bottom, subtitleMaxLines: 2, subtitleContextSentences: 0
