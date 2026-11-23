@@ -47,12 +47,21 @@ enum PipelineRemovalMask {
         // polygon channel stays the detector's, as the classifier was fit on it (harness: same residual gain,
         // half the extra far pixels of also moving the polygons).
         if let forest = PipelineRemovalMaskWeights.lineEnds {
+            // Lines are independent: refined concurrently (one task per line), applied in order.
+            let lines = targets.flatMap(\.lines)
+            var bounds = [CGRect](repeating: .null, count: lines.count)
             rgba.withUnsafeBufferPointer { pixels in
-                for index in targets.indices {
-                    let refined = PipelineLineEnds.refined(targets[index].lines, pixels: pixels, width: width, height: height,
-                                                     layout: layout, forest: forest)
-                    for k in refined.indices { targets[index].lines[k].bounds = refined[k].bounds }
+                bounds.withUnsafeMutableBufferPointer { out in
+                    let base = out.baseAddress!
+                    DispatchQueue.concurrentPerform(iterations: lines.count) { k in
+                        base[k] = PipelineLineEnds.refined([lines[k]], pixels: pixels, width: width, height: height,
+                                                           layout: layout, forest: forest)[0].bounds
+                    }
                 }
+            }
+            var k = 0
+            for index in targets.indices {
+                for line in targets[index].lines.indices { targets[index].lines[line].bounds = bounds[k]; k += 1 }
             }
         }
         let geometries = targets.map { geometry($0, width: width, height: height) }
@@ -60,35 +69,33 @@ enum PipelineRemovalMask {
         // Peak memory scales with the frame pixels in flight: large blocks run in batches of at most
         // `concurrentBlockPixels` (one at a time when larger).
         let threads = max(1, ProcessInfo.processInfo.activeProcessorCount)
-        // Largest first: a page waits for its slowest block, so it should not start last.
-        let small = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) <= concurrentBlockPixels / threads }
-            .sorted { (geometries[$0]?.frame.pixels ?? 0) > (geometries[$1]?.frame.pixels ?? 0) }
-        let large = geometries.indices.filter { (geometries[$0]?.frame.pixels ?? 0) > concurrentBlockPixels / threads }
+        let cost = geometries.map { $0?.frame.pixels ?? 0 }
         rgba.withUnsafeBufferPointer { pixels in
             results.withUnsafeMutableBufferPointer { out in
                 let base = out.baseAddress!
-                DispatchQueue.concurrentPerform(iterations: small.count) { k in
-                    let index = small[k]
+                func run(_ index: Int) {
                     base[index] = geometries[index].flatMap { segment($0, net: net, pixels: pixels, width: width, height: height) }
                 }
+                // Largest first: a page waits for its slowest block, so it should not start last.
+                let small = geometries.indices.filter { cost[$0] <= concurrentBlockPixels / threads }
+                    .sorted { cost[$0] > cost[$1] }
+                let large = geometries.indices.filter { cost[$0] > concurrentBlockPixels / threads }
+                DispatchQueue.concurrentPerform(iterations: small.count) { k in run(small[k]) }
                 // On iOS a batch never exceeds the largest classifier block.
 #if os(iOS)
-                let batchPixels = large.compactMap { geometries[$0]?.frame.pixels }.filter { $0 <= maximumBlockPixels }.max() ?? 0
+                let batchPixels = large.map { cost[$0] }.filter { $0 <= maximumBlockPixels }.max() ?? 0
 #else
                 let batchPixels = concurrentBlockPixels
 #endif
                 var start = 0
                 while start < large.count {
                     let first = start
-                    var end = start + 1, total = geometries[large[start]]?.frame.pixels ?? 0
-                    while end < large.count, total + (geometries[large[end]]?.frame.pixels ?? 0) <= batchPixels {
-                        total += geometries[large[end]]?.frame.pixels ?? 0
+                    var end = start + 1, total = cost[large[start]]
+                    while end < large.count, total + cost[large[end]] <= batchPixels {
+                        total += cost[large[end]]
                         end += 1
                     }
-                    DispatchQueue.concurrentPerform(iterations: end - first) { k in
-                        let index = large[first + k]
-                        base[index] = geometries[index].flatMap { segment($0, net: net, pixels: pixels, width: width, height: height) }
-                    }
+                    DispatchQueue.concurrentPerform(iterations: end - first) { k in run(large[first + k]) }
                     start = end
                 }
             }
@@ -206,29 +213,39 @@ enum PipelineRemovalMask {
         do {
             // `dataPointer`: `withUnsafeMutableBufferPointer(ofType:)` needs iOS 15.4.
             let out = input.dataPointer.assumingMemoryBound(to: Float.self)
-            var sums = [Float](repeating: 0, count: PipelineMaskNet.channels)
             let scale = 1 / Float(k * k)
+            regions.poly.withUnsafeBufferPointer { polyBuffer in
+            regions.roi.withUnsafeBufferPointer { roiBuffer in
+            let poly = polyBuffer.baseAddress!, roi = roiBuffer.baseAddress!
+            let source = pixels.baseAddress!
+            let (bgR, bgG, bgB) = bg
             for py in 0..<ph {
                 for px in 0..<pw {
-                    for c in 0..<sums.count { sums[c] = 0 }
+                    // Same summation order as one sum per channel over (dy, dx).
+                    var s0: Float = 0, s1: Float = 0, s2: Float = 0, s3: Float = 0, s4: Float = 0, s5: Float = 0
                     for dy in 0..<k {
                         let y = min(py * k + dy, h - 1)
+                        let rowSource = source + ((frame.y + y) * width + frame.x) * 4, rowMask = y * w
                         for dx in 0..<k {
                             let x = min(px * k + dx, w - 1)
-                            let s = ((frame.y + y) * width + frame.x + x) * 4
-                            let r = Float(pixels[s]) / 255, g = Float(pixels[s + 1]) / 255, b = Float(pixels[s + 2]) / 255
-                            sums[0] += r; sums[1] += g; sums[2] += b
-                            sums[3] += max(abs(r - bg.0), abs(g - bg.1), abs(b - bg.2))
-                            sums[4] += Float(regions.poly[y * w + x]); sums[5] += Float(regions.roi[y * w + x])
+                            let q = rowSource + x * 4
+                            let r = Float(q[0]) / 255, g = Float(q[1]) / 255, b = Float(q[2]) / 255
+                            s0 += r; s1 += g; s2 += b
+                            s3 += max(abs(r - bgR), abs(g - bgG), abs(b - bgB))
+                            s4 += Float(poly[rowMask + x]); s5 += Float(roi[rowMask + x])
                         }
                     }
-                    for c in 0..<sums.count { out[c * planeStride + py * rowStride + px] = sums[c] * scale }
+                    let o = out + py * rowStride + px
+                    o[0] = s0 * scale; o[planeStride] = s1 * scale; o[2 * planeStride] = s2 * scale
+                    o[3 * planeStride] = s3 * scale; o[4 * planeStride] = s4 * scale; o[5 * planeStride] = s5 * scale
                 }
                 // Edge replication to the aligned width.
                 for c in 0..<PipelineMaskNet.channels {
                     let row = out + c * planeStride + py * rowStride
                     for px in pw..<aw { row[px] = row[pw - 1] }
                 }
+            }
+            }
             }
             for c in 0..<PipelineMaskNet.channels {
                 for py in ph..<ah {
@@ -249,14 +266,22 @@ enum PipelineRemovalMask {
         }
         let ys = axis(h, ph), xs = axis(w, pw)
         var mask = [UInt8](repeating: 0, count: frame.pixels)
-        for y in 0..<h {
-            let (y0, y1, fy) = ys[y]
-            for x in 0..<w where regions.gate[y * w + x] != 0 {
-                let (x0, x1, fx) = xs[x]
-                let top = coarse[y0 * aw + x0] * (1 - fx) + coarse[y0 * aw + x1] * fx
-                let bottom = coarse[y1 * aw + x0] * (1 - fx) + coarse[y1 * aw + x1] * fx
-                if top * (1 - fy) + bottom * fy >= threshold { mask[y * w + x] = 1 }
+        coarse.withUnsafeBufferPointer { coarseBuffer in
+        regions.gate.withUnsafeBufferPointer { gateBuffer in
+        mask.withUnsafeMutableBufferPointer { maskBuffer in
+            let c = coarseBuffer.baseAddress!, gate = gateBuffer.baseAddress!, m = maskBuffer.baseAddress!
+            for y in 0..<h {
+                let (y0, y1, fy) = ys[y]
+                let top0 = c + y0 * aw, bottom0 = c + y1 * aw, row = y * w
+                for x in 0..<w where gate[row + x] != 0 {
+                    let (x0, x1, fx) = xs[x]
+                    let top = top0[x0] * (1 - fx) + top0[x1] * fx
+                    let bottom = bottom0[x0] * (1 - fx) + bottom0[x1] * fx
+                    if top * (1 - fy) + bottom * fy >= threshold { m[row + x] = 1 }
+                }
             }
+        }
+        }
         }
         dilate(&mask, width: w, height: h, radius: outputDilation)
         return BlockMask(frame: frame, mask: mask)
@@ -285,8 +310,13 @@ enum PipelineRemovalMask {
         let n = frame.pixels
         let gate = space.copy(roi)
         morph(gate, width: w, height: h, radius: roundEven(gateScale * geometry.thickness), max: true, space: space)
-        return Regions(poly: (0..<n).map { poly[$0] > 0 ? 1 : 0 }, roi: (0..<n).map { roi[$0] > 0 ? 1 : 0 },
-                       gate: (0..<n).map { gate[$0] > 0 ? 1 : 0 })
+        func bytes(_ plane: UnsafeMutablePointer<Float>) -> [UInt8] {
+            [UInt8](unsafeUninitializedCapacity: n) { buffer, count in
+                for i in 0..<n { buffer[i] = plane[i] > 0 ? 1 : 0 }
+                count = n
+            }
+        }
+        return Regions(poly: bytes(poly), roi: bytes(roi), gate: bytes(gate))
     }
 
     /// Block background (0-1 RGB): per-channel median of the 3 px ring around the ROI (else ROI minus polygons, else ROI).
@@ -298,14 +328,17 @@ enum PipelineRemovalMask {
         for i in 0..<frame.pixels where grown[i] != 0 && regions.roi[i] == 0 { ring.append(i) }
         if ring.count < 8 { ring = (0..<frame.pixels).filter { regions.roi[$0] != 0 && regions.poly[$0] == 0 } }
         if ring.count < 8 { ring = (0..<frame.pixels).filter { regions.roi[$0] != 0 } }
-        var channels = [[Float]](repeating: [Float](repeating: 0, count: frame.pixels), count: 3)
-        for y in 0..<h {
-            let source = ((frame.y + y) * width + frame.x) * 4
-            for x in 0..<w {
-                for c in 0..<3 { channels[c][y * w + x] = Float(pixels[source + 4 * x + c]) / 255 }
+        // Gathered straight from the page (same values, same order as full-frame channel planes).
+        let m = (0..<3).map { c -> Float in
+            var values = [Float](unsafeUninitializedCapacity: ring.count) { buffer, count in
+                for (k, i) in ring.enumerated() {
+                    let y = i / w, x = i - y * w
+                    buffer[k] = Float(pixels[((frame.y + y) * width + frame.x + x) * 4 + c]) / 255
+                }
+                count = ring.count
             }
+            return median(of: &values)
         }
-        let m = channels.map { plane in plane.withUnsafeBufferPointer { orderMedian($0.baseAddress!, at: ring) } }
         return (m[0], m[1], m[2])
     }
 
@@ -328,18 +361,34 @@ enum PipelineRemovalMask {
     /// Square (2r+1) binary dilation of a 0/1 byte plane (samples outside the frame ignored).
     static func dilate(_ mask: inout [UInt8], width w: Int, height h: Int, radius r: Int) {
         guard r > 0, w > 0, h > 0 else { return }
+        // Horizontal: h[x] = 1 when a set sample lies in [x - r, x + r] (one pass per row, nearest set at or after x - r).
         var horizontal = [UInt8](repeating: 0, count: w * h)
-        for y in 0..<h {
-            let row = y * w
-            for x in 0..<w where mask[row + x] != 0 {
-                for xx in max(0, x - r)...min(w - 1, x + r) { horizontal[row + xx] = 1 }
+        mask.withUnsafeMutableBufferPointer { maskBuffer in
+        horizontal.withUnsafeMutableBufferPointer { horizontalBuffer in
+            let m = maskBuffer.baseAddress!, t = horizontalBuffer.baseAddress!
+            for y in 0..<h {
+                let source = m + y * w, target = t + y * w
+                var last = -1 - r  // last set index seen up to x + r
+                for x in 0..<w {
+                    let ahead = x + r
+                    if ahead < w, source[ahead] != 0 { last = ahead }
+                    if x == 0 { for j in 0..<min(w, r) where source[j] != 0 { last = max(last, j) } }
+                    if last >= x - r { target[x] = 1 }
+                }
+            }
+            // Vertical: OR of the horizontal rows [y - r, y + r].
+            for y in 0..<h {
+                let target = m + y * w
+                let from = max(0, y - r), to = min(h - 1, y + r)
+                target.update(from: t + from * w, count: w)
+                if to > from {
+                    for yy in (from + 1)...to {
+                        let row = t + yy * w
+                        for x in 0..<w { target[x] |= row[x] }
+                    }
+                }
             }
         }
-        for i in 0..<(w * h) { mask[i] = 0 }
-        for y in 0..<h {
-            for x in 0..<w where horizontal[y * w + x] != 0 {
-                for yy in max(0, y - r)...min(h - 1, y + r) { mask[yy * w + x] = 1 }
-            }
         }
     }
 
@@ -402,6 +451,12 @@ enum PipelineRemovalMask {
     static func orderMedian(_ plane: UnsafePointer<Float>, at indices: [Int]) -> Float {
         guard !indices.isEmpty else { return 0 }
         var values = gathered(plane, at: indices)
+        return median(of: &values)
+    }
+
+    /// Exact median of `values` by selection (reorders them).
+    static func median(of values: inout [Float]) -> Float {
+        guard !values.isEmpty else { return 0 }
         return values.withUnsafeMutableBufferPointer { buffer in
             let a = buffer.baseAddress!, c = buffer.count
             select(a, count: c, c / 2)
