@@ -29,16 +29,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var translateMangaTitles = false
     var translateChapterTitles = false
     var translateAuthors = false
-    var authorSourceLanguages: [String] = []
     var translateSourceLabels = false
     var translateLargeFilterOptions = false
-    var sourceLabelSourceLanguages: [String] = []
     var translateMangaTags = false
-    var mangaTagSourceLanguages: [String] = []
     var translateMangaDescriptions = false
-    var mangaDescriptionSourceLanguages: [String] = []
-    var mangaTitleSourceLanguages: [String] = []
-    var chapterTitleSourceLanguages: [String] = []
     var custom = ReaderCustomTranslationSettings()
     var model: String {
         get { custom.model }
@@ -107,9 +101,13 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var credentialGeneration: UInt64 = 0
     var cacheLimitBytes: Int64 = ReaderTranslationDiskCache.defaultBytes
     /// Retired preference keys: ignored on load and removed on save.
-    static let retiredKeys = ["Reader.translationPipelineV2", keyPrefix + "ocr", keyPrefix + "modelTier",
-                              keyPrefix + "includePageImage", keyPrefix + "filterSFXWithLLM",
-                              keyPrefix + "filterBackgroundWithLLM", keyPrefix + "pretranslationLimit", keyPrefix + "background"] + legacyOpenAIKeys
+    // Per-kind metadata language filters are retired: metadata follows the one source selection.
+    static let retiredKeys = ["Reader.translationPipelineV2", keyPrefix + "authorSourceLanguages",
+        keyPrefix + "sourceLabelSourceLanguages", keyPrefix + "mangaTagSourceLanguages",
+        keyPrefix + "mangaDescriptionSourceLanguages", keyPrefix + "mangaTitleSourceLanguages",
+        keyPrefix + "chapterTitleSourceLanguages", keyPrefix + "ocr", keyPrefix + "modelTier",
+        keyPrefix + "includePageImage", keyPrefix + "filterSFXWithLLM", keyPrefix + "filterBackgroundWithLLM",
+        keyPrefix + "pretranslationLimit", keyPrefix + "background"] + legacyOpenAIKeys
     /// The retired picker's OpenAI-only model and reasoning effort.
     static let legacyOpenAIKeys = [keyPrefix + "model", keyPrefix + "reasoningEffort"]
 
@@ -133,16 +131,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         translateMangaTitles = defaults.bool(forKey: Self.keyPrefix + "mangaTitles")
         translateChapterTitles = defaults.bool(forKey: Self.keyPrefix + "chapterTitles")
         translateAuthors = defaults.bool(forKey: Self.keyPrefix + "authors")
-        authorSourceLanguages = languages("authorSourceLanguages")
         translateLargeFilterOptions = defaults.bool(forKey: Self.keyPrefix + "largeFilterOptions")
         translateSourceLabels = defaults.bool(forKey: Self.keyPrefix + "sourceLabels")
-        sourceLabelSourceLanguages = languages("sourceLabelSourceLanguages")
         translateMangaTags = defaults.bool(forKey: Self.keyPrefix + "mangaTags")
-        mangaTagSourceLanguages = languages("mangaTagSourceLanguages")
         translateMangaDescriptions = defaults.bool(forKey: Self.keyPrefix + "mangaDescriptions")
-        mangaDescriptionSourceLanguages = languages("mangaDescriptionSourceLanguages")
-        mangaTitleSourceLanguages = languages("mangaTitleSourceLanguages")
-        chapterTitleSourceLanguages = languages("chapterTitleSourceLanguages")
         if let data = defaults.data(forKey: Self.keyPrefix + "custom"),
            let value = try? JSONDecoder().decode(ReaderCustomTranslationSettings.self, from: data) { custom = value }
         targetLanguage = defaults.string(forKey: Self.keyPrefix + "targetLanguage") ?? targetLanguage
@@ -222,7 +214,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
               (1...64).contains(maximumConcurrentRequests),
               ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
-        guard [translationSourceLanguages, mangaTitleSourceLanguages, chapterTitleSourceLanguages, mangaDescriptionSourceLanguages, mangaTagSourceLanguages, sourceLabelSourceLanguages, authorSourceLanguages].allSatisfy({ languages in
+        guard [translationSourceLanguages].allSatisfy({ languages in
             languages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count &&
                 Set(languages).count == languages.count &&
                 languages.allSatisfy { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
@@ -284,16 +276,10 @@ struct ReaderTranslationSettings: Equatable, Sendable {
         defaults.set(translateMangaTitles, forKey: Self.keyPrefix + "mangaTitles")
         defaults.set(translateChapterTitles, forKey: Self.keyPrefix + "chapterTitles")
         defaults.set(translateAuthors, forKey: Self.keyPrefix + "authors")
-        defaults.set(authorSourceLanguages.sorted(), forKey: Self.keyPrefix + "authorSourceLanguages")
         defaults.set(translateLargeFilterOptions, forKey: Self.keyPrefix + "largeFilterOptions")
         defaults.set(translateSourceLabels, forKey: Self.keyPrefix + "sourceLabels")
-        defaults.set(sourceLabelSourceLanguages.sorted(), forKey: Self.keyPrefix + "sourceLabelSourceLanguages")
         defaults.set(translateMangaTags, forKey: Self.keyPrefix + "mangaTags")
-        defaults.set(mangaTagSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaTagSourceLanguages")
         defaults.set(translateMangaDescriptions, forKey: Self.keyPrefix + "mangaDescriptions")
-        defaults.set(mangaDescriptionSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaDescriptionSourceLanguages")
-        defaults.set(mangaTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "mangaTitleSourceLanguages")
-        defaults.set(chapterTitleSourceLanguages.sorted(), forKey: Self.keyPrefix + "chapterTitleSourceLanguages")
         defaults.set(customData, forKey: Self.keyPrefix + "custom")
         defaults.set(maximumConcurrentRequests, forKey: Self.keyPrefix + "concurrency")
         defaults.set(targetLanguage, forKey: Self.keyPrefix + "targetLanguage")

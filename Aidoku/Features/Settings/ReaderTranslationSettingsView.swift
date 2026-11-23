@@ -11,6 +11,7 @@ struct ReaderTranslationSettingsView: View {
     @FocusState private var keyFocused: Bool
     @State private var pendingChange: Task<Void, Never>?
     @State private var autoCheck: Task<Void, Never>?
+    @State private var advancedExpanded = false
 
     private let languages: [(String, String)] = [
         ("ko", "한국어"), ("en", "English"), ("ja", "日本語"), ("zh-Hans", "简体中文"),
@@ -20,9 +21,10 @@ struct ReaderTranslationSettingsView: View {
 
     var body: some View {
         List {
+            pagesSection
             providerSection
             languageSection
-            translationTargetsSection
+            appTextSection
             cacheSection
         }
         .navigationTitle(NSLocalizedString("TRANSLATION_TITLE"))
@@ -79,30 +81,41 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    private var translationTargetsSection: some View {
+    /// The main switch first: everything below configures it.
+    private var pagesSection: some View {
         Section {
             toggleWithHelp("TRANSLATION_AUTOMATIC", isOn: persistedSettings.translatePages,
                            id: "translation.automatic", help: "TRANSLATION_AUTOMATIC_HELP")
-            targetRows("TRANSLATION_MANGA_TITLES", \.translateMangaTitles, id: "translation.mangaTitles",
-                       filter: "TRANSLATION_MANGA_TITLE_FILTER", \.mangaTitleSourceLanguages, filterID: "translation.mangaTitleFilter")
-            targetRows("TRANSLATION_CHAPTER_TITLES", \.translateChapterTitles, id: "translation.chapterTitles",
-                       filter: "TRANSLATION_CHAPTER_TITLE_FILTER", \.chapterTitleSourceLanguages, filterID: "translation.chapterTitleFilter")
-            targetRows("TRANSLATION_AUTHORS", \.translateAuthors, id: "translation.authors",
-                       filter: "TRANSLATION_AUTHOR_FILTER", \.authorSourceLanguages, filterID: "translation.authorFilter")
-            targetRows("TRANSLATION_MANGA_TAGS", \.translateMangaTags, id: "translation.mangaTags",
-                       filter: "TRANSLATION_TAG_FILTER", \.mangaTagSourceLanguages, filterID: "translation.tagFilter")
-            targetRows("TRANSLATION_MANGA_DESCRIPTIONS", \.translateMangaDescriptions, id: "translation.mangaDescriptions",
-                       filter: "TRANSLATION_DESCRIPTION_FILTER", \.mangaDescriptionSourceLanguages, filterID: "translation.descriptionFilter")
-            targetRows("TRANSLATION_SOURCE_LABELS", \.translateSourceLabels, id: "translation.sourceLabels",
-                       filter: "TRANSLATION_SOURCE_LABEL_FILTER", \.sourceLabelSourceLanguages, filterID: "translation.sourceLabelFilter")
-            if settings.translateSourceLabels {
-                Toggle(NSLocalizedString("TRANSLATION_LARGE_FILTER_OPTIONS"), isOn: persistedSettings.translateLargeFilterOptions)
-                    .accessibilityIdentifier("translation.largeFilterOptions")
-            }
-        } header: {
-            Text(NSLocalizedString("TRANSLATION_TARGETS"))
         } footer: {
             Text(NSLocalizedString("TRANSLATION_TITLES_HELP"))
+        }
+    }
+
+    private typealias AppTextKind = (key: String, isOn: WritableKeyPath<ReaderTranslationSettings, Bool>, id: String)
+
+    private static let appTextKinds: [AppTextKind] = [
+        ("TRANSLATION_SHORT_MANGA_TITLES", \.translateMangaTitles, "translation.mangaTitles"),
+        ("TRANSLATION_SHORT_CHAPTER_TITLES", \.translateChapterTitles, "translation.chapterTitles"),
+        ("TRANSLATION_SHORT_AUTHORS", \.translateAuthors, "translation.authors"),
+        ("TRANSLATION_SHORT_TAGS", \.translateMangaTags, "translation.mangaTags"),
+        ("TRANSLATION_SHORT_DESCRIPTIONS", \.translateMangaDescriptions, "translation.mangaDescriptions"),
+        ("TRANSLATION_SHORT_SOURCE_LABELS", \.translateSourceLabels, "translation.sourceLabels"),
+    ]
+
+    /// Titles, names, tags, descriptions and source menus; the source language above filters them too.
+    private var appTextSection: some View {
+        Section {
+            ForEach(Self.appTextKinds.indices, id: \.self) { index in
+                let kind = Self.appTextKinds[index]
+                Toggle(NSLocalizedString(kind.key), isOn: persistedSettings[dynamicMember: kind.isOn])
+                    .accessibilityIdentifier(kind.id)
+                if kind.isOn == \ReaderTranslationSettings.translateSourceLabels, settings.translateSourceLabels {
+                    Toggle(NSLocalizedString("TRANSLATION_LARGE_FILTER_OPTIONS"), isOn: persistedSettings.translateLargeFilterOptions)
+                        .accessibilityIdentifier("translation.largeFilterOptions")
+                }
+            }
+        } header: {
+            Text(NSLocalizedString("TRANSLATION_ALSO"))
         }
     }
 
@@ -124,30 +137,6 @@ struct ReaderTranslationSettingsView: View {
         case .high: NSLocalizedString("TRANSLATION_REASONING_HIGH")
         case .xhigh: NSLocalizedString("TRANSLATION_REASONING_XHIGH")
         case .max: NSLocalizedString("TRANSLATION_REASONING_MAX")
-        }
-    }
-
-    @ViewBuilder
-    private func targetRows(
-        _ key: String, _ isOn: WritableKeyPath<ReaderTranslationSettings, Bool>, id: String,
-        filter filterKey: String, _ languages: WritableKeyPath<ReaderTranslationSettings, [String]>, filterID: String
-    ) -> some View {
-        Toggle(NSLocalizedString(key), isOn: persistedSettings[dynamicMember: isOn]).accessibilityIdentifier(id)
-        let selection = persistedSettings[dynamicMember: languages]
-        if settings[keyPath: isOn] { NavigationLink {
-            ReaderTranslationLanguageFilterView(selection: selection, title: NSLocalizedString(filterKey),
-                help: NSLocalizedString("TRANSLATION_METADATA_FILTER_HELP"), accessibilityPrefix: filterID)
-        } label: {
-            filterLabel(filterKey, selection.wrappedValue, allTitle: NSLocalizedString("TRANSLATION_FILTER_ALL"))
-        }
-        .accessibilityIdentifier(filterID) }
-    }
-
-    private func filterLabel(_ key: String, _ codes: [String], allTitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(NSLocalizedString(key))
-            Text(codes.isEmpty ? allTitle : codes.map(ReaderTranslationLanguageOptions.name).joined(separator: ", "))
-                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
         }
     }
 
@@ -239,7 +228,22 @@ struct ReaderTranslationSettingsView: View {
                 }
             }
             connectionTestRows
-            DisclosureGroup(NSLocalizedString("ADVANCED")) {
+            // Expands in place, with the small secondary chevron of the navigation rows beside it.
+            Button {
+                withAnimation { advancedExpanded.toggle() }
+            } label: {
+                HStack {
+                    Text(NSLocalizedString("ADVANCED")).foregroundStyle(Color(uiColor: .label))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color(uiColor: .tertiaryLabel))
+                        .rotationEffect(.degrees(advancedExpanded ? 90 : 0))
+                }
+                .contentShape(Rectangle())
+            }
+            .accessibilityIdentifier("translation.advanced")
+            if advancedExpanded {
                 Picker(NSLocalizedString("TRANSLATION_API_FORMAT"), selection: persistedSettings.custom.apiProtocol) {
                     Text("Responses").tag(RemoteTranslationProtocol.responses)
                     Text("Chat Completions").tag(RemoteTranslationProtocol.chatCompletions)
@@ -254,16 +258,17 @@ struct ReaderTranslationSettingsView: View {
                 Picker(NSLocalizedString("TRANSLATION_CONCURRENCY"), selection: concurrency) {
                     ForEach(concurrencyChoices, id: \.self) { Text(String($0)).tag($0) }
                 }
+                if let endpoint = try? TranslationEndpointPolicy.endpoint(for: settings.configuration) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("TRANSLATION_ENDPOINT"))
+                        Text(endpoint.absoluteString).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                }
             }
         } header: {
             Text(NSLocalizedString("TRANSLATION_PROVIDER"))
         } footer: {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(NSLocalizedString("TRANSLATION_CUSTOM_HELP"))
-                if let endpoint = try? TranslationEndpointPolicy.endpoint(for: settings.configuration) {
-                    Text(endpoint.absoluteString).textSelection(.enabled)
-                }
-            }
+            Text(NSLocalizedString("TRANSLATION_CUSTOM_HELP"))
         }
     }
 
@@ -384,3 +389,5 @@ struct ReaderTranslationSettingsView: View {
         } catch { message = error.localizedDescription }
     }
 }
+
+

@@ -37,7 +37,6 @@ struct TitleTranslationTests {
         var settings = ReaderTranslationSettings()
         settings.targetLanguage = "ko"
         settings.translateMangaTitles = true
-        settings.mangaTitleSourceLanguages = []
         let original = "The Adventure"
         let effective = TitleTranslation.effectiveSettings(settings, kind: .manga)
         let config = effective.configuration
@@ -67,7 +66,6 @@ struct TitleTranslationTests {
         let service = ReaderTranslationService(client: client)
         var settings = ReaderTranslationSettings()
         settings.translateSourceLabels = true
-        settings.sourceLabelSourceLanguages = []
         settings.targetLanguage = "ko"
         let options = ["人気", "タイトル", "更新順", "評価", "人気"]
         let translated = await SourceMenuTranslation.translate(options, settings: settings, service: service, diskCache: fixture.disk)

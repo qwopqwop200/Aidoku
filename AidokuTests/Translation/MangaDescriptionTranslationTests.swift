@@ -8,7 +8,6 @@ struct MangaDescriptionTranslationTests {
         let fixture = DescriptionFixture()
         var settings = ReaderTranslationSettings()
         settings.translateMangaDescriptions = true
-        settings.mangaDescriptionSourceLanguages = []
         settings.targetLanguage = "ko"
         let cached = "A detective travels around the world."
         let missing = "Another story has never been translated."

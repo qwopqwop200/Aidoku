@@ -16,10 +16,14 @@ struct HTTPSBypassSettingsView: View {
                 Text(NSLocalizedString("HTTPS_BYPASS_HELP"))
             }
             Section {
-                TextField("https://example.com", text: $address)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+                LabeledContent(NSLocalizedString("HTTPS_BYPASS_TEST_ADDRESS")) {
+                    TextField("https://example.com", text: $address)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundStyle(.secondary)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
                 Button {
                     check()
                 } label: {

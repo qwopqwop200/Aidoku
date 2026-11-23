@@ -379,11 +379,14 @@ extension Settings {
     }()
 
     private static let importSettings: [Setting] = [
-        .init(title: NSLocalizedString("IMPORT_SETTINGS"), value: .group(.init(items: [
-            .init(key: AppSettings.reader.saveSharedImages.key,
-                  title: NSLocalizedString("SAVE_SHARED_IMAGES"),
-                  value: .toggle(.init(subtitle: NSLocalizedString("SAVE_SHARED_IMAGES_HELP"))))
-        ]))),
+        .init(title: NSLocalizedString("IMPORT_SETTINGS"), value: .group(.init(
+            footer: NSLocalizedString("SAVE_SHARED_IMAGES_HELP"),
+            items: [
+                .init(key: AppSettings.reader.saveSharedImages.key,
+                      title: NSLocalizedString("SAVE_SHARED_IMAGES"),
+                      value: .toggle(.init()))
+            ]
+        ))),
     ]
 
     private static let readerSettings: [Setting] = [
@@ -860,7 +863,7 @@ extension Settings {
 
     private static let advancedSettings: [Setting] = {
         guard #available(iOS 17.0, *) else { return [] }
-        return [.init(value: .group(.init(items: [
+        return [.init(title: NSLocalizedString("NETWORK_SETTINGS"), value: .group(.init(items: [
             .init(key: "Network.httpsBypassPage", title: NSLocalizedString("HTTPS_BYPASS"), value: .page(.init(items: [], inlineTitle: true)))
         ])))]
     }() + [

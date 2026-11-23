@@ -550,7 +550,7 @@
 "TRANSLATION_REASONING" = "추론 강도";
 "TRANSLATION_MODEL_DEFAULT" = "모델 기본값";
 "TRANSLATION_CONCURRENCY" = "동시 요청 수";
-"TRANSLATION_PROVIDER" = "번역 제공업체";
+"TRANSLATION_PROVIDER" = "제공업체";
 "TRANSLATION_BASE_URL" = "서버 URL";
 "TRANSLATION_API_FORMAT" = "API 방식";
 "TRANSLATION_CUSTOM_HELP" = "키는 서버 URL별로 저장되며, 변경하면 연결을 자동으로 확인합니다.";
@@ -568,22 +568,15 @@
 "TRANSLATION_SOURCE_FILTER" = "번역 대상 원문 언어";
 "TRANSLATION_FILTER_ALL" = "모든 감지 언어";
 "HTTPS_BYPASS" = "HTTPS 차단 우회";
-"HTTPS_BYPASS_HELP" = "소스 요청, 이미지, 다운로드, 소스 웹 뷰에 TLS 분할과 암호화 DNS(Cloudflare)를 사용합니다. 새 연결부터 적용됩니다. IP 차단이나 사이트 자체의 접속 제한은 우회하지 못합니다.";
-"HTTPS_BYPASS_TEST" = "연결 테스트";
-"HTTPS_BYPASS_TEST_HELP" = "스위치가 꺼져 있어도 입력한 HTTPS 주소를 우회 경로로 테스트합니다. 응답 수신은 연결 확인이며, 통신사 차단 여부를 뜻하지는 않습니다.";
+"HTTPS_BYPASS_HELP" = "통신망에서 막힌 소스에 접속하도록 돕습니다. IP 차단이나 사이트 자체 제한은 우회하지 못합니다.";
+"HTTPS_BYPASS_TEST" = "연결 확인";
+"HTTPS_BYPASS_TEST_HELP" = "꺼져 있어도 이 주소를 우회 경로로 확인합니다.";
 "HTTPS_BYPASS_INVALID_URL" = "사용자명과 비밀번호가 없는 HTTPS URL을 입력하세요.";
 "HTTPS_BYPASS_TEST_RESULT" = "HTTP %d 수신 · TLS 분할 적용 확인";
 "HTTPS_BYPASS_TEST_UNCONFIRMED" = "HTTP %d 수신 · TLS 분할 미확인";
 "HTTPS_BYPASS_TEST_FAILED" = "HTTPS 우회 경로로 연결하지 못했습니다.";
-"TRANSLATION_MANGA_TITLES" = "만화 제목 번역";
-"TRANSLATION_CHAPTER_TITLES" = "챕터 제목 번역";
 "TRANSLATION_TITLES_HELP" = "번역 중이거나 실패하면 원문이 표시됩니다.";
-"TRANSLATION_MANGA_TITLE_FILTER" = "만화 제목 원문 언어";
-"TRANSLATION_CHAPTER_TITLE_FILTER" = "챕터 제목 원문 언어";
 "TRANSLATION_PAGE_SOURCE" = "페이지 원문 언어";
-"TRANSLATION_MANGA_DESCRIPTIONS" = "만화 설명 번역";
-"TRANSLATION_DESCRIPTION_FILTER" = "만화 설명 원문 언어";
-"TRANSLATION_METADATA_FILTER_HELP" = "선택한 언어로 감지된 텍스트만 번역합니다.";
 "TRANSLATION_REASONING_NONE" = "없음";
 "TRANSLATION_REASONING_MINIMAL" = "최소";
 "TRANSLATION_REASONING_LOW" = "낮음";
@@ -591,9 +584,6 @@
 "TRANSLATION_REASONING_HIGH" = "높음";
 "TRANSLATION_REASONING_XHIGH" = "매우 높음";
 "TRANSLATION_REASONING_MAX" = "최대";
-"TRANSLATION_MANGA_TAGS" = "만화 태그 번역";
-"TRANSLATION_TAG_FILTER" = "태그 원문 언어";
-"TRANSLATION_SOURCE_LABELS" = "소스 메뉴 및 섹션 제목 번역";
 
 // Completed app localization
 "EDIT" = "편집";
@@ -905,12 +895,9 @@
 "LOCAL_IMAGE_IMPORT_TEXT" = "사진 또는 이미지 파일을 바로 가져오거나, CBZ 또는 ZIP 파일을 선택하여 읽을 수 있습니다.";
 "SAVE_TRANSLATED_IMAGE" = "번역된 이미지 저장";
 "TRANSLATED_IMAGE_SAVE_FAILED" = "번역 이미지를 만들지 못했습니다. 번역이 완료된 후 다시 시도해 주세요.";
-"TRANSLATION_AUTHORS" = "작가명 번역";
-"TRANSLATION_AUTHOR_FILTER" = "작가명 원문 언어";
-"TRANSLATION_SOURCE_LABEL_FILTER" = "소스 메뉴 및 섹션 원문 언어";
-"SAVE_SHARED_IMAGES" = "공유 이미지를 로컬 파일에 보관";
-"SAVE_SHARED_IMAGES_HELP" = "끄면 공유 이미지를 임시로 열고, 닫을 때 삭제합니다. 읽기 기록과 OCR 및 번역 캐시도 보관하지 않습니다.";
-"TRANSLATION_LARGE_FILTER_OPTIONS" = "대량 필터 항목 번역 (100개 초과)";
+"SAVE_SHARED_IMAGES" = "공유 이미지 보관";
+"SAVE_SHARED_IMAGES_HELP" = "끄면 공유 이미지를 닫을 때 삭제하고, 읽기 기록과 번역 캐시도 남기지 않습니다.";
+"TRANSLATION_LARGE_FILTER_OPTIONS" = "긴 필터 목록 포함";
 "SETTING_INVALID_STEPPER_RANGE" = "숫자 설정 범위가 올바르지 않습니다.";
 "SETTING_MISSING_CONTENT_HANDLER" = "설정을 표시할 수 없습니다: %@";
 "DOWNLOAD_TRANSLATED" = "번역 포함 다운로드";
@@ -946,7 +933,6 @@
 "OCR_ERROR_PREDICTION" = "PP-OCRv6 글자 인식에 실패했습니다. 다른 이미지나 OCR 모델로 다시 시도해 주세요.";
 "TRANSLATION_ERROR_CACHE_STORAGE" = "번역 캐시 저장소가 올바르지 않거나 사용할 수 없습니다.";
 "TRANSLATION_ERROR_CACHE_SAVE" = "번역 캐시를 저장할 수 없습니다.";
-"TRANSLATION_TARGETS" = "번역 대상";
 "PAGES_%i_OF_%i" = "%i / %i페이지";
 "1_SERIES" = "1 시리즈";
 "SKIPPING_ONE_CHAPTER" = "소스에 없거나 필터에서 제외된 챕터 1개를 건너뜁니다";
@@ -970,6 +956,16 @@
 "RECOMMENDED_JMNEDICT_DESCRIPTION" = "전자 사전 연구 개발 그룹(EDRDG)이 관리하는 일본어 고유명사 사전입니다.";
 "RECOMMENDED_JITEN_DESCRIPTION" = "https://jiten.moe의 미디어 말뭉치를 기반으로 한 빈도 사전입니다.";
 "TRANSLATION_OCR_MANGA_HELP" = "페이지는 일본어, 중국어, 영어 및 라틴 문자 언어를 인식합니다.";
-"TRANSLATION_SOURCE_HELP" = "하나를 고르면 그 언어로 고정하고, 여러 개를 고르면 고른 언어만 번역합니다.";
+"TRANSLATION_SOURCE_HELP" = "하나를 고르면 그 언어로 고정하고, 여러 개를 고르면 고른 언어만 번역합니다. 제목, 태그, 메뉴에도 적용됩니다.";
+"TRANSLATION_SHORT_SOURCE_LABELS" = "소스 메뉴";
+"TRANSLATION_SHORT_DESCRIPTIONS" = "설명";
+"TRANSLATION_SHORT_TAGS" = "태그";
+"TRANSLATION_SHORT_AUTHORS" = "작가";
+"TRANSLATION_SHORT_CHAPTER_TITLES" = "챕터 제목";
+"TRANSLATION_SHORT_MANGA_TITLES" = "만화 제목";
+"TRANSLATION_ALSO" = "함께 번역";
+"HTTPS_BYPASS_TEST_ADDRESS" = "주소";
+"NETWORK_SETTINGS" = "네트워크";
+"TRANSLATION_ENDPOINT" = "요청 주소";
 "TRANSLATION_SOURCE_ROW" = "원문 언어";
 "TRANSLATION_AUTO_SHORT" = "자동";

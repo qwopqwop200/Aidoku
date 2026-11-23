@@ -80,14 +80,7 @@ enum TitleTranslation {
         result.sourceLanguage = "auto"
         // Metadata has no page image; inheriting this would reject every uncached request.
         result.includePageImage = false
-        switch kind {
-        case .manga: result.translationSourceLanguages = settings.mangaTitleSourceLanguages
-        case .chapter: result.translationSourceLanguages = settings.chapterTitleSourceLanguages
-        case .author: result.translationSourceLanguages = settings.authorSourceLanguages
-        case .sourceLabel: result.translationSourceLanguages = settings.sourceLabelSourceLanguages
-        case .tag: result.translationSourceLanguages = settings.mangaTagSourceLanguages
-        case .description: result.translationSourceLanguages = settings.mangaDescriptionSourceLanguages
-        }
+        // The one source selection (`translationSourceLanguages`) also filters metadata.
         result.metadataInstructions = kind.instructions
         result.filterSFXWithLLM = false
         result.filterBackgroundWithLLM = false
