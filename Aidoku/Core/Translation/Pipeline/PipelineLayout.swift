@@ -211,6 +211,10 @@ enum PipelineLayout {
             /// Grapheme strings and cumulative caret offsets, for over-long words.
             var characters: [String]
             var offsets: [CGFloat]
+            /// `couples(previous word, this word)` within the paragraph (false for the first word).
+            var couplesPrevious = false
+            /// Per grapheme index: bit 0 a bad strict break before it, bit 1 a bad relaxed one (`breakFlags`).
+            var breaks: [UInt8] = []
         }
         var paragraphs: [[Word]]
         var spaceWidth: CGFloat
@@ -231,7 +235,7 @@ enum PipelineLayout {
             paragraphs = text.components(separatedBy: .newlines).compactMap { paragraph in
                 let words = Self.glued(paragraph.split(whereSeparator: { $0.isWhitespace || $0 == "\u{200B}" }).map(String.init))
                 guard !words.isEmpty else { return nil }
-                return words.map { string in
+                var measured = words.map { string in
                     let shaped = line(string)
                     var characters: [String] = []
                     var offsets: [CGFloat] = [0]
@@ -247,8 +251,13 @@ enum PipelineLayout {
                     count += characters.count
                     let width = CGFloat(CTLineGetTypographicBounds(shaped, nil, nil, nil))
                     offsets[offsets.count - 1] = width
-                    return Word(text: string, width: width, characters: characters, offsets: offsets)
+                    return Word(text: string, width: width, characters: characters, offsets: offsets,
+                                breaks: Self.breakFlags(characters))
                 }
+                for index in measured.indices.dropFirst() {
+                    measured[index].couplesPrevious = Self.couples(measured[index - 1].text, measured[index].text)
+                }
+                return measured
             }
             characterCount = count
         }
@@ -312,25 +321,46 @@ enum PipelineLayout {
         /// Moves a split point off a bad break (closing mark first, opening mark last, ...): earlier when
         /// possible, else later; `end` is unchanged when neither helps.
         static func adjustedSplit(_ characters: [String], start: Int, end: Int, strict: Bool = true) -> Int {
-            func bad(_ index: Int) -> Bool {
-                guard index > start, index < characters.count else { return false }
-                let next = characters[index].first.map { closing.contains($0) || (strict && suffixMarks.contains($0)) } ?? false
-                let previous = characters[index - 1].last.map { opening.contains($0) } ?? false
-                // Nor punctuation alone, nor a single trailing syllable of a word of three or more.
-                let alone = characters[index...].allSatisfy { $0.allSatisfy { closing.contains($0) || ellipses.contains($0) } }
-                let lone = strict && characters.count >= 3 && characters.count - index == 1
-                let inside = strict && characters[index - 1].last.map { a in
-                    characters[index].first.map { b in Self.joinsLatinOrNumber(a, b) } ?? false
-                } ?? false
-                return next || previous || alone || lone || inside
+            adjustedSplit(count: characters.count, start: start, end: end) { breaksBadly(characters, at: $0, strict: strict) }
+        }
+
+        /// `adjustedSplit` over a word's precomputed `breaks`.
+        static func adjustedSplit(_ word: Word, start: Int, end: Int, strict: Bool) -> Int {
+            let mask: UInt8 = strict ? 1 : 2
+            return adjustedSplit(count: word.characters.count, start: start, end: end) { word.breaks[$0] & mask != 0 }
+        }
+
+        /// Bit 0: `breaksBadly(strict: true)`, bit 1: `breaksBadly(strict: false)`, per index below the count.
+        static func breakFlags(_ characters: [String]) -> [UInt8] {
+            characters.indices.map { index in
+                guard index > 0 else { return 0 }
+                return (breaksBadly(characters, at: index, strict: true) ? 1 : 0)
+                    | (breaksBadly(characters, at: index, strict: false) ? 2 : 0)
             }
+        }
+
+        private static func adjustedSplit(count: Int, start: Int, end: Int, bad intrinsic: (Int) -> Bool) -> Int {
+            func bad(_ index: Int) -> Bool { index > start && index < count && intrinsic(index) }
             guard bad(end) else { return end }
             var candidate = end
             while bad(candidate), candidate - 1 > start { candidate -= 1 }
             if !bad(candidate) { return candidate }
             candidate = end
-            while bad(candidate), candidate < characters.count { candidate += 1 }
+            while bad(candidate), candidate < count { candidate += 1 }
             return bad(candidate) ? end : candidate
+        }
+
+        /// Whether a break before `characters[index]` (0 < index < count) is bad.
+        private static func breaksBadly(_ characters: [String], at index: Int, strict: Bool) -> Bool {
+            let next = characters[index].first.map { closing.contains($0) || (strict && suffixMarks.contains($0)) } ?? false
+            let previous = characters[index - 1].last.map { opening.contains($0) } ?? false
+            // Nor punctuation alone, nor a single trailing syllable of a word of three or more.
+            let alone = characters[index...].allSatisfy { $0.allSatisfy { closing.contains($0) || ellipses.contains($0) } }
+            let lone = strict && characters.count >= 3 && characters.count - index == 1
+            let inside = strict && characters[index - 1].last.map { a in
+                characters[index].first.map { b in Self.joinsLatinOrNumber(a, b) } ?? false
+            } ?? false
+            return next || previous || alone || lone || inside
         }
 
         /// First leading-edge caret offset reported for each UTF-16 index of `line`.
@@ -392,8 +422,9 @@ enum PipelineLayout {
                         continue
                     }
                     // Korean phrase coupling: carry the previous word down when the pair fits a line.
-                    if strict, let previous = last, current != previous.text, current.hasSuffix(" " + previous.text),
-                       Self.couples(previous.text, word.text), previous.width + spaceWidth + word.width <= limit(lines.count + 1) {
+                    // `word.couplesPrevious` is couples(previous.text, word.text) (`last` is the paragraph's previous word).
+                    if strict, word.couplesPrevious, let previous = last, current != previous.text,
+                       current.hasSuffix(" " + previous.text), previous.width + spaceWidth + word.width <= limit(lines.count + 1) {
                         current = lastStart
                         width = lastStartWidth
                         flush()
@@ -417,7 +448,7 @@ enum PipelineLayout {
                     while start < word.characters.count {
                         var end = start + 1
                         while end < word.characters.count, word.offsets[end + 1] - word.offsets[start] <= limit(lines.count) { end += 1 }
-                        end = Self.adjustedSplit(word.characters, start: start, end: end, strict: strict)
+                        end = Self.adjustedSplit(word, start: start, end: end, strict: strict)
                         current = word.characters[start..<end].joined()
                         width = word.offsets[end] - word.offsets[start]
                         if end < word.characters.count { flush() }
@@ -447,7 +478,7 @@ enum PipelineLayout {
                     if !current.isEmpty { result.append(current.joined()); current = []; used = 0 }
                     var start = 0
                     while word.characters.count - start > cells {
-                        let end = Self.adjustedSplit(word.characters, start: start, end: start + cells, strict: strict)
+                        let end = Self.adjustedSplit(word, start: start, end: start + cells, strict: strict)
                         result.append(word.characters[start..<end].joined())
                         start = end
                     }
@@ -557,7 +588,10 @@ enum PipelineLayout {
     /// long-vowel mark after Hangul becomes a tilde and a stray sokuon is dropped; newlines stay.
     static func displayText(_ text: String) -> String {
         guard text.unicodeScalars.contains(where: { $0.value >= 0x80 || $0 == "<" || $0 == "|" }) else { return text }
-        var result = text.replacingOccurrences(of: "<br\\s*/?>", with: " ", options: [.regularExpression, .caseInsensitive])
+        // Each pattern runs only when its required character is present (a pattern that cannot match is a no-op).
+        func has(_ unit: UInt8, _ string: String) -> Bool { string.utf8.contains(unit) }
+        var result = has(0x3C, text)
+            ? text.replacingOccurrences(of: "<br\\s*/?>", with: " ", options: [.regularExpression, .caseInsensitive]) : text
         let hangul = result.unicodeScalars.contains { (0xAC00...0xD7A3).contains($0.value) }
         result = String(String.UnicodeScalarView(result.unicodeScalars.map { scalar -> Unicode.Scalar in
             switch scalar.value {
@@ -567,15 +601,26 @@ enum PipelineLayout {
             }
         }))
         if hangul {
-            result = result.replacingOccurrences(of: "(?<=[가-힣])[ーｰ]+", with: "~", options: .regularExpression)
+            if result.unicodeScalars.contains(where: { $0 == "ー" || $0 == "ｰ" }) {
+                result = result.replacingOccurrences(of: "(?<=[가-힣])[ーｰ]+", with: "~", options: .regularExpression)
+            }
             // A slash marking a source line break ("중에/숨기고"); kept next to Latin letters or digits ("1/2").
-            result = result.replacingOccurrences(of: "(?<![A-Za-z0-9] ?)/(?! ?[A-Za-z0-9])", with: " ", options: .regularExpression)
+            if has(0x2F, result) {
+                result = result.replacingOccurrences(of: "(?<![A-Za-z0-9] ?)/(?! ?[A-Za-z0-9])", with: " ", options: .regularExpression)
+            }
             let kana = result.unicodeScalars.filter { (0x3040...0x30FF).contains($0.value) }
             if !kana.isEmpty, kana.allSatisfy({ $0 == "っ" || $0 == "ッ" }) {
                 result = result.replacingOccurrences(of: "[っッ]", with: "", options: .regularExpression)
             }
         }
-        result = result.replacingOccurrences(of: "[ \\t]{2,}", with: " ", options: .regularExpression)
+        // Two adjacent spaces or tabs (UTF-8 bytes 0x20 / 0x09) are needed for a match.
+        var blank = false, run = false
+        for unit in result.utf8 {
+            let space = unit == 0x20 || unit == 0x09
+            if space && run { blank = true; break }
+            run = space
+        }
+        if blank { result = result.replacingOccurrences(of: "[ \\t]{2,}", with: " ", options: .regularExpression) }
         return result.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
     }
 
