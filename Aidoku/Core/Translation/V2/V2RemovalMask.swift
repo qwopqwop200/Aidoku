@@ -12,7 +12,7 @@ enum V2RemovalMask {
     static let roiScale = 0.3
     static let roiMinimum = 8
     /// Line boxes grown along their axis by this many thicknesses are also searched (detection often
-    /// stops short of a column's last glyph).
+    /// stops short of a column's last glyph); `V2LineEnds` first moves box ends it predicts lie further out.
     static let lineEndExtension = 0.5
     /// Glyph probability cut (fit by 3-fold CV on the train folds).
     static let threshold: Float = 0.15
@@ -41,8 +41,20 @@ enum V2RemovalMask {
         guard width > 0, height > 0 else { return [] }
         var mask = [UInt8](repeating: 0, count: width * height)
         guard rgba.count >= width * height * 4 else { return mask }
-        let targets = blocks.filter { $0.role != .background }
+        var targets = blocks.filter { $0.role != .background }
         guard !targets.isEmpty else { return mask }
+        // Predicted line ends move only the line boxes (the line-end search, hence ROI, gate and frame); the
+        // polygon channel stays the detector's, as the classifier was fit on it (harness: same residual gain,
+        // half the extra far pixels of also moving the polygons).
+        if let forest = V2RemovalMaskWeights.lineEnds {
+            rgba.withUnsafeBufferPointer { pixels in
+                for index in targets.indices {
+                    let refined = V2LineEnds.refined(targets[index].lines, pixels: pixels, width: width, height: height,
+                                                     layout: layout, forest: forest)
+                    for k in refined.indices { targets[index].lines[k].bounds = refined[k].bounds }
+                }
+            }
+        }
         let geometries = targets.map { geometry($0, width: width, height: height) }
         var results = [BlockMask?](repeating: nil, count: targets.count)
         // Peak memory scales with the frame pixels in flight: large blocks run in batches of at most

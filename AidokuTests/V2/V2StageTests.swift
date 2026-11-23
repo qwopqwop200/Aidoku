@@ -200,6 +200,36 @@ struct V2StageTests {
         #expect(mask[100 * width + 340] == 0)
     }
 
+    /// A glyph 12-44 px past a 50 px column's box end moves that end out (and only that end).
+    @Test func lineEndsFollowInkPastTheDetectorBox() throws {
+        let width = 400, height = 400
+        var glyphs: [CGRect] = []
+        for k in 0..<4 {
+            glyphs += [CGRect(x: 105, y: 55 + k * 50, width: 40, height: 6), CGRect(x: 122, y: 55 + k * 50, width: 6, height: 40)]
+        }
+        let extra = [CGRect(x: 105, y: 262, width: 40, height: 6), CGRect(x: 122, y: 258, width: 6, height: 36)]
+        let forest = try #require(V2RemovalMaskWeights.lineEnds)
+        let line = V2Line(polygon: rect(100, 50, 50, 200), bounds: CGRect(x: 100, y: 50, width: 50, height: 200),
+                          vertical: true, detectionScore: 0.9)
+        func page(_ strokes: [CGRect]) -> [UInt8] {
+            var rgba = [UInt8](repeating: 255, count: width * height * 4)
+            for stroke in strokes {
+                for y in Int(stroke.minY)..<Int(stroke.maxY) {
+                    for x in Int(stroke.minX)..<Int(stroke.maxX) { for c in 0..<3 { rgba[(y * width + x) * 4 + c] = 0 } }
+                }
+            }
+            return rgba
+        }
+        let plain = try #require(page(glyphs).withUnsafeBufferPointer {
+            V2LineEnds.offsets(line, pixels: $0, width: width, height: height, regions: [], forest: forest)
+        })
+        #expect(abs(plain.0) < 0.1 && abs(plain.1) < 0.1)
+        let refined = page(glyphs + extra).withUnsafeBufferPointer {
+            V2LineEnds.refined([line], pixels: $0, width: width, height: height, layout: [], forest: forest)
+        }
+        #expect(refined[0].bounds.minY == 50 && refined[0].bounds.maxY > 265)
+    }
+
     /// `Int(floor(-1e300))` used to trap while computing the block frame.
     @Test func removalMaskIgnoresHugeAndNonFinitePolygons() {
         let width = 300, height = 200

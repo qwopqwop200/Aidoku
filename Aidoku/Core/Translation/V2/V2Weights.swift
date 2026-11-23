@@ -3,14 +3,16 @@ import Foundation
 /// Fitted tables in Resources/Translation/V2Weights.bin, exported from the out-of-repo research
 /// scripts (scripts-mask/export_weights.py, scripts-style/export_swift.py; TRAIN split only). fillPass2 is a
 /// LightGBM lambdarank over each block's candidates (`port-eval/colorfix/export_fill.py`; base 0, rate 1).
-/// An optional fourth forest, fillPeaks, ranks the pick against its density peaks (`train_peaks.py`).
+/// An optional fourth forest, fillPeaks, ranks the pick against its density peaks (`train_peaks.py`); an optional
+/// fifth, lineEnds, regresses S6 line-end offsets (`V2LineEnds`; port-eval/bboxagent/export.py, GT train folds only).
 /// Each table is a UInt32 element count followed by little-endian elements, in the order read below. The
 /// first two tables (the former S6 MLP, replaced by `V2MaskNet`) are unused and skipped.
 private enum V2WeightFile {
     struct Tables {
         let fillPass1: V2StyleForest, fillPass2: V2StyleForest, outline: V2StyleForest
-        /// Optional trailing forest: the density-peak ranker (absent in older files).
+        /// Optional trailing forests: the density-peak ranker and the line-end regressor (absent in older files).
         let fillPeaks: V2StyleForest?
+        let lineEnds: V2StyleForest?
     }
 
     static let tables: Tables = {
@@ -39,11 +41,16 @@ private enum V2WeightFile {
         }
         _ = read(Float.self); _ = read(Float.self)
         let fillPass1 = forest(), fillPass2 = forest(), outline = forest()
+        let fillPeaks = offset < data.count ? forest() : nil
         let tables = Tables(fillPass1: fillPass1, fillPass2: fillPass2, outline: outline,
-                            fillPeaks: offset < data.count ? forest() : nil)
+                            fillPeaks: fillPeaks, lineEnds: offset < data.count ? forest() : nil)
         precondition(offset == data.count, "V2Weights.bin has trailing data")
         return tables
     }()
+}
+
+enum V2RemovalMaskWeights {
+    static var lineEnds: V2StyleForest? { V2WeightFile.tables.lineEnds }
 }
 
 enum V2StyleParameters {
