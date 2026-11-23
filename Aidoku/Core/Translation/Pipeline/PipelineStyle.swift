@@ -271,55 +271,82 @@ enum PipelineStyleEstimator {
         guard var crop = makeCrop(image, block: block, font: font, raster: raster) else { return nil }
         var result = PipelineStyleFeatures(font: font, scale: crop.scale)
         let n = crop.crop.width * crop.crop.height
-        let lineCount = crop.crop.lines.reduce(0) { $0 + ($1 ? 1 : 0) }
+        let lineCount = count(crop.crop.lines)
         guard lineCount >= 16 else { return nil }
         let s = crop.scale
         crop.crop.lineDistance2 = squaredDistance(to: crop.crop.lines, width: crop.crop.width, height: crop.crop.height)
         let ringRadius = max(2, 0.2 * font * s)
         let ringRadius2 = ringRadius * ringRadius
         crop.crop.ring = crop.crop.lineDistance2.map { Double($0) > ringRadius2 }
-        if crop.crop.ring.reduce(0, { $0 + ($1 ? 1 : 0) }) < 16 { crop.crop.ring = crop.crop.lines.map { !$0 } }
+        if count(crop.crop.ring) < 16 { crop.crop.ring = crop.crop.lines.map { !$0 } }
         let centres = kMeans(crop.crop, k: clusterCount, include: crop.crop.lines)
         crop.crop.assignment = assign(crop.crop, centres: centres)
         let k = clusterCount
         var inLines = [Int](repeating: 0, count: k), inRing = [Int](repeating: 0, count: k)
         var ringCount = 0
+        // Ring colour histograms (as `channelMedian` over the ring pixels).
+        var ringHistogram = [Int](repeating: 0, count: 768)
         crop.crop.assignment.withUnsafeBufferPointer { assignment in
             crop.crop.lines.withUnsafeBufferPointer { lines in
                 crop.crop.ring.withUnsafeBufferPointer { ring in
-                    for i in 0..<n {
-                        let a = Int(assignment[i])
-                        if lines[i] { inLines[a] += 1 }
-                        if ring[i] { inRing[a] += 1; ringCount += 1 }
+                    crop.crop.rgb.withUnsafeBufferPointer { rgb in
+                        inLines.withUnsafeMutableBufferPointer { inLines in
+                            inRing.withUnsafeMutableBufferPointer { inRing in
+                                ringHistogram.withUnsafeMutableBufferPointer { hist in
+                                    for i in 0..<n {
+                                        let a = Int(assignment[i])
+                                        if lines[i] { inLines[a] += 1 }
+                                        if ring[i] {
+                                            inRing[a] += 1; ringCount += 1
+                                            hist[Int(rgb[i * 3])] += 1; hist[256 + Int(rgb[i * 3 + 1])] += 1
+                                            hist[512 + Int(rgb[i * 3 + 2])] += 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
-        result.ringBackground = channelMedian(crop.crop.rgb, indices: crop.crop.ring.indices.filter { crop.crop.ring[$0] })
+        result.ringBackground = ringCount == 0 ? [255, 255, 255] : (0..<3).map {
+            histogramMedian(Array(ringHistogram[(256 * $0)..<(256 * $0 + 256)]), count: ringCount)
+        }
         floodExterior(&crop.crop)
         // No exterior: every exterior distance would be Int32.max (a 2^31-entry histogram).
         guard crop.crop.exteriorOwn.contains(true) else { return nil }
         let labels = Labels(width: crop.crop.width, height: crop.crop.height)
         crop.crop.exteriorDistance2 = squaredDistance(to: crop.crop.exteriorOwn, width: crop.crop.width, height: crop.crop.height)
+        // Members of candidates j < k (`candidateMask`) in raster order, in one pass.
+        var plain = [[Int]](repeating: [], count: k)
+        crop.crop.assignment.withUnsafeBufferPointer { a in
+            crop.crop.lineDistance2.withUnsafeBufferPointer { d in
+                for i in 0..<n where d[i] <= 4 { plain[Int(a[i])].append(i) }
+            }
+        }
         result.clusters = (0..<k).map { j in
             var cluster = PipelineStyleFeatures.Cluster()
             cluster.inLines = Double(inLines[j]) / Double(lineCount)
             cluster.inRing = Double(inRing[j]) / Double(max(1, ringCount))
-            measureCluster(crop.crop, members: candidateMembers(crop.crop, candidate: j), labels: labels, scale: s,
-                           into: &cluster)
+            measureCluster(crop.crop, members: plain[j], labels: labels, scale: s, into: &cluster)
             return cluster
         }
         // Enclosed variants (k + j): the part of a mostly-exterior cluster cut off from the surroundings.
-        func measureExtra(_ candidate: Int, into cluster: inout PipelineStyleFeatures.Cluster) {
-            let members = candidateMembers(crop.crop, candidate: candidate)
-            cluster.inLines = Double(members.reduce(0) { $0 + (crop.crop.lines[$1] ? 1 : 0) }) / Double(lineCount)
+        func measureExtra(_ members: [Int], into cluster: inout PipelineStyleFeatures.Cluster) {
+            let inside = crop.crop.lines.withUnsafeBufferPointer { lines in members.reduce(0) { $0 + (lines[$1] ? 1 : 0) } }
+            cluster.inLines = Double(inside) / Double(lineCount)
             measureCluster(crop.crop, members: members, labels: labels, scale: s, into: &cluster)
             if cluster.count < 16 { cluster.count = 0 }
         }
         for j in 0..<k {
             var cluster = PipelineStyleFeatures.Cluster()
             cluster.enclosed = true
-            if result.clusters[j].valid, result.clusters[j].exterior >= enclosedExteriorMinimum { measureExtra(k + j, into: &cluster) }
+            if result.clusters[j].valid, result.clusters[j].exterior >= enclosedExteriorMinimum {
+                // Candidate k + j: the members of j off the exterior.
+                let enclosed = crop.crop.exteriorOwn.withUnsafeBufferPointer { own in plain[j].filter { !own[$0] } }
+                measureExtra(enclosed, into: &cluster)
+            }
+            plain[j] = []
             result.clusters.append(cluster)
         }
         // Interior re-clustering (2k + j): separates a thin fill from merged art colours.
@@ -328,14 +355,16 @@ enum PipelineStyleEstimator {
             crop.crop.lines.withUnsafeBufferPointer { lines in
                 crop.crop.exteriorOwn.withUnsafeBufferPointer { own in
                     for i in 0..<n {
-                        out[i] = lines[i] && !own[i]
-                        if out[i] { interiorCount += 1 }
+                        let inside = lines[i] && !own[i]
+                        out[i] = inside
+                        interiorCount &+= inside ? 1 : 0
                     }
                 }
             }
             initialized = n
         }
         var interiorAssignment = [UInt8](repeating: 255, count: n)
+        var interiorMembers = [[Int]](repeating: [], count: interiorClusterCount)
         if interiorCount >= 16 {
             let centres = kMeans(crop.crop, k: interiorClusterCount, include: interior)
             let flat = centres.flatMap { $0 }
@@ -343,9 +372,17 @@ enum PipelineStyleEstimator {
                 crop.crop.rgb.withUnsafeBufferPointer { rgb in
                     crop.crop.lineDistance2.withUnsafeBufferPointer { d in
                         crop.crop.exteriorOwn.withUnsafeBufferPointer { own in
+                            // A pixel of the previous one's colour takes its cluster (as in `assign`).
+                            var last = UInt32.max, j = 0
                             for i in 0..<n where d[i] <= 4 && !own[i] {
-                                let r = Float(rgb[i * 3]), g = Float(rgb[i * 3 + 1]), b = Float(rgb[i * 3 + 2])
-                                out[i] = UInt8(nearestCentre(r, g, b, flat, k: interiorClusterCount))
+                                let r = rgb[i * 3], g = rgb[i * 3 + 1], b = rgb[i * 3 + 2]
+                                let key = UInt32(r) << 16 | UInt32(g) << 8 | UInt32(b)
+                                if key != last {
+                                    j = nearestCentre(Float(r), Float(g), Float(b), flat, k: interiorClusterCount)
+                                    last = key
+                                }
+                                out[i] = UInt8(j)
+                                interiorMembers[j].append(i) // candidate 2k + j
                             }
                         }
                     }
@@ -356,13 +393,20 @@ enum PipelineStyleEstimator {
         for j in 0..<interiorClusterCount {
             var cluster = PipelineStyleFeatures.Cluster()
             cluster.interior = true
-            if interiorCount >= 16 { measureExtra(2 * k + j, into: &cluster) }
+            if interiorCount >= 16 { measureExtra(interiorMembers[j], into: &cluster) }
             result.clusters.append(cluster)
         }
         // Ring profiles read only the colour, cluster and line-distance planes.
         result.modes = densityPeaks(crop.crop)
         crop.crop.lines = []; crop.crop.ring = []; crop.crop.exteriorDistance2 = []
         return BlockAnalysis(features: result, crop: crop.crop)
+    }
+
+    /// Number of `true` entries.
+    private static func count(_ mask: [Bool]) -> Int {
+        mask.withUnsafeBufferPointer { m in
+            UnsafeRawBufferPointer(m).reduce(0) { $0 &+ Int($1) }
+        }
     }
 
     private static func makeCrop(_ image: CGImage, block: PipelineBlock, font: Double,
@@ -383,26 +427,38 @@ enum PipelineStyleEstimator {
             w = max(4, Int(Double(x1 - x0) * s)); h = max(4, Int(Double(y1 - y0) * s))
             s = Double(w) / Double(x1 - x0)
         }
-        let region = raster.flatMap { opaqueRegion($0, x0: x0, y0: y0, x1: x1, y1: y1) }
         let rgb: [UInt8]
-        if let region, s == 1 {
+        if s == 1, let raster, let plane = opaqueRGB(raster, x0: x0, y0: y0, x1: x1, y1: y1) {
             // Unscaled: the drawn crop is the raster's bytes.
-            rgb = region.withUnsafeBytes { rgbPlane($0, count: w * h) }
+            rgb = plane
         } else {
-            let source = region.flatMap { PipelineStyleEstimator.image($0, width: x1 - x0, height: y1 - y0) }
-                ?? image.cropping(to: CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0))
-            guard let source else { return nil }
-            var rgba = [UInt8](repeating: 255, count: w * h * 4)
             let space = image.colorSpace.flatMap { $0.model == .rgb ? $0 : nil } ?? CGColorSpace(name: CGColorSpace.sRGB)!
-            let drawn: Bool = rgba.withUnsafeMutableBytes { raw in
-                guard let context = CGContext(data: raw.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                              space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return false }
-                context.interpolationQuality = s < 1 ? .medium : .none
-                context.draw(source, in: CGRect(x: 0, y: 0, width: w, height: h))
-                return true
+            func draw(_ source: CGImage) -> [UInt8]? {
+                var rgba = [UInt8](repeating: 255, count: w * h * 4)
+                let drawn: Bool = rgba.withUnsafeMutableBytes { raw in
+                    guard let context = CGContext(data: raw.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                                  space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return false }
+                    context.interpolationQuality = s < 1 ? .medium : .none
+                    context.draw(source, in: CGRect(x: 0, y: 0, width: w, height: h))
+                    return true
+                }
+                return drawn ? rgba.withUnsafeBytes { rgbPlane($0, count: w * h) } : nil
             }
-            guard drawn else { return nil }
-            rgb = rgba.withUnsafeBytes { rgbPlane($0, count: w * h) }
+            // An opaque raster region is drawn in place (an image over the raster rows, no copy).
+            var plane: [UInt8]?, drewRaster = false
+            if let raster, isOpaque(raster, x0: x0, y0: y0, x1: x1, y1: y1) {
+                raster.rgba.withUnsafeBufferPointer { page in
+                    guard let source = regionImage(page, rowPixels: raster.width, x0: x0, y0: y0, x1: x1, y1: y1) else { return }
+                    drewRaster = true
+                    plane = draw(source)
+                }
+            }
+            if !drewRaster {
+                guard let source = image.cropping(to: CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)) else { return nil }
+                plane = draw(source)
+            }
+            guard let plane else { return nil }
+            rgb = plane
         }
         var mask = [UInt8](repeating: 0, count: w * h)
         mask.withUnsafeMutableBytes { raw in
@@ -423,24 +479,37 @@ enum PipelineStyleEstimator {
         return (Crop(width: w, height: h, rgb: rgb, lines: mask.map { $0 > 0 }), s)
     }
 
-    /// The raster's RGBA rows of [x0, x1) x [y0, y1), or nil when one of them is not opaque
-    /// (drawing composites those over the white context, unlike the raster).
-    private static func opaqueRegion(_ raster: PipelinePageRaster, x0: Int, y0: Int, x1: Int, y1: Int) -> Data? {
-        let rowBytes = (x1 - x0) * 4
-        var region = Data(count: rowBytes * (y1 - y0))
-        let opaque = raster.rgba.withUnsafeBufferPointer { page in
-            region.withUnsafeMutableBytes { out -> Bool in
-                let out = out.bindMemory(to: UInt8.self).baseAddress!
-                var alpha: UInt8 = 255
-                for y in y0..<y1 {
-                    let source = page.baseAddress! + (y * raster.width + x0) * 4
-                    (out + (y - y0) * rowBytes).update(from: source, count: rowBytes)
-                    for i in stride(from: 3, to: rowBytes, by: 4) { alpha &= source[i] }
+    /// Whether every raster pixel of [x0, x1) x [y0, y1) is opaque
+    /// (drawing composites the others over the white context, unlike the raster).
+    private static func isOpaque(_ raster: PipelinePageRaster, x0: Int, y0: Int, x1: Int, y1: Int) -> Bool {
+        raster.rgba.withUnsafeBufferPointer { page in
+            var alpha: UInt8 = 255
+            for y in y0..<y1 {
+                let source = page.baseAddress! + (y * raster.width + x0) * 4
+                for i in stride(from: 3, to: (x1 - x0) * 4, by: 4) { alpha &= source[i] }
+            }
+            return alpha == 255
+        }
+    }
+
+    /// The RGB bytes of the raster's [x0, x1) x [y0, y1), or nil when one of them is not opaque.
+    private static func opaqueRGB(_ raster: PipelinePageRaster, x0: Int, y0: Int, x1: Int, y1: Int) -> [UInt8]? {
+        let w = x1 - x0, h = y1 - y0
+        var alpha: UInt8 = 255
+        let rgb = raster.rgba.withUnsafeBufferPointer { page in
+            [UInt8](unsafeUninitializedCapacity: w * h * 3) { out, initialized in
+                let out = out.baseAddress!
+                for y in 0..<h {
+                    let source = page.baseAddress! + ((y + y0) * raster.width + x0) * 4, row = out + y * w * 3
+                    for x in 0..<w {
+                        row[3 * x] = source[4 * x]; row[3 * x + 1] = source[4 * x + 1]; row[3 * x + 2] = source[4 * x + 2]
+                        alpha &= source[4 * x + 3]
+                    }
                 }
-                return alpha == 255
+                initialized = w * h * 3
             }
         }
-        return opaque ? region : nil
+        return alpha == 255 ? rgb : nil
     }
 
     /// The RGB bytes of `count` four-byte RGBX pixels.
@@ -452,11 +521,15 @@ enum PipelineStyleEstimator {
         }
     }
 
-    /// An opaque sRGB image over RGBA `data` (no copy of the bytes).
-    private static func image(_ data: Data, width: Int, height: Int) -> CGImage? {
-        guard let space = CGColorSpace(name: CGColorSpace.sRGB), let provider = CGDataProvider(data: data as CFData)
+    /// An opaque sRGB image over the [x0, x1) x [y0, y1) rows of an RGBA page of `rowPixels` columns,
+    /// reading `page` in place: valid only while `page` is.
+    private static func regionImage(_ page: UnsafeBufferPointer<UInt8>, rowPixels: Int, x0: Int, y0: Int, x1: Int, y1: Int) -> CGImage? {
+        let start = UnsafeRawPointer(page.baseAddress! + (y0 * rowPixels + x0) * 4)
+        let size = ((y1 - y0 - 1) * rowPixels + (x1 - x0)) * 4
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let provider = CGDataProvider(dataInfo: nil, data: start, size: size, releaseData: { _, _, _ in })
         else { return nil }
-        return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+        return CGImage(width: x1 - x0, height: y1 - y0, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: rowPixels * 4,
                        space: space, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
                        provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
     }
@@ -464,23 +537,24 @@ enum PipelineStyleEstimator {
     // MARK: clustering
 
     private static func kMeans(_ crop: Crop, k: Int, include: [Bool]) -> [[Float]] {
-        let total = include.reduce(0) { $0 + ($1 ? 1 : 0) }
+        let total = include.withUnsafeBufferPointer { UnsafeRawBufferPointer($0).reduce(0) { $0 &+ Int($1) } }
         let step = max(1, total / maximumSamples)
-        // Samples as flat RGB triples.
-        var samples: [Float] = []
-        samples.reserveCapacity(3 * (total / step + 1))
-        // Every step-th included pixel (seen % step == 0).
-        var skip = 0
-        crop.rgb.withUnsafeBufferPointer { rgb in
-            include.withUnsafeBufferPointer { m in
-                for i in 0..<(crop.width * crop.height) where m[i] {
-                    if skip == 0 {
-                        samples.append(Float(rgb[i * 3])); samples.append(Float(rgb[i * 3 + 1])); samples.append(Float(rgb[i * 3 + 2]))
-                        skip = step
+        // Samples as flat RGB triples: every step-th included pixel (seen % step == 0).
+        let samples = [Float](unsafeUninitializedCapacity: 3 * ((total + step - 1) / step)) { out, initialized in
+            var taken = 0, skip = 0
+            crop.rgb.withUnsafeBufferPointer { rgb in
+                include.withUnsafeBufferPointer { m in
+                    for i in 0..<(crop.width * crop.height) where m[i] {
+                        if skip == 0 {
+                            out[taken] = Float(rgb[i * 3]); out[taken + 1] = Float(rgb[i * 3 + 1]); out[taken + 2] = Float(rgb[i * 3 + 2])
+                            taken += 3
+                            skip = step
+                        }
+                        skip -= 1
                     }
-                    skip -= 1
                 }
             }
+            initialized = taken
         }
         let count = samples.count / 3
         var centres = [Float](repeating: 0, count: 3 * k)
@@ -516,6 +590,7 @@ enum PipelineStyleEstimator {
                     chosen += 1
                 }
                 var sums = [Double](repeating: 0, count: 3 * k), counts = [Int](repeating: 0, count: k)
+                // Lloyd steps; once a step leaves every centre unchanged the rest repeat it exactly.
                 for _ in 0..<8 {
                     for j in 0..<(3 * k) { sums[j] = 0 }
                     for j in 0..<k { counts[j] = 0 }
@@ -525,9 +600,15 @@ enum PipelineStyleEstimator {
                         sums[3 * best] += Double(x[3 * i]); sums[3 * best + 1] += Double(x[3 * i + 1])
                         sums[3 * best + 2] += Double(x[3 * i + 2]); counts[best] += 1
                     }
+                    var moved = false
                     for j in 0..<k where counts[j] > 0 {
-                        for ch in 0..<3 { c[3 * j + ch] = Float(sums[3 * j + ch] / Double(counts[j])) }
+                        for ch in 0..<3 {
+                            let value = Float(sums[3 * j + ch] / Double(counts[j]))
+                            if value != c[3 * j + ch] { moved = true }
+                            c[3 * j + ch] = value
+                        }
                     }
+                    if !moved { break }
                 }
             }
         }
@@ -538,9 +619,19 @@ enum PipelineStyleEstimator {
     private static func percentile(_ values: [Float], _ q: Double) -> Float {
         let position = q / 100 * Double(values.count - 1)
         let lower = Int(position), upper = min(values.count - 1, lower + 1)
-        let low = select(values, lower)
-        let high = upper == lower ? low : select(values, upper)
-        return low + Float(position - Double(lower)) * (high - low)
+        var a = values
+        return a.withUnsafeMutableBufferPointer { buffer in
+            let p = buffer.baseAddress!
+            PipelineRemovalMask.select(p, count: buffer.count, lower)
+            let low = p[lower]
+            // After selection everything past `lower` is >= it: the next order statistic is their minimum.
+            var high = low
+            if upper != lower {
+                high = p[upper]
+                for i in (upper + 1)..<buffer.count where p[i] < high { high = p[i] }
+            }
+            return low + Float(position - Double(lower)) * (high - low)
+        }
     }
 
     /// k-th smallest value (0-based).
@@ -559,9 +650,16 @@ enum PipelineStyleEstimator {
         return [UInt8](unsafeUninitializedCapacity: n) { out, count in
             crop.rgb.withUnsafeBufferPointer { rgb in
                 flat.withUnsafeBufferPointer { c in
+                    // Runs of one colour (flat paper, ink) reuse the previous pixel's label.
+                    var last = UInt32.max, label: UInt8 = 0
                     for i in 0..<n {
-                        out[i] = UInt8(nearestCentre(Float(rgb[i * 3]), Float(rgb[i * 3 + 1]), Float(rgb[i * 3 + 2]),
-                                                     c.baseAddress!, k: k))
+                        let r = rgb[i * 3], g = rgb[i * 3 + 1], b = rgb[i * 3 + 2]
+                        let key = UInt32(r) << 16 | UInt32(g) << 8 | UInt32(b)
+                        if key != last {
+                            label = UInt8(nearestCentre(Float(r), Float(g), Float(b), c.baseAddress!, k: k))
+                            last = key
+                        }
+                        out[i] = label
                     }
                 }
             }
@@ -582,21 +680,32 @@ enum PipelineStyleEstimator {
     }
 
     private static func floodExterior(_ crop: inout Crop) {
-        let w = crop.width, h = crop.height, n = w * h
-        var own = [Bool](repeating: false, count: n)
-        var stack: [Int] = []
-        stack.reserveCapacity(n / 4)
-        for i in 0..<n where crop.ring[i] { own[i] = true; stack.append(i) }
-        crop.assignment.withUnsafeBufferPointer { a in
-            while let i = stack.popLast() {
-                let x = i % w, label = a[i]
-                if x > 0, !own[i - 1], a[i - 1] == label { own[i - 1] = true; stack.append(i - 1) }
-                if x + 1 < w, !own[i + 1], a[i + 1] == label { own[i + 1] = true; stack.append(i + 1) }
-                if i >= w, !own[i - w], a[i - w] == label { own[i - w] = true; stack.append(i - w) }
-                if i + w < n, !own[i + w], a[i + w] == label { own[i + w] = true; stack.append(i + w) }
+        let w = crop.width, n = w * crop.height
+        // Each pixel is pushed at most once (marked on push), so the stack never exceeds n.
+        let stack = UnsafeMutablePointer<Int32>.allocate(capacity: max(1, n))
+        defer { stack.deallocate() }
+        crop.exteriorOwn = [Bool](unsafeUninitializedCapacity: n) { own, initialized in
+            crop.ring.withUnsafeBufferPointer { ring in
+                crop.assignment.withUnsafeBufferPointer { a in
+                    let own = own.baseAddress!, a = a.baseAddress!
+                    var top = 0
+                    for i in 0..<n {
+                        own[i] = ring[i]
+                        if ring[i] { stack[top] = Int32(i); top += 1 }
+                    }
+                    while top > 0 {
+                        top -= 1
+                        let i = Int(stack[top])
+                        let x = i % w, label = a[i]
+                        if x > 0, !own[i - 1], a[i - 1] == label { own[i - 1] = true; stack[top] = Int32(i - 1); top += 1 }
+                        if x + 1 < w, !own[i + 1], a[i + 1] == label { own[i + 1] = true; stack[top] = Int32(i + 1); top += 1 }
+                        if i >= w, !own[i - w], a[i - w] == label { own[i - w] = true; stack[top] = Int32(i - w); top += 1 }
+                        if i + w < n, !own[i + w], a[i + w] == label { own[i + w] = true; stack[top] = Int32(i + w); top += 1 }
+                    }
+                }
             }
+            initialized = n
         }
-        crop.exteriorOwn = own
     }
 
     static let enclosedExteriorMinimum = 0.3
@@ -623,40 +732,21 @@ enum PipelineStyleEstimator {
         }
     }
 
-    /// Member pixels of `candidateMask(crop, candidate:)` in raster order.
-    static func candidateMembers(_ crop: Crop, candidate: Int) -> [Int] {
-        let n = crop.width * crop.height
-        var members: [Int] = []
-        if candidate >= 2 * clusterCount {
-            let label = UInt8(candidate - 2 * clusterCount)
-            crop.interiorAssignment.withUnsafeBufferPointer { a in
-                for i in 0..<n where a[i] == label { members.append(i) }
-            }
-            return members
-        }
-        let label = UInt8(candidate % clusterCount), enclosed = candidate >= clusterCount
-        crop.assignment.withUnsafeBufferPointer { a in
-            crop.lineDistance2.withUnsafeBufferPointer { d in
-                crop.exteriorOwn.withUnsafeBufferPointer { own in
-                    for i in 0..<n where a[i] == label && d[i] <= 4 && !(enclosed && own[i]) { members.append(i) }
-                }
-            }
-        }
-        return members
-    }
-
     /// Label plane with a 2 px border: bit 0 member, bit 1 outside the crop, bit 2 counted in the shell.
     final class Labels {
         static let member: UInt8 = 1, outside: UInt8 = 2, marked: UInt8 = 4
         let width: Int, height: Int, stride: Int
         let base: UnsafeMutablePointer<UInt8>
+        /// Scratch for `measureCluster`: each shell pixel is marked once, so a shell holds at most width * height.
+        let shell: UnsafeMutablePointer<UnsafeMutablePointer<UInt8>>
         init(width: Int, height: Int) {
             self.width = width; self.height = height; stride = width + 4
+            shell = .allocate(capacity: max(1, width * height))
             base = .allocate(capacity: stride * (height + 4))
             base.initialize(repeating: Labels.outside, count: stride * (height + 4))
             for y in 0..<height { (base + (y + 2) * stride + 2).update(repeating: 0, count: width) }
         }
-        deinit { base.deallocate() }
+        deinit { base.deallocate(); shell.deallocate() }
         func at(_ i: Int) -> UnsafeMutablePointer<UInt8> { base + (i / width + 2) * stride + i % width + 2 }
     }
 
@@ -667,27 +757,31 @@ enum PipelineStyleEstimator {
         c.count = count
         guard count >= 4 else { return }
         let member = Labels.member, marked = Labels.marked, pw = labels.stride
-        for i in members { labels.at(i).pointee = member }
+        // Members' label-plane cells (one division each instead of one per visit).
+        let cells = UnsafeMutablePointer<UnsafeMutablePointer<UInt8>>.allocate(capacity: count)
+        defer { cells.deallocate() }
+        for (index, i) in members.enumerated() { let p = labels.at(i); cells[index] = p; p.pointee = member }
         let offsets = [(-2, 0), (2, 0), (0, -2), (0, 2), (-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-        let paddedOffsets = offsets.map { dx, dy in dy * pw + dx }, cropOffsets = offsets.map { dx, dy in dy * w + dx }
+        let paddedOffsets = UnsafeMutablePointer<Int>.allocate(capacity: 12), cropOffsets = UnsafeMutablePointer<Int>.allocate(capacity: 12)
+        defer { paddedOffsets.deallocate(); cropOffsets.deallocate() }
+        for (o, (dx, dy)) in offsets.enumerated() { paddedOffsets[o] = dy * pw + dx; cropOffsets[o] = dy * w + dx }
         var exterior = 0, perimeter = 0, coreCount = 0
         var neighbours = [Int](repeating: 0, count: clusterCount), shell = 0, shellExterior = 0
-        // Each shell pixel is marked once, so the shell holds at most the crop's other pixels.
-        let shellPixels = UnsafeMutablePointer<UnsafeMutablePointer<UInt8>>.allocate(capacity: crop.width * crop.height)
-        defer { shellPixels.deallocate() }
+        let shellPixels = labels.shell
         var maximumDistance: Int32 = 0
         crop.exteriorDistance2.withUnsafeBufferPointer { dist in
             for i in members { maximumDistance = max(maximumDistance, dist[i]) }
         }
-        // Squared distances can reach w^2 + h^2; such clusters take the median from sorted distances.
-        let useHistogram = maximumDistance <= maximumDistanceHistogram
+        // Squared distances can reach w^2 + h^2; such clusters (and few members over a wide range, where
+        // clearing the histogram would cost more) take the median by selection.
+        let useHistogram = maximumDistance <= maximumDistanceHistogram && Int(maximumDistance) <= 64 * count + 1024
         var histogram = [Int](repeating: 0, count: useHistogram ? Int(maximumDistance) + 1 : 1)
         var all = [Int](repeating: 0, count: 768), core = all
         withPointers(crop, &histogram, &all, &core) { own, dist, rgb, a, histogram, all, core in
             neighbours.withUnsafeMutableBufferPointer { neighbours in
                 var exteriorTotal = 0, perimeterTotal = 0, coreTotal = 0, shellTotal = 0, shellExteriorTotal = 0
-                for i in members {
-                    let p = labels.at(i)
+                for (index, i) in members.enumerated() {
+                    let p = cells[index]
                     if own[i] { exteriorTotal += 1 }
                     // perimeter: 4-neighbour erosion with zero border
                     if p[-1] & p[1] & p[-pw] & p[pw] & member == 0 { perimeterTotal += 1 }
@@ -713,7 +807,7 @@ enum PipelineStyleEstimator {
                 shell = shellTotal; shellExterior = shellExteriorTotal
             }
         }
-        for i in members { labels.at(i).pointee = 0 }
+        for index in 0..<count { cells[index].pointee = 0 }
         for index in 0..<shell { shellPixels[index].pointee = 0 }
         c.exterior = Double(exterior) / Double(count)
         let useCore = coreCount >= 4
@@ -724,8 +818,18 @@ enum PipelineStyleEstimator {
         if useHistogram {
             c.exteriorDistance = squaredHistogramMedian(histogram, count: count) / s
         } else {
-            let sorted = members.map { Double(crop.exteriorDistance2[$0]).squareRoot() }.sorted()
-            c.exteriorDistance = (count % 2 == 1 ? sorted[count / 2] : (sorted[count / 2 - 1] + sorted[count / 2]) / 2) / s
+            // sqrt is monotone: the k-th smallest root is the root of the k-th smallest squared distance.
+            var values = crop.exteriorDistance2.withUnsafeBufferPointer { dist in members.map { dist[$0] } }
+            let median: Double = values.withUnsafeMutableBufferPointer { v in
+                func kth(_ k: Int) -> Double { selectInt32(v.baseAddress!, count: v.count, k); return Double(v[k]).squareRoot() }
+                if count % 2 == 1 { return kth(count / 2) }
+                let upper = kth(count / 2)
+                // After selecting rank count / 2, the lower half holds ranks below it: its maximum is rank count / 2 - 1.
+                var lower = v[0]
+                for i in 0..<(count / 2) { lower = max(lower, v[i]) }
+                return (Double(lower).squareRoot() + upper) / 2
+            }
+            c.exteriorDistance = median / s
         }
         c.neighbourPurity = Double(neighbours.max() ?? 0) / Double(max(1, shell))
         c.neighbours = neighbours.map { Double($0) / Double(max(1, shell)) }
@@ -758,6 +862,26 @@ enum PipelineStyleEstimator {
     /// Largest squared exterior distance counted with a histogram in `measureCluster`.
     static let maximumDistanceHistogram: Int32 = 1 << 16
 
+    /// Partially orders `a` so that a[k] is its k-th smallest value, a[..<k] <= a[k] <= a[(k + 1)...] (Hoare quickselect).
+    static func selectInt32(_ a: UnsafeMutablePointer<Int32>, count: Int, _ k: Int) {
+        func swap(_ x: Int, _ y: Int) { let t = a[x]; a[x] = a[y]; a[y] = t }
+        var lo = 0, hi = count - 1
+        while hi > lo {
+            let mid = lo + (hi - lo) / 2
+            if a[mid] < a[lo] { swap(mid, lo) }
+            if a[hi] < a[lo] { swap(hi, lo) }
+            if a[hi] < a[mid] { swap(hi, mid) }
+            let pivot = a[mid]
+            var i = lo, j = hi
+            while i <= j {
+                while a[i] < pivot { i += 1 }
+                while a[j] > pivot { j -= 1 }
+                if i <= j { swap(i, j); i += 1; j -= 1 }
+            }
+            if k <= j { hi = j } else if k >= i { lo = i } else { return }
+        }
+    }
+
     static func ringBins(font: Double, scale s: Double) -> Int { min(40, max(12, Int((0.3 * font * s).rounded(.up)))) }
 
     static func ringProfile(_ crop: Crop, cluster j: Int, scale s: Double, font: Double) -> [PipelineStyleFeatures.Ring?] {
@@ -788,66 +912,67 @@ enum PipelineStyleEstimator {
 
     // MARK: primitives
 
-    /// Exact squared Euclidean distance to the nearest `true` pixel (Felzenszwalb).
+    /// Exact squared Euclidean distance to the nearest `true` pixel (Felzenszwalb); Int32.max with none.
     static func squaredDistance(to target: [Bool], width w: Int, height h: Int) -> [Int32] {
-        let infinity: Int64 = 1 << 40
-        let m = max(w, h)
-        var out = [Int32](repeating: 0, count: w * h)
-        let f = UnsafeMutablePointer<Int64>.allocate(capacity: m), d = UnsafeMutablePointer<Int64>.allocate(capacity: m)
-        let v = UnsafeMutablePointer<Int>.allocate(capacity: m), z = UnsafeMutablePointer<Double>.allocate(capacity: m + 1)
-        defer { f.deallocate(); d.deallocate(); v.deallocate(); z.deallocate() }
-        func transform(_ n: Int) {
-            var k = 0
-            v[0] = 0; z[0] = -.infinity; z[1] = .infinity
-            var q = 1
-            while q < n {
-                var sValue: Double
-                repeat {
-                    let p = v[k]
-                    sValue = (Double(f[q] + Int64(q * q)) - Double(f[p] + Int64(p * p))) / Double(2 * q - 2 * p)
-                    if sValue <= z[k] { k -= 1 } else { break }
-                } while k >= 0
-                k += 1; v[k] = q; z[k] = sValue; z[k + 1] = .infinity
-                q += 1
-            }
-            k = 0
-            for q in 0..<n {
-                while z[k + 1] < Double(q) { k += 1 }
-                let p = v[k]
-                d[q] = Int64((q - p) * (q - p)) + f[p]
-            }
-        }
+        let n = w * h
+        var out = [Int32](repeating: 0, count: n)
+        guard n > 0 else { return out }
+        // Column steps above `far` mean no target pixel in the column (steps stay below 2 * far).
+        let far = Int32(1 << 28)
+        let vp = UnsafeMutablePointer<Int>.allocate(capacity: w), vf = UnsafeMutablePointer<Int>.allocate(capacity: w)
+        let zn = UnsafeMutablePointer<Int>.allocate(capacity: w + 1), zd = UnsafeMutablePointer<Int>.allocate(capacity: w + 1)
+        defer { vp.deallocate(); vf.deallocate(); zn.deallocate(); zd.deallocate() }
         target.withUnsafeBufferPointer { t in
-            // Column pass: for a 0/infinity input two row-major sweeps equal the 1-D transform.
-            let steps = UnsafeMutablePointer<Int32>.allocate(capacity: w * h)
-            defer { steps.deallocate() }
-            let none = Int32.max
-            for x in 0..<w { steps[x] = t[x] ? 0 : none }
-            if h > 1 {
-                for y in 1..<h {
-                    let row = y * w
-                    for x in 0..<w {
-                        let above = steps[row - w + x]
-                        steps[row + x] = t[row + x] ? 0 : (above == none ? none : above + 1)
-                    }
-                }
-                for y in stride(from: h - 2, through: 0, by: -1) {
-                    let row = y * w
-                    for x in 0..<w {
-                        let below = steps[row + w + x]
-                        steps[row + x] = min(steps[row + x], below == none ? none : below + 1)
-                    }
-                }
-            }
             out.withUnsafeMutableBufferPointer { o in
+                let steps = o.baseAddress!
+                // Bool is stored as one byte 0/1; `keep` is 0 on a target pixel, all ones elsewhere.
+                let t = UnsafeRawPointer(t.baseAddress!).assumingMemoryBound(to: UInt8.self)
+                @inline(__always) func keep(_ i: Int) -> Int32 { Int32(t[i]) &- 1 }
+                // Column pass: for a 0/infinity input two row-major sweeps equal the 1-D transform.
+                for x in 0..<w { steps[x] = far & keep(x) }
+                var row = w
+                while row < n {
+                    for x in 0..<w { steps[row + x] = (steps[row - w + x] &+ 1) & keep(row + x) }
+                    row += w
+                }
+                row = n - 2 * w
+                while row >= 0 {
+                    for x in 0..<w { steps[row + x] = min(steps[row + x], steps[row + w + x] &+ 1) }
+                    row -= w
+                }
+                // Row pass (Felzenszwalb) over the finite columns only, breakpoints as exact fractions zn/zd
+                // (zd > 0): an infinite column never attains a row minimum, a row without one stays Int32.max.
                 for y in 0..<h {
-                    let row = y * w
-                    for x in 0..<w {
-                        let step = steps[row + x]
-                        f[x] = step == none ? infinity : Int64(step) * Int64(step)
+                    let r = steps + y * w
+                    var k = -1
+                    for q in 0..<w {
+                        let step = Int(r[q])
+                        guard step < Int(far) else { continue }
+                        let fq = step * step
+                        guard k >= 0 else { k = 0; vp[0] = q; vf[0] = fq; continue }
+                        let gq = fq + q * q
+                        var num = 0, den = 1
+                        while true {
+                            let p = vp[k]
+                            num = gq - (vf[k] + p * p); den = 2 * (q - p)
+                            // intersection <= previous breakpoint (the first one is -infinity)
+                            if k > 0, num * zd[k] <= zn[k] * den { k -= 1 } else { break }
+                        }
+                        k += 1; vp[k] = q; vf[k] = fq; zn[k] = num; zd[k] = den
                     }
-                    transform(w)
-                    for x in 0..<w { o[row + x] = Int32(clamping: d[x]) }
+                    guard k >= 0 else { r.update(repeating: .max, count: w); continue }
+                    // Parabola j covers q in (z[j], z[j + 1]], i.e. from floor(z[j]) + 1.
+                    var q = 0
+                    for j in 0...k {
+                        var end = w
+                        if j < k {
+                            let a = zn[j + 1], b = zd[j + 1]
+                            let floorDiv = a >= 0 ? a / b : -((-a + b - 1) / b)
+                            end = min(w, floorDiv + 1)
+                        }
+                        let p = vp[j], fp = vf[j]
+                        while q < end { r[q] = Int32(clamping: (q - p) * (q - p) + fp); q += 1 }
+                    }
                 }
             }
         }
