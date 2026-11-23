@@ -27,11 +27,10 @@ final class PipelineAOTModel: @unchecked Sendable {
         let configuration = MLModelConfiguration()
 #if targetEnvironment(simulator)
         configuration.computeUnits = .cpuOnly
-#elseif os(iOS)
-        // iPhone Neural Engine: 3.3x the GPU (332 vs 1098 ms per page), drift confined to erased pixels.
-        configuration.computeUnits = .cpuAndNeuralEngine
 #else
-        configuration.computeUnits = .cpuAndGPU
+        // Neural Engine on iPhone and Mac: 3.3x the iPhone GPU (332 vs 1098 ms per page), and on the Mac
+        // it frees the GPU for S1/S2 (dev wall -20%); drift confined to erased pixels.
+        configuration.computeUnits = .cpuAndNeuralEngine
 #endif
         model = try MLModel(contentsOf: compiledURL, configuration: configuration)
         image = try MLMultiArray(shape: [1, 3, 1024, 1024], dataType: .float16)
