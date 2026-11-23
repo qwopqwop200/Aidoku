@@ -766,23 +766,56 @@ enum PipelineStyleEstimator {
         let distance2 = squaredDistance(to: mask, width: crop.width, height: crop.height)
         let limit = max(2, 0.45 * font * s), limit2 = limit * limit
         let bins = ringBins(font: font, scale: s)
-        var members = [[Int]](repeating: [], count: bins + 1)
-        for i in 0..<n where distance2[i] > 0 && Double(crop.lineDistance2[i]) <= limit2 {
-            // bin b holds b - 0.5 < d <= b + 0.5
-            let b = Int((Double(distance2[i]).squareRoot() - 0.5).rounded(.up))
-            if b >= 1, b <= bins { members[b].append(i) }
+        // bin b holds b - 0.5 < d <= b + 0.5; the bin of every squared distance below (bins + 1)^2, the first
+        // one past the last bin (the bin grows with the distance).
+        let top = (bins + 1) * (bins + 1)
+        let binOf = [Int](unsafeUninitializedCapacity: top) { out, count in
+            for d2 in 0..<top { out[d2] = Int((Double(d2).squareRoot() - 0.5).rounded(.up)) }
+            count = top
         }
-        return (1...bins).map { b -> PipelineStyleFeatures.Ring? in
-            let pixels = members[b]
-            guard pixels.count >= 4 else { return nil }
-            let median = channelMedian(crop.rgb, indices: pixels)
-            var histogram = [Int](repeating: 0, count: 1531)
-            for i in pixels {
-                var total: Double = 0
-                for ch in 0..<3 { total += abs(Double(crop.rgb[i * 3 + ch]) - median[ch]) }
-                histogram[Int((total * 2).rounded())] += 1
+        // Members per bin in raster order, flat (counting sort).
+        var start = [Int](repeating: 0, count: bins + 2)
+        var flat: [Int] = []
+        distance2.withUnsafeBufferPointer { d in
+            crop.lineDistance2.withUnsafeBufferPointer { line in
+                binOf.withUnsafeBufferPointer { binOf in
+                    var bin = [UInt8](repeating: 0, count: n)
+                    bin.withUnsafeMutableBufferPointer { bin in
+                        for i in 0..<n {
+                            let v = Int(d[i])
+                            guard v > 0, v < top, Double(line[i]) <= limit2 else { continue }
+                            let b = binOf[v]
+                            if b >= 1, b <= bins { bin[i] = UInt8(b); start[b + 1] += 1 }
+                        }
+                        for b in 1...(bins + 1) { start[b] += start[b - 1] }
+                        var next = start
+                        flat = [Int](repeating: 0, count: start[bins + 1])
+                        flat.withUnsafeMutableBufferPointer { flat in
+                            for i in 0..<n where bin[i] != 0 { let b = Int(bin[i]); flat[next[b]] = i; next[b] += 1 }
+                        }
+                    }
+                }
             }
-            return .init(distance: Double(b) / s, median: median, mad: histogramMedian(histogram, count: pixels.count) / 2)
+        }
+        return crop.rgb.withUnsafeBufferPointer { rgb in
+            flat.withUnsafeBufferPointer { flat in
+                (1...bins).map { b -> PipelineStyleFeatures.Ring? in
+                    let pixels = flat[start[b]..<start[b + 1]]
+                    guard pixels.count >= 4 else { return nil }
+                    var histograms = [Int](repeating: 0, count: 768)
+                    for i in pixels { histograms[Int(rgb[i * 3])] += 1; histograms[256 + Int(rgb[i * 3 + 1])] += 1; histograms[512 + Int(rgb[i * 3 + 2])] += 1 }
+                    let median = (0..<3).map {
+                        histogramMedian(Array(histograms[(256 * $0)..<(256 * $0 + 256)]), count: pixels.count)
+                    }
+                    var histogram = [Int](repeating: 0, count: 1531)
+                    for i in pixels {
+                        var total: Double = 0
+                        for ch in 0..<3 { total += abs(Double(rgb[i * 3 + ch]) - median[ch]) }
+                        histogram[Int((total * 2).rounded())] += 1
+                    }
+                    return .init(distance: Double(b) / s, median: median, mad: histogramMedian(histogram, count: pixels.count) / 2)
+                }
+            }
         }
     }
 
@@ -883,18 +916,42 @@ enum PipelineStyleEstimator {
     /// Local maxima (26-neighbourhood) of a Lab histogram over the line pixels holding at least 1% of them;
     /// each peak's colour is the channel median of the pixels in its 3x3x3 bins. Thin lettering blends
     /// its ink with the outline, so the k-means cores can miss the ink while a peak still sits on it.
+    /// `lab`'s channel linearisation of each byte value.
+    static let linearTable: [Double] = (0..<256).map { v in
+        let c = Double(v) / 255
+        return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+    }
+
     static func densityPeaks(_ crop: Crop) -> [PipelineStyleFeatures.Mode] {
         var lineIndices: [Int] = []
         for i in crop.lines.indices where crop.lines[i] { lineIndices.append(i) }
         guard lineIndices.count >= 16 else { return [] }
         let step = max(1, lineIndices.count / peakSamples)
         let samples = stride(from: 0, to: lineIndices.count, by: step).map { lineIndices[$0] }
-        func key(_ i: Int) -> (Int, Int, Int) {
-            let l = lab([Double(crop.rgb[i * 3]), Double(crop.rgb[i * 3 + 1]), Double(crop.rgb[i * 3 + 2])])
-            return (Int((l[0] / peakBin).rounded(.down)), Int((l[1] / peakBin).rounded(.down)), Int((l[2] / peakBin).rounded(.down)))
-        }
         func pack(_ k: (Int, Int, Int)) -> Int { ((k.0 + 64) << 16) | ((k.1 + 64) << 8) | (k.2 + 64) }
-        let keys = samples.map(key)
+        func unpack(_ p: Int) -> (Int, Int, Int) { ((p >> 16) - 64, ((p >> 8) & 255) - 64, (p & 255) - 64) }
+        // The bin depends on the colour alone: memoise it (direct-mapped, 24-bit key; -1 empty).
+        let cacheSize = 4096
+        var cacheKey = [Int32](repeating: -1, count: cacheSize), cacheValue = [Int](repeating: 0, count: cacheSize)
+        let keys: [(Int, Int, Int)] = crop.rgb.withUnsafeBufferPointer { rgb in
+            samples.map { i in
+                let r = Int(rgb[i * 3]), g = Int(rgb[i * 3 + 1]), b = Int(rgb[i * 3 + 2])
+                let colour = Int32(r << 16 | g << 8 | b)
+                let slot = (r &* 7 ^ g &* 61 ^ b &* 509 ^ (r ^ g) << 4) & (cacheSize - 1)
+                if cacheKey[slot] == colour { return unpack(cacheValue[slot]) }
+                // `lab` inline, the channel linearisation from a table (same arithmetic).
+                let lr = linearTable[r], lg = linearTable[g], lb = linearTable[b]
+                let x = (0.4124 * lr + 0.3576 * lg + 0.1805 * lb) / 0.95047
+                let y = 0.2126 * lr + 0.7152 * lg + 0.0722 * lb
+                let z = (0.0193 * lr + 0.1192 * lg + 0.9505 * lb) / 1.08883
+                func f(_ t: Double) -> Double { t > 0.008856 ? pow(t, 1.0 / 3) : 7.787 * t + 16.0 / 116 }
+                let fx = f(x), fy = f(y), fz = f(z)
+                let l0 = 116 * fy - 16, l1 = 500 * (fx - fy), l2 = 200 * (fy - fz)
+                let k = (Int((l0 / peakBin).rounded(.down)), Int((l1 / peakBin).rounded(.down)), Int((l2 / peakBin).rounded(.down)))
+                cacheKey[slot] = colour; cacheValue[slot] = pack(k)
+                return k
+            }
+        }
         var counts: [Int: Int] = [:]
         for k in keys { counts[pack(k), default: 0] += 1 }
         let total = Double(samples.count)
@@ -1018,44 +1075,73 @@ extension PipelineStyleEstimator {
         }
     }
 
+    /// The per-block part of `candidateFeatures`, shared by every candidate.
+    struct CandidateContext {
+        let ids: [Int], pool: [Int], maxDistance: Double
+        /// The plain candidate with the largest ring share; nil without one (each candidate then uses itself).
+        let background: Int?
+        let luminances: [Double]
+        init(_ f: PipelineStyleFeatures) {
+            let cl = f.clusters
+            ids = cl.indices.filter { cl[$0].valid }
+            let bigIDs = ids.filter { cl[$0].inLines >= 0.08 }
+            pool = bigIDs.isEmpty ? ids : bigIDs
+            maxDistance = pool.map { cl[$0].exteriorDistance }.max() ?? 0
+            let plain = ids.filter { $0 < PipelineStyleEstimator.plainCandidates }
+            var bgj: Int?
+            if let first = plain.first {
+                var best = first
+                for i in plain where cl[i].inRing > cl[best].inRing { best = i }
+                bgj = best
+            }
+            background = bgj
+            luminances = cl.map { PipelineStyleEstimator.luminance($0.core) }
+        }
+    }
+
     /// Fill-candidate features (order matches model.py cand_x + twin).
     static func candidateFeatures(_ f: PipelineStyleFeatures, _ j: Int, consensus: [Double]?) -> [Double] {
+        candidateFeatures(f, j, consensus: consensus, context: CandidateContext(f))
+    }
+
+    static func candidateFeatures(_ f: PipelineStyleFeatures, _ j: Int, consensus: [Double]?,
+                                  context: CandidateContext) -> [Double] {
         let cl = f.clusters, c = cl[j], font = f.font
-        let ids = cl.indices.filter { cl[$0].valid }
-        let bigIDs = ids.filter { cl[$0].inLines >= 0.08 }
-        let pool = bigIDs.isEmpty ? ids : bigIDs
-        let maxDistance = pool.map { cl[$0].exteriorDistance }.max() ?? 0
-        let colour = c.core, lum = luminance(colour)
+        let ids = context.ids, pool = context.pool, maxDistance = context.maxDistance, lums = context.luminances
+        let colour = c.core, lum = lums[j]
         let sw = c.strokeWidth / font
         let fM = c.inLines, fR = c.inRing
-        let plain = ids.filter { $0 < plainCandidates }
-        var bgj = j
-        if let first = plain.first {
-            bgj = first
-            for i in plain where cl[i].inRing > cl[bgj].inRing { bgj = i }
-        }
+        let bgj = context.background ?? j
         var d = bgj
         if let top = c.neighbours.max(), top > 0 { d = c.neighbours.firstIndex(of: top)! }
         let dc = cl[d].valid ? cl[d] : cl[bgj]
         let count = Double(ids.count)
+        var darker = 0, nearer = 0
+        for i in ids {
+            if lums[i] < lum { darker += 1 }
+            if cl[i].exteriorDistance < c.exteriorDistance { nearer += 1 }
+        }
         var x: [Double] = [
             c.exterior, log((fM + 0.01) / (fR + 0.01)), fM, fR, lum / 255,
             distance(colour, f.ringBackground), c.neighbourPurity, sw, chroma(colour),
             lum > 200 ? 1 : 0, c.exteriorDistance / font, Double(c.coreCount) / Double(max(1, c.count)),
             c.shellExterior, c.exteriorDistance >= maxDistance && pool.contains(j) ? 1 : 0,
             consensus.map { distance(colour, $0) } ?? 0, c.enclosed ? 1 : 0, c.interior ? 1 : 0,
-            Double(ids.filter { luminance(cl[$0].core) < lum }.count) / count,
-            Double(ids.filter { cl[$0].exteriorDistance < c.exteriorDistance }.count) / count,
+            Double(darker) / count,
+            Double(nearer) / count,
             dc.exterior, cl[d].inRing, dc.exteriorDistance / font, distance(colour, dc.core),
-            (lum - luminance(dc.core)) / 255, distance(colour, cl[bgj].core), (lum - luminance(cl[bgj].core)) / 255,
+            (lum - luminance(dc.core)) / 255, distance(colour, cl[bgj].core), (lum - lums[bgj]) / 255,
             consensus == nil ? 0 : 1
         ]
+        x.reserveCapacity(x.count + 5)
         // relation to the most similar other candidate (e.g. a purer interior twin)
-        let others = ids.filter { $0 != j }
-        if let first = others.first {
-            var i = first
-            for o in others where distance(colour, cl[o].core) < distance(colour, cl[i].core) { i = o }
-            x += [distance(colour, cl[i].core), fR - cl[i].inRing, (c.exteriorDistance - cl[i].exteriorDistance) / font,
+        var i = -1, nearest = 0.0
+        for o in ids where o != j {
+            let value = distance(colour, cl[o].core)
+            if i < 0 || value < nearest { i = o; nearest = value }
+        }
+        if i >= 0 {
+            x += [nearest, fR - cl[i].inRing, (c.exteriorDistance - cl[i].exteriorDistance) / font,
                   cl[i].interior || cl[i].enclosed ? 1 : 0, fM - cl[i].inLines]
         } else {
             x += [1, 0, 0, 0, 0]
@@ -1064,12 +1150,19 @@ extension PipelineStyleEstimator {
     }
 
     static func pickFill(_ f: PipelineStyleFeatures, forest: PipelineStyleForest, consensus: [Double]?) -> Int? {
+        scoredPick(f, forest: forest, consensus: consensus)?.index
+    }
+
+    /// `pickFill` with the winner's logit.
+    static func scoredPick(_ f: PipelineStyleFeatures, forest: PipelineStyleForest,
+                           consensus: [Double]?) -> (index: Int, score: Double)? {
         var best: Int?, bestScore = -Double.infinity
+        let context = CandidateContext(f)
         for j in f.clusters.indices where f.clusters[j].valid {
-            let score = forest.logit(candidateFeatures(f, j, consensus: consensus))
+            let score = forest.logit(candidateFeatures(f, j, consensus: consensus, context: context))
             if score > bestScore { best = j; bestScore = score }
         }
-        return best
+        return best.map { ($0, bestScore) }
     }
 
     /// Distance from the far ring, ignoring the component pointing back to the fill.
@@ -1147,7 +1240,8 @@ extension PipelineStyleEstimator {
                     scores.withUnsafeMutableBufferPointer { scores in
                         DispatchQueue.concurrentPerform(iterations: analyses.count) { index in
                             guard var analysis = analyses[index],
-                                  let j = pickFill(analysis.features, forest: P.fillPass2, consensus: consensus) else { return }
+                                  let (j, pickLogit) = scoredPick(analysis.features, forest: P.fillPass2, consensus: consensus)
+                            else { return }
                             let f = analysis.features
                             let profile = analysis.profile(j)
                             let rings = profile.compactMap { $0 }
@@ -1161,7 +1255,6 @@ extension PipelineStyleEstimator {
                             }
                             // Second stage: keep the pick or move to a density peak of the line pixels.
                             if let peaks = P.fillPeaks, !f.modes.isEmpty {
-                                let pickLogit = P.fillPass2.logit(candidateFeatures(f, j, consensus: consensus))
                                 let options = peakFeatures(f, pick: f.clusters[j].core, pickLogit: pickLogit,
                                                            outline: observation?.colour ?? f.ringBackground)
                                 var best = 0, bestScore = -Double.infinity
@@ -1329,28 +1422,84 @@ extension PipelineStyleEstimator {
         let lineCount = crop.lines.reduce(0) { $0 + ($1 ? 1 : 0) }
         guard lineCount >= 16 else { return nil }
         let grow = max(1, Int(0.1 * font * s))
-        let lineDistance2 = squaredDistance(to: crop.lines, width: w, height: h)
-        let roi = lineDistance2.map { Int($0) <= grow * grow }
-        let linear: [Double] = (0..<256).map { v in
-            let c = Double(v) / 255
-            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        // ROI: within `grow` of the lines. Every line pixel lies in the lines' box, so the transform of that box
+        // grown by `grow` is exact inside it, and every pixel outside it is farther than `grow`.
+        var lx0 = w, ly0 = h, lx1 = -1, ly1 = -1
+        crop.lines.withUnsafeBufferPointer { lines in
+            for y in 0..<h {
+                let row = y * w
+                for x in 0..<w where lines[row + x] {
+                    if x < lx0 { lx0 = x }
+                    if x > lx1 { lx1 = x }
+                    if y < ly0 { ly0 = y }
+                    ly1 = y
+                }
+            }
         }
+        let rx0 = max(0, lx0 - grow), ry0 = max(0, ly0 - grow), rx1 = min(w - 1, lx1 + grow), ry1 = min(h - 1, ly1 + grow)
+        let rw = rx1 - rx0 + 1, rh = ry1 - ry0 + 1
+        let windowLines = [Bool](unsafeUninitializedCapacity: rw * rh) { out, count in
+            crop.lines.withUnsafeBufferPointer { lines in
+                for y in 0..<rh { for x in 0..<rw { out[y * rw + x] = lines[(y + ry0) * w + x + rx0] } }
+            }
+            count = rw * rh
+        }
+        let windowDistance2 = squaredDistance(to: windowLines, width: rw, height: rh)
+        var roi = [Bool](repeating: false, count: n)
+        let grow2 = grow * grow
+        roi.withUnsafeMutableBufferPointer { roi in
+            windowDistance2.withUnsafeBufferPointer { d in
+                for y in 0..<rh { for x in 0..<rw { roi[(y + ry0) * w + x + rx0] = Int(d[y * rw + x]) <= grow2 } }
+            }
+        }
+        let linear = linearTable
         let target = lab([Double(fill.r), Double(fill.g), Double(fill.b)])
         func f(_ t: Double) -> Double { t > 0.008856 ? cbrt(t) : 7.787 * t + 16.0 / 116 }
+        func near(_ r: Double, _ g: Double, _ b: Double) -> Bool {
+            let fy = f(0.2126 * r + 0.7152 * g + 0.0722 * b)
+            let dl = 116 * fy - 16 - target[0]
+            // Adding the non-negative a/b terms never lowers the rounded sum: a lightness gap alone decides.
+            guard dl * dl < 225 else { return false }
+            let fx = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), fz = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883)
+            let da = 500 * (fx - fy) - target[1], db = 200 * (fy - fz) - target[2]
+            return dl * dl + da * da + db * db < 225
+        }
+        // The test depends on the colour alone: memoise it (direct-mapped, 24-bit key; -1 empty).
+        let cacheSize = 4096
+        var cacheKey = [Int32](repeating: -1, count: cacheSize)
+        var cacheValue = [Bool](repeating: false, count: cacheSize)
         var body = [Bool](repeating: false, count: n)
-        for i in 0..<n where roi[i] {
-            let r = linear[Int(crop.rgb[3 * i])], g = linear[Int(crop.rgb[3 * i + 1])], b = linear[Int(crop.rgb[3 * i + 2])]
-            let fx = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), fy = f(0.2126 * r + 0.7152 * g + 0.0722 * b)
-            let fz = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883)
-            let dl = 116 * fy - 16 - target[0], da = 500 * (fx - fy) - target[1], db = 200 * (fy - fz) - target[2]
-            body[i] = dl * dl + da * da + db * db < 225
+        body.withUnsafeMutableBufferPointer { body in
+            roi.withUnsafeBufferPointer { roi in
+                crop.rgb.withUnsafeBufferPointer { rgb in
+                    cacheKey.withUnsafeMutableBufferPointer { cacheKey in
+                        cacheValue.withUnsafeMutableBufferPointer { cacheValue in
+                            linear.withUnsafeBufferPointer { linear in
+                                for y in ry0...ry1 {
+                                    for i in (y * w + rx0)...(y * w + rx1) where roi[i] {
+                                        let r = Int(rgb[3 * i]), g = Int(rgb[3 * i + 1]), b = Int(rgb[3 * i + 2])
+                                        let key = Int32(r << 16 | g << 8 | b)
+                                        let slot = (r &* 7 ^ g &* 61 ^ b &* 509 ^ (r ^ g) << 4) & (cacheSize - 1)
+                                        if cacheKey[slot] == key { body[i] = cacheValue[slot]; continue }
+                                        let value = near(linear[r], linear[g], linear[b])
+                                        cacheKey[slot] = key; cacheValue[slot] = value
+                                        body[i] = value
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         // Drop body components (4-connected) holding a pixel on the edge of the grown region.
         var stack: [Int] = []
-        for i in 0..<n where body[i] {
-            let x = i % w, y = i / w
-            if x == 0 || y == 0 || x == w - 1 || y == h - 1 || !roi[i - 1] || !roi[i + 1] || !roi[i - w] || !roi[i + w] {
-                body[i] = false; stack.append(i)
+        for y in ry0...ry1 {
+            for i in (y * w + rx0)...(y * w + rx1) where body[i] {
+                let x = i % w
+                if x == 0 || y == 0 || x == w - 1 || y == h - 1 || !roi[i - 1] || !roi[i + 1] || !roi[i - w] || !roi[i + w] {
+                    body[i] = false; stack.append(i)
+                }
             }
         }
         func visit(_ j: Int) { if body[j] { body[j] = false; stack.append(j) } }
@@ -1362,22 +1511,37 @@ extension PipelineStyleEstimator {
             if i + w < n { visit(i + w) }
         }
         var bodyCount = 0, covered = 0
-        for i in 0..<n where body[i] { bodyCount += 1; if crop.lines[i] { covered += 1 } }
-        guard bodyCount >= 30 else { return nil }
-        let distance2 = squaredDistance(to: body.map { !$0 }, width: w, height: h)
-        var ridge: [Double] = []
-        for i in 0..<n where body[i] {
-            let x = i % w, y = i / w, d = distance2[i]
-            var top = true
-            for dy in -1...1 where top {
-                let yy = y + dy
-                guard yy >= 0, yy < h else { continue }
-                for dx in -1...1 {
-                    let xx = x + dx
-                    if xx >= 0, xx < w, distance2[yy * w + xx] > d { top = false; break }
-                }
+        var bx0 = w, by0 = h, bx1 = -1, by1 = -1
+        for y in ry0...ry1 {
+            for x in rx0...rx1 where body[y * w + x] {
+                bodyCount += 1
+                if crop.lines[y * w + x] { covered += 1 }
+                if x < bx0 { bx0 = x }
+                if x > bx1 { bx1 = x }
+                if y < by0 { by0 = y }
+                by1 = y
             }
-            if top { ridge.append(2 * Double(d).squareRoot()) }
+        }
+        guard bodyCount >= 30 else { return nil }
+        // Distance to the nearest non-body pixel on the body's box grown by 1 (body never touches the crop
+        // edge, so that ring is non-body and clamping any farther pixel onto it is no farther: exact).
+        let ox = bx0 - 1, oy = by0 - 1, bw = bx1 - bx0 + 3, bh = by1 - by0 + 3
+        let outside = [Bool](unsafeUninitializedCapacity: bw * bh) { out, count in
+            for y in 0..<bh { for x in 0..<bw { out[y * bw + x] = !body[(y + oy) * w + x + ox] } }
+            count = bw * bh
+        }
+        let distance2 = squaredDistance(to: outside, width: bw, height: bh)
+        var ridge: [Double] = []
+        for y in 1..<(bh - 1) {
+            for x in 1..<(bw - 1) where !outside[y * bw + x] {
+                let d = distance2[y * bw + x]
+                var top = true
+                for dy in -1...1 where top {
+                    let row = (y + dy) * bw
+                    for dx in -1...1 where distance2[row + x + dx] > d { top = false; break }
+                }
+                if top { ridge.append(2 * Double(d).squareRoot()) }
+            }
         }
         ridge.sort()
         let q = 0.75 * Double(ridge.count - 1), lo = Int(q), hi = min(ridge.count - 1, lo + 1)
@@ -1385,3 +1549,4 @@ extension PipelineStyleEstimator {
         return BoldMeasure(ridge: p75 / (font * s), cover: Double(covered) / Double(lineCount))
     }
 }
+
