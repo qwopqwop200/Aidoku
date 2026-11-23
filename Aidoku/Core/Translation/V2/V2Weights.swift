@@ -1,12 +1,16 @@
 import Foundation
 
 /// Fitted tables in Resources/Translation/V2Weights.bin, exported from the out-of-repo research
-/// scripts (scripts-mask/export_weights.py, scripts-style/export_swift.py; TRAIN split only).
+/// scripts (scripts-mask/export_weights.py, scripts-style/export_swift.py; TRAIN split only). fillPass2 is a
+/// LightGBM lambdarank over each block's candidates (`port-eval/colorfix/export_fill.py`; base 0, rate 1).
+/// An optional fourth forest, fillPeaks, ranks the pick against its density peaks (`train_peaks.py`).
 /// Each table is a UInt32 element count followed by little-endian elements, in the order read below.
 private enum V2WeightFile {
     struct Tables {
         let stage1: [Float], stage2: [Float]
         let fillPass1: V2StyleForest, fillPass2: V2StyleForest, outline: V2StyleForest
+        /// Optional trailing forest: the density-peak ranker (absent in older files).
+        let fillPeaks: V2StyleForest?
     }
 
     static let tables: Tables = {
@@ -33,8 +37,10 @@ private enum V2WeightFile {
                                  threshold: read(Double.self), left: read(Int32.self), right: read(Int32.self),
                                  value: read(Double.self))
         }
-        let tables = Tables(stage1: read(Float.self), stage2: read(Float.self),
-                            fillPass1: forest(), fillPass2: forest(), outline: forest())
+        let stage1 = read(Float.self), stage2 = read(Float.self)
+        let fillPass1 = forest(), fillPass2 = forest(), outline = forest()
+        let tables = Tables(stage1: stage1, stage2: stage2, fillPass1: fillPass1, fillPass2: fillPass2, outline: outline,
+                            fillPeaks: offset < data.count ? forest() : nil)
         precondition(offset == data.count, "V2Weights.bin has trailing data")
         return tables
     }()
@@ -54,6 +60,7 @@ enum V2StyleParameters {
     static var fillPass1: V2StyleForest { V2WeightFile.tables.fillPass1 }
     static var fillPass2: V2StyleForest { V2WeightFile.tables.fillPass2 }
     static var outline: V2StyleForest { V2WeightFile.tables.outline }
+    static var fillPeaks: V2StyleForest? { V2WeightFile.tables.fillPeaks }
     static let outlinePage: [Double] = [0.4094924613695863, 0.19954881908897934, -0.9404877504298349]
     static let outlineWidthRing: Double = 0.49653723604023625
     static let outlineWidthFont: Double = 0.042260916827793475

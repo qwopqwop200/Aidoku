@@ -2,14 +2,17 @@ import CoreGraphics
 import Foundation
 
 // S8: model-free style per block on a bounded crop. Font px is a geometric
-// rule with grouping; the fill is the k-means colour candidate that TRAIN-fit boosted trees
-// (V2StyleParameters) pick; the outline comes from colour rings around the fill mask.
+// rule with grouping, times a learned per-group correction (V2FontCorrection); the fill is the k-means colour candidate that TRAIN-fit boosted trees
+// (V2StyleParameters; pass 2 is a LightGBM ranker, `port-eval/colorfix/train_fill_lgb.py`) pick, then a
+// second ranker keeps it or moves to a density peak of the line pixels (`train_peaks.py`; thin ink);
+// the outline comes from colour rings around the fill mask.
 
 extension V2Style {
     /// Fills `style` on every block; blocks keep order and all other fields.
     /// `raster`, the page's decoded RGBA bytes when at hand, spares each crop a draw of `page.image`.
     static func estimate(_ page: V2Page, blocks: [V2Block], raster: V2PageRaster? = nil) -> [V2Block] {
-        let fonts = V2SimpleFont.estimate(blocks)
+        var groups: [Int] = []
+        let fonts = V2SimpleFont.estimate(blocks, groups: &groups)
         // Same bytes as drawing the image only for an sRGB page (no colour conversion either way).
         let raster = raster.flatMap {
             $0.width == page.width && $0.height == page.height && page.image.colorSpace?.name == CGColorSpace.sRGB ? $0 : nil
@@ -25,9 +28,12 @@ extension V2Style {
         var analyses = Array(results)
         let styles = V2StyleConsistency.unify(V2StyleEstimator.decide(&analyses, fonts: fonts),
                                               characters: blocks.map { $0.sourceText.unicodeScalars.count })
-        return zip(blocks, styles).map { block, style in
-            var block = block
-            block.style = style
+        // Layout reads the corrected size; the colour measurement above keeps the geometric one.
+        let layoutFonts = V2FontCorrection.corrected(blocks, fonts: fonts, groups: groups)
+        return blocks.indices.map { index in
+            var block = blocks[index]
+            block.style = styles[index]
+            block.style?.fontPixels = layoutFonts[index]
             return block
         }
     }
@@ -45,6 +51,13 @@ enum V2SimpleFont {
     static let groupedSizeScale = 1.0252379527066393
 
     static func estimate(_ blocks: [V2Block]) -> [CGFloat] {
+        var groups: [Int] = []
+        return estimate(blocks, groups: &groups)
+    }
+
+    /// `groups[i]`: index of block i's size group (blocks of one group share the size).
+    static func estimate(_ blocks: [V2Block], groups groupOf: inout [Int]) -> [CGFloat] {
+        groupOf = Array(blocks.indices)
         guard !blocks.isEmpty else { return [] }
         var values: [Double] = [], members: [Double] = [], weights: [Double] = []
         for block in blocks {
@@ -83,9 +96,9 @@ enum V2SimpleFont {
             }
         }
         var result = values
-        for group in groups {
+        for (id, group) in groups.enumerated() {
             let median = weightedMedian(group.map { (values[$0], weights[$0]) })
-            for index in group { result[index] = median }
+            for index in group { result[index] = median; groupOf[index] = id }
         }
         return result.map { CGFloat($0 * groupedSizeScale) }
     }
@@ -200,6 +213,12 @@ struct V2StyleFeatures: Sendable {
     var clusters: [Cluster] = []
     /// Ring profiles outside each cluster mask (only filled for requested clusters).
     var profiles: [Int: [Ring?]] = [:]
+    /// Density peaks of the line pixels' colours (CIE Lab histogram), most populous first.
+    struct Mode: Sendable {
+        var rgb: [Double]
+        var share: Double
+    }
+    var modes: [Mode] = []
 }
 
 enum V2StyleEstimator {
@@ -329,6 +348,7 @@ enum V2StyleEstimator {
             result.clusters.append(cluster)
         }
         // Ring profiles read only the colour, cluster and line-distance planes.
+        result.modes = densityPeaks(crop.crop)
         crop.crop.lines = []; crop.crop.ring = []; crop.crop.exteriorDistance2 = []
         return BlockAnalysis(features: result, crop: crop.crop)
     }
@@ -822,6 +842,88 @@ enum V2StyleEstimator {
         return out
     }
 
+    static let peakBin = 6.0
+    static let peakMinimumShare = 0.01
+    static let peakCount = 8
+    static let peakSamples = 20_000
+
+    /// CIE Lab of an sRGB colour (D65), as `V2StyleConsistency.lab`.
+    static func lab(_ c: [Double]) -> [Double] {
+        func linear(_ v: Double) -> Double {
+            let c = v / 255
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        let r = linear(c[0]), g = linear(c[1]), b = linear(c[2])
+        let x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
+        let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        let z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
+        func f(_ t: Double) -> Double { t > 0.008856 ? pow(t, 1.0 / 3) : 7.787 * t + 16.0 / 116 }
+        let fx = f(x), fy = f(y), fz = f(z)
+        return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)]
+    }
+
+    /// CIE76 colour difference of two sRGB colours.
+    static func deltaE(_ a: [Double], _ b: [Double]) -> Double {
+        let p = lab(a), q = lab(b)
+        return ((p[0] - q[0]) * (p[0] - q[0]) + (p[1] - q[1]) * (p[1] - q[1]) + (p[2] - q[2]) * (p[2] - q[2])).squareRoot()
+    }
+
+    /// Local maxima (26-neighbourhood) of a Lab histogram over the line pixels holding at least 1% of them;
+    /// each peak's colour is the channel median of the pixels in its 3x3x3 bins. Thin lettering blends
+    /// its ink with the outline, so the k-means cores can miss the ink while a peak still sits on it.
+    static func densityPeaks(_ crop: Crop) -> [V2StyleFeatures.Mode] {
+        var lineIndices: [Int] = []
+        for i in crop.lines.indices where crop.lines[i] { lineIndices.append(i) }
+        guard lineIndices.count >= 16 else { return [] }
+        let step = max(1, lineIndices.count / peakSamples)
+        let samples = stride(from: 0, to: lineIndices.count, by: step).map { lineIndices[$0] }
+        func key(_ i: Int) -> (Int, Int, Int) {
+            let l = lab([Double(crop.rgb[i * 3]), Double(crop.rgb[i * 3 + 1]), Double(crop.rgb[i * 3 + 2])])
+            return (Int((l[0] / peakBin).rounded(.down)), Int((l[1] / peakBin).rounded(.down)), Int((l[2] / peakBin).rounded(.down)))
+        }
+        func pack(_ k: (Int, Int, Int)) -> Int { ((k.0 + 64) << 16) | ((k.1 + 64) << 8) | (k.2 + 64) }
+        let keys = samples.map(key)
+        var counts: [Int: Int] = [:]
+        for k in keys { counts[pack(k), default: 0] += 1 }
+        let total = Double(samples.count)
+        var peaks: [(count: Int, packed: Int, key: (Int, Int, Int))] = []
+        var seen = Set<Int>()
+        for k in keys {
+            let packed = pack(k)
+            guard seen.insert(packed).inserted, let c = counts[packed], Double(c) >= peakMinimumShare * total else { continue }
+            var isPeak = true
+            for a in -1...1 { for b in -1...1 { for d in -1...1 where (a, b, d) != (0, 0, 0) {
+                if let n = counts[pack((k.0 + a, k.1 + b, k.2 + d))], n > c { isPeak = false }
+            } } }
+            if isPeak { peaks.append((c, packed, k)) }
+        }
+        peaks.sort { $0.count != $1.count ? $0.count > $1.count : $0.packed > $1.packed }
+        return peaks.prefix(peakCount).map { peak in
+            let members = samples.indices.filter {
+                abs(keys[$0].0 - peak.key.0) <= 1 && abs(keys[$0].1 - peak.key.1) <= 1 && abs(keys[$0].2 - peak.key.2) <= 1
+            }.map { samples[$0] }
+            return V2StyleFeatures.Mode(rgb: channelMedian(crop.rgb, indices: members), share: Double(peak.count) / total)
+        }
+    }
+
+    /// Features of each colour option of a block: the pick first, then its density peaks.
+    static func peakFeatures(_ f: V2StyleFeatures, pick: [Double], pickLogit: Double, outline: [Double]) -> (colours: [[Double]], x: [[Double]]) {
+        let ring = f.ringBackground
+        let colours = [pick] + f.modes.map(\.rgb)
+        let shares = f.modes.map(\.share)
+        func lc(_ c: [Double]) -> (Double, Double) { let l = lab(c); return (l[0], (l[1] * l[1] + l[2] * l[2]).squareRoot()) }
+        let (lp, cp) = lc(pick)
+        let x: [[Double]] = colours.indices.map { i in
+            let colour = colours[i], (l, c) = lc(colour)
+            let share = i == 0 ? 0 : shares[i - 1]
+            let rank = i == 0 ? -1 : Double(shares.firstIndex(of: share)!)
+            return [i == 0 ? 1 : 0, share, rank, deltaE(colour, pick), deltaE(colour, ring), deltaE(colour, outline),
+                    l, c, l - lp, c - cp, deltaE(pick, ring), deltaE(pick, outline), pickLogit, f.font / 100,
+                    Double(f.modes.count), deltaE(colour, ring) - deltaE(pick, ring)]
+        }
+        return (colours, x)
+    }
+
     static func channelMedian(_ rgb: [UInt8], indices: [Int]) -> [Double] {
         guard !indices.isEmpty else { return [255, 255, 255] }
         var histograms = [Int](repeating: 0, count: 768)
@@ -1041,9 +1143,22 @@ extension V2StyleEstimator {
                                 .map { $0.rounded(.toNearestOrEven) }
                             results[index].textColor = rgb(f.clusters[j].core)
                             results[index].bold = f.clusters[j].strokeWidth / f.font >= P.boldStrokeRatio
-                            if let observation = outlineObservation(f, fill: j, rings: profile, background: background) {
+                            let observation = outlineObservation(f, fill: j, rings: profile, background: background)
+                            if let observation {
                                 observations[index] = observation
                                 scores[index] = P.outline.logit(observation.features)
+                            }
+                            // Second stage: keep the pick or move to a density peak of the line pixels.
+                            if let peaks = P.fillPeaks, !f.modes.isEmpty {
+                                let pickLogit = P.fillPass2.logit(candidateFeatures(f, j, consensus: consensus))
+                                let options = peakFeatures(f, pick: f.clusters[j].core, pickLogit: pickLogit,
+                                                           outline: observation?.colour ?? f.ringBackground)
+                                var best = 0, bestScore = -Double.infinity
+                                for (i, x) in options.x.enumerated() {
+                                    let score = peaks.logit(x)
+                                    if score > bestScore { best = i; bestScore = score }
+                                }
+                                results[index].textColor = rgb(options.colours[best])
                             }
                             analyses[index] = analysis
                         }
@@ -1070,14 +1185,14 @@ extension V2StyleEstimator {
 
 // MARK: - Page style consistency
 
-/// A page letters with a few styles, and S8 misses drift off them. Blocks chained within a loose
-/// style distance (CIE76 fill dE; half the stroke dE when both have an outline; an outline
-/// mismatch counts as 40) share one style: the group's medoid fill, the majority outline, the
+/// A page letters with a few styles, and S8 misses drift off them. Blocks whose every pair lies within
+/// a style distance of 15 (complete linkage; CIE76 fill dE; half the stroke dE when both have an outline;
+/// an outline mismatch counts as 40) share one style: the group's medoid fill, the majority outline, the
 /// medoid stroke among outlined members and the median stroke width per font px. Bold and size
 /// stay per block. Text under 4 characters (SFX, ruby, fragments; mostly not GT lettering) takes
-/// no part. Fit on TRAIN folds against the colour GT (`port-eval/colorclust`).
+/// no part. Fit on TRAIN folds against the colour GT (`port-eval/colorfix/sim.py`).
 enum V2StyleConsistency {
-    static let threshold = 20.0
+    static let threshold = 15.0
     static let outlineMismatch = 40.0
     static let strokeWeight = 0.5
     static let minimumCharacters = 4
@@ -1123,23 +1238,31 @@ enum V2StyleConsistency {
         let n = styles.count
         guard n >= 2 else { return styles }
         var d = [Double](repeating: 0, count: n * n)
-        var root = Array(0..<n)
         for i in 0..<n {
             for j in (i + 1)..<n {
                 let value = distance(styles[i], styles[j])
                 d[i * n + j] = value
                 d[j * n + i] = value
-                guard value <= threshold else { continue }
-                // Single linkage: relabel j's group as i's.
-                let from = root[j], to = root[i]
-                if from != to {
-                    for k in 0..<n where root[k] == from { root[k] = to }
-                }
             }
         }
+        // Complete linkage: repeatedly merge the two groups whose farthest pair is closest, while that
+        // pair stays within the threshold (no chaining of similar-but-distinct colours).
+        var groups = (0..<n).map { [$0] }
+        while true {
+            var best = Double.infinity, pair: (Int, Int)?
+            for a in groups.indices {
+                for b in (a + 1)..<groups.count {
+                    var link = 0.0
+                    for i in groups[a] { for j in groups[b] { link = max(link, d[i * n + j]) } }
+                    if link <= threshold, link < best { best = link; pair = (a, b) }
+                }
+            }
+            guard let (a, b) = pair else { break }
+            groups[a] += groups[b]
+            groups.remove(at: b)
+        }
         var result = styles
-        for label in Set(root) {
-            let group = (0..<n).filter { root[$0] == label }
+        for group in groups {
             guard group.count >= 2 else { continue }
             var medoid = group[0], best = Double.infinity
             for i in group {

@@ -6,6 +6,10 @@ enum V2ParagraphGrouping {
     /// Minimum fraction of a line inside an owning balloon for an edge to
     /// a line of that balloon (legacy 0.9; V2 selects 0.7).
     static let balloonEdgeCoverage: CGFloat = 0.7
+    /// Neighbouring columns/rows may overlap across by up to this many glyphs and still be parallel
+    /// (tight or slanted columns; legacy 0.25). Merge GT, train folds: 0.6-1.0 is one plateau,
+    /// fragmentation 28 -> 19 with no extra wrong joins; dev exact pages 169 -> 172.
+    static let parallelOverlap: CGFloat = 0.6
     struct Scope {
         let owner: Int
         let box: CGRect
@@ -163,7 +167,7 @@ enum V2ParagraphGrouping {
         }
         let same = (fits || sharedText) && max(0, -cg) >= glyph/2 && ag >= -glyph/4 && ag <= sameLimit+epsilon
         let shorter = min(x.end-x.start, y.end-y.start)
-        let parallel = fits && cg >= -glyph/4 && cg <= parallelLimit+epsilon
+        let parallel = fits && cg >= -glyph*parallelOverlap && cg <= parallelLimit+epsilon
             && max(0, -ag) >= shorter/2 && shorter >= glyph*1.5
             && (vertical || min(abs(x.start-y.start), abs(x.end-y.end)) <= glyph*1.5)
         return same || parallel ? (max(0, same ? ag : cg)/glyph, !same) : nil

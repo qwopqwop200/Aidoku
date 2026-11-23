@@ -414,8 +414,8 @@ struct V2StageTests {
         V2Style(fontPixels: px, bold: false, textColor: fill, strokeColor: stroke, strokeWidth: width)
     }
 
-    @Test func pageStylesUnifyWithinTheLooseDistance() {
-        let indigo = V2RGB(r: 72, g: 70, b: 126), drift = V2RGB(r: 80, g: 80, b: 112), black = V2RGB(r: 2, g: 2, b: 2)
+    @Test func pageStylesUnifyWithinTheDistance() {
+        let indigo = V2RGB(r: 72, g: 70, b: 126), drift = V2RGB(r: 78, g: 78, b: 118), black = V2RGB(r: 2, g: 2, b: 2)
         let styles = [
             styled(30, fill: indigo, width: 3), styled(30, fill: indigo, width: 3), styled(60, fill: drift, width: 9),
             styled(30, fill: black, stroke: nil, width: 0), styled(30, fill: black, width: 3),
@@ -433,6 +433,21 @@ struct V2StageTests {
         let gated = V2StyleConsistency.unify(styles, characters: [5, 5, 2, 5, 5])
         #expect(gated[2] == styles[2])
         #expect(gated[0].textColor == indigo)
+        // Complete linkage: a chain of close colours whose ends are more than 15 apart does not merge whole.
+        let ends = [V2RGB(r: 72, g: 70, b: 126), V2RGB(r: 84, g: 80, b: 126), V2RGB(r: 96, g: 90, b: 126)]
+        let chain = V2StyleConsistency.unify(ends.map { styled(30, fill: $0) })
+        #expect(chain[0].textColor == ends[0] && chain[1].textColor == chain[2].textColor)
+    }
+
+    @Test func densityPeaksFindThinInkBesideItsOutline() {
+        // 60% ink, 25% white outline, 15% blend: the ink is its own peak; the blend is not.
+        let ink: [UInt8] = [71, 71, 133], white: [UInt8] = [255, 255, 255], blend: [UInt8] = [163, 163, 194]
+        let pixels = (0..<400).flatMap { i in i % 20 < 12 ? ink : i % 20 < 17 ? white : blend }
+        let crop = V2StyleEstimator.Crop(width: 20, height: 20, rgb: pixels, lines: [Bool](repeating: true, count: 400))
+        let peaks = V2StyleEstimator.densityPeaks(crop)
+        #expect(peaks.first.map { $0.rgb == [71, 71, 133] && abs($0.share - 0.6) < 1e-9 } == true)
+        #expect(peaks.contains { $0.rgb == [255, 255, 255] })
+        #expect(V2StyleEstimator.deltaE([71, 71, 133], [71, 71, 133]) == 0)
     }
 
     @Test func pageStylesTakeTheMajorityOutline() {
