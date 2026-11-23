@@ -13,10 +13,10 @@ enum PipelineRemovalMask {
     static let roiMinimum = 8
     /// Line boxes grown along their axis by this many thicknesses are also searched (detection often
     /// stops short of a column's last glyph); `PipelineLineEnds` first moves box ends it predicts lie further out.
-    static let lineEndExtension = 0.5
+    static var lineEndExtension: Double { PipelineTuning.current.lineEndExtension }
     /// Glyph probability cut (fit by 3-fold CV on the train folds).
-    static let threshold: Float = 0.15
-    static let outputDilation = 2
+    static var threshold: Float { PipelineTuning.current.maskThreshold }
+    static var outputDilation: Int { PipelineTuning.current.maskDilation }
     static let gateScale = 0.25
     static let maximumThickness: Double = 400
 

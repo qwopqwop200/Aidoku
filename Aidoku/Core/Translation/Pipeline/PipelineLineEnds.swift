@@ -16,7 +16,7 @@ enum PipelineLineEnds {
     /// 19 bins of 0.1 T, from 0.6 T inside the end to 1.3 T past it.
     static let binCount = 19
     /// An end is searched up to its predicted position plus this many thicknesses (train-fold CV).
-    static let margin = 0.35
+    static var margin: Double { PipelineTuning.current.lineEndMargin }
     static let regionMinimumScore: Float = 0.5
 
     /// `lines` with ends moved outward by `max(0, (offset + margin - lineEndExtension) * T)`.

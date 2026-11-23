@@ -7,7 +7,12 @@ import Foundation
 enum PipelineDetection {
     /// The legacy Manga binarization (0.85, unclip 1.4); with line assembly it beat a
     /// low-threshold candidate on GT dev.
-    static let configuration = NativeCoreMLDBPostprocessConfiguration.manga
+    static var configuration: NativeCoreMLDBPostprocessConfiguration {
+        let tuning = PipelineTuning.current
+        return NativeCoreMLDBPostprocessConfiguration(threshold: tuning.detectionThreshold, boxThreshold: tuning.detectionBoxThreshold,
+                                                      unclipRatio: tuning.detectionUnclipRatio,
+                                                      maximumCandidates: NativeCoreMLDBPostprocessConfiguration.manga.maximumCandidates)
+    }
 
     static func detect(_ page: PipelinePage, detector: NativeCoreMLDetector) async throws -> [PipelineLine] {
         // Geometry only: no legacy evidence, input digest or MLTensor round trip (bit-identical boxes).

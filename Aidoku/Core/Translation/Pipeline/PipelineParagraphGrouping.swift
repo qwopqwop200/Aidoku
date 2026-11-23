@@ -5,11 +5,11 @@ import CoreGraphics
 enum PipelineParagraphGrouping {
     /// Minimum fraction of a line inside an owning balloon for an edge to
     /// a line of that balloon (legacy 0.9; the pipeline selects 0.7).
-    static let balloonEdgeCoverage: CGFloat = 0.7
+    static var balloonEdgeCoverage: CGFloat { PipelineTuning.current.balloonEdgeCoverage }
     /// Neighbouring columns/rows may overlap across by up to this many glyphs and still be parallel
     /// (tight or slanted columns; legacy 0.25). Merge GT, train folds: 0.6-1.0 is one plateau,
     /// fragmentation 28 -> 19 with no extra wrong joins; dev exact pages 169 -> 172.
-    static let parallelOverlap: CGFloat = 0.6
+    static var parallelOverlap: CGFloat { PipelineTuning.current.parallelOverlap }
     struct Scope {
         let owner: Int
         let box: CGRect
@@ -156,7 +156,7 @@ enum PipelineParagraphGrouping {
         // lifts the width-fit limit, and one RF balloon allows a wider gutter.
         let sameBalloon = a.balloon != nil && a.balloon?.owner == b.balloon?.owner
         let sameLimit = glyph*((x.start <= y.start ? a : b).openQuote ? 4 : 2)
-        let parallelLimit = glyph*(sameBalloon ? 1.25 : 1)
+        let parallelLimit = glyph*(sameBalloon ? 1.25*PipelineTuning.current.parallelGap : PipelineTuning.current.parallelGap)
         let epsilon = max(max(x.maxULP, y.maxULP), max(max(glyph.ulp, sameLimit.ulp), max(ag.ulp, cg.ulp)))*4
         // A one- or two-glyph fragment cut off a column or row end continues it, measured in the full line's glyphs.
         let fragments = [a.letters <= 2, b.letters <= 2]
@@ -286,10 +286,13 @@ enum PipelineParagraphGrouping {
                   !$0.box.isNull && [$0.box.minX, $0.box.minY, $0.box.maxX, $0.box.maxY].allSatisfy(\.isFinite)
                       && $0.confidence.isFinite
               }) else { return nil }
+        let tuning = PipelineTuning.current
+        let ownerCoverage = tuning.balloonOwnerCoverage, scopeCoverage = tuning.textScopeCoverage
+        let textFloor = Double(tuning.layoutTextFloor)
         var atoms = inputs.map { input -> Atom in
             let box = bounds(input.polygon)
-            let owners = balloons.filter { $0.confidence >= Double(PipelineLayoutRegion.balloonFloor) && PipelineLineAssembly.coverage(box, $0.box) >= 0.9 }
-            let text = Set(textScopes.filter { $0.confidence >= 0.25 && PipelineLineAssembly.coverage(box, $0.box) >= 0.8 }.map(\.owner))
+            let owners = balloons.filter { $0.confidence >= Double(PipelineLayoutRegion.balloonFloor) && PipelineLineAssembly.coverage(box, $0.box) >= ownerCoverage }
+            let text = Set(textScopes.filter { $0.confidence >= textFloor && PipelineLineAssembly.coverage(box, $0.box) >= scopeCoverage }.map(\.owner))
             return .init(input: input, box: box, along: axis(input), balloon: owners.count == 1 ? owners[0] : nil,
                          text: text.isEmpty ? nil : text, letters: input.source.filter { !$0.isWhitespace }.count,
                          openQuote: hasOpenQuote(input.source))

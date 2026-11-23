@@ -1,0 +1,14 @@
+# Code only. Datasets, GT-derived caches, dumps, trained-model scratch and run outputs live in
+# AIDOKU_EVAL_DIR (see workspace.py), never here.
+*.pkl
+*.npz
+*.npy
+*.png
+*.jpg
+*.json
+*.pt
+*.bin
+*.txt
+*.out
+__pycache__/
+mc/

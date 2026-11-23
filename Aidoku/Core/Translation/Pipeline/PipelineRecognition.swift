@@ -356,8 +356,8 @@ actor PipelineHandlePool<Element: AnyObject> {
 
 @available(iOS 18.0, *)
 enum PipelineRecognition {
-    /// The legacy manga acceptance gate (`IPhoneOCRSettings.mangaConfidenceThreshold`).
-    static let minimumConfidence = IPhoneOCRSettings.mangaConfidenceThreshold
+    /// The manga acceptance gate (`PipelineTuning.recognitionMinimumConfidence`).
+    static var minimumConfidence: Double { PipelineTuning.current.recognitionMinimumConfidence }
 
     struct Read: Sendable, Equatable {
         var text: String
@@ -423,7 +423,7 @@ enum PipelineRecognition {
         let xs = polygon.map(\.x), ys = polygon.map(\.y)
         guard let x0 = xs.min(), let x1 = xs.max(), let y0 = ys.min(), let y1 = ys.max() else { return nil }
         let short = min(x1 - x0, y1 - y0)
-        let pad = max(x1 - x0, y1 - y0) >= 1.5 * short ? short / 20 : 0
+        let pad = max(x1 - x0, y1 - y0) >= 1.5 * short ? short / PipelineTuning.current.recognitionLinePadDivisor : 0
         let polygon = polygon.map {
             CGPoint(x: $0.x + ($0.x < (x0 + x1) / 2 ? -pad : pad), y: $0.y + ($0.y < (y0 + y1) / 2 ? -pad : pad))
         }

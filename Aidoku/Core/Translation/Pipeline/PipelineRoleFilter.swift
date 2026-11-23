@@ -5,17 +5,18 @@ import Foundation
 /// is inside a confident RF SFX region, under half inside any balloon and under 30% inside
 /// any RF text region (fit on train GT); everything else is left for the LLM.
 enum PipelineRoleFilter {
-    static let sfxScore: Float = 0.8
+    static var sfxScore: Float { PipelineTuning.current.roleSFXScore }
     static let sfxCoverage: CGFloat = 0.5
-    static let balloonScore: Float = 0.5
+    static var balloonScore: Float { PipelineTuning.current.roleBalloonScore }
     static let balloonCoverage: CGFloat = 0.5
-    static let textScore: Float = 0.25
+    /// The S1 text floor (a region S1 keeps counts).
+    static var textScore: Float { PipelineTuning.current.layoutTextFloor }
     static let textCoverage: CGFloat = 0.3
 
     /// Fragment rule (fit on train, checked on dev): outside any balloon, a block of at most
     /// `fragmentCharacters` non-space characters with mean confidence below `fragmentConfidence`
     /// is noise or art and keeps its source pixels (no request, erase or paint).
-    static let fragmentConfidence: Float = 0.6
+    static var fragmentConfidence: Float { PipelineTuning.current.fragmentConfidence }
     static let fragmentCharacters = 4
 
     /// Paint precision rule (CV-fit on train folds against GT text regions): SFX keeps its source
@@ -42,8 +43,8 @@ enum PipelineRoleFilter {
     /// still speech when RF-DETR sees it inside a balloon (score x coverage >= `rescueBalloon`) and
     /// not inside an SFX region (score x coverage < `rescueSFX`). Train folds: 15 of 21 such speech
     /// blocks painted, 1 of 441 SFX wrongly painted; held-out dev+test 3 rescued, 1 wrong.
-    static let rescueBalloon: CGFloat = 0.5
-    static let rescueSFX: CGFloat = 0.1
+    static var rescueBalloon: CGFloat { PipelineTuning.current.roleRescueBalloon }
+    static var rescueSFX: CGFloat { PipelineTuning.current.roleRescueSFX }
 
     static func rescuingSpeech(_ blocks: [PipelineBlock], layout: [PipelineLayoutRegion]) -> [PipelineBlock] {
         func evidence(_ kind: PipelineLayoutKind, _ bounds: CGRect) -> CGFloat {

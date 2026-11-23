@@ -15,8 +15,8 @@ enum PipelineInterior {
     static let midGray = 96...160
     /// Growth reach per side, in source line thicknesses (vertical 3 on the S1 balloon floor 0.4:
     /// compare.py +9, 2.5-3 a plateau; 3.5 -5, 5 neutral).
-    static let horizontalReach: CGFloat = 8
-    static let verticalReach: CGFloat = 3
+    static var horizontalReach: CGFloat { PipelineTuning.current.interiorHorizontalReach }
+    static var verticalReach: CGFloat { PipelineTuning.current.interiorVerticalReach }
     /// Granted margin around the source before the growth.
     static let baseMargin = (horizontal: CGFloat(3), vertical: CGFloat(1.5))
     /// Growth step in line thicknesses, steps per side and the share of other text a strip may cover.
@@ -86,7 +86,7 @@ enum PipelineInterior {
         let area = block.bounds.width * block.bounds.height
         guard area > 0 else { return nil }
         return layout.filter { region in
-            guard region.kind == .frame, region.score >= 0.7 else { return false }
+            guard region.kind == .frame, region.score >= PipelineTuning.current.interiorFrameScore else { return false }
             let overlap = region.bounds.intersection(block.bounds)
             return !overlap.isNull && overlap.width * overlap.height >= area * frameHold
         }.map(\.bounds).min { $0.width * $0.height < $1.width * $1.height }

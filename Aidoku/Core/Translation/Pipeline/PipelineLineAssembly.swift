@@ -10,9 +10,9 @@ import Foundation
 /// bit-identical to the out-of-repo research reference (scripts-detection/assemble.py).
 enum PipelineLineAssembly {
     /// Maximum along-axis gap, in units of the thinner fragment's thickness.
-    static let maximumGap: CGFloat = 1.5
+    static var maximumGap: CGFloat { PipelineTuning.current.assemblyMaximumGap }
     /// Minimum cross-axis overlap, in units of the thinner fragment's thickness.
-    static let minimumOverlap: CGFloat = 0.6
+    static var minimumOverlap: CGFloat { PipelineTuning.current.assemblyMinimumOverlap }
     /// Maximum thickness ratio between the two fragments.
     static let maximumRatio: CGFloat = 1.8
     /// A fragment joins along an axis only when `length * aspect >= thickness`.
@@ -23,7 +23,7 @@ enum PipelineLineAssembly {
     static let balloonInside: CGFloat = 0.5
     /// A fragment outside every balloon joins a balloon member only with this share inside it.
     static let balloonOutside: CGFloat = 0.15
-    static let balloonMinimumScore: Float = PipelineLayoutRegion.balloonFloor
+    static var balloonMinimumScore: Float { PipelineLayoutRegion.balloonFloor }
 
     static func assemble(_ lines: [PipelineLine], layout: [PipelineLayoutRegion]) -> [PipelineLine] {
         guard lines.count > 1 else { return lines }

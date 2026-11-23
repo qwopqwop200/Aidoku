@@ -145,7 +145,7 @@ enum PipelineGrouping {
             }
         }
         guard direction != .topToBottom else { return base }
-        let frames = layout.filter { $0.kind == .frame && $0.score >= 0.5 }.map(\.bounds)
+        let frames = layout.filter { $0.kind == .frame && $0.score >= PipelineTuning.current.layoutFrameFloor }.map(\.bounds)
         guard let source = raster ?? PipelineGrayRaster(frames: frames, pageSize: pageSize),
               pageSize.width > 0, pageSize.height > 0 else { return base }
         // Left-to-right panels are right-to-left panels of the mirrored page.

@@ -53,17 +53,27 @@ enum PipelineMain {
     static func log(_ text: String) { FileHandle.standardError.write(Data((text + "\n").utf8)) }
 
     /// Compiles the pipeline model set into a private bundle (cached by package path/size/mtime).
-    static func prepareBundle(root: URL, cache: URL) throws -> Bundle {
-        let bundle = cache.appendingPathComponent("Models.bundle")
+    /// Model bundle from the repository's packages, or per file from `models` (AIDOKU_PIPELINE_MODELS: a
+    /// directory of replacement .mlpackage / dictionary / language-model files) in a bundle of its own.
+    static func prepareBundle(root: URL, cache: URL, models: URL? = nil) throws -> Bundle {
+        let bundle = cache.appendingPathComponent(models.map { "Models-\(PipelineHostTuning.digest($0.path)).bundle" } ?? "Models.bundle")
         let resources = bundle.appendingPathComponent("Contents/Resources")
         try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
         let plist: [String: Any] = ["CFBundleIdentifier": "app.aidoku.ImageTranslationPipelineModels", "CFBundlePackageType": "BNDL"]
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
             .write(to: bundle.appendingPathComponent("Contents/Info.plist"))
-        let source = root.appendingPathComponent("Aidoku/Resources/Translation")
+        let repository = root.appendingPathComponent("Aidoku/Resources/Translation")
+        let fileManager = FileManager.default
+        /// The replacement in `models` when there is one, else the repository file.
+        func resource(_ file: String) -> URL {
+            if let override = models?.appendingPathComponent(file), fileManager.fileExists(atPath: override.path) {
+                return override
+            }
+            return repository.appendingPathComponent(file)
+        }
         for name in [PipelineModels.detectorResourceName, PipelineRecognitionEngine.modelResourceName,
                      PipelineRFDETRModel.resourceName, PipelineAOTModel.resourceName, PipelineMaskNet.resourceName] {
-            let package = source.appendingPathComponent(name + ".mlpackage")
+            let package = resource(name + ".mlpackage")
             let destination = resources.appendingPathComponent(name + ".mlmodelc")
             guard let enumerator = FileManager.default.enumerator(at: package,
                 includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]) else {
@@ -90,7 +100,7 @@ enum PipelineMain {
         for file in [PipelineRecognitionEngine.dictionaryResourceName + ".deflate", PipelineRecognitionEngine.languageModelResourceName + ".bin"] {
             let target = resources.appendingPathComponent(file)
             if !FileManager.default.fileExists(atPath: target.path) {
-                try FileManager.default.copyItem(at: source.appendingPathComponent(file), to: target)
+                try FileManager.default.copyItem(at: resource(file), to: target)
             }
         }
         guard let loaded = Bundle(path: bundle.path) else { throw PipelineHostError("cannot open model bundle") }
@@ -192,8 +202,16 @@ enum PipelineMain {
         let replay = try settings.replay.map { try PipelineHostReplay(root: $0) }
         let direction = PipelineReadingDirection(rawValue: settings.readingDirection) ?? .rightToLeft
 
+        // Model-coupled knobs and replacement models (retune.py): set before any model or page runs.
+        try PipelineHostTuning.apply(shell["AIDOKU_PIPELINE_TUNING"])
+        if let dump = shell["AIDOKU_PIPELINE_DUMP_MASKS"] { try PipelineHostTuning.dumpMasks(into: URL(fileURLWithPath: dump)) }
+        let modelOverride = shell["AIDOKU_PIPELINE_MODELS"].map { URL(fileURLWithPath: $0).standardizedFileURL }
+        if PipelineTuning.current != PipelineTuning() || modelOverride != nil {
+            log("Tuning \(PipelineHostTuning.describe(PipelineTuning.current)); models \(modelOverride?.path ?? "repository")")
+        }
+
         let loadStart = DispatchTime.now().uptimeNanoseconds
-        let bundle = try prepareBundle(root: root, cache: cache)
+        let bundle = try prepareBundle(root: root, cache: cache, models: modelOverride)
         // AIDOKU_PIPELINE_DETECTORS / AIDOKU_PIPELINE_INPAINTERS override the resident pool sizes (default 2/2).
         let pool = { (name: String) in max(1, Int(shell[name] ?? "") ?? 2) }
         let models = try PipelineModels.load(bundle: bundle, detectorInstances: pool("AIDOKU_PIPELINE_DETECTORS"),
@@ -364,6 +382,8 @@ enum PipelineMain {
             "split": settings.split as Any? ?? NSNull(),
             "replay": settings.replay?.path as Any? ?? NSNull(),
             "modelLoadMilliseconds": loadMilliseconds,
+            "tuning": PipelineTuning.current.values,
+            "models": modelOverride?.path ?? "repository",
             "modelLoadByModel": models.loadMilliseconds,
             "runWallMilliseconds": wall,
             "pagesWallMilliseconds": pagesWall,

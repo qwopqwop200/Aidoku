@@ -16,7 +16,10 @@ final class PipelineRFDETRModel: @unchecked Sendable {
     static let mean: [Float] = [0.485, 0.456, 0.406]
     static let std: [Float] = [0.229, 0.224, 0.225]
     /// Per-class floors in model class order: text, SFX, balloon, frame.
-    static let thresholds: [Float] = [0.25, 0.20, PipelineLayoutRegion.balloonFloor, 0.50]
+    static var thresholds: [Float] {
+        let tuning = PipelineTuning.current
+        return [tuning.layoutTextFloor, tuning.layoutSFXFloor, tuning.balloonFloor, tuning.layoutFrameFloor]
+    }
     static let selectedCount = 160
 
     enum Failure: Error { case modelContract(String), nonfiniteOutput }

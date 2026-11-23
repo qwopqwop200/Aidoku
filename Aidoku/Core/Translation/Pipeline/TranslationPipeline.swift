@@ -32,6 +32,10 @@ struct PipelineHooks: Sendable {
 
 @available(iOS 18.0, macOS 15.0, *)
 enum TranslationPipeline {
+    /// Host-only observer of each page's S6 removal mask (page id, width, height, mask, erased block
+    /// ids), for mask scoring when knobs are re-fitted; nil in the app. Set before any page runs.
+    nonisolated(unsafe) static var removalObserver: (@Sendable (String, Int, Int, [UInt8], [Int]) -> Void)?
+
     enum Stage {
         static let decode = "decode"
         static let layout = "s1_layout"
@@ -382,6 +386,7 @@ enum TranslationPipeline {
             }
             return PipelineRemovalMask.build(page, blocks: paintable, layout: layout, net: models.removalMask)
         }
+        removalObserver?(page.id, page.width, page.height, removal, paintable.map(\.id))
         do {
             (erased.restored, erased.background) = try await timings.record(Stage.inpaint) {
                 () async throws -> (PipelineRasterHandoff?, CGImage?) in

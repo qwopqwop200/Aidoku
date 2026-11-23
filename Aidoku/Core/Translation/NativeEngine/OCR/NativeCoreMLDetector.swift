@@ -199,10 +199,10 @@ enum NativeCoreMLDetectionPreprocessor {
     private static let channelMean: [Float] = [0.485, 0.456, 0.406]
     private static let channelStandardDeviation: [Float] = [0.229, 0.224, 0.225]
 
-    /// The stride-aligned model canvas, at most `IPhoneOCRSettings.defaultDetectorMaximumSide`.
+    /// The stride-aligned model canvas, at most `PipelineTuning.detectionMaximumSide`.
     static func resizeDimensions(sourceWidth: Int, sourceHeight: Int) -> (width: Int, height: Int)? {
         guard sourceWidth > 0, sourceHeight > 0 else { return nil }
-        let alignedMaximumSide = max(32, min(2_000, IPhoneOCRSettings.defaultDetectorMaximumSide) / 32 * 32)
+        let alignedMaximumSide = max(32, min(2_000, PipelineTuning.current.detectionMaximumSide) / 32 * 32)
         let sourceMaximumSide = max(sourceWidth, sourceHeight)
         let scale = sourceMaximumSide > alignedMaximumSide
             ? Double(alignedMaximumSide) / Double(sourceMaximumSide)

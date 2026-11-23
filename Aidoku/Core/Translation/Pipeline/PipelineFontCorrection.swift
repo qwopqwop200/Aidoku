@@ -9,7 +9,7 @@ import Foundation
 /// sizing constants were fit to; only the relative error is corrected. Held-out median |error|
 /// 4.3% -> 3.5% (dev), 4.7% -> 3.0% (test), share over 10%: 10.5% -> 7.7%, 11.2% -> 10.5%.
 enum PipelineFontCorrection {
-    static let level = 0.02845
+    static var level: Double { PipelineTuning.current.fontLevel }
     static func corrected(_ blocks: [PipelineBlock], fonts: [CGFloat], groups: [Int]) -> [CGFloat] {
         guard !blocks.isEmpty else { return fonts }
         let pageMedian = median(fonts.map(Double.init))
