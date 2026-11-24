@@ -18,8 +18,7 @@ enum TLSClientHello {
     static func inspect(_ data: Data) -> Inspection {
         let bytes = [UInt8](data)
         guard !bytes.isEmpty else { return .incomplete }
-        guard bytes[0] == 22 else { return .passthrough }
-        guard bytes.count <= maximumBytes else { return .passthrough }
+        guard bytes[0] == 22, bytes.count <= maximumBytes else { return .passthrough }
         var handshake: [UInt8] = []
         var records: [Record] = []
         var cursor = 0

@@ -176,9 +176,7 @@ extension LocalFileManager {
             return nil
         }
     }
-}
 
-extension LocalFileManager {
     /// Decodes an image for import, downsampling it when its full-size bitmap would exceed `maxPixels`.
     nonisolated static func loadImportImage(at url: URL, maxPixels: Int = maxImportImagePixels) -> PlatformImage? {
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
@@ -259,7 +257,6 @@ extension LocalFileManager {
             return nil
         }
     }
-
 }
 
 extension LocalFileManager {
@@ -518,11 +515,10 @@ extension LocalFileManager {
 
         // Commit series and chapter together so a failed commit is never reported as imported.
         let cover = coverURL?.toAidokuImageUrl()?.absoluteString
-        let title: String?
-        if let chapterName {
-            title = chapterName.isEmpty ? nil : chapterName
+        let title = if let chapterName {
+            chapterName.isEmpty ? nil : chapterName
         } else {
-            title = url.deletingPathExtension().lastPathComponent
+            url.deletingPathExtension().lastPathComponent
         }
         do {
             try await dataManager.commitImport(
