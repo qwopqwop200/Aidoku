@@ -35,22 +35,24 @@ actor NotificationManager {
 
     func requestAuthorization() async -> Bool {
         if let authorizationRequest { return await authorizationRequest.value }
-        let request = Task {
-            let center = UNUserNotificationCenter.current()
-            let settings = await center.notificationSettings()
-            switch settings.authorizationStatus {
-                case .authorized, .provisional:
-                    return true
-                case .notDetermined:
-                    return (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
-                default:
-                    return false
-            }
-        }
+        let request = Task { await Self.authorize() }
         authorizationRequest = request
         let granted = await request.value
         authorizationRequest = nil
         return granted
+    }
+
+    private static func authorize() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        switch settings.authorizationStatus {
+            case .authorized, .provisional:
+                return true
+            case .notDetermined:
+                return (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+            default:
+                return false
+        }
     }
 
     func notifyNewChapters(_ summaries: [NewChaptersSummary]) async {
@@ -68,10 +70,11 @@ actor NotificationManager {
         guard await canDeliver() else { return }
 
         if summaries.count > Self.batchNotificationThreshold {
-            await sendNotification(
+            await Self.sendNotification(
                 identifier: "newChapters.batch.\(Int(Date.now.timeIntervalSince1970))",
                 title: NSLocalizedString("NEW_CHAPTERS_AVAILABLE"),
-                body: String(format: NSLocalizedString("X_SERIES_HAVE_NEW_CHAPTERS"), summaries.count)
+                body: String(format: NSLocalizedString("X_SERIES_HAVE_NEW_CHAPTERS"), summaries.count),
+                center: center
             )
             return
         }
@@ -79,35 +82,37 @@ actor NotificationManager {
         for summary in summaries {
             let timestamp = Int(Date.now.timeIntervalSince1970)
             let identifier = "newChapters.\(summary.mangaIdentifier.sourceKey).\(summary.mangaIdentifier.mangaKey).\(timestamp)"
-            await sendNotification(
+            await Self.sendNotification(
                 identifier: identifier,
                 title: summary.mangaTitle,
                 body: Self.body(for: summary),
                 userInfo: [
                     Self.sourceIdInfoKey: summary.mangaIdentifier.sourceKey,
                     Self.mangaIdInfoKey: summary.mangaIdentifier.mangaKey
-                ]
+                ],
+                center: center
             )
         }
     }
 
-    private func sendNotification(
+    private static func sendNotification(
         identifier: String,
         title: String,
         body: String,
-        userInfo: [String: String] = [:]
+        userInfo: [AnyHashable: Any] = [:],
+        center: UNUserNotificationCenter
     ) async {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
-        content.threadIdentifier = Self.threadIdentifier
-        content.categoryIdentifier = Self.categoryIdentifier
+        content.threadIdentifier = threadIdentifier
+        content.categoryIdentifier = categoryIdentifier
         content.userInfo = userInfo
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         do {
-            try await UNUserNotificationCenter.current().add(request)
+            try await center.add(request)
         } catch {
             LogManager.logger.error("Could not submit new chapter notification: \(error.localizedDescription)")
         }
