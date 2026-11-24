@@ -27,6 +27,18 @@ struct ExpandableTextView: View {
             .joined(separator: "  \n")
     }
 
+    fileprivate static var markdownTheme: Theme {
+        Theme()
+            .paragraph { configuration in
+                configuration.label
+                    .markdownTextStyle {
+                        FontSize(15)
+                    }
+                    .lineSpacing(0)
+                    .foregroundStyle(.secondary)
+            }
+    }
+
     var body: some View {
         let text = expanded ? text : textUntilNewline
         ZStack(alignment: .bottomTrailing) {
@@ -140,22 +152,10 @@ struct ExpandableTextView: View {
 private struct DescriptionMarkdown: View {
     let text: String
 
-    private var markdownTheme: Theme {
-        Theme()
-            .paragraph { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        FontSize(15)
-                    }
-                    .lineSpacing(0)
-                    .foregroundStyle(.secondary)
-            }
-    }
-
     var body: some View {
         Markdown(text)
             .markdownSoftBreakMode(.lineBreak)
-            .markdownTheme(markdownTheme)
+            .markdownTheme(ExpandableTextView.markdownTheme)
     }
 }
 
