@@ -225,9 +225,8 @@ actor TranslationProviderRequestLimiter {
 
 actor TranslationService {
     private static let maximumStructuredOutputRetries = 5
-    /// Split repair already spent the parent's attempt. Five retries for every
-    /// leaf let a persistently malformed provider turn one 64-segment batch
-    /// into ~450 serial calls (minutes of backoff); descendants retry once.
+    /// Split repair already spent the parent's attempt; five retries per leaf turned one malformed
+    /// 64-segment batch into ~450 serial calls, so descendants retry once.
     static let splitDescendantMaximumRetries = 1
     private static let structuredOutputRetryDelaysNanoseconds: [UInt64] = [
         300_000_000, 500_000_000, 1_000_000_000, 1_000_000_000, 2_000_000_000,
@@ -270,10 +269,8 @@ actor TranslationService {
         ))
     }
 
-    /// A user purge is an admission barrier as well as a storage operation.
-    /// Recheck its epoch after the cache actor hop so a request cannot pass
-    /// the gate just before a concurrent purge starts. Cached translations in
-    /// the wrong language are treated as a miss.
+    /// A purge is also an admission barrier: recheck its epoch after the cache hop so a request
+    /// cannot slip in just before a concurrent purge. Wrong-language cache hits count as misses.
     private func admittedCacheLookup(
         for key: TranslationCacheKey, request: RemoteTranslationRequest
     ) async throws -> (cached: CachedTranslation?, storageGeneration: UInt64, purgeGeneration: UInt64) {
@@ -344,10 +341,7 @@ actor TranslationService {
         }
     }
 
-    /// Cancels every pre-boundary request and purges the backing cache while
-    /// preventing newly admitted translations from racing the deletion. Calls
-    /// arriving during the purge wait for this task before cache lookup or
-    /// provider registration.
+    /// Cancels in-flight requests and purges the cache; calls arriving meanwhile wait for it.
     func purgeCache() async throws {
         if let purgeTask {
             try await purgeTask.value
@@ -433,10 +427,10 @@ actor TranslationService {
     ) async throws -> RemoteTranslationBatchResult {
         var attempt = 0
         var seed = 0
-        let primary = request
         while true {
             attempt += 1
-            let request = primary.withSamplingSeed(seed)
+            var request = request
+            request.samplingSeed = seed
             let attemptStartedAt = ProcessInfo.processInfo.systemUptime
             let segmentCount = request.segments.count
             let sourceBytes = TranslationPerformanceDiagnostics.sourceBytes(in: request)
@@ -484,14 +478,12 @@ actor TranslationService {
                     seed = 1
                     continue
                 }
-                // Page batches have one primary call, including malformed or
-                // untranslated answers. Non-page callers retain format
-                // repair; HTTP/transport failures already propagate unchanged.
+                // Page batches get one primary call; non-page callers keep format repair.
+                // HTTP/transport failures propagate unchanged.
                 let allowsFormatRepair = request.translatesPageLettering != true
                 let isRepairable = Self.isStructuredOutputRetryable(error)
                 if allowsFormatRepair, isRepairable, attempt == 1, request.segments.count > 1 {
-                    // Split on the first malformed multi-segment answer to avoid
-                    // another full-batch round trip.
+                    // Split on the first malformed multi-segment answer instead of a full-batch retry.
                     try Task.checkCancellation()
                     ReaderTranslationDiagnostics.record("api_batch_split", count: request.segments.count)
                     let middle = request.segments.count / 2
@@ -505,8 +497,7 @@ actor TranslationService {
                     }
                     let recovered: [RemoteTranslatedSegment]
                     if allowsParallelSplit, providerRequestLimiter != nil {
-                        // Only the first repair branches concurrently. Descendants
-                        // are serial so malformed responses cannot grow a task tree.
+                        // Only the first split runs concurrently, so malformed answers cannot grow a task tree.
                         recovered = try await withThrowingTaskGroup(of: (Int, [RemoteTranslatedSegment]).self) { group in
                             for (index, part) in parts.enumerated() {
                                 group.addTask { try await (index, translatePart(part)) }
@@ -536,8 +527,7 @@ actor TranslationService {
         }
     }
 
-    /// Keep provider queueing out of the client duration. The client includes request encoding/transport/validation,
-    /// whose nested phases further separate local work from server response wait.
+    /// Client duration excludes provider queueing (encoding, transport and validation only).
     private static func performProviderAttempt(
         client: RemoteTranslating, request: RemoteTranslationRequest, configuration: RemoteTranslationConfiguration
     ) async throws -> RemoteTranslationBatchResult {
@@ -601,10 +591,8 @@ enum BoundedTranslationBatchExecutor {
 
     static let allowedMaximumConcurrentRequests = 64
 
-    /// Runs an already-bounded request group concurrently while retaining the
-    /// original result indices. Cache hits complete first; smaller batches then
-    /// enter limited provider slots first. Throwing task-group semantics cancel
-    /// siblings on failure and never return a partial group.
+    /// Runs a bounded request group concurrently in original order: cache hits first, then smaller
+    /// batches first. A failure cancels the siblings; a partial group is never returned.
     static func translate(
         _ requests: [RemoteTranslationRequest], configuration: RemoteTranslationConfiguration, service: TranslationService,
         maximumConcurrentRequests: Int, priority: TranslationRequestPriority

@@ -33,7 +33,8 @@ enum TranslationEndpointPolicy {
         case "http":
             let rawLoopbackHost = rawAuthorityHost(rawValue)?.lowercased()
             guard configuration.provider == .custom, configuration.allowsInsecureLocalhostForDevelopment,
-                  ["localhost", "127.0.0.1", "[::1]"].contains(rawLoopbackHost), isCanonicalLoopbackHost(host) else {
+                  ["localhost", "127.0.0.1", "[::1]"].contains(rawLoopbackHost),
+                  ["localhost", "127.0.0.1", "::1", "[::1]"].contains(host) else {
                 throw RemoteTranslationError.insecureEndpoint
             }
         default:
@@ -63,7 +64,6 @@ enum TranslationEndpointPolicy {
             resultSegments.append(contentsOf: expectedSuffix)
         }
         components.path = "/" + resultSegments.joined(separator: "/")
-        components.percentEncodedQuery = nil
 
         guard let endpoint = components.url, endpoint.host != nil else {
             throw RemoteTranslationError.invalidConfiguration("provider endpoint could not be constructed")
@@ -74,10 +74,6 @@ enum TranslationEndpointPolicy {
     private static func hasSuffix(_ value: [String], _ suffix: [String]) -> Bool {
         guard value.count >= suffix.count else { return false }
         return value.suffix(suffix.count).elementsEqual(suffix) { $0.caseInsensitiveCompare($1) == .orderedSame }
-    }
-
-    private static func isCanonicalLoopbackHost(_ host: String) -> Bool {
-        ["localhost", "127.0.0.1", "::1", "[::1]"].contains(host)
     }
 
     private static func rawAuthorityHost(_ value: String) -> String? {
