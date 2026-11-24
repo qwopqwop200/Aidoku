@@ -1,12 +1,7 @@
-"""Paths shared by the pipeline evaluation and training tools (Scripts/pipeline/tools).
+"""Paths shared by the pipeline eval and training tools; data, runs and venvs live outside the repository.
 
-Only code lives in the repository. Datasets, GT-derived caches, run outputs and the Python environments stay
-outside it:
-  AIDOKU_WORKSPACE  directory holding the GT JSON, the fold manifest and saved translations
-                    (default: the directory that contains this Aidoku checkout)
-  AIDOKU_EVAL_DIR   working directory for runs/, caches, dumps, trained-model scratch and venvs
-                    (default: WORKSPACE/port-eval)
-Every tool imports this module (`sys.path.insert(0, <tools dir>)`; `from workspace import ...`).
+  AIDOKU_WORKSPACE  GT JSON, fold manifest and saved translations (default: the checkout's parent directory)
+  AIDOKU_EVAL_DIR   runs/, caches, dumps, training scratch and venvs (default: WORKSPACE/port-eval)
 """
 import os
 from pathlib import Path
