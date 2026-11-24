@@ -99,10 +99,8 @@ enum ReaderTranslationLanguageFilter {
         return ["source-filter-v3-excluded-source-ownership", "fixed", source]
     }
 
-    /// Latin-only text shorter than this many letters is translated whatever language it is detected
-    /// as: NaturalLanguage names the wrong Latin language for short English and romanized lines. On the
-    /// 830 GT pages 10-30 is one plateau on train folds (speech wrongly dropped 1 -> 0, dev 1 -> 0,
-    /// test 2 -> 0; `port-eval/langid`); 20 is its middle.
+    /// Shorter Latin-only text is translated whatever its detected language (NaturalLanguage misnames
+    /// short English and romanized lines); the middle of the 10-30 plateau on the GT pages.
     static let shortLatinLetters = 20
 
     private static func isLatin(_ scalar: Unicode.Scalar) -> Bool {

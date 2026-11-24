@@ -4,15 +4,13 @@ import ImageIO
 import UIKit
 import UniformTypeIdentifiers
 
-/// App-side owner of the page pipeline: iOS resource
-/// policy, the live provider call, page admission and the durable cache.
+/// App-side owner of the page pipeline: resource policy, provider call, admission and cache.
 @available(iOS 18.0, *)
 actor ReaderTranslationPipelineService {
     static let shared = ReaderTranslationPipelineService(warmProvider: {
         ReaderTranslationService.shared.warmProviderConnection(settings: $0)
     })
-    // Stored identities keep their original "v2-" spelling: renaming them would drop every
-    // cached page (and re-pay its provider call).
+    // Keep the "v2-" spelling: renaming would drop every cached page.
     /// Bump when the translated blocks (S1-S5) can change; keys both cache rows.
     static let version = "v2-pipeline-3"
     /// Bump when only rendering (S4b boxes, S6-S10) can change; re-renders from stored blocks.
@@ -187,9 +185,7 @@ actor ReaderTranslationPipelineService {
         return await storedPage(key, cache: diskCache)
     }
 
-    /// The loader probe, the page view and the pipeline often ask for the same page at once:
-    /// they share one read and one full-page decode (about 10 ms and 10 MB each), which runs
-    /// off this actor that every page's bookkeeping waits on.
+    /// Concurrent lookups of one page share one read and decode, run off this actor.
     private func storedPage(_ key: String, cache: ReaderTranslationDiskCache) async -> CGImage? {
         if let loading = storedLoads[key] { return await loading.value }
         guard !Task.isCancelled else { return nil }
@@ -684,10 +680,6 @@ struct PipelinePerformanceProfile: Equatable, Sendable {
         let cacheCeiling = Int(clamping: max(UInt64(normal.pageCacheMaximumBytes), physicalMemory / 16))
         profile.pageCacheMaximumBytes = min(profile.pageCacheMaximumBytes, cacheCeiling)
         profile.pageCacheMinimumBytes = min(profile.pageCacheMinimumBytes, profile.pageCacheMaximumBytes)
-        // On-device A/B (DeveloperAutoRead): launch-argument overrides.
-        let defaults = UserDefaults.standard
-        if defaults.integer(forKey: "AidokuPerfLookaheadExtra") > 0 { profile.lookaheadExtraPages = defaults.integer(forKey: "AidokuPerfLookaheadExtra") }
-        if defaults.integer(forKey: "AidokuPerfProviderCap") > 0 { profile.providerConcurrencyCap = defaults.integer(forKey: "AidokuPerfProviderCap") }
         return profile
     }
 
