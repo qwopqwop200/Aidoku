@@ -1130,78 +1130,79 @@ extension SettingView {
             if alert { showLoginFailAlert = true }
             if let message { LogManager.logger.error(message) }
         }
+        func handleCallback(_ callback: URL?, _ error: Error?) {
+            guard oauthAttempt.isCurrent(attempt) else { return }
+            session = nil
+            guard error == nil, let callback,
+                  NativeWebLoginPolicy.validatesCallback(
+                    callback, scheme: value.callbackScheme ?? "aidoku", redirectURI: redirectUri, expectedState: expectedState
+                  ) else {
+                failLogin(alert: (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin)
+                return
+            }
+
+            if value.pkce ?? false, let tokenUrlString = value.tokenUrl {
+                guard
+                    let codeVerifier,
+                    let callbackItems = NativeWebLoginPolicy.callbackParameters(callback),
+                    let code = callbackItems.first(where: { $0.name == "code" })?.value, !code.isEmpty
+                else {
+                    failLogin(log: "Missing code verifier or code")
+                    return
+                }
+
+                guard let tokenUrl = URL(string: tokenUrlString), NativeWebLoginPolicy.isHTTPURL(tokenUrl) else {
+                    failLogin(log: "Invalid token URL")
+                    return
+                }
+
+                var request = URLRequest(url: tokenUrl)
+                request.httpMethod = "POST"
+                request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+
+                var parameters: [String: String] = [
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "code_verifier": codeVerifier
+                ]
+                if let redirectUri {
+                    parameters["redirect_uri"] = redirectUri
+                }
+                if let clientId {
+                    parameters["client_id"] = clientId
+                }
+
+                request.httpBody = parameters.percentEncoded()
+
+                SettingsStore.shared.remove(key: key + ".codeVerifier")
+                oauthAttempt.exchange(attempt: attempt, operation: { try await URLSession.shared.data(for: request) }, commit: { result in
+                    SettingsStore.shared.set(key: key, value: result)
+                }, failed: {
+                    showLoginFailAlert = true
+                })
+            } else {
+                SettingsStore.shared.set(key: key, value: callback.absoluteString)
+                oauthAttempt.finish(attempt)
+
+                if let notification = setting.notification {
+                    if let source {
+                        Task {
+                            do {
+                                try await source.handleNotification(notification: notification)
+                            } catch {
+                                LogManager.logger.error("Error handling setting notification for \(source.key): \(error)")
+                            }
+                        }
+                    }
+                    NotificationCenter.default.post(name: Notification.Name(notification), object: nil)
+                }
+            }
+        }
         session = ASWebAuthenticationSession(
             url: url,
             callbackURLScheme: value.callbackScheme ?? "aidoku"
         ) { callback, error in
-            Task { @MainActor in
-                guard oauthAttempt.isCurrent(attempt) else { return }
-                session = nil
-                guard error == nil, let callback,
-                      NativeWebLoginPolicy.validatesCallback(
-                        callback, scheme: value.callbackScheme ?? "aidoku", redirectURI: redirectUri, expectedState: expectedState
-                      ) else {
-                    failLogin(alert: (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin)
-                    return
-                }
-
-                if value.pkce ?? false, let tokenUrlString = value.tokenUrl {
-                    guard
-                        let codeVerifier,
-                        let callbackItems = NativeWebLoginPolicy.callbackParameters(callback),
-                        let code = callbackItems.first(where: { $0.name == "code" })?.value, !code.isEmpty
-                    else {
-                        failLogin(log: "Missing code verifier or code")
-                        return
-                    }
-
-                    guard let tokenUrl = URL(string: tokenUrlString), NativeWebLoginPolicy.isHTTPURL(tokenUrl) else {
-                        failLogin(log: "Invalid token URL")
-                        return
-                    }
-
-                    var request = URLRequest(url: tokenUrl)
-                    request.httpMethod = "POST"
-                    request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-
-                    var parameters: [String: String] = [
-                        "grant_type": "authorization_code",
-                        "code": code,
-                        "code_verifier": codeVerifier
-                    ]
-                    if let redirectUri {
-                        parameters["redirect_uri"] = redirectUri
-                    }
-                    if let clientId {
-                        parameters["client_id"] = clientId
-                    }
-
-                    request.httpBody = parameters.percentEncoded()
-
-                    SettingsStore.shared.remove(key: key + ".codeVerifier")
-                    oauthAttempt.exchange(attempt: attempt, operation: { try await URLSession.shared.data(for: request) }, commit: { result in
-                        SettingsStore.shared.set(key: key, value: result)
-                    }, failed: {
-                        showLoginFailAlert = true
-                    })
-                } else {
-                    SettingsStore.shared.set(key: key, value: callback.absoluteString)
-                    oauthAttempt.finish(attempt)
-
-                    if let notification = setting.notification {
-                        if let source {
-                            Task {
-                                do {
-                                    try await source.handleNotification(notification: notification)
-                                } catch {
-                                    LogManager.logger.error("Error handling setting notification for \(source.key): \(error)")
-                                }
-                            }
-                        }
-                        NotificationCenter.default.post(name: Notification.Name(notification), object: nil)
-                    }
-                }
-            }
+            Task { @MainActor in handleCallback(callback, error) }
         }
 
         guard let session else { oauthAttempt.finish(attempt); return }
