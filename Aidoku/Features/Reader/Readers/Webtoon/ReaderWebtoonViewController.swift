@@ -653,7 +653,9 @@ extension ReaderWebtoonViewController {
         setLiveTextButtonHidden(false)
 
         settleChapterInsertion()
-        if infinite { checkInfiniteLoad() }
+        if infinite {
+            checkInfiniteLoad()
+        }
         resumeAutoScroll()
         updateContentScrollingState()
     }
@@ -661,7 +663,9 @@ extension ReaderWebtoonViewController {
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         setLiveTextButtonHidden(false)
         settleChapterInsertion()
-        if infinite { checkInfiniteLoad() }
+        if infinite {
+            checkInfiniteLoad()
+        }
         resumeAutoScroll()
         updateContentScrollingState()
     }
@@ -670,7 +674,9 @@ extension ReaderWebtoonViewController {
         isAnimatingScroll = false
         setLiveTextButtonHidden(false)
         settleChapterInsertion()
-        if infinite { checkInfiniteLoad() }
+        if infinite {
+            checkInfiniteLoad()
+        }
     }
 
     // At most two waiters (previous/next), woken on scroll settlement instead of polling.
@@ -1023,14 +1029,11 @@ extension ReaderWebtoonViewController: ReaderReaderDelegate {
             offset += layout.getHeightFor(section: chapterIndex, range: 0..<1)
         }
 
-        // A section holding only separators must not form an inverted range.
-        let firstContent = hasStartInfo ? 1 : 0
-        let endContent = max(firstContent, currentPages.count - (hasEndInfo ? 1 : 0))
         let height = max(
             0,
             layout.getHeightFor(
                 section: chapterIndex,
-                range: firstContent..<endContent
+                range: (hasStartInfo ? 1 : 0)..<max(hasStartInfo ? 1 : 0, currentPages.count - (hasEndInfo ? 1 : 0))
             ) - collectionNode.bounds.height
         )
 

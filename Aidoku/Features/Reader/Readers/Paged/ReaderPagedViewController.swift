@@ -249,16 +249,11 @@ class ReaderPagedViewController: BaseObservingViewController {
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
 
-        updateAutomaticPageLayout(for: size)
-    }
-
-    func updateAutomaticPageLayout(for size: CGSize) {
-        let doublePages = size.width > size.height
-        guard usesAutoPageLayout, usesDoublePages != doublePages else { return }
-        usesDoublePages = doublePages
-        guard chapter != nil else { return }
-        // Only the spread changes. Its page controllers still own the same chapter images.
-        move(toPage: max(1, min(currentPage, displayPageCount)), animated: false)
+        if usesAutoPageLayout, usesDoublePages != (size.width > size.height) {
+            usesDoublePages = size.width > size.height
+            // Only the spread changes; the page controllers keep their images.
+            if chapter != nil { move(toPage: max(1, min(currentPage, displayPageCount)), animated: false) }
+        }
     }
 }
 
@@ -519,12 +514,9 @@ extension ReaderPagedViewController {
         }
     }
 
-    private func visiblePageControllers() -> [ReaderPageViewController] {
-        pages(in: pageViewController.viewControllers ?? [])
-    }
-
-    private func pages(in controllers: [UIViewController]) -> [ReaderPageViewController] {
-        controllers.flatMap { controller -> [ReaderPageViewController] in
+    private func visiblePageControllers(in controllers: [UIViewController]? = nil) -> [ReaderPageViewController] {
+        guard let currentVCs = controllers ?? pageViewController.viewControllers else { return [] }
+        return currentVCs.flatMap { controller -> [ReaderPageViewController] in
             if let pageVC = controller as? ReaderPageViewController {
                 return [pageVC]
             }
@@ -537,7 +529,7 @@ extension ReaderPagedViewController {
 
     private func beginTransition(to incoming: [UIViewController]) {
         isTransitioning = true
-        let participants = visiblePageControllers() + pages(in: incoming)
+        let participants = visiblePageControllers() + visiblePageControllers(in: incoming)
         transitionPageIDs = Set(participants.map(ObjectIdentifier.init))
     }
 

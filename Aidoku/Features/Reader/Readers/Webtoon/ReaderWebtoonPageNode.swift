@@ -430,6 +430,7 @@ extension ReaderWebtoonPageNode {
 
         let width = pageWidth
         let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages") && width > 0
+        let shouldUpscale = UserDefaults.standard.bool(forKey: "Reader.upscaleImages")
         let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
         var processors: [ImageProcessing] = []
         var usePageProcessor = false
@@ -447,7 +448,7 @@ extension ReaderWebtoonPageNode {
         }
         if shouldDownsample {
             processors.append(DownsampleProcessor(width: width))
-        } else if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
+        } else if shouldUpscale {
             processors.append(UpscaleProcessor())
         }
 
@@ -485,7 +486,6 @@ extension ReaderWebtoonPageNode {
         guard !Task.isCancelled, issued == pageLoadGeneration else { return }
         imageDownloadDemandToken = demand
         request.priority = isVisible ? .high : .low
-        self.currentImageRequest = request
 
         let imageTask = ImagePipeline.shared.loadImage(
             with: request,
@@ -601,8 +601,11 @@ extension ReaderWebtoonPageNode {
                 if let processedImage = processor.process(image) {
                     image = processedImage
                 }
-            } else if shouldUpscale, let processedImage = UpscaleProcessor().process(image) {
-                image = processedImage
+            } else if shouldUpscale {
+                let processor = UpscaleProcessor()
+                if let processedImage = processor.process(image) {
+                    image = processedImage
+                }
             }
 
             guard !Task.isCancelled else { return nil }
