@@ -13,16 +13,11 @@ enum PipelinePainter {
         // A canonical background is cloned copy-on-write into an owned buffer that becomes the
         // output image: only the pages the text touches are ever copied.
         if let canvas = Canvas(cloning: background, space: space) {
-            let painted: Bool = {
-                guard let context = CGContext(data: canvas.bytes, width: width, height: height, bitsPerComponent: 8,
-                                              bytesPerRow: canvas.stride, space: space,
-                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            if let context = bitmap(canvas.bytes, width: width, height: height, bytesPerRow: canvas.stride, space: space) {
                 draw(blocks: blocks, placed: placed, into: context, space: space)
-                return true
-            }()
-            if painted, let image = canvas.image(width: width, height: height, space: space) { return image }
+                if let image = canvas.image(width: width, height: height, space: space) { return image }
+            }
             canvas.release()
-            return paintCopy(background: background, blocks: blocks, placed: placed, space: space)
         }
         return paintCopy(background: background, blocks: blocks, placed: placed, space: space)
     }
@@ -30,9 +25,7 @@ enum PipelinePainter {
     private static func paintCopy(background: CGImage, blocks: [PipelineBlock], placed: [PipelinePlacedText],
                                   space: CGColorSpace) -> CGImage {
         let width = background.width, height = background.height
-        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-                                      space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { return background }
+        guard let context = bitmap(nil, width: width, height: height, bytesPerRow: 0, space: space) else { return background }
         if !copyPixels(of: background, into: context) {
             context.draw(background, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
@@ -47,10 +40,8 @@ enum PipelinePainter {
         guard width > 0, height > 0, pixels.count == width * height * 4 else { return nil }
         if !placed.isEmpty, let space = CGColorSpace(name: CGColorSpace.sRGB) {
             pixels.withUnsafeMutableBytes { bytes in
-                guard let context = CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
-                                              bytesPerRow: width * 4, space: space,
-                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-                else { return }
+                guard let context = bitmap(bytes.baseAddress, width: width, height: height, bytesPerRow: width * 4,
+                                           space: space) else { return }
                 draw(blocks: blocks, placed: placed, into: context, space: space)
             }
         }
@@ -79,8 +70,7 @@ enum PipelinePainter {
         let groups = independentGroups(jobs.map(\.clip))
         // Further views of the same bitmap, each in the same state as `context`.
         let tiles = groups.count > 1 ? groups.indices.compactMap { _ in
-            CGContext(data: context.data, width: width, height: height, bitsPerComponent: 8,
-                      bytesPerRow: context.bytesPerRow, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            bitmap(context.data, width: width, height: height, bytesPerRow: context.bytesPerRow, space: space)
         } : []
         if context.data != nil, tiles.count == groups.count, groups.count > 1 {
             let views = Tiles(contexts: tiles)
@@ -94,6 +84,23 @@ enum PipelinePainter {
         }
     }
 
+    /// An sRGB RGBA8 premultipliedLast bitmap over `data` (a fresh buffer when nil).
+    private static func bitmap(_ data: UnsafeMutableRawPointer?, width: Int, height: Int, bytesPerRow: Int,
+                               space: CGColorSpace) -> CGContext? {
+        CGContext(data: data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: bytesPerRow,
+                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    }
+
+    /// The canonical background format (as produced by PipelinePageRaster) in `space`.
+    private static func isCanonical(_ image: CGImage, space: CGColorSpace) -> Bool {
+        let order = image.bitmapInfo.intersection(.byteOrderMask)
+        return image.bitsPerComponent == 8 && image.bitsPerPixel == 32 && image.alphaInfo == .premultipliedLast
+            && (order.rawValue == CGImageByteOrderInfo.orderDefault.rawValue
+                || order.rawValue == CGImageByteOrderInfo.order32Big.rawValue)
+            && !image.bitmapInfo.contains(.floatComponents) && image.decode == nil && !image.isMask
+            && image.colorSpace.map { CFEqual($0, space) } == true
+    }
+
     /// Page-aligned VM buffer holding a clone of a canonical background (sRGB RGBA8 premultipliedLast,
     /// as produced by PipelinePageRaster), with the source row stride.
     private struct Canvas {
@@ -102,13 +109,7 @@ enum PipelinePainter {
         let size: Int
 
         init?(cloning image: CGImage, space: CGColorSpace) {
-            let order = image.bitmapInfo.intersection(.byteOrderMask)
-            guard image.bitsPerComponent == 8, image.bitsPerPixel == 32, image.alphaInfo == .premultipliedLast,
-                  order.rawValue == CGImageByteOrderInfo.orderDefault.rawValue
-                    || order.rawValue == CGImageByteOrderInfo.order32Big.rawValue,
-                  !image.bitmapInfo.contains(.floatComponents), image.decode == nil, !image.isMask,
-                  let imageSpace = image.colorSpace, CFEqual(imageSpace, space),
-                  let data = image.dataProvider?.data else { return nil }
+            guard isCanonical(image, space: space), let data = image.dataProvider?.data else { return nil }
             // Rows padded to 32 bytes, as a `CGContext` with automatic row bytes lays them out.
             let rowBytes = image.width * 4, stride = (rowBytes + 31) / 32 * 32, sourceStride = image.bytesPerRow
             let length = (image.height - 1) * sourceStride + rowBytes
@@ -277,14 +278,8 @@ enum PipelinePainter {
     /// Copies a same-format background (as produced by PipelinePageRaster) into the fresh bitmap: the
     /// bytes a source-over draw would give, without the compositing pass.
     static func copyPixels(of image: CGImage, into context: CGContext) -> Bool {
-        let order = image.bitmapInfo.intersection(.byteOrderMask)
         guard image.width == context.width, image.height == context.height,
-              image.bitsPerComponent == 8, image.bitsPerPixel == 32, image.alphaInfo == .premultipliedLast,
-              order.rawValue == CGImageByteOrderInfo.orderDefault.rawValue
-                || order.rawValue == CGImageByteOrderInfo.order32Big.rawValue,
-              !image.bitmapInfo.contains(.floatComponents), image.decode == nil, !image.isMask,
-              let imageSpace = image.colorSpace, let contextSpace = context.colorSpace,
-              CFEqual(imageSpace, contextSpace),
+              let contextSpace = context.colorSpace, isCanonical(image, space: contextSpace),
               context.bitsPerPixel == 32, context.bitsPerComponent == 8, context.alphaInfo == .premultipliedLast,
               let destination = context.data, let data = image.dataProvider?.data
         else { return false }

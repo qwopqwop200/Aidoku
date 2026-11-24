@@ -63,12 +63,10 @@ final class PipelineInstancePool<Element: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private var free: [Element]
     private var waiters: [CheckedContinuation<Element, Never>] = []
-    let all: [Element]
 
     init(_ elements: [Element]) {
         precondition(!elements.isEmpty)
         free = elements
-        all = elements
     }
 
     func acquire() async -> Element {
@@ -151,10 +149,8 @@ final class PipelineModels: @unchecked Sendable {
         PipelinePageRaster(width: warmSide, height: warmSide, rgba: [UInt8](repeating: 255, count: warmSide * warmSide * 4))
     }
 
-    /// Loads all models from compiled `.mlmodelc` resources, concurrently, and gives every instance its
-    /// cold first prediction as soon as that instance is loaded (overlapping the slower loads). The
-    /// detector program loads lazily: its load and warm-up start here and finish in `warmUp()`, so
-    /// call `warmUp()` before the first page.
+    /// Loads all models concurrently, warming each instance as soon as it is loaded. The detectors
+    /// load lazily and finish in `warmUp()`: call it before the first page.
     static func load(bundle: Bundle = .main, detectorInstances: Int = 2, inpainterInstances: Int = 2) throws -> PipelineModels {
         let lock = NSLock()
         let timings = Timings()
@@ -251,8 +247,7 @@ final class PipelineModels: @unchecked Sendable {
     /// Per-model load milliseconds, filled while loads (and the detectors' deferred one) finish.
     private final class Timings: @unchecked Sendable {
         private let lock = NSLock()
-        private var values: [String: Double]
-        init(_ values: [String: Double] = [:]) { self.values = values }
+        private var values: [String: Double] = [:]
         var value: [String: Double] { lock.withLock { values } }
         func record(_ name: String, since start: UInt64) {
             let elapsed = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000

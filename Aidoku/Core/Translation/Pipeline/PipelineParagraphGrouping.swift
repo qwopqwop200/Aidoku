@@ -3,12 +3,10 @@ import CoreGraphics
 
 /// Model-free paragraph graph over pipeline lines. RF boxes are hints, never contours.
 enum PipelineParagraphGrouping {
-    /// Minimum fraction of a line inside an owning balloon for an edge to
-    /// a line of that balloon (legacy 0.9; the pipeline selects 0.7).
+    /// Minimum fraction of a line inside an owning balloon for an edge to a line of that balloon.
     static var balloonEdgeCoverage: CGFloat { PipelineTuning.current.balloonEdgeCoverage }
     /// Neighbouring columns/rows may overlap across by up to this many glyphs and still be parallel
-    /// (tight or slanted columns; legacy 0.25). Merge GT, train folds: 0.6-1.0 is one plateau,
-    /// fragmentation 28 -> 19 with no extra wrong joins; dev exact pages 169 -> 172.
+    /// (tight or slanted columns).
     static var parallelOverlap: CGFloat { PipelineTuning.current.parallelOverlap }
     struct Scope {
         let owner: Int
@@ -239,7 +237,6 @@ enum PipelineParagraphGrouping {
         return [members]
     }
 
-    // Legacy utterance boundaries (NativeParagraphFragmentGrouping+Pipeline 128-257, 1874, 2757).
     private static func opens(_ text: String) -> Bool { text.first { !$0.isWhitespace }.map { "「『“\"".contains($0) } ?? false }
     private static func closes(_ text: String) -> Bool {
         text.last { !$0.isWhitespace && $0 != "♡" && $0 != "♥" }.map { "。.!?！？…」』".contains($0) } ?? false
@@ -304,7 +301,7 @@ enum PipelineParagraphGrouping {
             while parent[i] != i { parent[i] = parent[parent[i]]; i = parent[i] }
             return i
         }
-        // A one-glyph line's direction is a guess: it may join a column or a row (legacy P:4447-4460).
+        // A one-glyph line's direction is a guess: it may join a column or a row.
         func guessed(_ atom: Atom) -> Bool { atom.letters == 1 }
         func flipped(_ atom: Atom) -> Atom {
             let input = Input(polygon: atom.input.polygon, vertical: !atom.input.vertical, confidence: atom.input.confidence,
@@ -415,7 +412,7 @@ enum PipelineParagraphGrouping {
         }
     }
 
-    /// Legacy intercolumn ruby (NativeParagraphFragmentGrouping 66-134): a kana-only singleton
+    /// Intercolumn ruby: a kana-only singleton
     /// column at most 1/1.5 as wide, just right of ONE kanji column and within its extent, is
     /// erased with that host and never translated, unless it continues another column end to end.
     private static func rubyRails(_ atoms: [Atom]) -> [Int: Int] {
