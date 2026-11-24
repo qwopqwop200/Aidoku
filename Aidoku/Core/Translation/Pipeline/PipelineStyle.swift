@@ -1341,7 +1341,7 @@ extension PipelineStyleEstimator {
         typealias P = PipelineStyleParameters
         // pass 1: per-block fill pick, page consensus colour
         let picked = analyses.compactMap { analysis in
-            analysis.flatMap { a in scoredPick(a.features, forest: P.fillPass1, consensus: nil).map { a.features.clusters[$0].core } }
+            analysis.flatMap { a in scoredPick(a.features, forest: P.fillPass1, consensus: nil).map { a.features.clusters[$0.index].core } }
         }
         let consensus = picked.isEmpty ? nil : median(picked)
         var results: [PipelineStyle] = fonts.map {
