@@ -137,8 +137,7 @@ extension MultiArrayModel {
         let predictionStream = AsyncStream<(Int, MLMultiArray)> { [inputName, outputName] continuation in
             Task.detached {
                 for await (i, multi) in multiArrayStream {
-                    // The input buffer is smaller than an output tile and goes back to the pool,
-                    // so a failed or short prediction must not be read as the tile.
+                    // The pooled input buffer is smaller than a tile; never yield it as the output.
                     if let prediction = try? self.mlmodel.prediction(inputName: inputName, outputName: outputName, input: multi),
                        prediction.count >= outBlockSize * outBlockSize * 3 {
                         continuation.yield((i, prediction))

@@ -169,11 +169,13 @@ final class DictionaryOverlayButton: UIButton {
         // OCR hits are per Swift character, not per UTF-16 code unit.
         for characterIndex in displayText.indices {
             if sourceIndex >= sourceHits.count { break }
+
             let character = displayText[characterIndex]
             if character.isNewline { continue }
             let sourceHit = sourceHits[sourceIndex]
             sourceIndex += 1
             let nextIndex = displayText.index(after: characterIndex)
+
             let charRange = NSRange(characterIndex..<nextIndex, in: displayText)
             let glyphRange = layoutManager.glyphRange(forCharacterRange: charRange, actualCharacterRange: nil)
             var rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: container)
