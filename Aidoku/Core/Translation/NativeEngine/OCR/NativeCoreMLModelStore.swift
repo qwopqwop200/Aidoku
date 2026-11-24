@@ -51,10 +51,9 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         let prefix = source.deletingPathExtension().lastPathComponent + "-"
         let destination = root.appendingPathComponent(prefix + digest + ".mlmodelc", isDirectory: true)
         try manager.createDirectory(at: root, withIntermediateDirectories: true)
-        // Multiple host workers and app extensions share this directory. An
-        // NSLock only protects one process; publication and garbage collection
-        // also need a filesystem lock, with shared leases for resident models.
-        let publication = open(root.appendingPathComponent(".publication.lock").path, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+        // Host workers and app extensions share this directory, so publication and cleanup take a
+        // filesystem lock; resident models hold shared leases.
+        let publication = openLock(root.appendingPathComponent(".publication.lock").path)
         guard publication >= 0 else { throw CocoaError(.fileWriteUnknown) }
         defer { close(publication) }
         guard flock(publication, LOCK_EX) == 0 else { throw CocoaError(.fileWriteUnknown) }
@@ -70,11 +69,9 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
             try manager.copyItem(at: source, to: staging)
             try manager.moveItem(at: staging, to: destination)
         }
-        // Resolve after publication: Foundation can only fully canonicalize
-        // an iOS container alias once the destination exists on disk.
+        // Resolve after publication: an iOS container alias canonicalizes only once it exists.
         let published = destination.standardizedFileURL.resolvingSymlinksInPath()
-        let lease = open(leaseDirectory.appendingPathComponent(published.lastPathComponent + ".lock").path,
-                         O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+        let lease = openLock(leaseDirectory.appendingPathComponent(published.lastPathComponent + ".lock").path)
         guard lease >= 0 else { throw CocoaError(.fileWriteUnknown) }
         guard flock(lease, LOCK_SH) == 0 else {
             close(lease)
@@ -82,21 +79,16 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         }
         if let prior = residentLeases.updateValue(lease, forKey: published) { close(prior) }
         resolved[source] = published
-        // Remove superseded copies of this model, never a model already loaded
-        // in this process. User documents and the bundled originals are untouched.
-        // /var and /private/var can name the same iOS directory. Enumeration
-        // also normalizes trailing slashes; URL equality must never decide
-        // whether to delete the copy just published or an in-use model.
+        // Remove superseded copies of this model, never one loaded in this process. Compare names, not
+        // URLs: /var and /private/var name the same iOS directory and enumeration normalizes slashes.
         let residentNames = Set(resolved.values.map(\.lastPathComponent))
         for old in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey])
         where old.lastPathComponent.hasPrefix(prefix) && old.pathExtension == "mlmodelc" && old.lastPathComponent != destination.lastPathComponent {
             if !residentNames.contains(old.lastPathComponent), try old.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true {
-                let oldLease = open(leaseDirectory.appendingPathComponent(old.lastPathComponent + ".lock").path,
-                                    O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+                let oldLease = openLock(leaseDirectory.appendingPathComponent(old.lastPathComponent + ".lock").path)
                 if oldLease >= 0 {
                     defer { close(oldLease) }
-                    // A different process may still hold MLModel/MLModelAsset
-                    // at this URL. Never unlink its weights underneath Core ML.
+                    // Another process may still hold this model; never unlink weights under Core ML.
                     if flock(oldLease, LOCK_EX | LOCK_NB) == 0 { try? manager.removeItem(at: old) }
                 }
             }
@@ -104,30 +96,28 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         return published
     }
 
-    /// Run on a utility task at launch. Detector model publication uses this
-    /// same lock, so cleanup cannot race it.
+    /// Run on a utility task at launch; shares the publication lock, so it cannot race it.
     func reclaimLegacyExecutionCache() {
         lock.lock()
         defer { lock.unlock() }
         cleanLegacyOnce()
     }
 
-    /// Model tiers the page pipeline no longer loads. Their content-addressed
-    /// copies in the store are removed at launch (never a leased copy).
-    static let retiredModelPrefixes = ["PP-OCRv6-Medium-", "PP-OCRv6-Small-", "PP-OCRv6-Tiny-"]
-
-    static func isRetiredModelCopy(_ name: String) -> Bool {
-        name.hasSuffix(".mlmodelc") && retiredModelPrefixes.contains { name.hasPrefix($0) }
+    private func openLock(_ path: String) -> Int32 {
+        open(path, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
     }
 
+    /// Removes store copies of model tiers the pipeline no longer loads (never a leased copy).
     private func removeRetiredModelCopies() {
+        let retiredPrefixes = ["PP-OCRv6-Medium-", "PP-OCRv6-Small-", "PP-OCRv6-Tiny-"]
         let manager = FileManager.default
         guard let entries = try? manager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey]) else { return }
         let leaseDirectory = root.appendingPathComponent(".leases", isDirectory: true)
-        for entry in entries where Self.isRetiredModelCopy(entry.lastPathComponent) {
+        for entry in entries where entry.lastPathComponent.hasSuffix(".mlmodelc")
+            && retiredPrefixes.contains(where: { entry.lastPathComponent.hasPrefix($0) }) {
             guard (try? entry.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false else { continue }
             let leasePath = leaseDirectory.appendingPathComponent(entry.lastPathComponent + ".lock").path
-            let lease = open(leasePath, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+            let lease = openLock(leasePath)
             guard lease >= 0 else { continue }
             defer { close(lease) }
             // Another process may still hold this model; leave it for a later launch.
@@ -142,8 +132,7 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         cleaned = true
         removeRetiredModelCopies()
         guard let runtimeCache else { return }
-        // Inspect only known app-owned OCR graphs. Unknown packages and all
-        // current stable-path packages are retained; no private API is called.
+        // Inspect only known app-owned OCR graphs; unknown and current packages are kept.
         let manager = FileManager.default
         guard let versions = try? manager.contentsOfDirectory(at: runtimeCache, includingPropertiesForKeys: [.isSymbolicLinkKey]) else { return }
         for version in versions {
@@ -164,7 +153,7 @@ final class NativeCoreMLModelStore: @unchecked Sendable {
         }
     }
 
-    static func isLegacyOCRGraph(_ data: Data) -> Bool {
+    private static func isLegacyOCRGraph(_ data: Data) -> Bool {
         let names = ["PP-OCRv6-Medium-RecWidths", "PP-OCRv6-Medium-DetShapes", "PP-OCRv6-Small-RecWidths",
                      "PP-OCRv6-Small-DetShapes", "PP-OCRv6-Tiny-RecWidths", "PP-OCRv6-Tiny-DetShapes"]
         let text = String(decoding: data, as: UTF8.self)

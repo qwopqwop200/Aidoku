@@ -48,9 +48,8 @@ private actor NativeCoreMLDetectorModelPredictor {
         if load == nil {
             let asset = self.asset
             load = Task {
-                // The stem max-pool pads with 0 (not -inf, which the CPU backend turned into nonfinite
-                // cells), so devices run the graph on CPU: about 4x faster than GPU. The Mac host and the
-                // simulator stay on CPU and GPU, which keeps replay output byte-identical.
+                // The stem max-pool pads with 0 (not -inf), so devices run on CPU, about 4x faster than
+                // GPU. The Mac host and simulator stay on CPU and GPU to keep replay output byte-identical.
                 let configuration = MLModelConfiguration()
                 #if os(iOS) && !targetEnvironment(simulator)
                 configuration.computeUnits = .cpuOnly
@@ -135,8 +134,7 @@ final class NativeCoreMLDetector: @unchecked Sendable {
             try check()
             let prepared = try await NativeCoreMLDetectionPreprocessor.prepareArray(frame: frame, cancellationCheck: check)
             try check()
-            // A first call hashes and publishes the model copy under `resourceLock`; keep that blocking
-            // work off the cooperative pool so concurrent pages cannot starve it.
+            // The first call hashes and publishes the model under `resourceLock`: off the cooperative pool.
             let predictor = try await Task.detached(priority: .userInitiated) { [self] in
                 try loadPredictor(cancellationCheck: check)
             }.value
@@ -222,17 +220,14 @@ enum NativeCoreMLDetectionPreprocessor {
         guard let canvas = resizeDimensions(sourceWidth: frame.width, sourceHeight: frame.height) else {
             throw NativeCoreMLDetectorError.modelInputCreationFailed
         }
-        // Source content is separate from the stride-aligned canvas: an axis
-        // must never gain source samples just to reach the model stride.
+        // An axis never gains source samples just to reach the canvas stride.
         let width = min(frame.width, canvas.width), height = min(frame.height, canvas.height)
         let sourceXs = await resizeCoordinates(sourceLength: frame.width, targetLength: width,
                                                resizesOtherAxis: frame.height != height)
         try cancellationCheck()
-        try Task.checkCancellation()
         let sourceYs = await resizeCoordinates(sourceLength: frame.height, targetLength: height, vertical: true,
                                                resizesOtherAxis: frame.width != width)
         try cancellationCheck()
-        try Task.checkCancellation()
         let array: MLMultiArray
         do {
             array = try MLMultiArray(shape: [1, 3, canvas.height, canvas.width].map { NSNumber(value: $0) }, dataType: .float32)
@@ -253,18 +248,13 @@ enum NativeCoreMLDetectionPreprocessor {
         return NativeCoreMLDetectionPreparedArray(input: array, resizedWidth: width, resizedHeight: height)
     }
 
-    /// Rows submitted to one `concurrentPerform` pass. Cancellation is observed
-    /// on the calling task between passes (GCD workers have no current Task).
+    /// Rows per `concurrentPerform` pass; cancellation is checked between passes.
     private static let boundedRowsPerPass = 256
-    /// Rows written by one concurrent iteration. Every iteration owns a
-    /// disjoint row range in all three planes, so writes never overlap.
+    /// Rows per concurrent iteration; each owns disjoint rows in all three planes.
     private static let boundedRowsPerBand = 16
 
-    /// Bilinear resize + BGR normalization of the planar canvas
-    /// (`3 * canvasWidth * canvasHeight` Floats) into caller-owned contiguous
-    /// storage. Rows are only distributed across cores, so the result is
-    /// bit-identical to a scalar loop. Only padding is zeroed: content cells
-    /// are all written by the row bands.
+    /// Bilinear resize + BGR normalization into the planar `3 * canvasWidth * canvasHeight` canvas,
+    /// bit-identical to a scalar loop. Only padding is zeroed; the row bands write every content cell.
     static func fillBoundedInput(
         frame: NativeOCRRGBAFrame, canvasWidth: Int, canvasHeight: Int,
         width: Int, height: Int,
@@ -332,7 +322,6 @@ enum NativeCoreMLDetectionPreprocessor {
                 var passStart = 0
                 while passStart < height {
                     try cancellationCheck()
-                    try Task.checkCancellation()
                     let passEnd = min(height, passStart + boundedRowsPerPass)
                     let firstRow = passStart
                     let bands = (passEnd - firstRow + boundedRowsPerBand - 1) / boundedRowsPerBand
@@ -384,8 +373,7 @@ enum NativeCoreMLDetectionPreprocessor {
         let resizesOtherAxis: Bool
     }
 
-    /// Consecutive pages usually share sizes; the ramps are a pure function of
-    /// the key, so a tiny LRU replays them instead of building tensor graphs.
+    /// Consecutive pages usually share sizes, so a tiny LRU reuses the (pure) ramps.
     private static let resizeCoordinateCacheCapacity = 8
     private static let resizeCoordinateCache = ResizeCoordinateCache()
 
@@ -409,11 +397,9 @@ enum NativeCoreMLDetectionPreprocessor {
         }
     }
 
-    /// One-dimensional ramps resized by `MLTensor` reproduce its exact bilinear
-    /// coordinates. Core ML picks different kernels when one or both axes
-    /// resize, so the orthogonal axis grows from 2 to 3 to match. A parity ramp
-    /// carries the fractional weight separately (subtracting the integer part
-    /// of a large coordinate loses Float ULPs).
+    /// Ramps resized by `MLTensor` reproduce its exact bilinear coordinates. Core ML picks other kernels
+    /// when both axes resize, so the orthogonal axis is then 3, not 2. A parity ramp carries the weight
+    /// separately (subtracting the integer part of a large coordinate loses Float ULPs).
     private static func resizeCoordinates(
         sourceLength: Int, targetLength: Int, vertical: Bool = false, resizesOtherAxis: Bool = false
     ) async -> [(Int, Int, Float)] {

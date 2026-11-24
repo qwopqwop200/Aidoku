@@ -74,23 +74,19 @@ enum NativeCoreMLRecognitionPreprocessor {
         let heightRight = distance(quad.topRight, quad.bottomRight)
         let width = max(widthTop, widthBottom)
         let height = max(heightLeft, heightRight)
-        // Finite input points can still produce overflowing distances or
-        // dimensions outside Int's range. Reject before converting geometry.
+        // Finite points can still overflow Int; reject before converting.
         guard width.isFinite, height.isFinite,
               width < Double(Int.max), height < Double(Int.max) else { return nil }
         let cropWidth = max(1, Int(floor(width)))
         let cropHeight = max(1, Int(floor(height)))
         guard cropWidth > 1, cropHeight > 1 else { return nil }
 
-        // Decide the reading axis before raster rounding. Flooring short edges
-        // can turn a 1.49 aspect ratio into 1.5 and rotate the same lettering
-        // differently at different detector resolutions.
+        // Decide the reading axis before flooring, which can turn a 1.49 aspect ratio into 1.5.
         let rotated = height / width >= 1.5
         let orientedWidth = rotated ? cropHeight : cropWidth
         let orientedHeight = rotated ? cropWidth : cropHeight
         let ratio = Double(orientedWidth) / Double(max(1, orientedHeight))
-        // Publisher's rule uses the natural width BEFORE clipping: ordinary
-        // lines cap at 640, only natural widths above 2000 can use up to 2400.
+        // Natural width before clipping: lines cap at 640; only widths above 2000 may use up to 2400.
         let naturalWidth = (Double(targetHeight) * ratio).rounded(.toNearestOrEven)
         let desiredWidth = Int(max(1, min(naturalWidth > 2_000 ? 2_400 : 640, naturalWidth)))
         let bucket = NativeCoreMLRecognitionBucket(width: max(32, desiredWidth))
@@ -113,13 +109,10 @@ enum NativeCoreMLRecognitionPreprocessor {
         let sourceMaximumX = Double(frame.width - 1)
         let sourceMaximumY = Double(frame.height - 1)
         let homography = plan.homography
-        // With g == h == 0 the projective denominator is exactly 1.0 for every
-        // finite u/v in [0, 1] (signed zeros included), and IEEE division by
-        // 1.0 is the identity. Skipping it is therefore bit-identical.
+        // With g == h == 0 the denominator is exactly 1, so skipping the division is bit-identical.
         let isAffine = homography.g == 0 && homography.h == 0
         var valid = true
-        // Each column uses the same normalized crop coordinate on all 48
-        // rows. Keep the scalar operation order, but calculate it only once.
+        // Each column's crop coordinate is shared by all 48 rows (same operation order).
         let columnCoordinates = (0..<plan.resizedWidth).map { column in
             let orientedX = (Double(column) + 0.5) * orientedWidth / resizedWidth - 0.5
             return min(max(orientedX / (plan.rotatedCounterClockwise ? cropHeight : cropWidth), 0), 1)
@@ -128,9 +121,7 @@ enum NativeCoreMLRecognitionPreprocessor {
         let axis = isAffine && homography.b == 0 && homography.d == 0
             ? sampleAxisAligned(frame: frame, plan: plan, columns: columnCoordinates) : nil
 
-        // Exact scalar Paddle/OpenCV sampling contract. The immutable source and
-        // disjoint output slots make this kernel safe for the recognizer's
-        // bounded region-level task group.
+        // Exact scalar Paddle/OpenCV sampling; safe to run concurrently per region.
         values.withUnsafeMutableBufferPointer { destination in
             frame.bytes.withUnsafeBufferPointer { sourceBytes in
                 guard let output = destination.baseAddress, let source = sourceBytes.baseAddress else {
@@ -222,9 +213,8 @@ enum NativeCoreMLRecognitionPreprocessor {
         )
     }
 
-    /// On a rotated axis-aligned crop, an output row holds its source X fixed.
-    /// Adjacent columns can therefore reuse the exact horizontal interpolation
-    /// when bilinear sampling revisits either of the same two source rows.
+    /// On a rotated axis-aligned crop an output row has a fixed source X, so adjacent columns reuse the
+    /// exact horizontal interpolation of a source row they revisit.
     private static func sampleUpscaledVertical(
         source: UnsafePointer<UInt8>, output: UnsafeMutablePointer<Float>,
         xAxis: [AxisSample], yAxis: [AxisSample], targetWidth: Int, planeSize: Int
@@ -269,8 +259,7 @@ enum NativeCoreMLRecognitionPreprocessor {
         let weight: Double
     }
 
-    /// Exact separable axis-aligned warp. Generic affine/projective paths
-    /// still exercise their existing per-cell projection and validity rules.
+    /// Exact separable axis-aligned warp; other warps use the per-cell projection.
     private static func sampleAxisAligned(frame: NativeOCRRGBAFrame, plan: Plan, columns: [Double]) -> (x: [AxisSample], y: [AxisSample])? {
         let homography = plan.homography
         let rotated = plan.rotatedCounterClockwise
@@ -287,10 +276,8 @@ enum NativeCoreMLRecognitionPreprocessor {
             var result: [AxisSample] = []
             result.reserveCapacity(coordinates.count)
             for coordinate in coordinates {
-                // Keep multiply/add order used by the generic branch. The
-                // omitted coordinate has zero coefficient; its only possible
-                // IEEE difference is the sign of zero, which clamps to the
-                // same source pixel and normalizes identically.
+                // Same multiply/add order as the generic branch; the zero term can only flip a
+                // zero's sign, which clamps to the same pixel.
                 let projected = horizontal
                     ? homography.a * coordinate + homography.b * 0 + homography.c
                     : homography.d * 0 + homography.e * coordinate + homography.f
@@ -440,8 +427,7 @@ enum NativeCoreMLCTCDecoder {
         }
         let result = model.correct(candidates)
         guard result.changedTokens > 0 else { return decoded }
-        // Acceptance confidence remains the original visual confidence. LM
-        // scores neither inflate nor replace the detector/recognizer signal.
+        // Acceptance confidence stays the visual one; LM scores never replace it.
         return NativeCoreMLDecodedText(text: result.choices.map(\.text).joined(), confidence: decoded.confidence,
             tokenObservations: zip(result.choices, decoded.tokenObservations).map { choice, original in
                 .init(text: choice.text, confidence: choice.text == original.text ? original.confidence : choice.probability)
