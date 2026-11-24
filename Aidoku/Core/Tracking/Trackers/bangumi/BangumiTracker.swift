@@ -191,9 +191,6 @@ private extension BangumiTracker {
         return .ongoing
     }
 
-}
-
-extension BangumiTracker {
     func getSubjectType(for subject: BangumiSubject) -> MediaType {
         // Anime, music, games and live-action subjects cannot be classified as books.
         guard subject.type == 1 else { return .unknown }
