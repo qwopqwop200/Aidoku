@@ -2,10 +2,8 @@ import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
 
-// S1: RF-DETR 648 layout regions (text, SFX, balloon, frame). Numerics follow the legacy
-// tensor contract exactly: PyTorch antialiased triangle resize, ImageNet normalization,
-// global top-160 (query, class) ranking with per-class floors. The bundled package drops the
-// never-read `instance_masks` output (boxes/logits bit-identical), so Core ML skips the mask head.
+// S1: RF-DETR 648 layout regions (text, SFX, balloon, frame): PyTorch antialiased triangle resize,
+// ImageNet normalization, global top-160 (query, class) ranking with per-class floors.
 
 @available(iOS 18.0, macOS 15.0, *)
 final class PipelineRFDETRModel: @unchecked Sendable {
@@ -15,7 +13,8 @@ final class PipelineRFDETRModel: @unchecked Sendable {
     static let classes = 5
     static let mean: [Float] = [0.485, 0.456, 0.406]
     static let std: [Float] = [0.229, 0.224, 0.225]
-    /// Per-class floors in model class order: text, SFX, balloon, frame.
+    static let kinds: [PipelineLayoutKind] = [.text, .sfx, .balloon, .frame]
+    /// Per-class floors in `kinds` order.
     static var thresholds: [Float] {
         let tuning = PipelineTuning.current
         return [tuning.layoutTextFloor, tuning.layoutSFXFloor, tuning.balloonFloor, tuning.layoutFrameFloor]
@@ -39,8 +38,7 @@ final class PipelineRFDETRModel: @unchecked Sendable {
 #else
         configuration.computeUnits = .cpuAndGPU
 #endif
-        // Fixed-shape GPU program: fast-prediction specialization is bit-identical on the replay
-        // set and trims the per-page prediction.
+        // Fixed shape: fast-prediction specialization is bit-identical and faster.
         configuration.optimizationHints.specializationStrategy = .fastPrediction
         configuration.modelDisplayName = "Koharu RF-DETR648 V2"
         model = try MLModel(contentsOf: compiledURL, configuration: configuration)
@@ -105,9 +103,8 @@ final class PipelineRFDETRModel: @unchecked Sendable {
         let horizontal: Taps
         let vertical: Taps
 
-        // The legacy kernel's arithmetic and order (horizontal pass per row, then vertical
-        // accumulation from 0), vectorized across channels / output columns only, so every float
-        // is bit-identical; a band's horizontal rows share one scratch buffer.
+        // Legacy arithmetic and order (horizontal pass per row, then vertical accumulation from 0),
+        // vectorized across channels / output columns only, so every float is bit-identical.
         func write(rows outputRows: Range<Int>) {
             let side = PipelineRFDETRModel.side, plane = side * side
             guard let firstRow = outputRows.first.map({ vertical.first[$0] }),
@@ -115,8 +112,7 @@ final class PipelineRFDETRModel: @unchecked Sendable {
             let rowCount = lastRow - firstRow
             let scratch = UnsafeMutablePointer<Float>.allocate(capacity: rowCount * 3 * side)
             defer { scratch.deallocate() }
-            // One source row as unit floats (r, g, b, unused): each tap is one SIMD4 multiply then
-            // add, the same per-channel operations in the same order as the scalar legacy kernel.
+            // One source row as unit floats (r, g, b, unused): one SIMD4 multiply-add per tap.
             let line = UnsafeMutablePointer<SIMD4<Float>>.allocate(capacity: sourceWidth)
             defer { line.deallocate() }
             PipelineRFDETRModel.unit.withUnsafeBufferPointer { unitBuffer in
@@ -228,16 +224,6 @@ enum PipelineLayoutDetection {
         }
     }
 
-    static func kind(modelClass: Int) -> PipelineLayoutKind? {
-        switch modelClass {
-        case 0: .text
-        case 1: .sfx
-        case 2: .balloon
-        case 3: .frame
-        default: nil
-        }
-    }
-
     private static func sigmoid(_ value: Float) -> Float {
         value >= 0 ? 1 / (1 + exp(-value)) : exp(value) / (1 + exp(value))
     }
@@ -269,7 +255,7 @@ enum PipelineLayoutDetection {
         var regions: [PipelineLayoutRegion] = []
         for candidate in selected {
             let q = candidate.flat / classes, c = candidate.flat % classes
-            guard let kind = kind(modelClass: c) else { continue }
+            let kind = PipelineRFDETRModel.kinds[c]
             let v = (0..<4).map { boxData[q * boxStride[1] + $0 * boxStride[2]] }
             guard v.allSatisfy(\.isFinite), v[2] >= 0, v[3] >= 0 else { throw PipelineRFDETRModel.Failure.nonfiniteOutput }
             let box = CGRect(x: CGFloat(v[0] - v[2] / 2) * CGFloat(width), y: CGFloat(v[1] - v[3] / 2) * CGFloat(height),

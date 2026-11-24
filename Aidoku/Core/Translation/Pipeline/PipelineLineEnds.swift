@@ -1,13 +1,9 @@
 import CoreGraphics
 import Foundation
 
-/// S6 input: where each detector line really ends along its axis. The DB box often stops short of
-/// the last glyph (median 0.1 T at the bottom of a column, > 0.5 T for 3% of lines). Per line end, a
-/// LightGBM forest fit on GT train lines (`PipelineWeights.bin` lineEnds; port-eval/bboxagent/export.py)
-/// predicts the end's offset in line thicknesses from the ink profile around it and the enclosing
-/// RF text/balloon edge. S6 moves an end outward only where that end plus `margin` passes its own
-/// 0.5 T line-end search, so its ROI reaches glyphs the detector left out; every other stage keeps the
-/// detector lines (longer lines made S3 and S4 worse on GT).
+/// S6 input: where each detector line really ends (the DB box often stops short of the last glyph).
+/// Per end, a LightGBM forest (`PipelineWeights.bin` lineEnds) predicts the offset in line thicknesses
+/// from the ink profile and the enclosing text/balloon edge; S6 alone uses the moved ends.
 enum PipelineLineEnds {
     /// Ink thresholds (|gray - box median|) of the two profiles.
     static let deltas: [Double] = [40, 90]

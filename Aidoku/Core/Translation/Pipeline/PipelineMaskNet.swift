@@ -1,10 +1,9 @@
 @preconcurrency import CoreML
 import Foundation
 
-/// S6 glyph classifier: a compact U-Net (Core ML, FP16) over one block crop, box-downscaled by the
-/// smallest integer factor that brings the median line thickness to at most `targetThickness` px. Input 1 x 6 x H x W
-/// (RGB, max |RGB - background|, line polygon and ROI coverage, all 0-1; H and W multiples of `align`),
-/// output the per-pixel glyph probability. Fit on train GT glyph masks (port-eval/convmask/tools/train.py).
+/// S6 glyph classifier: a U-Net over one block crop downscaled to median line thickness <= `targetThickness`.
+/// Input 1 x 6 x H x W (RGB, max |RGB - background|, line polygon and ROI coverage, all 0-1; H, W multiples
+/// of `align`), output the per-pixel glyph probability.
 final class PipelineMaskNet: @unchecked Sendable {
     static let resourceName = "PipelineMaskUNet-FP16"
     static let targetThickness: Double = 64
@@ -16,8 +15,7 @@ final class PipelineMaskNet: @unchecked Sendable {
 
     init(compiledURL: URL) throws {
         let configuration = MLModelConfiguration()
-        // One small prediction per block at a new size: on the Mac CPU-only S6 took a third of the time of
-        // CPU+GPU (per-shape GPU dispatch); the Neural Engine would recompile per shape.
+        // One small prediction per block at a new shape: CPU-only is ~3x faster than per-shape GPU dispatch.
         configuration.computeUnits = .cpuOnly
         model = try MLModel(contentsOf: compiledURL, configuration: configuration)
     }

@@ -1,13 +1,9 @@
 import CoreGraphics
 import Foundation
 
-/// S2b: joins detector fragments of one text column (vertical) or row (horizontal).
-///
-/// The DB detector often splits one lettered column into 2-4 components. Two fragments
-/// join when stacked along one axis within `maximumGap` thicknesses, of similar thickness,
-/// overlapping across the axis, and not straddling a balloon boundary; joins are greedy,
-/// smallest normalized gap first, re-testing the merged line. Fitted recall-first on GT train;
-/// bit-identical to the out-of-repo research reference (scripts-detection/assemble.py).
+/// S2b: joins detector fragments of one text column or row: stacked along one axis within `maximumGap`
+/// thicknesses, of similar thickness, overlapping across it, not straddling a balloon boundary; greedy,
+/// smallest normalized gap first, re-testing the merged line.
 enum PipelineLineAssembly {
     /// Maximum along-axis gap, in units of the thinner fragment's thickness.
     static var maximumGap: CGFloat { PipelineTuning.current.assemblyMaximumGap }
@@ -30,9 +26,8 @@ enum PipelineLineAssembly {
         let balloons = layout.filter {
             $0.kind == .balloon && $0.score >= balloonMinimumScore && !$0.bounds.isEmpty
         }.map(\.bounds)
-        // Stable ids (input order): a merge keeps the lower id, matching the original quadratic
-        // rescan. Admissible pairs are cached and only the merged item's are recomputed (noisy
-        // pages reach the detector's 3,000-candidate cap); same pairs, same (gap, i, j) choice.
+        // A merge keeps the lower id; admissible pairs are cached and only the merged item's are
+        // recomputed (noisy pages reach 3,000 candidates), giving the quadratic rescan's (gap, i, j) choice.
         var items = lines.map { Item(line: $0, box: $0.bounds, owner: owner($0.bounds, balloons)) }
         var alive = [Bool](repeating: true, count: items.count)
         var pairs: [Pair] = []
