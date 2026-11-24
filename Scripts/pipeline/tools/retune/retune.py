@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
 """retune.py NAME [--models DIR] [--knobs a,b|all] [--start FILE] [--final-only] [--plan]
 
-Re-fits the model-coupled knobs (Aidoku PipelineTuning) after a model is replaced, then reports
-old models + old knobs vs new models + old knobs vs new models + fitted knobs.
-
+Re-fits the model-coupled PipelineTuning knobs after a model is replaced:
   1. ref    repository models, default knobs (shared across NAMEs, reused when present)
-  2. new0   --models DIR (replacement .mlpackage / dictionary / LM files; missing ones from the repo), default knobs
-  3. sweep  coordinate line search, one knob at a time, TRAIN folds 2-4 only; a value is kept when it beats the
-            current set beyond noise without hurting the guards (rules below)
-  4. final  the fitted set on dev and test (first look at both), compared with ref and new0
-
-Selection never reads dev or test. Every run is a replay (saved translations, synthetic text for blocks they do not
-cover), --no-png, 4 jobs, one heavy slot each (tools/lock.zsh), two candidates at a time.
-Scores are numbers only: reclass/compare.py (render items, gains - losses, noise), merge_gt_eval.py (exact pages,
-line P/R), Scripts/pipeline/eval.py (detection), convmask mscore (S6 masks vs GT glyphs), colorfix/errors.py (S8).
-Output: $AIDOKU_EVAL_DIR/runs/retune/NAME/{report.md, tuning.json, log.txt}; apply tuning.json as PipelineTuning defaults by hand.
+  2. new0   --models DIR (replacement model / dictionary / LM files; missing ones from the repo), default knobs
+  3. sweep  coordinate line search, one knob at a time, on TRAIN folds only (see judge())
+  4. final  ref, new0 and the fitted set on dev, train and test
+Every run is a --no-png replay of saved translations in one heavy slot (tools/lock.zsh), two at a time.
+Output: $AIDOKU_EVAL_DIR/runs/retune/NAME/{report.md, tuning.json, log.txt}; apply tuning.json by hand.
 """
-import argparse, collections, json, os, re, shutil, subprocess, sys, threading
+import argparse, collections, functools, json, os, re, shutil, subprocess, sys, threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -70,8 +63,7 @@ KNOBS = {
     'lineEndMargin': (0.05, 0.1, 0.7, 'mask'),
     'fontLevel': (0.02, -0.1, 0.16, 'font'),
 }
-# In PipelineTuning but left out of --knobs all: no effect on dev even at 0.05 / 0.95 (the balloon veto never binds
-# once S1 drops balloons under balloonFloor). Name it in --knobs to sweep it anyway.
+# Left out of --knobs all: no effect on dev (balloonFloor already drops those balloons). Name it to sweep it.
 NOT_IN_ALL = {'roleBalloonScore'}
 MAX_STEPS = 3  # line search: up to 3 steps out from the current value in the winning direction
 
@@ -131,16 +123,11 @@ def run(dir_prefix, split, tuning, models, allow_fail=False):
     return out
 
 
-_head = None
-
-
+@functools.cache
 def git_head():
-    global _head
-    if _head is None:
-        h = subprocess.check_output(['git', '-C', str(REPO), 'rev-parse', 'HEAD'], text=True).strip()
-        dirty = subprocess.check_output(['git', '-C', str(REPO), 'status', '--porcelain', '--', 'Aidoku/Core', 'Scripts'], text=True)
-        _head = h + ('+dirty' if dirty.strip() else '')
-    return _head
+    h = subprocess.check_output(['git', '-C', str(REPO), 'rev-parse', 'HEAD'], text=True).strip()
+    dirty = subprocess.check_output(['git', '-C', str(REPO), 'status', '--porcelain', '--', 'Aidoku/Core', 'Scripts'], text=True)
+    return h + ('+dirty' if dirty.strip() else '')
 
 
 # ---------- scores (numbers only) ----------

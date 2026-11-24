@@ -1,17 +1,10 @@
-"""User-reviewed merge GT (split11 v8), read from the unified GT file.
-
-Rebuilds the page entries the merge scorers used to read from
-labels/merge-gt-20261023/dataset-split11-20261024-v8.json. Excluded pages are not in the
-unified file; both scorers skipped them anyway.
-"""
+"""User-reviewed merge GT (split11 v8) pages, read from the unified GT file (excluded pages are not in it)."""
+import json, sys
+from functools import lru_cache
 from pathlib import Path
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tools dir
 from workspace import GT  # noqa: E402
-import json
-from functools import lru_cache
 
-UNIFIED = str(GT)
 DATASET = 'merge-gt-current-user-split11-20261024-v8'
 SOURCE = 'source:7eae90882f994a87f88272a6d5c4b551c7dbdddb8f68f35352600b8c850a6bc1'
 
@@ -19,7 +12,7 @@ SOURCE = 'source:7eae90882f994a87f88272a6d5c4b551c7dbdddb8f68f35352600b8c850a6bc
 @lru_cache(maxsize=1)
 def load():
     """Returns {'review_pages': [...], 'pages': [{page, status, width, height, regions, ...}]}."""
-    with open(UNIFIED) as f:
+    with open(GT) as f:
         data = json.load(f)
     source = next(s for s in data['sources'] if s['source_id'] == SOURCE)
     review_pages = source['evidence'][0]['root_metadata']['review_pages']

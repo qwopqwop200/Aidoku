@@ -6,18 +6,15 @@ kinsoku: lines starting with closing punctuation or ending with opening punctuat
 punctOnly: lines that hold only punctuation.
 fontRatio: placed px / source px (median, share < 0.6).
 overlaps: pairs of painted frames that intersect by > 0.5 px.
-Per-work (manifest group) breakdown with --by-work.
+Per-fold breakdown with --by-work.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent))  # tools dir
-from workspace import EVAL, MANIFEST as FOLD_MANIFEST  # noqa: E402
 import collections, json, statistics, sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tools dir
+from workspace import MANIFEST  # noqa: E402
 
 CLOSE = set('!?,.。、，．！？…‥」』）)]】〉》〕"’”~ー・:;' + "'")
 OPEN = set('「『（([【〈《〔‘“')
-MANIFEST = EVAL / 'manifest.json'
 
 
 def is_punct(s):
@@ -37,13 +34,11 @@ def analyze(run):
                 continue
             text = b.get('translation') or ''
             lines = p['lines']
-            nospace = ''.join(text.split())
             bounds, pos = set(), 0
             for w in text.split():
                 pos += len(w)
                 bounds.add(pos)
-            cuts = 0
-            pos = 0
+            cuts = pos = 0
             for ln in lines[:-1]:
                 pos += len(''.join(ln.split()))
                 if pos not in bounds:
@@ -65,7 +60,6 @@ def analyze(run):
                 if min(a[2], c[2]) - max(a[0], c[0]) > 0.5 and min(a[3], c[3]) - max(a[1], c[1]) > 0.5:
                     ov += 1
         if rows:
-            rows[-1].setdefault('pageOverlaps', 0)
             rows[-1]['pageOverlaps'] = ov
     return rows
 
@@ -87,12 +81,10 @@ if __name__ == '__main__':
     rows = analyze(sys.argv[1])
     print(json.dumps(summarize(rows), indent=1))
     if '--by-work' in sys.argv:
-        man = {p['page_id']: p for p in json.load(open(
-            str(FOLD_MANIFEST)))['pages']}
-        key = next((k for k in ('fold',) if k in next(iter(man.values()))), None)
+        fold = {p['page_id']: p.get('fold', '?') for p in json.load(open(MANIFEST))['pages']}
         by = collections.defaultdict(list)
         for r in rows:
-            by[man.get(r['page'], {}).get(key, '?')].append(r)
+            by[fold.get(r['page'], '?')].append(r)
         for g, rs in sorted(by.items()):
             s = summarize(rs)
             print(g, s['owners'], 'cuts', s['wordCuts'], 'kin', s['kinsoku'], 'pun', s['punctOnlyLines'],

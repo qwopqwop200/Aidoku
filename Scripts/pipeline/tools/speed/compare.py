@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """compare.py BASE CAND [splits...]  (names under $AIDOKU_EVAL_DIR/runs/speed2, e.g. base s7-tensor)
 
-Prints, per split and overall:
-  * page JSON: pages identical after dropping timings; for differing pages the number of differing
-    leaves, string leaves changed (text), max numeric drift, block-count changes
-  * page PNG (when both runs wrote them): pages pixel-identical, max |diff|, mean |diff|,
-    share of pixels with |diff| > 8, worst pages (ids only)
-  * speed: wall ms, pages/s, mean ms of total_non_llm and every stage; peak RSS (MB)
-Never prints or opens image content: only numeric statistics.
+Prints, per split and overall: pages with identical JSON (timings dropped) and the size of the differences,
+pixel-identical PNGs and diff statistics (numbers and page ids only), wall time, stage means and peak RSS.
 Run with the eval venv python (workspace.PYTHON: numpy + PIL).
 """
+import json, os, re, sys
 from pathlib import Path
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import RUNS  # noqa: E402
-import json, os, re, sys
 import numpy as np
 from PIL import Image
 
@@ -78,10 +72,9 @@ def peak_rss(name, split):
 
 def stages(name, split):
     try:
-        s = json.load(open(f'{R}/{name}_{split}/summary.json'))
+        return json.load(open(f'{R}/{name}_{split}/summary.json'))
     except OSError:
         return None
-    return s
 
 
 def main():

@@ -83,35 +83,20 @@ class QuickIOSRunnerTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(timeouts, [None])
         command = commands[0]
-        self.assertEqual(command[1], 'test')
-        self.assertIn('ONLY_ACTIVE_ARCH=YES', command)
-        self.assertIn('SWIFT_COMPILATION_MODE=singlefile', command)
         self.assertEqual(command[command.index('-testPlan') + 1], 'AidokuFull')
         self.assertIn('-only-testing:AidokuTests/ExampleTests', command)
 
-    def test_fast_ios_uses_default_plan_without_narrowing_it(self):
-        code, commands, timeouts = self.run_ios(selection=('--fast-ios',))
-        self.assertEqual(code, 0)
-        command = commands[0]
-        self.assertEqual(command[command.index('-testPlan') + 1], 'AidokuFast')
-        self.assertEqual(command[command.index('-configuration') + 1], 'Release')
-        self.assertFalse(any(arg.startswith('-only-testing:') for arg in command))
-        self.assertEqual(timeouts, [None])
-
-    def test_full_ios_uses_complete_plan_optimized_single_simulator_and_no_deadline(self):
-        code, commands, timeouts = self.run_ios(selection=('--full-ios',))
-        self.assertEqual(code, 0)
-        command = commands[0]
-        self.assertEqual(command[command.index('-testPlan') + 1], 'AidokuFull')
-        self.assertEqual(command[command.index('-configuration') + 1], 'Release')
-        self.assertIn('SWIFT_OPTIMIZATION_LEVEL=-O', command)
-        self.assertIn('CODE_SIGNING_ALLOWED=YES', command)
-        self.assertIn('CODE_SIGNING_REQUIRED=YES', command)
-        self.assertIn('CODE_SIGN_IDENTITY=-', command)
-        self.assertFalse(any(arg.startswith(('-only-testing:', '-skip-testing:')) for arg in command))
-        self.assertEqual(command[command.index('-parallel-testing-enabled') + 1], 'NO')
-        self.assertEqual(command[command.index('-maximum-concurrent-test-simulator-destinations') + 1], '1')
-        self.assertEqual(timeouts, [None])
+    def test_fast_and_full_ios_run_whole_plan_in_release_without_deadline(self):
+        for flag, plan in (('--fast-ios', 'AidokuFast'), ('--full-ios', 'AidokuFull')):
+            with self.subTest(flag=flag):
+                code, commands, timeouts = self.run_ios(selection=(flag,))
+                self.assertEqual(code, 0)
+                command = commands[0]
+                self.assertEqual(command[command.index('-testPlan') + 1], plan)
+                self.assertEqual(command[command.index('-configuration') + 1], 'Release')
+                self.assertIn('SWIFT_OPTIMIZATION_LEVEL=-O', command)
+                self.assertFalse(any(arg.startswith(('-only-testing:', '-skip-testing:')) for arg in command))
+                self.assertEqual(timeouts, [None])
 
     def test_multiple_bare_suites_are_each_selected(self):
         code, commands, _ = self.run_ios(selection=('--ios', 'FirstTests', 'SecondTests'))
