@@ -56,6 +56,12 @@ Provider (live mode)
 
 Replay evaluation
   --replay-fill-unmatched      give unmatched blocks a placeholder so S6-S10 run on all
+
+Stage checkpoints (replay or OCR-only)
+  --save-stages                save S1-S4b, the S6 mask and the S7 restore per page in OUTPUT/stages
+  --from-stages DIR            reuse a run saved with --save-stages; recompute from --from on
+  --from S                     s5 (reuse S1-S4b), s7 (+ S6 mask) or s8 (+ S7 restore; default).
+                               Valid only while the reused stages, models and tuning are unchanged.
   --translate-delay-ms N       hold S5 for N ms (models a provider wait)
 
 Settings precedence: CLI arguments > shell environment > the repository's ignored

@@ -30,6 +30,8 @@ struct PipelineHooks: Sendable {
     var isForeground: @Sendable () -> Bool = { false }
     /// Keeps the restored pixels of the erased regions in the result (the app's stored page).
     var capturesBackground = false
+    /// Host-only stage checkpoints to reuse and record (nil in the app).
+    var checkpoints: PipelineCheckpoints?
 }
 
 @available(iOS 18.0, macOS 15.0, *)
@@ -86,6 +88,9 @@ enum TranslationPipeline {
         var background: CGImage?
         /// The page regions S7 writes, when the result keeps their restored pixels.
         var regions: [CGRect]?
+        /// The S6 mask and its paint set, kept for a checkpoint.
+        var removal: [UInt8]?
+        var paintable: [Int] = []
         var failure: String?
         var stages: [String: Double] = [:]
     }
@@ -138,8 +143,17 @@ enum TranslationPipeline {
         var failures: [String] = []
         let pageSize = CGSize(width: page.width, height: page.height)
 
-        // S1 || S2 (after one shared pixel decode).
-        var front = await timings.record(Stage.parallel) { await runFront(page, models: models) }
+        // S1 || S2 (after one shared pixel decode), or a saved S1-S4b checkpoint (host only).
+        let savedFront = hooks.checkpoints?.savedFront
+        var front = Front()
+        if let savedFront {
+            let start = DispatchTime.now().uptimeNanoseconds
+            front.raster = decodePixels(page.image).raster
+            front.layout = savedFront.layout
+            front.stages[Stage.decode] = milliseconds(since: start)
+        } else {
+            front = await timings.record(Stage.parallel) { await runFront(page, models: models) }
+        }
         timings.stages.merge(front.stages) { $0 + $1 }
         failures += front.failures
         // A page cancelled during S1 || S2 (result discarded) skips S3/S4 and the rest.
@@ -148,26 +162,31 @@ enum TranslationPipeline {
                                 failure: (failures + ["cancelled"]).joined(separator: "; "))
         }
         let layout = front.layout
-        let lines = await timings.record(Stage.assemble) { PipelineLineAssembly.assemble(front.lines, layout: layout) }
+        let classified: [PipelineBlock]
+        if let savedFront {
+            classified = savedFront.classified
+        } else {
+            let lines = await timings.record(Stage.assemble) { PipelineLineAssembly.assemble(front.lines, layout: layout) }
 
-        // S3
-        var read: [PipelineLine] = []
-        do {
-            read = try await timings.record(Stage.recognize) {
-                if let frame = front.frame {
-                    return try await PipelineRecognition.recognize(frame: frame, lines: lines, engine: models.recognition,
+            // S3
+            var read: [PipelineLine] = []
+            do {
+                read = try await timings.record(Stage.recognize) {
+                    if let frame = front.frame {
+                        return try await PipelineRecognition.recognize(frame: frame, lines: lines, engine: models.recognition,
+                                                                 rank: hooks.recognitionRank)
+                    }
+                    return try await PipelineRecognition.recognize(page, lines: lines, engine: models.recognition,
                                                              rank: hooks.recognitionRank)
                 }
-                return try await PipelineRecognition.recognize(page, lines: lines, engine: models.recognition,
-                                                         rank: hooks.recognitionRank)
-            }
-        } catch { failures.append("s3: \(error)") }
+            } catch { failures.append("s3: \(error)") }
 
-        // S4
-        let classified = await timings.record(Stage.group) {
-            let grouped = PipelineGrouping.group(read, layout: layout, pageSize: pageSize, raster: front.gray,
-                                           direction: page.readingDirection)
-            return PipelineRoleFilter.classify(grouped, layout: layout)
+            // S4
+            classified = await timings.record(Stage.group) {
+                let grouped = PipelineGrouping.group(read, layout: layout, pageSize: pageSize, raster: front.gray,
+                                               direction: page.readingDirection)
+                return PipelineRoleFilter.classify(grouped, layout: layout)
+            }
         }
         // S5 (LLM or replay) reads only the S4 text, bounds and roles: it starts before S4b, whose
         // fields are put back on its result below.
@@ -177,8 +196,15 @@ enum TranslationPipeline {
                 return (.failure(error), milliseconds(since: start))
             }
         }()
-        var blocks = await timings.record(Stage.group) {
-            PipelineInterior.apply(classified, raster: front.gray, pageSize: pageSize, layout: layout)
+        var blocks: [PipelineBlock]
+        if let savedFront {
+            blocks = savedFront.blocks
+        } else {
+            let gray = front.gray
+            blocks = await timings.record(Stage.group) {
+                PipelineInterior.apply(classified, raster: gray, pageSize: pageSize, layout: layout)
+            }
+            if failures.isEmpty { hooks.checkpoints?.record(front: .init(layout: layout, classified: classified, blocks: blocks)) }
         }
         timings.stages[Stage.front] = milliseconds(since: started)
         hooks.frontFinished()
@@ -273,7 +299,7 @@ enum TranslationPipeline {
                 back.erased = nil
                 let recomputed = await erase(page, paintable: paintable, layout: layout,
                                              raster: decodePixels(page.image).raster.map(PipelineRasterHandoff.init), models: models,
-                                             capturesBackground: hooks.capturesBackground)
+                                             capturesBackground: hooks.capturesBackground, checkpoints: hooks.checkpoints)
                 timings.stages.merge(recomputed.stages) { $0 + $1 }
                 erased = recomputed
             }
@@ -289,6 +315,11 @@ enum TranslationPipeline {
         var background: [PipelineBackgroundPatch]?
         if var pixels = erased?.restored?.take()?.rgba {
             background = erased?.regions.map { PipelineBackgroundPatch.capture($0, from: pixels, width: page.width) }
+            if let checkpoints = hooks.checkpoints, let erased, let removal = erased.removal {
+                let regions = erased.regions ?? PipelineBackgroundPatch.regions(removal: removal, width: page.width, height: page.height)
+                checkpoints.record(erase: .init(paintable: erased.paintable, removal: removal,
+                                                restored: PipelineBackgroundPatch.capture(regions, from: pixels, width: page.width)))
+            }
             // The only reference to the restored bytes: S10 paints over them in place, no page copy.
             restored = await timings.record(Stage.paint) {
                 PipelinePainter.paint(pixels: &pixels, width: page.width, height: page.height, blocks: finalBlocks, placed: placed)
@@ -369,7 +400,7 @@ enum TranslationPipeline {
         // Skipped when the page was cancelled or S5 already failed (the result would be discarded).
         async let erased: Erased? = paintable.isEmpty || Task.isCancelled || stop.isRaised ? nil
             : erase(page, paintable: paintable, layout: layout, raster: handoff, models: models,
-                    capturesBackground: hooks.capturesBackground)
+                    capturesBackground: hooks.capturesBackground, checkpoints: hooks.checkpoints)
         back.styled = await timings.record(Stage.style) { PipelineStyle.estimate(page, blocks: blocks, raster: raster) }
         // S7 then restores into the page bytes instead of a copy.
         raster = nil
@@ -383,10 +414,14 @@ enum TranslationPipeline {
     }
 
     private static func erase(_ page: PipelinePage, paintable: [PipelineBlock], layout: [PipelineLayoutRegion],
-                              raster: PipelineRasterHandoff?, models: PipelineModels, capturesBackground: Bool) async -> Erased {
+                              raster: PipelineRasterHandoff?, models: PipelineModels, capturesBackground: Bool,
+                              checkpoints: PipelineCheckpoints? = nil) async -> Erased {
         var timings = PipelineTimings()
         var erased = Erased()
+        let saved = checkpoints?.savedErase(for: paintable)
+        erased.paintable = paintable.map(\.id)
         let removal = await timings.record(Stage.mask) {
+            if let saved { return saved.removal }
             // The shared raster holds exactly the bytes PipelineRemovalMask would convert itself.
             if let raster = raster?.current {
                 return PipelineRemovalMask.build(rgba: raster.rgba, width: raster.width, height: raster.height,
@@ -395,11 +430,17 @@ enum TranslationPipeline {
             return PipelineRemovalMask.build(page, blocks: paintable, layout: layout, net: models.removalMask)
         }
         removalObserver?(page.id, page.width, page.height, removal, paintable.map(\.id))
+        if checkpoints != nil { erased.removal = removal }
         if capturesBackground { erased.regions = PipelineBackgroundPatch.regions(removal: removal, width: page.width, height: page.height) }
         do {
             (erased.restored, erased.background) = try await timings.record(Stage.inpaint) {
                 () async throws -> (PipelineRasterHandoff?, CGImage?) in
                 guard removal.count == page.width * page.height else { throw PipelineFailure.maskSize }
+                // A saved S7 result: the shared raster with the restored regions written back (host only).
+                if let restored = saved?.restored, let raster, var pixels = raster.take()?.rgba {
+                    PipelineBackgroundPatch.write(restored, into: &pixels, width: page.width)
+                    return (PipelineRasterHandoff(PipelinePageRaster(width: page.width, height: page.height, rgba: pixels)), nil)
+                }
                 if let raster {
                     let pixels = try await PipelineInpaint.restorePixels(raster, mask: removal, models: models)
                     return (PipelineRasterHandoff(PipelinePageRaster(width: page.width, height: page.height, rgba: pixels)), nil)

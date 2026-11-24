@@ -69,6 +69,21 @@ struct PipelineBackgroundPatch: Sendable {
         }
     }
 
+    /// Writes `patches` back into canonical page bytes (the inverse of `capture`).
+    static func write(_ patches: [PipelineBackgroundPatch], into pixels: inout [UInt8], width: Int) {
+        pixels.withUnsafeMutableBytes { page in
+            for patch in patches {
+                let x = Int(patch.rect.minX), y = Int(patch.rect.minY), w = Int(patch.rect.width), h = Int(patch.rect.height)
+                guard patch.rgba.count == w * h * 4, (y + h) * width * 4 <= page.count, x + w <= width else { continue }
+                patch.rgba.withUnsafeBytes { bytes in
+                    for row in 0..<h {
+                        (page.baseAddress! + ((y + row) * width + x) * 4).copyMemory(from: bytes.baseAddress! + row * w * 4, byteCount: w * 4)
+                    }
+                }
+            }
+        }
+    }
+
     /// Copies `regions` out of canonical page bytes.
     static func capture(_ regions: [CGRect], from pixels: [UInt8], width: Int) -> [PipelineBackgroundPatch] {
         regions.map { rect in

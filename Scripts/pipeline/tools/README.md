@@ -36,5 +36,8 @@ These read Swift-side feature dumps under `$AIDOKU_EVAL_DIR/runs/imp/...`.
 - `lock.zsh`: at most two heavy jobs machine-wide (`take_slot NAME`)
 - `speed/replay.zsh WT NAME [png|nopng] [splits]`, `speed/ab.zsh REF WT NAME ...`, `speed/compare.py`: same-slot
   A/B with output identity (JSON, PNG pixel stats), stage timings and peak RSS
+- Stage checkpoints (Mac host only): `--save-stages` keeps S1-S4b, the S6 mask and the S7 restore per page in
+  `OUTPUT/stages`; `--from-stages RUN --from s5|s7|s8` reuses them and recomputes from that stage on (output
+  identical). `--from s8` (S8-S10 changes) runs dev in seconds; s5/s7 stay bound by S7 inpainting
 - `retune/retune.py NAME --models DIR`: re-fit the `PipelineTuning` knobs for new model versions on train folds,
   then compare old / new / fitted on dev and test

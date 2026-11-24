@@ -11,7 +11,8 @@ actor ReaderTranslationPipelineService {
     // Keep the "v2-" spelling: renaming would drop every cached page.
     /// Bump when the translated blocks (S1-S5) can change; keys both cache rows.
     static let version = "v2-pipeline-3"
-    /// Bump when only rendering (S4b boxes, S6-S10) can change; re-renders from stored blocks.
+    /// Bump when S4b boxes or S6-S9 can change; re-renders from stored blocks. A stored page repaints
+    /// its text (S10) at every load, so an S10-only change needs no bump.
     static let renderVersion = "v2-render-10"
 
     enum Failure: Error { case imageUnavailable }

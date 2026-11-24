@@ -269,7 +269,9 @@ enum PipelineMain {
         // PNG/JSON writes run on their own executors, so a finished page frees its slot at once.
         let writers = PipelineInstancePool((0..<settings.writers).map { PipelineSerialExecutor(label: "Aidoku.Pipeline.Writer\($0)") })
         var writes: [(Int, Task<Double, Error>)] = []
-        try await withThrowingTaskGroup(of: (Int, PageRecord, CGImage?).self) { group in
+        let saveStages = settings.saveStages, stagesFrom = settings.stagesFrom
+        let resume = PipelineHostStages.Resume(rawValue: settings.resume) ?? .s8
+        try await withThrowingTaskGroup(of: (Int, PageRecord, CGImage?, PipelineCheckpoints?).self) { group in
             var next = 0
             func submit() {
                 guard next < settings.images.count else { return }
@@ -280,14 +282,17 @@ enum PipelineMain {
                     let image: CGImage
                     do { image = try loadImage(item.path) } catch {
                         return (index, PageRecord(pageID: item.id, image: item.path, mode: mode.rawValue, width: 0, height: 0,
-                                                  blocks: [], placed: [], timings: [:], failure: "load: \(error)"), nil)
+                                                  blocks: [], placed: [], timings: [:], failure: "load: \(error)"), nil, nil)
                     }
                     let jpeg: Task<Data, Error>? = mode == .live ? Task.detached(priority: .userInitiated) {
                         try translationJPEG(image)
                     } : nil
                     defer { jpeg?.cancel() }
                     let page = PipelinePage(id: item.id, image: image, readingDirection: direction)
-                    let result = await TranslationPipeline.run(page, models: models, translate: translator(for: jpeg), hooks: hooks(item.id))
+                    var pageHooks = hooks(item.id)
+                    pageHooks.checkpoints = stagesFrom.map { PipelineHostStages.load($0, pageID: item.id, resume: resume) }
+                        ?? (saveStages ? PipelineCheckpoints() : nil)
+                    let result = await TranslationPipeline.run(page, models: models, translate: translator(for: jpeg), hooks: pageHooks)
                     var record = PageRecord(pageID: item.id, image: item.path, mode: mode.rawValue,
                         width: page.width, height: page.height, blocks: result.blocks, placed: result.placed,
                         timings: result.timings.stages, failure: result.failure,
@@ -307,11 +312,11 @@ enum PipelineMain {
                                 .filter { $0.translation != nil && !savedIDs.contains($0.id) }.map(\.id)
                         }
                     }
-                    return (index, record, mode == .ocrOnly ? nil : result.output)
+                    return (index, record, mode == .ocrOnly ? nil : result.output, saveStages ? pageHooks.checkpoints : nil)
                 }
             }
             for _ in 0..<settings.jobs { submit() }
-            while let (index, record, finalImage) = try await group.next() {
+            while let (index, record, finalImage, checkpoints) = try await group.next() {
                 records[index] = record
                 completed += 1
                 let encodesPNG = writePNGs && record.failure?.hasPrefix("load:") != true
@@ -324,6 +329,10 @@ enum PipelineMain {
                             try encoder.encode(record).write(to: pagesDirectory.appendingPathComponent(record.pageID + ".json"))
                             if encodesPNG, let finalImage {
                                 try writePNG(finalImage, to: pagesDirectory.appendingPathComponent(record.pageID + ".png"))
+                            }
+                            if let checkpoints, record.failure == nil {
+                                try PipelineHostStages.save(checkpoints, run: output, pageID: record.pageID,
+                                                            width: record.width, height: record.height)
                             }
                             return TranslationPipeline.milliseconds(since: start)
                         }
@@ -374,6 +383,7 @@ enum PipelineMain {
             "targetLanguage": targetLanguage,
             "split": settings.split as Any? ?? NSNull(),
             "replay": settings.replay?.path as Any? ?? NSNull(),
+            "stagesFrom": settings.stagesFrom.map { ["run": $0.path, "resume": settings.resume] } as Any? ?? NSNull(),
             "modelLoadMilliseconds": loadMilliseconds,
             "tuning": PipelineTuning.current.values,
             "models": modelOverride?.path ?? "repository",

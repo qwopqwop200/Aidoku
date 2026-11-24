@@ -545,6 +545,15 @@ struct PipelineStageTests {
         #expect(dark.stroke?.components?.first == 1)       // white halo on dark text and background
         let light = PipelinePainter.legible(block: block, fontPixels: 40, background: PipelineRGB(r: 250, g: 250, b: 250))
         #expect(light.stroke == nil)
+        // Orange text with a white source outline on skin tone (page 0002): the outline barely stands out from
+        // the background (1.47) but separates the text (3.57), so the source outline stays instead of a black halo.
+        block.style = styled(50, fill: PipelineRGB(r: 222, g: 96, b: 68), stroke: PipelineRGB(r: 254, g: 255, b: 252), width: 5.3)
+        let skin = PipelinePainter.legible(block: block, fontPixels: 50, background: PipelineRGB(r: 237, g: 208, b: 178))
+        #expect(skin.stroke?.components?.first ?? 0 > 0.9 && skin.strokeWidth > 4)
+        // A source outline too close to its own fill does not count: a halo is added.
+        block.style = styled(50, fill: PipelineRGB(r: 222, g: 96, b: 68), stroke: PipelineRGB(r: 200, g: 90, b: 60), width: 5)
+        let weak = PipelinePainter.legible(block: block, fontPixels: 50, background: PipelineRGB(r: 237, g: 208, b: 178))
+        #expect(weak.stroke?.components?.first == 0)
     }
 
     @Test func layoutKeepsKoreanPhrasesAndSitsOverTheSource() {

@@ -87,6 +87,11 @@ struct PipelineHostSettings {
     var ocrOnly = false
     var replay: URL?
     var fillUnmatched = false
+    /// Stage checkpoints: written to OUTPUT/stages, and reused from an earlier run up to `resume`.
+    var saveStages = false
+    var stagesFrom: URL?
+    /// First recomputed stage (`PipelineHostStages.Resume`): s5, s7 or s8.
+    var resume = "s8"
     var translateDelay: UInt64 = 0
     var readingDirection = "rightToLeft"
 
@@ -129,6 +134,8 @@ struct PipelineHostSettings {
             "images": images.map { ["pageID": $0.id, "path": $0.path] },
         ]
         if let replay { value["replay"] = replay.path }
+        if saveStages { value["saveStages"] = true }
+        if let stagesFrom { value["stagesFrom"] = stagesFrom.path; value["resume"] = resume }
         if mode == .live {
             value["provider"] = [
                 "endpoint": endpointHost ?? "", "model": model, "protocol": apiProtocol.rawValue,
@@ -233,6 +240,11 @@ struct PipelineHostSettings {
             case "--ocr-only": settings.ocrOnly = true
             case "--replay-translations": settings.replay = URL(fileURLWithPath: try value()).standardizedFileURL
             case "--replay-fill-unmatched": settings.fillUnmatched = true
+            case "--save-stages": settings.saveStages = true
+            case "--from-stages": settings.stagesFrom = URL(fileURLWithPath: try value()).standardizedFileURL
+            case "--from":
+                settings.resume = try value()
+                guard ["s5", "s7", "s8"].contains(settings.resume) else { throw PipelineHostError("Invalid --from") }
             case "--translate-delay-ms": settings.translateDelay = UInt64(try integer(try value(), "--translate-delay-ms", 0...600_000))
             case "--reading-direction": settings.readingDirection = try direction(try value(), "--reading-direction")
             case "--base-url": settings.baseURL = try value()
@@ -265,6 +277,14 @@ struct PipelineHostSettings {
         }
         guard !settings.fillUnmatched || settings.replay != nil else {
             throw PipelineHostError("--replay-fill-unmatched needs --replay-translations")
+        }
+        if let stagesFrom = settings.stagesFrom {
+            guard FileManager.default.fileExists(atPath: stagesFrom.appendingPathComponent("stages").path) else {
+                throw PipelineHostError("--from-stages needs a run saved with --save-stages")
+            }
+            guard settings.mode != .live else { throw PipelineHostError("--from-stages needs --replay-translations or --ocr-only") }
+        } else if arguments.contains("--from") {
+            throw PipelineHostError("--from needs --from-stages")
         }
         // The pipeline always uses the manga recognizer (Japanese and Chinese source text).
         let source = settings.sourceLanguage == "zh-Hans" || settings.sourceLanguage == "zh-Hant" ? "zh" : settings.sourceLanguage

@@ -173,8 +173,6 @@ enum PipelinePainter {
 
     /// Minimum contrast (WCAG ratio) of the painted text against the restored background.
     static let minimumContrast: CGFloat = 3
-    /// Below this contrast an outline does not separate the text from the background.
-    static let invisibleOutline: CGFloat = 1.5
     /// Width of an added legibility halo (fits the item clip, 2 px outside the frame).
     static func haloWidth(_ fontPixels: CGFloat) -> CGFloat { min(2, max(1, fontPixels * 0.06)) }
 
@@ -191,15 +189,15 @@ enum PipelinePainter {
         return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
     }
 
-    /// The source style made legible on `background`: text whose fill and outline both vanish gets
-    /// the black or white outline that best separates fill (0.85) and background (0.15).
+    /// The source style made legible on `background`: low-contrast text without a source outline that
+    /// separates it from its fill gets the black or white outline that best separates fill (0.85) and
+    /// background (0.15). A source outline is the artist's choice for that background and is kept.
     static func legible(block: PipelineBlock, fontPixels: CGFloat, background: PipelineRGB?) -> Paint {
         let (fill, stroke) = paints(for: block)
         let width = PipelineLayout.strokeWidth(for: block, fontPixels: fontPixels)
         let source = Paint(fill: fill, stroke: stroke, strokeWidth: width)
         guard let background, let text = block.style?.textColor, contrast(text, background) < minimumContrast else { return source }
-        if let outline = block.style?.strokeColor, width > 0, contrast(outline, background) >= invisibleOutline,
-           contrast(outline, text) >= minimumContrast {
+        if let outline = block.style?.strokeColor, width > 0, contrast(outline, text) >= minimumContrast {
             return source
         }
         let black = PipelineRGB(r: 0, g: 0, b: 0), white = PipelineRGB(r: 255, g: 255, b: 255)
