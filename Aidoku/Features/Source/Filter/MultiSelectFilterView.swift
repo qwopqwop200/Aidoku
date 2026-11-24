@@ -157,6 +157,7 @@ struct MultiSelectFilterGroupView: View {
 
     private let multiSelectFilter: MultiSelectFilter
     private let allOptions: [Option]
+    private var optionKind: TitleTranslationKind { multiSelectFilter.isGenre || multiSelectFilter.usesTagStyle ? .tag : .sourceLabel }
 
     @State private var filteredOptions: [Option]
 
@@ -226,8 +227,7 @@ struct MultiSelectFilterGroupView: View {
                         toggle(option: id)
                     }
                 } label: {
-                    SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count,
-                        kind: (multiSelectFilter.isGenre || multiSelectFilter.usesTagStyle) ? .tag : .sourceLabel)
+                    SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count, kind: optionKind)
                 }
                 .buttonStyle(
                     GenreButtonStyle(state: {
@@ -273,8 +273,7 @@ struct MultiSelectFilterGroupView: View {
                                     .font(.system(size: 14).weight(.semibold))
                             }
                         }
-                        SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count,
-                        kind: (multiSelectFilter.isGenre || multiSelectFilter.usesTagStyle) ? .tag : .sourceLabel)
+                        SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count, kind: optionKind)
                             .padding(.leading, 1)
                             .lineLimit(1)
                         Spacer()

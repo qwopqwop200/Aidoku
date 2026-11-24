@@ -125,6 +125,7 @@ struct SelectFilterGroupView: View {
 
     private let selectFilter: AidokuRunner.SelectFilter
     private let allOptions: [Option]
+    private var optionKind: TitleTranslationKind { selectFilter.isGenre || selectFilter.usesTagStyle ? .tag : .sourceLabel }
 
     @State private var filteredOptions: [Option]
 
@@ -172,8 +173,7 @@ struct SelectFilterGroupView: View {
                     selectedOption = option.value
                 }
             } label: {
-                SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count,
-                        kind: (selectFilter.isGenre || selectFilter.usesTagStyle) ? .tag : .sourceLabel)
+                SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count, kind: optionKind)
             }
             .buttonStyle(SelectButtonStyle(selected: selectedOption == option.value))
             .padding([.trailing, .bottom], 8)
@@ -201,8 +201,7 @@ struct SelectFilterGroupView: View {
                                     .font(.system(size: 14).weight(.semibold))
                             }
                         }
-                        SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count,
-                        kind: (selectFilter.isGenre || selectFilter.usesTagStyle) ? .tag : .sourceLabel)
+                        SourceFilterOptionText(original: option.title, totalOptionCount: allOptions.count, kind: optionKind)
                             .padding(.leading, 1)
                             .lineLimit(1)
                         Spacer()
