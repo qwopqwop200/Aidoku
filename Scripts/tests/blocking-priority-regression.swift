@@ -33,7 +33,6 @@ import Foundation
   }
   let nilResult=BlockingTask<Int?> {nil}
   precondition(nilResult.get()==nil && nilResult.get()==nil)
-  #if APP_BLOCKING_THROWING_TESTS
   let throwingPriority:TaskPriority = await withCheckedContinuation { continuation in
    Task.detached(priority:.high) {
     let operation = BlockingThrowingTask { Task.currentPriority }
@@ -51,7 +50,6 @@ import Foundation
   }
   let optional = BlockingThrowingTask<Int?> {nil}
   precondition(try! optional.get()==nil && optional.get()==nil)
-  #endif
   print("Blocking task Swift priority, explicit priority, five thread QoS and repeated nil PASS")
  }
 }

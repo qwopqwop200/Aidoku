@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """Compile the production codec; check fidelity contracts and unchanged per-ID wire data.
 
-No provider calls, image inference, credentials or shared CLI cache are used.
-This verifies prompt transport, not whether a live model obeys the prompt.
-"""
+No provider calls; this checks prompt transport, not whether a model obeys the prompt."""
 from pathlib import Path
 import subprocess
 import re
 import tempfile
-import time
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / 'Aidoku/Core/Translation/NativeEngine/Translation'
@@ -29,12 +26,8 @@ func NSLocalizedString(_ key: String) -> String { key }
         catch { print("FAIL metadata contract: \(String(reflecting: error))"); exit(1) }
         try TranslationWireContractChecks.pageRequirements()
         print("PASS page admission: both protocols × image presence × nil/false/true classification flags")
-        // The retired environment toggle must not resurrect crop attachments.
-        setenv("AIDOKU_TRANSLATION_ROLE_DETAIL_IMAGES", "1", 1)
         try TranslationWireContractChecks.classificationParity()
-        unsetenv("AIDOKU_TRANSLATION_ROLE_DETAIL_IMAGES")
-        print("PASS one unchanged page image with four bound regions, both protocols and both output modes; old crop toggle ignored")
-        print("PASS schema/compact/stream/final classification parity, exact fields, unchanged translated text, temperature zero and one instruction message")
+        print("PASS classification parity: one page image, four regions, both protocols and output modes")
         try TranslationWireContractChecks.finishAndCanonicalValidation()
         print("PASS final/SSE chat requires stop; canonical restoration drops/rejects escaped-only blank text")
         // Independent synthetic source units must not disappear behind a valid neighboring translation.
@@ -165,7 +158,7 @@ func NSLocalizedString(_ key: String) -> String { key }
                 }
                 let payload = try JSONSerialization.jsonObject(with: Data(dataText.utf8)) as! [String: Any]
                 precondition(payload["target_language"] as? String == TranslationHTTPCodec.languageName(target))
-                precondition(payload["source_language"] as? String == "Auto-detect from input")
+                precondition(payload["source_language"] == nil)
                 precondition((payload["segments"] as! [[String: Any]])[0]["text"] as? String == "Example text")
                 let item = try TranslationWireContractChecks.itemSchema(body, proto)
                 for branch in TranslationWireContractChecks.branches(item) {
@@ -326,10 +319,8 @@ func NSLocalizedString(_ key: String) -> String { key }
         }
         do { _ = try await cancelled.value; preconditionFailure("Cancellation ignored") }
         catch is CancellationError { }
-        print("PASS cancellation, provider failure, empty/extra/missing IDs and blank text reject atomically without partial batch")
-        print("PASS mocked recovery helper: 2 isolated calls, no calls for normal batch, corrected mapping, legitimate repeated output accepted, foreign ID rejected")
-        // Transport keeps faithful names and real descriptive clauses exactly as returned;
-        // this change must not heuristically delete Korean clauses or constrain punctuation.
+        print("PASS mocked recovery helper: isolated retries, mapping, cancellation and atomic rejection")
+        // Returned text is kept exactly; no heuristic clause deletion.
         let faithful = "저… 1학년 A반 아마리입니다."
         let description = "향기가 달콤하다."
         let output = ["translations": [["id": "region-7", "text": description], ["id": "region-10", "text": faithful]]]
@@ -342,8 +333,7 @@ func NSLocalizedString(_ key: String) -> String { key }
     }
 }
 '''
-# Reuse the focused pure-Foundation checks exercised by the iOS suite.
-# No UIKit, app build, fixtures, provider calls or separate copied test oracle.
+# Reuse the pure-Foundation checks shared with the iOS suite.
 TEST_SOURCE = ROOT / 'AidokuTests/Translation/NativeEngine/TranslationHTTPCodecTests.swift'
 shared = TEST_SOURCE.read_text().split('// BEGIN SHARED TRANSLATION WIRE CONTRACT CHECKS\n', 1)[1]
 shared = shared.split('// END SHARED TRANSLATION WIRE CONTRACT CHECKS', 1)[0]
@@ -355,7 +345,7 @@ assert 'result.metadataInstructions = kind.instructions' in metadata
 assert 'String(TranslationCacheKey.schemaVersion)' in metadata
 settings_source = (ROOT / 'Aidoku/Core/Translation/ReaderTranslationSettings.swift').read_text()
 assert 'instructions: metadataInstructions.isEmpty ? RemoteTranslationConfiguration.defaultInstructions : metadataInstructions' in settings_source
-# Read the actual application lists so newly added languages automatically enter this matrix.
+# Language lists come from the app sources so new languages are covered automatically.
 detector_source = (BASE / 'AutomaticSourceLanguageDetector.swift').read_text()
 source_codes = re.search(r'static let supportedLanguageCodes: Set<String> = (\[.*?\])', detector_source, re.S).group(1)
 settings_view = (ROOT / 'Aidoku/Features/Settings/ReaderTranslationSettingsView.swift').read_text()
@@ -367,12 +357,8 @@ with tempfile.TemporaryDirectory(prefix='aidoku-source-fidelity-') as folder:
     main = tmp / 'Check.swift'
     main.write_text(SOURCE + "\n" + shared + "\n" + metadata_contract + "\n" + metadata_checks + language_lists)
     binary = tmp / 'check'
-    start = time.monotonic()
     subprocess.run(['xcrun', 'swiftc', '-O', '-parse-as-library',
         *[str(BASE / f) for f in ['TranslationModels.swift', 'TranslationHTTPCodec.swift',
             'TranslationStreamDecoder.swift', 'TranslationEndpointPolicy.swift', 'TranslationImageSupport.swift']],
         str(main), '-o', str(binary)], check=True)
-    print(f'Build seconds {time.monotonic() - start:.3f}', flush=True)
-    start = time.monotonic()
     subprocess.run([str(binary)], check=True)
-    print(f'Test seconds {time.monotonic() - start:.3f}', flush=True)

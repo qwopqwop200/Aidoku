@@ -3,7 +3,6 @@
 from pathlib import Path
 import subprocess
 import tempfile
-import time
 
 ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "Aidoku"
@@ -99,9 +98,6 @@ with tempfile.TemporaryDirectory(prefix="aidoku-ctc-contract-") as folder:
     folder = Path(folder)
     main = folder / "main.swift"
     main.write_text("import Foundation\nimport CoreML\n" + checks)
-    build = time.monotonic()
     subprocess.run(["xcrun", "swiftc", "-O", "-module-cache-path", str(folder / "modules"),
                     *map(str, SOURCES), str(main), "-o", str(folder / "check")], check=True)
-    built = time.monotonic()
     subprocess.run([str(folder / "check")], check=True)
-    print(f"build={built - build:.3f}s tests={time.monotonic() - built:.3f}s; synthetic-only")

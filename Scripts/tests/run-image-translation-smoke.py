@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
-"""pipeline host smoke: real Core ML OCR, live provider request shape through the production
-RemoteTranslationClient against a loopback mock, ordering, replay, OCR-only, failures,
-output files and credential exclusion.
-
-Run: python3 Scripts/tests/run-image-translation-smoke.py
-No external provider or real API key is used; the mock server binds only to loopback.
-The developer's .env is never read (AIDOKU_ENV_FILE is set empty).
-"""
+"""Pipeline host smoke: real Core ML OCR, the production client against a loopback mock provider,
+ordering, replay, OCR-only, failures, output files and credential exclusion.
+No real provider or key is used and .env is not read (AIDOKU_ENV_FILE is empty)."""
 import base64
 import http.server
 import json
