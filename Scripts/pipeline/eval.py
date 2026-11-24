@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""End-to-end metrics for a pipeline run (Scripts/image-translation.swift) on one manifest split.
+"""Metrics for a pipeline run (Scripts/image-translation.swift) on one manifest split.
 
-- detection: one-to-one Hungarian recall/precision at polygon IoU 0.5/0.7 of pipeline block lines against
-  canonical, optimization-required individual_premerge_bbox GT (ported from the gtopt detection harness).
+- detection: one-to-one recall/precision at polygon IoU 0.5/0.7 of block lines vs individual_premerge_bbox GT.
 - grouping: pairwise P/R/F1, purity, exact-group rate and contaminated groups over lines assigned to
-  merged_bbox regions (>= 50% of the line box inside; 6 not-required groups excluded; gtopt grouping harness).
+  merged_bbox regions (>= 50% of the line box inside).
 - translation coverage, page failures, per-stage timing median/p90.
 
-TEST is refused unless --allow-test is given (final one-shot run only).
-Usage: python3 Scripts/pipeline/eval.py RUN_DIR [--split dev] [--out RUN_DIR/eval.json]
+Usage: python3 Scripts/pipeline/eval.py RUN_DIR [--split dev] [--out RUN_DIR/eval.json] [--allow-test]
 """
 import argparse
 import collections
@@ -21,7 +19,7 @@ import numpy as np
 import shapely
 try:
     from scipy.optimize import linear_sum_assignment
-except ImportError:  # broken/missing SciPy: exact greedy fallback is NOT Hungarian
+except ImportError:  # greedy fallback, not Hungarian
     linear_sum_assignment = None
 from shapely.geometry import Polygon
 
@@ -52,7 +50,6 @@ def load_gt(pages):
     return individual, merged
 
 
-# --- detection (ported from gtopt/detection/common.py) ---
 def poly(pts):
     p = Polygon(pts)
     return p if p.is_valid else p.buffer(0)
@@ -112,10 +109,8 @@ def aggregate_detection(stats):
     return out
 
 
-# --- grouping (ported from gtopt/grouping/evalg.py, production-detection mode) ---
 def bbox(points):
-    xs = [p[0] for p in points]
-    ys = [p[1] for p in points]
+    xs, ys = zip(*points)
     return (min(xs), min(ys), max(xs), max(ys))
 
 
@@ -166,7 +161,7 @@ def grouping(regions, blocks):
     for block in blocks:
         members = []
         for line in block['lines']:
-            box = bbox([(p[0], p[1]) for p in line['polygon']])
+            box = bbox(line['polygon'])
             best, value = None, 0
             for rid, rb in region_boxes:
                 v = inter(box, rb) / max(1e-9, area(box))

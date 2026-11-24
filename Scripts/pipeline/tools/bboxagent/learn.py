@@ -1,14 +1,34 @@
-"""Learned along-axis end offsets (LightGBM), fold CV on train; numbers only.
-usage: learn.py RUN_PREFIX DUMP FEATS.pkl"""
+"""Learned along-axis line-end offsets (LightGBM), fold CV on train; numbers only.
+usage: learn.py RUN_PREFIX DUMP FEATS.pkl[,FEATS2.pkl]"""
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import EVAL  # noqa: E402
-import sys, json, os, pickle, collections
+import glob, json, os, pickle, collections
 import numpy as np, lightgbm as lgb
-from snap import finals, stats, miou, gt, FOLD, iou, linear_sum_assignment
+from boxscore import gt, FOLD, page_stats, iou, linear_sum_assignment
 BINS = np.array([(k - 6) / 10 for k in range(19)])  # exact in Swift as Double(k - 6) / 10
 ALL = os.environ.get('ALL') == '1'
+
+
+def finals(prefix):
+    out = {}
+    for s in ('dev', 'train', 'test'):
+        for f in glob.glob(f'{prefix}_{s}/pages/*.json'):
+            r = json.load(open(f))
+            out[r['pageID']] = [tuple(map(tuple, l['bounds'])) for b in r['blocks'] for l in b['lines']]
+    return out
+
+
+def stats(B):
+    G = gt(); c = collections.defaultdict(float)
+    for pid, L in B.items():
+        page_stats(G.get(pid, []), L, [], c, FOLD[pid])
+    return c
+
+
+def miou(c, folds):
+    return np.concatenate([np.array(c.get((x, 'ious'), [])) for x in folds]).mean()
 
 
 def end_feats(it, which, rf, others):

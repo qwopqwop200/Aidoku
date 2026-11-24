@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import EVAL, WEIGHTS  # noqa: E402
-import pickle, struct, sys, shutil
+import pickle, struct, shutil
 import numpy as np
 import train_fill_lgb as L
 BIN = str(WEIGHTS)
@@ -21,7 +21,6 @@ def flatten(booster):
         if 'leaf_value' in node:
             val[i] = node['leaf_value']
         else:
-            assert node['decision_type'] == '<=' and not node.get('missing_type') in ('NaN',) or True
             feat[i] = node['split_feature']; thr[i] = node['threshold']
             left[i] = add(node['left_child']); right[i] = add(node['right_child'])
         return i
@@ -50,7 +49,7 @@ for f, k, X, cores, gt, _ in L.rows:
     for x, r in zip(X, ref): diff = max(diff, abs(logit(x) - r))
 print('trees', len(roots), 'nodes', len(feat), 'max |diff|', diff)
 
-data = open(BIN, 'rb').read(); off = 0; tables = []
+data = open(BIN, 'rb').read(); off = 0
 def read(fmt):
     global off
     n = struct.unpack_from('<I', data, off)[0]; size = struct.calcsize(fmt)

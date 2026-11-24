@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Shared-top metrics against the legacy source clusters (align agent).
+"""Shared-top alignment against the legacy source clusters (predicted-clusters830.json).
 
-Legacy clusters (predicted-clusters830.json) are mapped onto V2 blocks by source-box overlap
-(>= 50% of the smaller box). For every pair of distinct V2 blocks in one legacy 'top'-axis
-cluster: |painted top difference| / mean painted font px. Reports the share < 0.25 em
-(and < 0.1 em), plus optional pair precision/recall of a candidate V2 clustering rule.
+Clusters map onto blocks by source-box overlap (>= 50% of the smaller box). For each block pair in one
+'top'-axis cluster: |painted top difference| / mean painted font px; reports the share < 0.25 and < 0.1 em.
 
 usage: align_metrics.py RUN [RUN...] [--folds]
 """
@@ -12,7 +10,7 @@ import json, sys, itertools, statistics
 from collections import defaultdict
 from pathlib import Path
 
-from workspace import SIZE_CLUSTERS as GT, MANIFEST  # noqa: E402
+from workspace import SIZE_CLUSTERS as GT, MANIFEST
 _gt = None
 
 
@@ -40,7 +38,7 @@ def overlap(a, b):
 
 
 def gt_pairs(r):
-    """GT pairs of V2 block ids (top-axis legacy clusters only)."""
+    """Block id pairs in one top-axis legacy cluster."""
     page = gt().get(r['pageID'])
     if not page:
         return None

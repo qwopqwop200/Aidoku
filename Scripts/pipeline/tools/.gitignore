@@ -1,5 +1,4 @@
-# Code only. Datasets, GT-derived caches, dumps, trained-model scratch and run outputs live in
-# AIDOKU_EVAL_DIR (see workspace.py), never here.
+# Code only: data and outputs live in AIDOKU_EVAL_DIR (workspace.py).
 *.pkl
 *.npz
 *.npy
