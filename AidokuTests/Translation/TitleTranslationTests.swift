@@ -58,6 +58,10 @@ struct TitleTranslationTests {
                 service: service, diskCache: fixture.disk) == "일본어 제목")
         }
         #expect(await client.requests.count == 1)
+        // The saved row holds the text only, not the request identity.
+        let saved = try #require(try await fixture.disk.regions(
+            for: TitleTranslation.cacheKey(original, kind: .manga, settings: settings), kind: .metadata)?.first)
+        #expect(saved.translation == "일본어 제목" && saved.translationReuseIdentity == nil)
     }
 
     @Test func nativeSortMenuPreloadsUniqueLabelsAndSharesSourceLabelToggle() async {

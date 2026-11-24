@@ -191,12 +191,12 @@ actor ReaderTranslationDiskCache {
         pendingTouches.removeAll()
     }
 
-    /// Pipeline page rows (layout JPEGs, translation block JSON) survive the legacy purge.
+    /// Pipeline page rows (rendered pages, stored translations) survive the legacy purge.
     static func isPipelinePageRow(kind: Kind, unpacked data: Data, linkedToRegionBase: Bool) -> Bool {
         guard !linkedToRegionBase else { return false }
         switch kind {
-        case .layout: return data.starts(with: [0xFF, 0xD8, 0xFF])
-        case .translation: return (try? JSONDecoder().decode([PipelineBlock].self, from: data)) != nil
+        case .layout: return ReaderTranslationPagePatches.isStoredPage(data)
+        case .translation: return PipelineStoredTranslation.decode(data) != nil
         case .metadata: return true
         case .ocr, .snapshot: return false
         }

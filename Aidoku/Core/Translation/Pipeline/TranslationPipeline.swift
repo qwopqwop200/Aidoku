@@ -28,6 +28,8 @@ struct PipelineHooks: Sendable {
     /// Whether the page is visible now: its tail skips the back slot when S5 changed nothing
     /// S6-S8 read (S9/S10 only, ~5 ms, on buffers it already holds).
     var isForeground: @Sendable () -> Bool = { false }
+    /// Keeps the restored pixels of the erased regions in the result (the app's stored page).
+    var capturesBackground = false
 }
 
 @available(iOS 18.0, macOS 15.0, *)
@@ -82,6 +84,8 @@ enum TranslationPipeline {
         var restored: PipelineRasterHandoff?
         /// The restored page when no shared raster was decoded.
         var background: CGImage?
+        /// The page regions S7 writes, when the result keeps their restored pixels.
+        var regions: [CGRect]?
         var failure: String?
         var stages: [String: Double] = [:]
     }
@@ -268,7 +272,8 @@ enum TranslationPipeline {
                 // Free the stale speculative background and mask before recomputing them.
                 back.erased = nil
                 let recomputed = await erase(page, paintable: paintable, layout: layout,
-                                             raster: decodePixels(page.image).raster.map(PipelineRasterHandoff.init), models: models)
+                                             raster: decodePixels(page.image).raster.map(PipelineRasterHandoff.init), models: models,
+                                             capturesBackground: hooks.capturesBackground)
                 timings.stages.merge(recomputed.stages) { $0 + $1 }
                 erased = recomputed
             }
@@ -281,7 +286,9 @@ enum TranslationPipeline {
         var output = page.image
         var painted: [PipelinePlacedText] = []
         var restored: CGImage?
+        var background: [PipelineBackgroundPatch]?
         if var pixels = erased?.restored?.take()?.rgba {
+            background = erased?.regions.map { PipelineBackgroundPatch.capture($0, from: pixels, width: page.width) }
             // The only reference to the restored bytes: S10 paints over them in place, no page copy.
             restored = await timings.record(Stage.paint) {
                 PipelinePainter.paint(pixels: &pixels, width: page.width, height: page.height, blocks: finalBlocks, placed: placed)
@@ -303,7 +310,8 @@ enum TranslationPipeline {
         timings.stages[Stage.nonLLM] = total - translateMilliseconds
         return PipelinePageResult(pageID: page.id, blocks: finalBlocks, placed: painted, output: output,
                             timings: timings,
-                            failure: failures.isEmpty ? nil : failures.joined(separator: "; "))
+                            failure: failures.isEmpty ? nil : failures.joined(separator: "; "),
+                            background: restored == nil ? nil : background)
     }
 
     /// The same page within `maxPixels`, else downscaled with its aspect kept; nil when
@@ -360,7 +368,8 @@ enum TranslationPipeline {
         back.paintable = paintable
         // Skipped when the page was cancelled or S5 already failed (the result would be discarded).
         async let erased: Erased? = paintable.isEmpty || Task.isCancelled || stop.isRaised ? nil
-            : erase(page, paintable: paintable, layout: layout, raster: handoff, models: models)
+            : erase(page, paintable: paintable, layout: layout, raster: handoff, models: models,
+                    capturesBackground: hooks.capturesBackground)
         back.styled = await timings.record(Stage.style) { PipelineStyle.estimate(page, blocks: blocks, raster: raster) }
         // S7 then restores into the page bytes instead of a copy.
         raster = nil
@@ -374,7 +383,7 @@ enum TranslationPipeline {
     }
 
     private static func erase(_ page: PipelinePage, paintable: [PipelineBlock], layout: [PipelineLayoutRegion],
-                              raster: PipelineRasterHandoff?, models: PipelineModels) async -> Erased {
+                              raster: PipelineRasterHandoff?, models: PipelineModels, capturesBackground: Bool) async -> Erased {
         var timings = PipelineTimings()
         var erased = Erased()
         let removal = await timings.record(Stage.mask) {
@@ -386,6 +395,7 @@ enum TranslationPipeline {
             return PipelineRemovalMask.build(page, blocks: paintable, layout: layout, net: models.removalMask)
         }
         removalObserver?(page.id, page.width, page.height, removal, paintable.map(\.id))
+        if capturesBackground { erased.regions = PipelineBackgroundPatch.regions(removal: removal, width: page.width, height: page.height) }
         do {
             (erased.restored, erased.background) = try await timings.record(Stage.inpaint) {
                 () async throws -> (PipelineRasterHandoff?, CGImage?) in

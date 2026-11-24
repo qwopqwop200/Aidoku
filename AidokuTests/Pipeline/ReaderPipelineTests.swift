@@ -41,8 +41,102 @@ struct ReaderPipelineTests {
 
     @Test func replayReappliesOnlyMatchingBlocks() {
         let stored = [block(0, "こんにちは", translation: "안녕"), block(1, "さようなら", translation: "잘 가")]
+            .map(PipelineStoredTranslation.init)
         let replayed = ReaderTranslationPipelineService.replay(stored, onto: [block(0, "こんにちは"), block(1, "別の文"), block(2, "新しい")])
         #expect(replayed.map(\.translation) == ["안녕", nil, nil])
+    }
+
+    @Test func storedTranslationKeepsOnlyTheReplayFieldsAndReadsFullBlockRows() throws {
+        let blocks = [block(0, "こんにちは", translation: "안녕"), block(1, "ドン")]
+        let slim = try #require(PipelineStoredTranslation.encode(blocks))
+        let full = try JSONEncoder().encode(blocks)
+        #expect(slim.count < full.count / 2)
+        #expect(PipelineStoredTranslation.decode(slim) == blocks.map(PipelineStoredTranslation.init))
+        #expect(PipelineStoredTranslation.decode(full) == blocks.map(PipelineStoredTranslation.init))
+        #expect(PipelineStoredTranslation.decode(Data("{}".utf8)) == nil)
+        #expect(ReaderTranslationDiskCache.isPipelinePageRow(kind: .translation, unpacked: slim, linkedToRegionBase: false))
+        #expect(ReaderTranslationDiskCache.isPipelinePageRow(kind: .translation, unpacked: full, linkedToRegionBase: false))
+    }
+
+    /// Deterministic textured page; `edit` repaints one rectangle (top-left origin).
+    private func pageRaster(width: Int, height: Int, edit: CGRect? = nil) -> PipelinePageRaster {
+        var bytes = [UInt8](repeating: 255, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let edited = edit?.contains(CGPoint(x: x, y: y)) ?? false
+                let value = edited ? UInt8((x + y) % 2 == 0 ? 20 : 235) : UInt8(truncatingIfNeeded: (x &* 37) ^ (y &* 91))
+                for channel in 0..<3 { bytes[(y * width + x) * 4 + channel] = value }
+            }
+        }
+        return PipelinePageRaster(width: width, height: height, rgba: bytes)
+    }
+
+    @Test func storedPageKeepsTheErasedBackgroundAndRebuildsOverTheSource() throws {
+        let width = 320, height = 448, edit = CGRect(x: 100, y: 200, width: 50, height: 40)
+        let source = try pageRaster(width: width, height: height).image()
+        let restored = pageRaster(width: width, height: height, edit: edit)
+        // The erased region is the 16 px tiles the removal mask touches: (96, 192) to (160, 240).
+        var removal = [UInt8](repeating: 0, count: width * height)
+        for y in 200..<240 { for x in 100..<150 { removal[y * width + x] = 1 } }
+        let regions = PipelineBackgroundPatch.regions(removal: removal, width: width, height: height)
+        let patch = CGRect(x: 96, y: 192, width: 64, height: 48)
+        #expect(regions == [patch])
+        #expect(PipelineBackgroundPatch.regions(removal: [UInt8](repeating: 0, count: width * height), width: width, height: height).isEmpty)
+        let background = PipelineBackgroundPatch.capture(regions, from: restored.rgba, width: width)
+        #expect(background.first?.rgba.count == 64 * 48 * 4)
+
+        let row = try #require(ReaderTranslationPagePatches.encode(try restored.image(), background: background, blocks: [], placed: []))
+        let whole = try #require(ReaderTranslationPagePatches.encode(try restored.image(), background: nil, blocks: [], placed: []))
+        #expect(ReaderTranslationPagePatches.isPatches(row) && ReaderTranslationPagePatches.isStoredPage(row))
+        #expect(ReaderTranslationDiskCache.isPipelinePageRow(kind: .layout, unpacked: row, linkedToRegionBase: false))
+        #expect(row.count < whole.count / 4)
+
+        #expect(ReaderTranslationPagePatches.decode(row, source: nil) == nil)
+        let rebuilt = try PipelinePageRaster(try #require(ReaderTranslationPagePatches.decode(row, source: source)))
+        #expect(rebuilt.width == width && rebuilt.height == height)
+        var worstInside = 0
+        for y in 0..<height {
+            for x in 0..<width {
+                let index = (y * width + x) * 4
+                if patch.contains(CGPoint(x: x, y: y)) {
+                    worstInside = max(worstInside, abs(Int(rebuilt.rgba[index]) - Int(restored.rgba[index])))
+                } else if rebuilt.rgba[index] != restored.rgba[index] {
+                    Issue.record("pixel outside the patch changed at \(x),\(y)")
+                    return
+                }
+            }
+        }
+        #expect(worstInside < 96)  // JPEG noise on a hard checkerboard, not a wrong region
+
+        // A page that was not restored in place is stored whole and still rebuilds; an untouched page stores no patch.
+        let scaled = try #require(ReaderTranslationPagePatches.decode(whole, source: try pageRaster(width: 8, height: 8).image()))
+        #expect(scaled.width == width && scaled.height == height)
+        let untouched = try #require(ReaderTranslationPagePatches.encode(source, background: [], blocks: [], placed: []))
+        #expect(untouched.count <= 32)
+        let same = try PipelinePageRaster(try #require(ReaderTranslationPagePatches.decode(untouched, source: source)))
+        #expect(same.rgba == pageRaster(width: width, height: height).rgba)
+        #expect(ReaderTranslationPagePatches.decode(row.prefix(row.count - 10), source: source) == nil)
+    }
+
+    @Test func storedPageRepaintsItsTextWhenRebuilt() throws {
+        let width = 320, height = 160
+        let white = PipelinePageRaster(width: width, height: height, rgba: [UInt8](repeating: 255, count: width * height * 4))
+        let style = PipelineStyle(fontPixels: 28, bold: false, textColor: PipelineRGB(r: 0, g: 0, b: 0), strokeColor: nil, strokeWidth: 0)
+        let blocks = [PipelineBlock(id: 7, lines: [], bounds: CGRect(x: 32, y: 32, width: 240, height: 64), polygon: [], vertical: false,
+                              readingOrder: 0, sourceText: "こんにちは", translation: "안녕하세요", style: style)]
+        let placed = [PipelinePlacedText(blockID: 7, frame: CGRect(x: 40, y: 48, width: 220, height: 36), fontPixels: 28,
+                                   vertical: false, lines: ["안녕하세요"])]
+        var pixels = white.rgba
+        let rendered = try #require(PipelinePainter.paint(pixels: &pixels, width: width, height: height, blocks: blocks, placed: placed))
+        let erased = [CGRect(x: 32, y: 32, width: 240, height: 64)]
+        let row = try #require(ReaderTranslationPagePatches.encode(
+            rendered, background: PipelineBackgroundPatch.capture(erased, from: white.rgba, width: width), blocks: blocks, placed: placed))
+        let rebuilt = try PipelinePageRaster(try #require(ReaderTranslationPagePatches.decode(row, source: try white.image())))
+        let expected = try PipelinePageRaster(rendered)
+        #expect(expected.rgba.contains { $0 < 64 })  // the text was painted
+        #expect(rebuilt.rgba == expected.rgba)
+        // A block missing for a placed item is a broken row, not a silent page without text.
+        #expect(ReaderTranslationPagePatches.encode(rendered, background: [], blocks: [], placed: placed) == nil)
     }
 
     private func block(_ id: Int, _ text: String, translation: String? = nil) -> PipelineBlock {
@@ -157,6 +251,59 @@ struct ReaderPipelineAdmissionTests {
         #expect(calls.ids.count == 1)
         #expect(first.image.width == page.width && first.image.height == page.height && !first.fromCache)
         #expect(second.image.width == page.width)
+    }
+
+    /// A translated page is stored as patches: a new session rebuilds it over the source without a provider call.
+    @Test func storedPageRebuildsFromDiskInANewSession() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("PipelineStoredPage-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = ReaderTranslationDiskCache(directory: root)
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "PipelineStoredPage-\(UUID())")!)
+        settings.sourceLanguage = "auto"
+        let page = PipelineSyntheticPages.make()
+        let first = ReaderTranslationPipelineService(
+            translateBlocks: { blocks, _, _, _, _ in blocks.map { var output = $0; output.translation = "번역"; return output } },
+            diskCache: disk, observesMemoryWarnings: false)
+        let rendered = try await first.translatePage(page, cacheKey: "k", settings: settings)
+        #expect(!rendered.fromCache)
+
+        let calls = PipelineSentIDs()
+        let second = ReaderTranslationPipelineService(
+            translateBlocks: { blocks, _, _, _, _ in calls.append([blocks.count]); return blocks },
+            diskCache: disk, observesMemoryWarnings: false)
+        var rebuilt: CGImage?
+        for _ in 0..<500 where rebuilt == nil {  // the row is written after the page is returned
+            rebuilt = await second.cachedPage(cacheKey: "k", source: page)
+            if rebuilt == nil { try await Task.sleep(nanoseconds: 20_000_000) }
+        }
+        let image = try #require(rebuilt)
+        #expect(image.width == page.width && image.height == page.height)
+        // Erased regions carry JPEG noise; everything else, repainted text included, matches the rendered page.
+        let expected = try PipelinePageRaster(rendered.image).rgba, actual = try PipelinePageRaster(image).rgba
+        var exact = 0, far = 0
+        for index in stride(from: 0, to: expected.count, by: 4) {
+            let difference = abs(Int(expected[index]) - Int(actual[index]))
+            if difference == 0 { exact += 1 } else if difference > 64 { far += 1 }
+        }
+        #expect(exact * 10 >= expected.count / 4 * 8 && far * 200 <= expected.count / 4)
+        let third = ReaderTranslationPipelineService(
+            translateBlocks: { blocks, _, _, _, _ in calls.append([blocks.count]); return blocks },
+            diskCache: disk, observesMemoryWarnings: false)
+        #expect(await third.cachedPage(cacheKey: "k") == nil)  // patches need the source
+        #expect(try await third.translatePage(page, cacheKey: "k", settings: settings).fromCache)
+        #expect(calls.ids.isEmpty)
+
+        // A page without text stores no pixels: its row is a header, not a whole-page JPEG.
+        let blank = try PipelinePageRaster(width: 512, height: 512, rgba: [UInt8](repeating: 255, count: 512 * 512 * 4)).image()
+        let before = try await disk.statistics().payloadBytes
+        #expect(try await first.translatePage(blank, cacheKey: "blank", settings: settings).image === blank)
+        var stored: CGImage?
+        for _ in 0..<500 where stored == nil {
+            stored = await second.cachedPage(cacheKey: "blank", source: blank)
+            if stored == nil { try await Task.sleep(nanoseconds: 20_000_000) }
+        }
+        #expect(stored != nil)
+        #expect(try await disk.statistics().payloadBytes - before < 512)
     }
 
     /// A cancelled joiner returns at once; the shared page keeps running for the other consumer.

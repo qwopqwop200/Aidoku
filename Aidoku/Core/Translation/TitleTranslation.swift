@@ -122,7 +122,10 @@ enum TitleTranslation {
             try Task.checkCancellation()
             guard let title = result.first?.translation?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !title.isEmpty else { return original }
-            try? await diskCache.storeRegions(result, for: key, kind: .metadata, generation: generation)
+            // Only the source and its translation are read back; the request identity would triple the row.
+            var stored = result
+            for index in stored.indices { stored[index].translationReuseIdentity = nil }
+            try? await diskCache.storeRegions(stored, for: key, kind: .metadata, generation: generation)
             return kind.formattedTranslation(title, original: original)
         } catch {
             return original

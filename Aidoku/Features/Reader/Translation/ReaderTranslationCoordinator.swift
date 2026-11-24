@@ -393,7 +393,12 @@ final class ReaderTranslationCoordinator {
         guard settings.automaticallyTranslate, settings.overlay.visible else { return nil }
         let crop = page.translationSourceRect ?? ReaderTranslationSplitGeometry.unit
         let key = ReaderTranslationPipelineService.cacheKey(page: page.translationCacheKey, crop: crop, settings: settings)
-        let cached = await ReaderTranslationPipelineService.shared.cachedPage(cacheKey: key, persists: owner.translationPersistsCache)
+        // Stored pages are patches over the upright source.
+        let source = await Task.detached(priority: .userInitiated) {
+            ReaderTranslationImagePreparation.uprightSourceImage(image).cgImage
+        }.value
+        let cached = await ReaderTranslationPipelineService.shared.cachedPage(
+            cacheKey: key, persists: owner.translationPersistsCache, source: source)
         try Task.checkCancellation()
         guard let cached else {
             ReaderTranslationDiagnostics.record("loaded_translation_miss")
@@ -445,7 +450,7 @@ extension ReaderTranslationCoordinator {
                 defer { if let self, !Task.isCancelled { self.pipelineLookahead[taskKey] = nil } }
                 let started = ProcessInfo.processInfo.systemUptime
                 do {
-                    // Pages rendered before (reopened reader, resumed look-ahead) need no source decode.
+                    // Pages still in memory need no source; a stored page is rebuilt over it by translatePage.
                     let probe = splitsWidePages
                         ? Self.pipelineLookaheadCrops(imageSize: CGSize(width: 2, height: 1), splitsWidePages: true, direction: direction) : [unit]
                     var cached = true

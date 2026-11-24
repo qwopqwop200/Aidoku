@@ -42,6 +42,9 @@ enum DeveloperAutoRead {
             }
             try? await Task.sleep(nanoseconds: UInt64(dwell * 1_000_000_000))
             ReaderTranslationDiagnostics.record("autoread_end", count: turns)
+            if let cache = try? await ReaderTranslationDiskCache.shared.statistics() {
+                ReaderTranslationDiagnostics.record("autoread_cache", count: Int(cache.payloadBytes), code: cache.entries)
+            }
             try? await Task.sleep(nanoseconds: 1_500_000_000) // Let the diagnostics writer drain.
             exit(0)
         }

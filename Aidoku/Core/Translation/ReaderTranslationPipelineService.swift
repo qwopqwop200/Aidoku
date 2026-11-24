@@ -1,8 +1,6 @@
 import CoreGraphics
 import Foundation
-import ImageIO
 import UIKit
-import UniformTypeIdentifiers
 
 /// App-side owner of the page pipeline: resource policy, provider call, admission and cache.
 @available(iOS 18.0, *)
@@ -179,23 +177,30 @@ actor ReaderTranslationPipelineService {
 
     /// A finished page without computing (memory, then disk for persisted pages),
     /// so a cached translation is presented without flashing the source.
-    func cachedPage(cacheKey key: String, persists: Bool = true) async -> CGImage? {
+    /// Stored pages rebuild over the upright `source`; without it only memory and old whole-page rows hit.
+    func cachedPage(cacheKey key: String, persists: Bool = true, source: CGImage? = nil) async -> CGImage? {
         if let image = memory.image(for: key) { return image }
         guard persists, let diskCache else { return nil }
-        return await storedPage(key, cache: diskCache)
+        return await storedPage(key, cache: diskCache, source: source)
     }
 
     /// Concurrent lookups of one page share one read and decode, run off this actor.
-    private func storedPage(_ key: String, cache: ReaderTranslationDiskCache) async -> CGImage? {
-        if let loading = storedLoads[key] { return await loading.value }
+    private func storedPage(_ key: String, cache: ReaderTranslationDiskCache, source: CGImage?) async -> CGImage? {
+        // A lookup without the source cannot rebuild patches, so it never stands in for one with it.
+        let loadKey = source == nil ? key : key + "+source"
+        if let loading = storedLoads[loadKey] { return await loading.value }
         guard !Task.isCancelled else { return nil }
         let task = Task.detached(priority: Task.currentPriority) { () -> CGImage? in
+            let started = ProcessInfo.processInfo.systemUptime
             guard let data = try? await cache.data(for: Self.imageKey(key), kind: .layout) else { return nil }
-            return Self.decode(data)
+            let image = ReaderTranslationPagePatches.decode(data, source: source)
+            ReaderTranslationDiagnostics.record("stored_page_load", count: data.count,
+                elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - started) * 1000, outcome: image == nil ? 1 : 0)
+            return image
         }
-        storedLoads[key] = task
+        storedLoads[loadKey] = task
         let image = await task.value
-        if storedLoads[key] == task { storedLoads[key] = nil }
+        if storedLoads[loadKey] == task { storedLoads[loadKey] = nil }
         if let image { remember(image, for: key) }
         return image
     }
@@ -269,13 +274,13 @@ actor ReaderTranslationPipelineService {
     ) async throws -> PageOutput {
         try Task.checkCancellation()
         let cache = key == nil || !persists ? nil : diskCache
-        if reusesImage, let key, let cache, let image = await storedPage(key, cache: cache) {
+        if reusesImage, let key, let cache, let image = await storedPage(key, cache: cache, source: source) {
             try Task.checkCancellation()
             return PageOutput(image: image, timings: nil, fromCache: true)
         }
-        var storedBlocks: [PipelineBlock]?
+        var storedBlocks: [PipelineStoredTranslation]?
         if let key, let cache, let data = try? await cache.data(for: Self.blocksKey(key), kind: .translation) {
-            storedBlocks = try? JSONDecoder().decode([PipelineBlock].self, from: data)
+            storedBlocks = PipelineStoredTranslation.decode(data)
         }
         let replayBlocks = storedBlocks
         try Task.checkCancellation()
@@ -319,7 +324,7 @@ actor ReaderTranslationPipelineService {
                     let request = Task { () throws -> [PipelineBlock] in
                         let translated = try await translate(eligible, pageSize, settings, jpeg, priority)
                         if let key, let cache, let translationGeneration,
-                           let data = try? JSONEncoder().encode(Self.merged(translated, into: blocks, eligible: ids)) {
+                           let data = PipelineStoredTranslation.encode(Self.merged(translated, into: blocks, eligible: ids)) {
                             try? await cache.store(data, for: Self.blocksKey(key), kind: .translation,
                                                    generation: translationGeneration)
                         }
@@ -349,7 +354,8 @@ actor ReaderTranslationPipelineService {
                 return Self.eligibleForTranslation(blocks, settings: settings)
             },
             recognitionRank: { priority.schedulingRank },
-            isForeground: { priority.isForeground })
+            isForeground: { priority.isForeground },
+            capturesBackground: key != nil && cache != nil)
         let result = await TranslationPipeline.run(page, models: models, translate: translator, hooks: hooks)
         hold.releaseAll()
         try Task.checkCancellation()
@@ -359,14 +365,19 @@ actor ReaderTranslationPipelineService {
         let rendered = result.failure == nil
         let translated = rendered || Self.renderOnlyFailure(result.failure)
         if let key, let cache, translated {
-            // JPEG encoding and the disk write run after the page is returned for display.
-            let blocks = result.blocks
+            // Patch encoding and the disk write run after the page is returned for display.
+            // A page nothing was erased on is its source: no patch at all.
+            let blocks = result.blocks, placed = result.placed, background = result.background ?? (output === source ? [] : nil)
             let storesBlocks = replayBlocks == nil
             Task.detached(priority: .utility) {
-                if storesBlocks, let translationGeneration, let data = try? JSONEncoder().encode(blocks) {
+                if storesBlocks, let translationGeneration, let data = PipelineStoredTranslation.encode(blocks) {
                     try? await cache.store(data, for: Self.blocksKey(key), kind: .translation, generation: translationGeneration)
                 }
-                if rendered, let layoutGeneration, let data = Self.encode(output) {
+                let started = ProcessInfo.processInfo.systemUptime
+                if rendered, let layoutGeneration,
+                   let data = ReaderTranslationPagePatches.encode(output, background: background, blocks: blocks, placed: placed) {
+                    ReaderTranslationDiagnostics.record("stored_page_store", count: data.count,
+                        elapsedMilliseconds: (ProcessInfo.processInfo.systemUptime - started) * 1000)
                     try? await cache.store(data, for: Self.imageKey(key), kind: .layout, generation: layoutGeneration)
                 }
             }
@@ -405,7 +416,7 @@ actor ReaderTranslationPipelineService {
     }
 
     /// Reapplies cached translations to a deterministic re-run of the same page.
-    static func replay(_ stored: [PipelineBlock], onto blocks: [PipelineBlock]) -> [PipelineBlock] {
+    static func replay(_ stored: [PipelineStoredTranslation], onto blocks: [PipelineBlock]) -> [PipelineBlock] {
         let byID = Dictionary(stored.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return blocks.map { block in
             guard let match = byID[block.id], match.sourceText == block.sourceText else { return block }
@@ -415,19 +426,31 @@ actor ReaderTranslationPipelineService {
             return output
         }
     }
+}
 
-    static func encode(_ image: CGImage) -> Data? {
-        let data = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
-        CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary)
-        return CGImageDestinationFinalize(destination) ? data as Data : nil
+/// What a stored page replays: the provider's answer per block. S1-S4 are deterministic and re-run,
+/// so geometry and style are not stored (about a fifth of the full blocks).
+struct PipelineStoredTranslation: Codable, Equatable {
+    let id: Int
+    let sourceText: String
+    let translation: String?
+    let role: PipelineRole
+
+    private enum CodingKeys: String, CodingKey { case id = "i", sourceText = "s", translation = "t", role = "r" }
+
+    init(_ block: PipelineBlock) {
+        id = block.id
+        sourceText = block.sourceText
+        translation = block.translation
+        role = block.role
     }
 
-    static func decode(_ data: Data) -> CGImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else {
-            return nil
-        }
-        return CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
+    static func encode(_ blocks: [PipelineBlock]) -> Data? { try? JSONEncoder().encode(blocks.map(Self.init)) }
+
+    /// Rows written before this format hold the full blocks.
+    static func decode(_ data: Data) -> [Self]? {
+        let decoder = JSONDecoder()
+        return (try? decoder.decode([Self].self, from: data)) ?? (try? decoder.decode([PipelineBlock].self, from: data))?.map(Self.init)
     }
 }
 

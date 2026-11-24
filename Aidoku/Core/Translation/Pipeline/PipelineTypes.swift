@@ -134,4 +134,6 @@ struct PipelinePageResult: Sendable {
     var output: CGImage?
     var timings: PipelineTimings
     var failure: String?
+    /// Restored pixels of the erased regions before S10 (`PipelineHooks.capturesBackground`).
+    var background: [PipelineBackgroundPatch]?
 }
