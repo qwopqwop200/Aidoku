@@ -1,14 +1,12 @@
 import Foundation
 import Darwin
 
-/// A content-free device-readable counterpart to OSLog. Only closed event/field
-/// enums and finite numbers cross this boundary; no text, URL, model or key can.
+/// Content-free on-device counterpart to OSLog: only closed event/field enums and finite numbers.
 enum TranslationPerformanceFileLog {
     enum Event: String, Sendable {
         case service, providerAttempt, providerFailure, transport, batch
         case endpoint, keychain, encode, parse
         case providerQueue = "provider_queue"
-        case persistenceAdmission = "persistence_admission"
         case providerClient = "provider_client"
     }
 
@@ -36,8 +34,7 @@ enum TranslationPerformanceFileLog {
     }
 }
 
-/// Bounded admission and one delayed drain, rather than one closure/open/write per event.
-/// Producers only retain scalar metrics. Formatting, memory sampling and file I/O run on utility.
+/// Bounded queue drained after a delay; formatting, memory sampling and file I/O run on a utility queue.
 final class TranslationPerformanceFileWriter: @unchecked Sendable {
     private struct Entry {
         let sequence: UInt64
@@ -80,7 +77,7 @@ final class TranslationPerformanceFileWriter: @unchecked Sendable {
 
     func recordReader(_ event: String, page: Int, count: Int, code: Int, context: ReaderTranslationDiagnostics.Context?,
                       elapsedMilliseconds: Double? = nil, outcome: Int = 0) {
-        // Existing reader call sites use constant event names. Reject accidental text/URLs.
+        // Reject anything but snake_case event names (no accidental text/URLs).
         guard !event.isEmpty, event.utf8.count <= 80,
               event.utf8.allSatisfy({ (97...122).contains($0) || (48...57).contains($0) || $0 == 95 }) else { return }
         enqueue(event: event, reader: true, fields: [:], context: context, page: page, count: count, code: code,

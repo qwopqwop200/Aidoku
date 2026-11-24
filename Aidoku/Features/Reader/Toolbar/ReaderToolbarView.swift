@@ -113,7 +113,6 @@ class ReaderToolbarView: UIView {
         incognitoModeLabel.text = NSLocalizedString("INCOGNITO_MODE")
     }
 
-    // Previewing a page must keep both labels in sync without committing reader progress.
     @discardableResult
     private func updatePageLabels(page: Int?) -> Int? {
         guard var currentPage = page, let totalPages = totalPages, totalPages > 0 else {

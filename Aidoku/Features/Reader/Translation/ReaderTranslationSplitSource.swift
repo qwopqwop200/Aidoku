@@ -1,8 +1,7 @@
 import CryptoKit
 import UIKit
 
-/// Identity of a displayed half of one processed full raster (wide-page splits).
-/// A page key, crop rectangle, and matching point dimensions are only locators.
+/// Identity of a displayed half of one wide page raster; keys, crops and sizes are only locators.
 final class ReaderTranslationSplitSource: Sendable, Equatable {
     struct Half {
         let image: UIImage
@@ -22,8 +21,6 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
         let filenameDigest: String
     }
 
-    // The image is immutable; neither a split descriptor nor the attestation
-    // has to keep it alive after decoded reader resources have been released.
     private final class WeakImage: @unchecked Sendable {
         weak var image: UIImage?
         init(_ image: UIImage) { self.image = image }
@@ -62,7 +59,6 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
         lhs === rhs
     }
 
-    /// Produce both cropped images from the object we attest, in one call.
     static func makeSides(from image: UIImage, originalKey: String?) -> Sides? {
         let leftCrop = CGRect(x: 0, y: 0, width: 0.5, height: 1)
         let rightCrop = CGRect(x: 0.5, y: 0, width: 0.5, height: 1)
@@ -84,8 +80,7 @@ final class ReaderTranslationSplitSource: Sendable, Equatable {
                          filenameDigest: digest.map { String(format: "%02x", $0) }.joined())
     }
 
-    /// Verify and decode the SAME bytes. On mismatch original pixels may still
-    /// display, but they cannot acquire this half's full-image authority.
+    /// Verify and decode the same bytes; a mismatch still displays but loses this half's identity.
     func decodeStoredPNG(_ data: Data) -> UIImage? {
         guard !Task.isCancelled else { return nil }
         if case .png(let expected) = binding, SHA256.hash(data: data) == expected.digest {

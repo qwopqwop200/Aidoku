@@ -1,19 +1,6 @@
 import UIKit
 
-@MainActor
-protocol ReaderTranslationOwner: AnyObject {
-    var navigationItem: UINavigationItem { get }
-    var translationUpcomingPages: [Page] { get }
-    var translationVisiblePages: [ReaderTranslationPage] { get }
-    var translationPreviewPages: [ReaderTranslationPage] { get }
-    var translationChapterKey: String { get }
-    var translationCurrentPageIndex: Int { get }
-    var translationReadingDirection: PipelineReadingDirection { get }
-    var translationPersistsCache: Bool { get }
-    func translationWidePageLayout(for page: Page?) -> ReaderTranslationWidePageLayout
-}
-
-extension ReaderViewController: ReaderTranslationOwner {
+extension ReaderViewController {
     var translationPersistsCache: Bool { !isTemporaryImageSession }
     var translationReadingDirection: PipelineReadingDirection {
         switch readingMode {
@@ -30,8 +17,7 @@ extension ReaderViewController: ReaderTranslationOwner {
     }
 }
 
-// Only isolated adjacent turns use the shorter debounce. Keep startup, jumps,
-// scrubbing and rapid reversals conservative without retaining any page images.
+// Only isolated adjacent turns use the shorter debounce; startup, jumps, scrubbing and reversals wait longer.
 struct ReaderTranslationNavigationDebounce {
     private var previous: (chapter: String, index: Int, time: TimeInterval)?
 
@@ -46,12 +32,10 @@ struct ReaderTranslationNavigationDebounce {
     }
 }
 
-// Reading pace and look-ahead cost as moving averages, turned into how many pages to keep in flight:
-// enough to cover the pages read while one page translates, plus one.
+// Reading pace and translation cost as moving averages, turned into how many pages to keep in flight.
 struct ReaderTranslationLookaheadPace {
     private(set) var secondsPerPage: Double?
     private(set) var secondsPerTranslation: Double?
-    /// Start-to-finish wall time of one page: a page must start this long before the reader reaches it.
     private(set) var secondsLatency: Double?
     private var previous: (chapter: String, index: Int, time: TimeInterval)?
     private var lastFinish: TimeInterval?
@@ -69,8 +53,7 @@ struct ReaderTranslationLookaheadPace {
         secondsPerPage = Self.average(secondsPerPage, sample)
     }
 
-    // Throughput, not latency: time since the later of this page's start and the previous finish,
-    // so pages translated in parallel do not inflate the cost.
+    // Throughput: time since the later of this start and the previous finish (parallel pages count once).
     mutating func pageTranslated(started: TimeInterval, now: TimeInterval) {
         let sample = min(120, max(0.05, now - max(started, lastFinish ?? started)))
         lastFinish = now
@@ -78,24 +61,20 @@ struct ReaderTranslationLookaheadPace {
         secondsLatency = Self.average(secondsLatency, min(120, max(0.05, now - started)))
     }
 
-    // `base` is the fixed count; `growth` the extra pages memory allows. Before both averages exist
-    // the fixed count applies. Never above `limit` (nil = unlimited), never below min(base, 2).
+    // `growth`: extra pages memory allows. Never above `limit` (nil = unlimited), never below min(base, 2).
     func count(base: Int, limit: Int?, growth: Int) -> Int {
         let ceiling = min(limit ?? .max, base + max(0, growth))
         guard let secondsPerPage, let secondsPerTranslation else { return min(base, ceiling) }
-        // Enough pages to keep up (throughput) and to finish each before the reader arrives (latency).
         let cost = max(secondsPerTranslation, secondsLatency ?? 0)
         let needed = Int(min(64, (cost / secondsPerPage).rounded(.up))) + 1
         return min(ceiling, max(min(base, 2), needed))
     }
 }
 
-/// Reader page translation: every visible page renders through
-/// `ReaderTranslationPipelineService`, and the next
-/// pages are pre-translated into the pipeline caches.
+/// Translates visible reader pages through `ReaderTranslationPipelineService` and pre-translates the next pages.
 @MainActor
 final class ReaderTranslationCoordinator {
-    private weak var owner: (any ReaderTranslationOwner)?
+    private weak var owner: ReaderViewController?
     private lazy var button = UIBarButtonItem(image: UIImage(systemName: "character.bubble"), style: .plain, target: self, action: #selector(toggle))
     private var observers: [NSObjectProtocol] = []
     private var failureNotice: UIView?
@@ -113,12 +92,10 @@ final class ReaderTranslationCoordinator {
     private var isScrubbing = false
     private var navigationDebounce = ReaderTranslationNavigationDebounce()
     private let pipelinePages = NSHashTable<ReaderTranslationPage>.weakObjects()
-    /// Look-ahead consumers by the whole-page pipeline cache key (pages after the viewport).
+    /// Look-ahead tasks by whole-page pipeline cache key.
     private var pipelineLookahead: [String: Task<Void, Never>] = [:]
-    /// Look-ahead keys already translated in this session, so synchronization never re-decodes them.
     private var pipelineLookaheadFinished: Set<String> = []
     private var lookaheadPace = ReaderTranslationLookaheadPace()
-    /// Pages ahead chosen by the last look-ahead update; a turn keeps work within it.
     private var pipelineLookaheadCount = 0
     private let pipelineLoader: ReaderTranslationImageLoader
 
@@ -141,7 +118,7 @@ final class ReaderTranslationCoordinator {
         let previews: [PageState]
     }
 
-    init(owner: any ReaderTranslationOwner, temporaryPageStore: ReaderTemporaryPageStore) {
+    init(owner: ReaderViewController, temporaryPageStore: ReaderTemporaryPageStore) {
         self.pipelineLoader = ReaderTranslationImageLoader(temporaryStore: temporaryPageStore)
         self.owner = owner
         for name in [ReaderTranslationPage.sourceImageReady, ReaderTranslationSettings.changed,
@@ -211,8 +188,7 @@ final class ReaderTranslationCoordinator {
     }
 
     private func showFailureNotice(_ error: Error) {
-        guard isVisible, let host = (owner as? UIViewController)?.viewIfLoaded,
-              host.window != nil else { return }
+        guard isVisible, let host = owner?.viewIfLoaded, host.window != nil else { return }
         dismissFailureNotice()
         let notice = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
         notice.accessibilityIdentifier = "reader.translation.failure"
@@ -295,16 +271,14 @@ final class ReaderTranslationCoordinator {
     func resume() { isVisible = true; visiblePagesDidChange() }
 
     func suspend() {
-        // A completed departure releases the attached bitmaps; returning to the
-        // reader re-presents them from the pipeline memory cache.
+        // Returning re-presents the released bitmaps from the pipeline memory cache.
         stop { $0.hidePipeline() }
         navigationDebounce.reset()
         navigationIdentity = nil
         initialSynchronizationPending = true
     }
 
-    /// Chapter changes: stop page work for the old chapter. The look-ahead is pruned by the
-    /// next synchronization instead, so a next-chapter page translated ahead is joined, not lost.
+    /// Chapter change: look-ahead is pruned by the next sync, so a next-chapter page in flight is kept.
     func cancel() {
         pipelinePages.allObjects.forEach { $0.cancelPipelineWork() }
     }
@@ -412,8 +386,7 @@ final class ReaderTranslationCoordinator {
 
     // MARK: Cached presentation
 
-    /// A cached pipeline page bitmap to attach in the same commit as the source image (no source flash).
-    /// A miss returns nil and the page translates once it is visible.
+    /// A cached page bitmap to attach in the same commit as the source image (no source flash).
     func prepareCachedImage(image: UIImage, page: Page) async throws -> ReaderTranslationPreparedImage? {
         guard #available(iOS 18.0, *), let owner else { return nil }
         let settings = pageSettings()
@@ -442,11 +415,8 @@ final class ReaderTranslationCoordinator {
 // MARK: - Look-ahead
 
 extension ReaderTranslationCoordinator {
-    /// One page after the viewport while visible pages are pending, two once they are presented
-    /// (or in background-only mode), plus the performance profile's extra pages; once presented the
-    /// reading pace and look-ahead cost move it between two and twice that (memory permitting),
-    /// A page that becomes visible joins its running computation. Wide
-    /// pages shown as halves are translated per half.
+    /// One page ahead while visible pages are pending, two once presented (or background-only), plus the
+    /// profile's extra pages; then pace and memory adjust it. Wide pages shown as halves translate per half.
     private func updatePipelineLookahead() {
         guard #available(iOS 18.0, *), let owner, isVisible, owner.translationPersistsCache else {
             cancelPipelineLookahead()
@@ -538,8 +508,7 @@ extension ReaderTranslationCoordinator {
         return (PipelinePerformanceProfile.current.lookaheadCount(automatic: grows ? 2 : 1), grows)
     }
 
-    /// Up to `base` extra pages, one per 64 MB of memory above the decode headroom
-    /// (each in-flight page holds its decoded source while it waits for admission).
+    /// Up to `base` extra pages, one per 64 MB above the decode headroom (each holds its decoded source).
     private static func pipelineLookaheadMemoryGrowth(base: Int) -> Int {
         let available = ProcessMemory.available()
         let required = TranslationImageWorkBudget.requiredHeadroom(decodedBytes: 0)
@@ -567,8 +536,7 @@ extension ReaderTranslationCoordinator {
         return visiblePages + next
     }
 
-    /// Without this a loaded page shows its source until it is visible and the sync debounce
-    /// (180-350 ms after a turn) runs `processPipeline`, which then finds the page in memory.
+    /// Attach now instead of after the post-turn sync debounce.
     private func presentFinished(_ output: CGImage, key: String) {
         let settings = pageSettings()
         guard isVisible, settings.automaticallyTranslate, settings.overlay.visible else { return }
@@ -577,7 +545,7 @@ extension ReaderTranslationCoordinator {
 
     /// Cancels look-ahead outside `targets`; visible pages join (and promote) any look-ahead already running for them.
     @available(iOS 18.0, *)
-    private func retainPipelineLookahead(_ targets: [Page], owner: any ReaderTranslationOwner, settings: ReaderTranslationSettings) {
+    private func retainPipelineLookahead(_ targets: [Page], owner: ReaderViewController, settings: ReaderTranslationSettings) {
         func key(_ page: Page) -> String {
             ReaderTranslationPipelineService.cacheKey(page: page.translationCacheKey, crop: ReaderTranslationSplitGeometry.unit, settings: settings)
         }
@@ -588,8 +556,8 @@ extension ReaderTranslationCoordinator {
         }
     }
 
-    /// A turn cancels look-ahead now behind the reader or beyond the new window (plus one page of slack)
-    /// at once; waiting for the debounce, which rapid flips keep restarting, let that work finish.
+    /// A turn cancels look-ahead behind the reader or beyond the window (plus one page) without waiting
+    /// for the debounce, which rapid flips keep restarting.
     private func prunePipelineLookahead() {
         guard #available(iOS 18.0, *), !pipelineLookahead.isEmpty, let owner else { return }
         let settings = pageSettings()
