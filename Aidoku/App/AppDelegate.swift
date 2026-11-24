@@ -522,7 +522,7 @@ extension AppDelegate {
     }
 
     /// Dismisses a shown loading indicator.
-    func hideLoadingIndicator() async {
+    func hideLoadingIndicator(completion: (() -> Void)? = nil) async {
         // A dismiss issued mid-presentation is dropped by UIKit without calling its completion.
         if loadingAlert.isBeingPresented, let coordinator = loadingAlert.transitionCoordinator {
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -627,13 +627,18 @@ extension AppDelegate {
             }
         } else if url.pathExtension == "aix" {
             Task {
+                let result: AidokuRunner.Source?
                 do {
-                    let result = try await SourceManager.shared.importSourceValidated(from: url)
-                    if result == nil {
-                        presentAlert(title: NSLocalizedString("IMPORT_FAIL"), message: NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT"))
-                    }
+                    result = try await SourceManager.shared.importSourceValidated(from: url)
                 } catch {
                     presentAlert(title: NSLocalizedString("IMPORT_FAIL"), message: error.aidokuDescription())
+                    return
+                }
+                if result == nil {
+                    presentAlert(
+                        title: NSLocalizedString("IMPORT_FAIL"),
+                        message: NSLocalizedString("SOURCE_IMPORT_FAIL_TEXT")
+                    )
                 }
             }
         } else if url.pathExtension == "json" || url.pathExtension == "aib" {
