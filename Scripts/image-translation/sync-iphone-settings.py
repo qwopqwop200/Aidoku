@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-"""Copy the installed app's provider/language settings from iPhone into the local ignored .env.
-The existing API key stays in .env; Keychain is never read or modified. The pipeline host
-(swift Scripts/image-translation.swift) reads these values; pipeline has no OCR or overlay settings.
-"""
+"""Copy the installed app's provider/language settings from iPhone into the ignored .env for the pipeline host.
+The API key in .env is kept; Keychain is never read."""
 import argparse
 from datetime import datetime, timezone
 import json
@@ -14,7 +12,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = 'Reader.translation.'
 MAXIMUM_PROVIDER_CONCURRENCY = 3  # The app caps image-attached page calls at three.
-# Keys written by earlier versions for the removed legacy host; dropped on sync.
+# Keys of the removed legacy host; dropped on sync.
 RETIRED = ('AIDOKU_OCR_', 'AIDOKU_IPHONE_OVERLAY_JSON', 'AIDOKU_IPHONE_SCHEDULING_JSON', 'AIDOKU_TRANSLATION_RTL',
            'AIDOKU_TRANSLATION_INCLUDE_IMAGE', 'AIDOKU_TRANSLATION_FILTER_', 'AIDOKU_RENDER_VIEWPORT')
 

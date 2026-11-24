@@ -5,11 +5,7 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-// Mac host entry for the page-translation pipeline:
-//   swift Scripts/image-translation.swift [options] <image|folder ...> [--list FILE]
-// Options and settings: Scripts/image-translation/help.txt and PipelineHostSettings.swift.
-// Modes: live (default; real provider through PipelineTranslation), --replay-translations
-// (saved translations, no provider call) and --ocr-only (S1-S4, no LLM/render).
+// Mac host entry for the page-translation pipeline; options: Scripts/image-translation/help.txt.
 
 /// Saved translations for `--replay-translations`: a legacy run (`page-index.json`) or a pipeline run (`pages/*.json`).
 struct PipelineHostReplay: Sendable {
@@ -52,9 +48,8 @@ enum PipelineMain {
 
     static func log(_ text: String) { FileHandle.standardError.write(Data((text + "\n").utf8)) }
 
-    /// Compiles the pipeline model set into a private bundle (cached by package path/size/mtime).
-    /// Model bundle from the repository's packages, or per file from `models` (AIDOKU_PIPELINE_MODELS: a
-    /// directory of replacement .mlpackage / dictionary / language-model files) in a bundle of its own.
+    /// Compiles the pipeline models into a private bundle (cached by package path/size/mtime). Files found in
+    /// `models` (AIDOKU_PIPELINE_MODELS) replace the repository's, in a bundle of their own.
     static func prepareBundle(root: URL, cache: URL, models: URL? = nil) throws -> Bundle {
         let bundle = cache.appendingPathComponent(models.map { "Models-\(PipelineHostTuning.digest($0.path)).bundle" } ?? "Models.bundle")
         let resources = bundle.appendingPathComponent("Contents/Resources")
@@ -63,10 +58,8 @@ enum PipelineMain {
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
             .write(to: bundle.appendingPathComponent("Contents/Info.plist"))
         let repository = root.appendingPathComponent("Aidoku/Resources/Translation")
-        let fileManager = FileManager.default
-        /// The replacement in `models` when there is one, else the repository file.
         func resource(_ file: String) -> URL {
-            if let override = models?.appendingPathComponent(file), fileManager.fileExists(atPath: override.path) {
+            if let override = models?.appendingPathComponent(file), FileManager.default.fileExists(atPath: override.path) {
                 return override
             }
             return repository.appendingPathComponent(file)
