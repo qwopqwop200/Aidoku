@@ -47,12 +47,7 @@ import UIKit
 
     @Test("Long books retain text beyond ten thousand pages")
     func longBooksAreNotTruncated() {
-        var config = PaginationConfig()
-        config.fontSize = 40
-        config.lineSpacing = 0
-        config.paragraphSpacing = 0
-        config.horizontalPadding = 0
-        config.verticalPadding = 0
+        let config = PaginationConfig(fontSize: 40, lineSpacing: 0, paragraphSpacing: 0, horizontalPadding: 0, verticalPadding: 0)
         // Paragraph separators keep one Markdown run while TextKit lays out >10,000 pages.
         let markdown = Array(repeating: "W", count: 10_005).joined(separator: "\u{2029}")
         let pages = TextPaginator(config: config).paginate(markdown: markdown, pageSize: CGSize(width: 51, height: 51))

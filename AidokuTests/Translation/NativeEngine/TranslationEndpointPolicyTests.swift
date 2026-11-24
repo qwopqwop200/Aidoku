@@ -4,8 +4,7 @@ import Testing
 
 struct TranslationEndpointPolicyTests {
     @Test func openAIUsesTheFixedResponsesEndpoint() throws {
-        let configuration = RemoteTranslationConfiguration.openAI(model: "gpt-5-mini")
-        let endpoint = try configuration.validatedEndpoint()
+        let endpoint = try RemoteTranslationConfiguration.openAI(model: "gpt-5-mini").validatedEndpoint()
         #expect(endpoint.absoluteString == "https://api.openai.com/v1/responses")
     }
 
@@ -34,10 +33,7 @@ struct TranslationEndpointPolicyTests {
             customConfiguration(baseURL: "http://127.1:8080/v1", allowsDevelopmentHTTP: true),
             customConfiguration(baseURL: "http://%6cocalhost:8080/v1", allowsDevelopmentHTTP: true),
         ] {
-            do {
-                _ = try rejected.validatedEndpoint()
-                #expect(Bool(false), "unsafe plaintext endpoint was accepted")
-            } catch RemoteTranslationError.insecureEndpoint {}
+            #expect(throws: RemoteTranslationError.insecureEndpoint) { try rejected.validatedEndpoint() }
         }
     }
 
@@ -48,12 +44,7 @@ struct TranslationEndpointPolicyTests {
             "https://example.test/v1#fragment",
             "https://example.test/v1/chat/completions",
         ] {
-            do {
-                _ = try customConfiguration(baseURL: baseURL).validatedEndpoint()
-                #expect(Bool(false), "unsafe provider URL was accepted")
-            } catch {
-                #expect(error is RemoteTranslationError)
-            }
+            #expect(throws: RemoteTranslationError.self) { try customConfiguration(baseURL: baseURL).validatedEndpoint() }
         }
     }
 

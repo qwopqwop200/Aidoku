@@ -39,15 +39,7 @@ struct SourceResponseBodyTests {
             let http = try #require(error.response as? HTTPURLResponse)
             #expect(http.value(forHTTPHeaderField: "X-Request-Auth") == "fixture-token")
         }
-        try await waitUntil { BodyProtocol.observation.stopped(request.url!) }
-    }
-
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = Date().addingTimeInterval(5)
-        while !condition() {
-            guard Date() < deadline else { throw URLError(.timedOut) }
-            await Task.yield()
-        }
+        try await RegressionTestWait.until { BodyProtocol.observation.stopped(request.url!) }
     }
 }
 

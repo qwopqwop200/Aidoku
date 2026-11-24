@@ -6,10 +6,7 @@ import Testing
 struct NativeOCRRecognitionRegressionTests {
     @Test(arguments: [1.0, 4.0])
     func savedNearThresholdCropsKeepReadingAxisAcrossResolutions(scale: Double) throws {
-        // Saved low-confidence recognizer quads: run 2EAB1CCF, pages
-        // 0280/source20 (.533), 0354/source2 (.547), 0390/source10 (.445).
-        // All are below the tall-crop threshold; floored edge lengths had
-        // incorrectly rotated all three by 90 degrees at their saved scale.
+        // Saved recognizer quads below the tall-crop threshold; floored edge lengths rotated them by 90 degrees.
         let polygons: [[CGPoint]] = [
             [CGPoint(x: 207, y: 286), CGPoint(x: 287, y: 310),
              CGPoint(x: 248, y: 430), CGPoint(x: 167, y: 405)],

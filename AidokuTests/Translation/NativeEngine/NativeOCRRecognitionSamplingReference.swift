@@ -2,9 +2,8 @@ import CoreGraphics
 import Foundation
 @testable import Aidoku
 
-/// Frozen scalar CGPoint/closure sampler, compiled only into AidokuTests. It
-/// shares the production crop plan but evaluates the homography, bilinear
-/// reads and normalization independently, in the former operation order.
+/// Frozen scalar sampler: shares the production crop plan but evaluates the homography,
+/// bilinear reads and normalization independently, in the original operation order.
 enum NativeOCRRecognitionSamplingReference {
     static func prepare(frame: NativeOCRRGBAFrame, polygon: [CGPoint]) -> NativeCoreMLPreparedTensor? {
         guard let plan = NativeCoreMLRecognitionPreprocessor.plan(polygon: polygon) else { return nil }

@@ -56,10 +56,9 @@ struct SharedImageInboxTests {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let inbox = SharedImageInbox(root: root)
-        do {
+        await #expect(throws: (any Error).self) {
             try await inbox.enqueue(providers: [NSItemProvider(object: "not an image" as NSString)])
-            Issue.record("Non-image share must fail")
-        } catch {}
+        }
         #expect(try inbox.pendingBatches().isEmpty)
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
     }
@@ -105,12 +104,18 @@ struct SharedImageInboxTests {
     @Test func decodedImageObjectIsWrittenWithinPixelBudget() throws {
         let root = try temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        let image = UIImage(cgImage: try syntheticImage(width: 200, height: 100))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 100), format: format).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 200, height: 100))
+        }
         let bounded = root.appendingPathComponent("bounded")
         try SharedImageInbox.storeSharedItem(image, error: nil, at: bounded, maxPixels: 5_000)
-        let boundedInfo = try imageInfo(at: bounded)
-        #expect(boundedInfo.width * boundedInfo.height <= 5_000)
-        #expect(boundedInfo.width > boundedInfo.height)
+        let source = try #require(CGImageSourceCreateWithURL(bounded as CFURL, nil))
+        let stored = try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        #expect(stored.width * stored.height <= 5_000)
+        #expect(stored.width > stored.height)
     }
 
     // MARK: - Helpers
@@ -119,26 +124,6 @@ struct SharedImageInboxTests {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return root
-    }
-
-    private func syntheticImage(width: Int, height: Int) throws -> CGImage {
-        let context = try #require(CGContext(
-            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ))
-        context.setFillColor(UIColor.systemTeal.cgColor)
-        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        context.setFillColor(UIColor.black.cgColor)
-        context.fill(CGRect(x: 0, y: 0, width: width / 2, height: height / 3))
-        return try #require(context.makeImage())
-    }
-
-    private func imageInfo(at url: URL) throws -> (width: Int, height: Int) {
-        let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
-        let properties = try #require(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
-        let width = try #require((properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue)
-        let height = try #require((properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue)
-        return (width, height)
     }
 
     private func makeBatch(in root: URL, name: String) throws {
