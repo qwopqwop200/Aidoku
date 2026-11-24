@@ -17,7 +17,7 @@ Python: the eval venv (`workspace.PYTHON`: numpy, PIL, scipy, shapely, lightgbm)
 | `reclass/compare.py BASE VAR` | render items per block, gains - losses vs noise, per fold (`cmp_test.py` for test) |
 | `merge_gt_eval.py RUN...` | grouping vs the reviewed merge GT: exact pages, line P/R, frag / wrong / missed |
 | `lineasm/score.py PREFIX`, `bboxagent/boxscore.py PREFIX` | S2b lines and boxes vs GT line boxes |
-| `convmask/mscore.py DUMP` | S6 masks (`AIDOKU_PIPELINE_DUMP_MASKS`) vs GT glyph masks |
+| `convmask/mscore.py DUMP RUN_PREFIX` | S6 masks (`AIDOKU_PIPELINE_DUMP_MASKS`) vs GT glyph masks |
 | `colorfix/errors.py PREFIX` | S8 fill / outline colour vs appearance GT |
 | `consistency_metrics.py RUN` | painted size consistency inside GT font-size classes |
 | `../eval.py RUN --split S` | detection recall / precision and grouping F1 |

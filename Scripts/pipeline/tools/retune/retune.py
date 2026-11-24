@@ -174,8 +174,8 @@ def detection(run_dir, split):
 
 def masks(run_dir, run_prefix):
     """S6 masks vs GT glyph masks (convmask mscore, in the convmask venv), totals over the pages of this run."""
-    code = ('import sys, json; sys.path.insert(0, sys.argv[1]); import mscore; mscore.PREFIX = sys.argv[2]; '
-            'print(json.dumps(mscore.run(sys.argv[3])))')
+    code = ('import sys, json; sys.path.insert(0, sys.argv[1]); import mscore; '
+            'print(json.dumps(mscore.run(sys.argv[3], sys.argv[2])))')
     out = subprocess.check_output([str(MASK_PYTHON), '-c', code, str(TOOLS / 'convmask'),
                                    str(run_prefix), str(Path(run_dir) / 'masks')], text=True)
     res = json.loads(out.strip().splitlines()[-1])

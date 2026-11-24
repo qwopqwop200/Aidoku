@@ -1,4 +1,4 @@
-"""mscore.py DUMP_DIR -> per-page mask metrics vs GT glyph masks (pixels in code only).
+"""mscore.py DUMP_DIR [RUN_PREFIX] -> per-page mask metrics vs GT glyph masks (pixels in code only).
 targeted region: GT glyph region with >= 50% of its pixels inside the bounds of a paintable block.
 resid region = targeted region with miss > 2% of its px; far = mask px > 3 px (Chebyshev) from every GT glyph px;
 art = far px on a strong original-image gradient (|dx|+|dy| > 48)."""
@@ -17,21 +17,21 @@ PREFIX = str(RUNS / 'imp/rescue')
 FOLDS = {1: 'dev', 2: 'f2', 3: 'f3', 4: 'f4', 0: 'test'}
 
 
-def record(pid):
+def record(pid, prefix):
     for sp in ('dev', 'train', 'test'):
-        f = Path(f'{PREFIX}_{sp}/pages/{pid}.json')
+        f = Path(f'{prefix}_{sp}/pages/{pid}.json')
         if f.exists(): return json.load(open(f))
 
 
 def page(args):
-    dump, pid = args
+    dump, pid, prefix = args
     m = META[pid]; w, h = m['w'], m['h']
     js = json.load(open(dump / f'{pid}.json'))
     if (js['w'], js['h']) != (w, h):
         return pid, None
     M = np.frombuffer(zlib.decompress(open(dump / f'{pid}.z', 'rb').read(), -15), np.uint8).reshape(h, w) > 0
     lab = np.load(S / 'gt' / f'{pid}.npz')['lab']
-    rec = record(pid)
+    rec = record(pid, prefix)
     ids = set(js['ids'])
     inb = np.zeros((h, w), bool)
     for b in rec['blocks']:
@@ -64,13 +64,14 @@ def page(args):
     return pid, dict(r)
 
 
-def run(dump):
-    dump = Path(dump)
+def run(dump, prefix=None):
+    # Spawned workers re-import this module, so the run prefix travels with each task, not as a global.
+    dump = Path(dump); prefix = prefix or PREFIX
     cache = dump / 'mscore.json'
     if cache.exists(): return json.load(open(cache))
     pids = sorted(p.stem for p in dump.glob('*.z') if p.stem in META)
     with mp.get_context("spawn").Pool(8) as pool:
-        res = dict(x for x in pool.map(page, [(dump, p) for p in pids]) if x[1] is not None)
+        res = dict(x for x in pool.map(page, [(dump, p, prefix) for p in pids]) if x[1] is not None)
     json.dump(res, open(cache, 'w'))
     return res
 
@@ -91,4 +92,4 @@ def table(res):
 
 
 if __name__ == '__main__':
-    res = run(sys.argv[1]); table(res)
+    res = run(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None); table(res)
