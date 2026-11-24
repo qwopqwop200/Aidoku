@@ -23,7 +23,7 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
     case privateTailnetUnavailable
     case refused
 
-    static func httpStatusKey(_ status: Int) -> String {
+    private static func httpStatusKey(_ status: Int) -> String {
         switch status {
         case 401, 403: "TRANSLATION_ERROR_HTTP_KEY"
         case 404: "TRANSLATION_ERROR_HTTP_NOT_FOUND"
@@ -34,7 +34,7 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
     }
 
     var errorDescription: String? {
-        // Keep diagnostic payloads in the error for logging; user-facing text is localized.
+        // Diagnostic payloads and request IDs stay in the error for logs; user-facing text is localized.
         switch self {
         case .invalidConfiguration: NSLocalizedString("TRANSLATION_ERROR_CONFIGURATION")
         case .invalidRequest: NSLocalizedString("TRANSLATION_ERROR_REQUEST")
@@ -45,7 +45,6 @@ enum RemoteTranslationError: Error, Equatable, LocalizedError, Sendable {
         case .insecureEndpoint: NSLocalizedString("TRANSLATION_ERROR_ENDPOINT")
         case .redirectRejected: NSLocalizedString("TRANSLATION_ERROR_REDIRECT")
         case .responseTooLarge: NSLocalizedString("TRANSLATION_ERROR_RESPONSE_SIZE")
-        // The request ID stays in the error for logs; people get the likely cause.
         case let .httpStatus(status, _):
             String(format: NSLocalizedString(Self.httpStatusKey(status)), status)
         case let .transport(code): String(format: NSLocalizedString("TRANSLATION_ERROR_NETWORK_CODE"), code.rawValue)
@@ -105,11 +104,12 @@ private final class TranslationImageDigestMemo: @unchecked Sendable {
     private var value: String?
 
     func digest(of data: Data) -> String {
-        lock.lock(); defer { lock.unlock() }
-        if let value { return value }
-        let digest = Self.compute(data)
-        value = digest
-        return digest
+        lock.withLock {
+            if let value { return value }
+            let digest = Self.compute(data)
+            value = digest
+            return digest
+        }
     }
 
     static func compute(_ data: Data) -> String {
@@ -127,12 +127,6 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
     /// Provider sampling seed; a truncated page answer retries once with another seed. Not part of
     /// the request identity (equality, coding, cache keys).
     var samplingSeed = 0
-
-    func withSamplingSeed(_ seed: Int) -> Self {
-        var copy = self
-        copy.samplingSeed = seed
-        return copy
-    }
 
     var imageJPEG: Data? = nil {
         didSet {
@@ -229,11 +223,14 @@ struct RemoteTranslationRequest: Codable, Hashable, Sendable {
         }
     }
 
+    /// Segment IDs use ASCII letters, digits and `-_.:`.
+    static func isSegmentIDScalar(_ scalar: Unicode.Scalar) -> Bool {
+        isASCIIAlphaNumeric(scalar) || "-_.:".unicodeScalars.contains(scalar)
+    }
+
     private static func hasValidIdentifier(_ segment: RemoteTranslationSegment) -> Bool {
         !segment.id.isEmpty && segment.id.utf8.count <= maximumSegmentIDBytes &&
-            segment.id.unicodeScalars.allSatisfy {
-                isASCIIAlphaNumeric($0) || $0 == "-" || $0 == "_" || $0 == "." || $0 == ":"
-            }
+            segment.id.unicodeScalars.allSatisfy(isSegmentIDScalar)
     }
 
     private static func hasNonBlankSourceText(_ segment: RemoteTranslationSegment) -> Bool {
@@ -408,9 +405,7 @@ struct CanonicalRemoteTranslationRequest: Sendable {
             in: text, source: request.segments.indices.contains(index) ? request.segments[index].text : nil)
     }
 
-    func restoringCallerSegmentIDs(
-        in result: RemoteTranslationBatchResult
-    ) throws -> RemoteTranslationBatchResult {
+    func restoringCallerSegmentIDs(in result: RemoteTranslationBatchResult) throws -> RemoteTranslationBatchResult {
         let expectedCanonicalIDs = request.segments.map(\.id)
         guard expectedCanonicalIDs.count == callerSegmentIDs.count,
               result.translations.count == expectedCanonicalIDs.count else {

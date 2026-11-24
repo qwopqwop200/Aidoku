@@ -259,11 +259,8 @@ enum TranslationHTTPCodec {
 
     /// Whether `compactOutputPattern` can express these IDs literally.
     static func supportsCompactOutput(segmentIDs: [String]) -> Bool {
-        !segmentIDs.isEmpty && segmentIDs.allSatisfy { id in
-            !id.isEmpty && id.unicodeScalars.allSatisfy {
-                ("0"..."9").contains($0) || ("A"..."Z").contains($0) || ("a"..."z").contains($0) ||
-                    $0 == "-" || $0 == "_" || $0 == "." || $0 == ":"
-            }
+        !segmentIDs.isEmpty && segmentIDs.allSatisfy {
+            !$0.isEmpty && $0.unicodeScalars.allSatisfy(RemoteTranslationRequest.isSegmentIDScalar)
         }
     }
 
@@ -325,7 +322,7 @@ enum TranslationHTTPCodec {
     }
 
     static func languageName(_ identifier: String) -> String {
-        if identifier.caseInsensitiveCompare("auto") == .orderedSame { return "Auto-detect from input" }
+        if isAutomaticSource(identifier) { return "Auto-detect from input" }
         return Locale(identifier: "en_US_POSIX").localizedString(forIdentifier: identifier) ?? identifier
     }
 

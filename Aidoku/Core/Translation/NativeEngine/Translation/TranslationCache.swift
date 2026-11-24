@@ -175,7 +175,5 @@ private func isManagedRecordName(_ value: String) -> Bool {
     let stem = String(value.dropLast(5))
     let pieces = stem.split(separator: "-", omittingEmptySubsequences: false)
     guard pieces.count == 3, pieces[0].count == 16, pieces[1].count == 16, pieces[2].count == 8 else { return false }
-    return pieces.joined().unicodeScalars.allSatisfy {
-        CharacterSet(charactersIn: "0123456789abcdefABCDEF").contains($0)
-    }
+    return pieces.joined().unicodeScalars.allSatisfy(\.properties.isASCIIHexDigit)
 }
