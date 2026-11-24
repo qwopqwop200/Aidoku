@@ -88,7 +88,6 @@ class SourceSearchViewModel: ObservableObject {
         loadMoreTask = nil
         searchTask = Task {
             if delay {
-                // Coalesce typing without adding a full second to every search.
                 try? await Task.sleep(nanoseconds: 250_000_000)
             }
             guard !Task.isCancelled else { return }
@@ -152,7 +151,6 @@ class SourceSearchViewModel: ObservableObject {
                         entries += newEntries
                         break
                     }
-                    // Empty/duplicate-only pages must advance without awaiting this same task.
                 } while hasMore
             } catch {
                 guard !Task.isCancelled, generation == requestGeneration else { return }
