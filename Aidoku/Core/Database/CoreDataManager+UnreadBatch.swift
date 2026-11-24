@@ -38,8 +38,7 @@ extension CoreDataManager {
             groups[Group(source: id.sourceKey, language: filter.language, scanlators: scanlators), default: []].append(id)
         }
         var result: [MangaIdentifier: Int] = [:]
-        // The application has Cloud and Local stores. Only stores containing
-        // Chapter affect the aggregate; unrelated configurations are irrelevant.
+        // Only stores whose configuration contains Chapter affect the aggregate.
         let coordinator = context.persistentStoreCoordinator
         let stores = coordinator?.persistentStores.filter { store in
             coordinator?.managedObjectModel.entities(forConfigurationName: store.configurationName)?
@@ -73,19 +72,16 @@ extension CoreDataManager {
                 request.propertiesToFetch = ["mangaId", count]
                 request.propertiesToGroupBy = ["mangaId"]
                 do {
-                    let rows = try context.fetch(request)
                     var batch: [MangaIdentifier: Int] = [:]
-                    var valid = true
-                    for row in rows {
+                    for row in try context.fetch(request) {
                         guard let key = row["mangaId"] as? String,
                               let number = row["unreadCount"] as? NSNumber,
-                              let value = Int(exactly: number.int64Value) else { valid = false; break }
+                              let value = Int(exactly: number.int64Value) else { throw CocoaError(.coderReadCorrupt) }
                         batch[.init(sourceKey: group.source, mangaKey: key)] = value
                     }
-                    guard valid else { scalar(subset); continue }
                     for id in subset { result[id] = batch[id] ?? 0 }
                 } catch {
-                    // Preserve established scalar behavior if a store cannot execute grouping.
+                    // Fall back to scalar counts if the store cannot group or returns unexpected rows.
                     scalar(subset)
                 }
             }

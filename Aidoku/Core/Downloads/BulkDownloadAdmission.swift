@@ -17,8 +17,6 @@ actor BulkDownloadAdmission {
     private var activeDownloads = 0
     private var waiters: [Waiter] = []
 
-    deinit { pendingReaders.values.forEach { $0.cancel() } }
-
     private var limit: Int { eligibleReaders.isEmpty ? idleLimit : readerLimit }
 
     /// The caller owns the lease until it releases it.
@@ -49,19 +47,19 @@ actor BulkDownloadAdmission {
     }
 
     func withPermit<Value: Sendable>(_ operation: @escaping @Sendable () async throws -> Value) async throws -> Value {
-        let id = UUID()
-        try await acquire(id)
+        try await acquire()
         defer { activeDownloads -= 1; admitWaiters() }
         try Task.checkCancellation()
         return try await operation()
     }
 
-    private func acquire(_ id: UUID) async throws {
+    private func acquire() async throws {
         try Task.checkCancellation()
         if activeDownloads < limit {
             activeDownloads += 1
             return
         }
+        let id = UUID()
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 if Task.isCancelled { continuation.resume(throwing: CancellationError()) }

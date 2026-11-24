@@ -50,9 +50,11 @@ class LookupEngine {
     private var generation = 0
     private weak var errorAlert: UIAlertController?
 
-    private func reportLookupError() {
-        guard errorAlert == nil,
-              let controller = UIApplication.shared.appDelegate?.topViewController else { return }
+    /// Shows one lookup error alert at a time; returns `failed`.
+    @discardableResult
+    private func reportsFailure(_ failed: Bool) -> Bool {
+        guard failed, errorAlert == nil,
+              let controller = UIApplication.shared.appDelegate?.topViewController else { return failed }
         let alert = UIAlertController(
             title: NSLocalizedString("DICTIONARY_LOOKUP"),
             message: NSLocalizedString("DECODING_ERROR"),
@@ -61,11 +63,7 @@ class LookupEngine {
         alert.addAction(UIAlertAction(title: NSLocalizedString("OK"), style: .default))
         errorAlert = alert
         controller.present(alert, animated: true)
-    }
-
-    private func reportsFailure(_ failed: Bool) -> Bool {
-        if failed { reportLookupError() }
-        return failed
+        return true
     }
     private var buildTask: Task<Void, Never>?
 
@@ -86,7 +84,7 @@ class LookupEngine {
             await MainActor.run {
                 guard token == self.generation else { return }
                 self.bundle = newBundle
-                if newBundle.loadFailed { self.reportLookupError() }
+                self.reportsFailure(newBundle.loadFailed)
             }
         }
     }
