@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import GT, data  # noqa: E402
-import json, os, sys, collections, pickle
+import json, os, collections, pickle
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'colorfix'))
 from sim import FOLD
 CACHE = str(data('lineasm', 'gt_lines.pkl'))

@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
-"""Score V2 paragraph grouping (pages/*.json blocks, e.g. --ocr-only runs) against the user-reviewed merge GT.
+"""Score V2 paragraph grouping (pages/*.json blocks) against the user-reviewed merge GT (unified_merge_gt).
 
-GT: user-reviewed merge GT (split11 v8) in the unified GT file, via unified_merge_gt. Each GT region is a legacy OCR region (rect normalized to the
-page); its target group is a user merge group or itself (evaluation_region_ids / regions minus excluded_regions;
-split regions are already replaced). Each V2 line is mapped to the GT region covering most of it (>= 50% of the
-line box; ties -> smaller region). Lines covering no GT region (filtered/SFX/excluded) are ignored.
-
+Each GT region (a legacy OCR region, rect normalized to the page) belongs to a merge group or to itself. Each V2
+line maps to the GT region covering >= 50% of its box (ties -> smaller region); unmapped lines are ignored.
 Per page:
-- region partition = each matched GT region assigned to the V2 block holding most of its mapped line characters
-- fragmented region = lines of one GT region spread over >1 V2 block
-- exact page = no fragmented region and region partition == GT partition (restricted to matched regions)
-- region pairs: pairs of matched GT regions, positive = same GT group; joined = same dominant V2 block
-- line pairs: pairs of mapped V2 lines, positive = same GT group; joined = same V2 block (sees fragmentation)
+- each matched region is assigned to the V2 block holding most of its line characters
+- fragmented region = its lines are spread over > 1 V2 block
+- exact page = no fragmented region and the region partition equals the GT partition
+- region / line pairs: positive = same GT group, joined = same (dominant) V2 block
 
 Usage: merge_gt_eval.py RUN [RUN...] [--pages] [--json OUT]
-Several RUN dirs (e.g. dev + train) are pooled; rows are split by manifest split, train fold, and reviewed.
-Test pages are skipped. `score(runs)` returns the per-page records for reuse.
+RUN dirs are pooled; rows are split by manifest split, train fold and reviewed. Test pages are skipped.
 """
 import json
 import sys
@@ -23,8 +18,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import unified_merge_gt
-
-from workspace import MANIFEST  # noqa: E402
+from workspace import MANIFEST
 
 
 def load_gt():
@@ -56,12 +50,12 @@ def cover(line, region):
     return ix * iy / (w * h) if w * h > 0 else 0
 
 
-def pairs(labels, truth):
-    """labels: list of (predicted, truth) keys -> (tp, predicted-joined, gt-joined)."""
+def pairs(pred, truth):
+    """Pair counts over two parallel label lists -> (tp, predicted-joined, gt-joined)."""
     tp = pj = gj = 0
-    for i in range(len(labels)):
-        for j in range(i + 1, len(labels)):
-            p = labels[i][0] == labels[j][0]
+    for i in range(len(pred)):
+        for j in range(i + 1, len(pred)):
+            p = pred[i] == pred[j]
             t = truth[i] == truth[j]
             tp += p and t
             pj += p
@@ -87,8 +81,8 @@ def score_page(record, gt):
     fragmented = sorted(rid for rid, w in weight.items() if len(w) > 1)
     matched = sorted(dominant)
     g = gt['group']
-    rtp, rpj, rgj = pairs([(dominant[r], None) for r in matched], [g[r] for r in matched])
-    ltp, lpj, lgj = pairs([(b, None) for b, _, _ in lines], [g[r] for _, r, _ in lines])
+    rtp, rpj, rgj = pairs([dominant[r] for r in matched], [g[r] for r in matched])
+    ltp, lpj, lgj = pairs([b for b, _, _ in lines], [g[r] for _, r, _ in lines])
     pred_sets = defaultdict(set)
     true_sets = defaultdict(set)
     for r in matched:

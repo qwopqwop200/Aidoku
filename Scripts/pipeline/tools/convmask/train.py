@@ -1,12 +1,10 @@
 """train.py --name N --train 3,4 [--eval 2] ...: train the block U-Net on train-fold pages; optionally write
 held-out page masks for thresholds and score them against the MLP baseline."""
-import argparse, json, sys, time, zlib, collections
+import argparse, json, queue, subprocess, sys, threading, time
 from pathlib import Path
-import numpy as np, torch, torch.nn.functional as F, cv2
-from PIL import Image
+import numpy as np, torch, torch.nn.functional as F
 sys.path.insert(0, str(Path(__file__).parent))
-from blocks import load, META, S
-from common import factor, inputs, upsample
+from blocks import META, S
 from net import UNet, params
 
 ap = argparse.ArgumentParser()
@@ -57,7 +55,6 @@ print('params', params(model), flush=True)
 opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
 sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=a.lr, total_steps=a.iters, pct_start=0.05)
 t0 = time.time(); run = 0
-import threading, queue
 q = queue.Queue(8)
 def producer():
     while True: q.put(sample())
@@ -78,5 +75,4 @@ torch.save(dict(state=model.state_dict(), args=vars(a)), OUT / 'model.pt')
 
 # ---- held-out page masks (separate process: tools/evalrun.py; in-process MPS eval after training did not match)
 if a.eval:
-    import subprocess
     subprocess.run([sys.executable, '-W', 'ignore', str(Path(__file__).parent / 'evalrun.py'), a.name, a.eval, a.thr], check=True)

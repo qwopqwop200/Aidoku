@@ -1,15 +1,6 @@
-# sourced: take_slot NAME -> holds one of 2 global heavy slots (shared with imp/replay.sh)
+# sourced: take_slot NAME -> sets $slot to one of 2 machine-wide heavy slots (caller removes it when done)
 source ${${(%):-%x}:a:h}/workspace.zsh
 S=$EVAL/runs/imp/.slots; mkdir -p $S
-take_lock() { # dir name
-  local d=$1
-  while true; do
-    if mkdir $d 2>/dev/null; then echo $$ > $d/pid; echo "$2 $(date +%H:%M)" > $d/who; return; fi
-    local pid=$(cat $d/pid 2>/dev/null)
-    if [[ -n $pid ]] && ! kill -0 $pid 2>/dev/null; then rm -rf $d; continue; fi
-    sleep 15
-  done
-}
 take_slot() {
   slot=""
   while [[ -z $slot ]]; do

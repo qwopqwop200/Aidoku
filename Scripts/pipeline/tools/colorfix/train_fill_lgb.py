@@ -1,17 +1,35 @@
-"""LightGBM refit of the S8 fill picker (binary and lambdarank) with leave-one-fold-out CV on TRAIN folds."""
+"""Refit the S8 fill picker (fillPass2) with LightGBM (binary and lambdarank) on the colour GT, leave-one-fold-out
+CV on TRAIN folds; saves the best choice for export_fill.py."""
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
-from workspace import data  # noqa: E402
+from workspace import RUNS, data  # noqa: E402
 import itertools, collections, pickle, warnings
 import numpy as np, lightgbm as lgb
 warnings.filterwarnings('ignore')
-import train_fill as T  # reuses rows / labels / errors (runs no grid on import? see guard)
-rows, labels = T.rows, T.labels
+from errors import pairs, de
+from cands import dump
+from sim import FOLD
 TRAIN = ['f2', 'f3', 'f4']
+PRE = str(RUNS / 'imp/rawdump')
+P = pairs(PRE); D = dump(PRE)
+rows = []  # (fold, key, candidate features, candidate core colours, GT fill, shipped logits)
+seen = set()
+for p in P:
+    k = (p['page'], p['block'])
+    if k in D and k not in seen:
+        seen.add(k); cands = D[k]['cands']
+        rows.append((FOLD[p['page']], k, np.array([c['x'] for c in cands]), [c['core'] for c in cands], p['fill'],
+                     np.array([c['logit'] for c in cands])))
 
 
-def data(folds):
+def labels(cores, gt):
+    """One-hot on the candidate nearest the GT fill, None when none is within dE 12."""
+    ds = [de(c, gt) for c in cores]; j = int(np.argmin(ds))
+    return None if ds[j] > 12 else np.array([1 if i == j else 0 for i in range(len(cores))])
+
+
+def training_set(folds):
     X, y, g = [], [], []
     for f, k, Xb, cores, gt, _ in rows:
         if f not in folds: continue
@@ -25,13 +43,12 @@ def errors(model, folds):
     c = collections.Counter()
     for f, k, X, cores, gt, shipped in rows:
         if f not in folds: continue
-        s = model.predict(X, raw_score=True) if hasattr(model, 'predict') and not isinstance(model, lgb.LGBMRanker) else model.predict(X)
-        c[f] += T.de(cores[int(np.argmax(s))], gt) > 12
+        c[f] += de(cores[int(np.argmax(model.predict(X, raw_score=True)))], gt) > 12
     return c
 
 
 def fit(folds, obj, **hp):
-    X, y, g = data(folds)
+    X, y, g = training_set(folds)
     if obj == 'rank':
         m = lgb.LGBMRanker(objective='lambdarank', random_state=0, n_jobs=4, verbose=-1, **hp); m.fit(X, y, group=g)
     else:

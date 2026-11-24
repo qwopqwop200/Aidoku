@@ -3,12 +3,13 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import RUNS, WEIGHTS  # noqa: E402
-import itertools, collections, pickle, struct, sys, shutil, warnings
+import itertools, collections, warnings
 import numpy as np, lightgbm as lgb
 warnings.filterwarnings('ignore')
 from errors import pairs, de
 from cands import dump
 from sim import FOLD
+import forest
 PRE = str(RUNS / 'imp/dump3'); TRAIN = ['f2', 'f3', 'f4']
 BIN = str(WEIGHTS)
 P = pairs(PRE); D = dump(PRE)
@@ -59,32 +60,8 @@ res.sort(key=lambda t: t[0]); print('top cv', [c for c, _ in res[:6]])
 cv, hp = res[0]; m = fit(TRAIN, **hp); e = errors(m, ['dev', 'test'])
 print('BEST cv', cv, hp, '| dev', e['dev'], 'test', e['test'])
 
-# export (flatten like export_fill) and check Swift-style evaluation
-roots, feat, thr, left, right, val = [], [], [], [], [], []
-def add(node):
-    i = len(feat); feat.append(0); thr.append(0.0); left.append(-1); right.append(-1); val.append(0.0)
-    if 'leaf_value' in node: val[i] = node['leaf_value']
-    else:
-        assert node['decision_type'] == '<='
-        feat[i] = node['split_feature']; thr[i] = node['threshold']; left[i] = add(node['left_child']); right[i] = add(node['right_child'])
-    return i
-for t in m.booster_.dump_model()['tree_info']: roots.append(add(t['tree_structure']))
-def logit(x):
-    z = 0.0
-    for r in roots:
-        n = r
-        while left[n] >= 0: n = left[n] if float(np.float32(x[feat[n]])) <= thr[n] else right[n]
-        z += val[n]
-    return z
-agree = sum(int(np.argmax([logit(x) for x in Xb])) == int(np.argmax(m.predict(Xb))) for _, _, Xb, _ in data)
+trees = forest.flatten(m.booster_)
+agree = sum(int(np.argmax([forest.logit(trees, x) for x in Xb])) == int(np.argmax(m.predict(Xb))) for _, _, Xb, _ in data)
 print('pick parity', agree, '/', len(data))
 if '--write' in sys.argv:
-    data_bin = open(BIN, 'rb').read(); off = 0
-    def skip(fmt):
-        global off
-        n = struct.unpack_from('<I', data_bin, off)[0]; off += 4 + n * struct.calcsize(fmt)
-    for c in ['f', 'f'] + ['d', 'i', 'h', 'd', 'i', 'i', 'd'] * 3: skip(c)
-    head = data_bin[:off]  # drop any old 4th forest
-    pack = lambda fmt, xs: struct.pack('<I', len(xs)) + struct.pack('<' + fmt * len(xs), *xs)
-    tail = pack('d', [0.0, 1.0]) + pack('i', roots) + pack('h', feat) + pack('d', thr) + pack('i', left) + pack('i', right) + pack('d', val)
-    open(BIN, 'wb').write(head + tail); print('wrote 4th forest:', len(roots), 'trees', len(feat), 'nodes')
+    forest.write(BIN, 3, trees); print('wrote 4th forest:', len(trees[0]), 'trees', len(trees[1]), 'nodes')

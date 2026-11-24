@@ -1,11 +1,13 @@
-import sys
+"""Per-page block geometry dumped by harness (BLOCKS=1): frame, T, background, line-polygon and ROI masks."""
+import json, sys, zlib
 from pathlib import Path
+import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import EVAL  # noqa: E402
-import json, zlib, numpy as np
-from pathlib import Path
 S = EVAL / 'convmask'  # GT masks, caches, runs (outside the repository)
 META = json.load(open(S / 'gt' / 'meta.json'))
+
+
 def load(pid):
     js = json.load(open(S / 'blocks' / f'{pid}.json'))
     blob = zlib.decompress(open(S / 'blocks' / f'{pid}.b', 'rb').read(), -15)

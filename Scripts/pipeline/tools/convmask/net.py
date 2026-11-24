@@ -32,7 +32,3 @@ class UNet(nn.Module):
         return self.head(x)
 
 def params(m): return sum(p.numel() for p in m.parameters())
-
-if __name__ == '__main__':
-    for ch, sep in [((8, 16, 32), False), ((8, 16, 32), True), ((8, 16), False), ((12, 24, 48), True), ((16, 32, 64), False), ((6, 12, 24), False)]:
-        print(ch, sep, params(UNet(chans=ch, sep=sep)))

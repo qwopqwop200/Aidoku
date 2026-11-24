@@ -1,17 +1,21 @@
-"""Offline page-style unification on raw S8 styles (AIDOKU_STYLE_NO_UNIFY replay) scored on the colour GT."""
+"""Offline page-style unification on raw S8 styles (AIDOKU_STYLE_NO_UNIFY replay) scored on the colour GT.
+usage: sim.py RUN_PREFIX. Also the shared page -> fold map (FOLD: f2, f3, f4, dev, test)."""
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import MANIFEST  # noqa: E402
-import json, os, sys, collections, itertools
+import json, os, collections, itertools, statistics
 from functools import lru_cache
-from errors import gt, de, lab, ROOT
-MAN = str(MANIFEST)
-FOLD = {p['page_id']: ('dev' if p['split'] == 'dev' else 'test' if p['split'] == 'test' else f"f{p['fold']}") for p in json.load(open(MAN))['pages']}
+from errors import gt, de
+FOLD = {p['page_id']: p['split'] if p['split'] in ('dev', 'test') else f"f{p['fold']}"
+        for p in json.load(open(MANIFEST))['pages']}
 
 
 @lru_cache(None)
 def deq(a, b): return de(a, b)
+
+
+def rgb(q): return None if q is None else (q['r'], q['g'], q['b'])
 
 
 def load(prefix):
@@ -24,8 +28,7 @@ def load(prefix):
             for b in r['blocks']:
                 st = b.get('style')
                 if not st: continue
-                t = lambda q: None if q is None else (q['r'], q['g'], q['b'])
-                blocks.append(dict(id=b['id'], bounds=b['bounds'], fill=t(st['textColor']), stroke=t(st.get('strokeColor')),
+                blocks.append(dict(id=b['id'], bounds=b['bounds'], fill=rgb(st['textColor']), stroke=rgb(st.get('strokeColor')),
                                    width=st.get('strokeWidth') or 0, font=st['fontPixels'], chars=len(b.get('sourceText') or '')))
             # GT matching (same rule as errors.pairs)
             match = []
@@ -54,15 +57,12 @@ def unify(blocks, P):
     n = len(idx); D = [[0.0] * n for _ in range(n)]
     for a, b in itertools.combinations(range(n), 2):
         D[a][b] = D[b][a] = dist(blocks[idx[a]], blocks[idx[b]], P)
-    # agglomerative: single / complete / average linkage at threshold T
+    # agglomerative, single linkage at threshold T
     groups = [[i] for i in range(n)]
-    def link(g, h):
-        v = [D[a][b] for a in g for b in h]
-        return min(v) if P['link'] == 'single' else max(v) if P['link'] == 'complete' else sum(v) / len(v)
     while True:
         best, pair = None, None
         for x, y in itertools.combinations(range(len(groups)), 2):
-            l = link(groups[x], groups[y])
+            l = min(D[a][b] for a in groups[x] for b in groups[y])
             if l <= P['T'] and (best is None or l < best): best, pair = l, (x, y)
         if not pair: break
         x, y = pair; groups[x] += groups[y]; del groups[y]
@@ -72,11 +72,11 @@ def unify(blocks, P):
         outl = [i for i in g if blocks[idx[i]]['stroke']]
         smed = min(outl, key=lambda i: sum(deq(blocks[idx[i]]['stroke'], blocks[idx[j]]['stroke']) for j in outl)) if outl else None
         outline = 2 * len(outl) >= len(g)
-        ratios = sorted(blocks[idx[i]]['width'] / max(1, blocks[idx[i]]['font']) for i in outl)
-        r = (ratios[len(ratios) // 2] if len(ratios) % 2 else (ratios[len(ratios) // 2 - 1] + ratios[len(ratios) // 2]) / 2) if ratios else 0
+        ratios = [blocks[idx[i]]['width'] / max(1, blocks[idx[i]]['font']) for i in outl]
+        r = statistics.median(ratios) if ratios else 0
         for i in g:
             o = out[idx[i]]
-            if not P.get('keepfill'): o['fill'] = blocks[idx[med]]['fill']
+            o['fill'] = blocks[idx[med]]['fill']
             if outline and smed is not None:
                 o['stroke'] = blocks[idx[smed]]['stroke']; o['width'] = r * blocks[idx[i]]['font']
             else:
@@ -84,26 +84,21 @@ def unify(blocks, P):
     return out
 
 
-def score(pages, P, folds=None):
+def score(pages, P):
     c = collections.Counter()
     for pid, (blocks, match) in pages.items():
         f = FOLD[pid]
-        if folds and f not in folds: continue
         out = unify(blocks, P)
         for it, k in match:
-            o = out[k]; key = f
-            c[key, 'n'] += 1
-            c[key, 'fill'] += deq(o['fill'], tuple(it['fill'])) > 12
-            c[key, 'pres'] += (o['stroke'] is not None) != it['outline']
-            c[key, 'scol'] += bool(o['stroke'] and it['stroke'] and deq(o['stroke'], tuple(it['stroke'])) > 20)
+            o = out[k]
+            c[f, 'n'] += 1
+            c[f, 'fill'] += deq(o['fill'], tuple(it['fill'])) > 12
+            c[f, 'pres'] += (o['stroke'] is not None) != it['outline']
+            c[f, 'scol'] += bool(o['stroke'] and it['stroke'] and deq(o['stroke'], tuple(it['stroke'])) > 20)
     return c
 
 
-def total(c, folds, keys=('fill', 'pres', 'scol')):
-    return sum(c[f, k] for f in folds for k in keys)
-
-
-BASE = dict(T=20, link='single', sw=0.5, mis=40, minc=4)
+BASE = dict(T=20, sw=0.5, mis=40, minc=4)
 if __name__ == '__main__':
     pages = load(sys.argv[1])
     F = ['f2', 'f3', 'f4', 'dev', 'test']
