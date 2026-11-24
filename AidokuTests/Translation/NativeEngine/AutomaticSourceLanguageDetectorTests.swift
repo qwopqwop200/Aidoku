@@ -3,8 +3,7 @@ import Testing
 
 @Suite("Automatic translation source-language detection")
 struct AutomaticSourceLanguageDetectorTests {
-    @Test
-    func scriptEvidenceHandlesShortChineseAndJapaneseText() {
+    @Test func scriptEvidenceHandlesShortChineseAndJapaneseText() {
         #expect(AutomaticSourceLanguageDetector.detect("这") == "zh")
         #expect(AutomaticSourceLanguageDetector.detect("這") == "zh-Hant")
         #expect(AutomaticSourceLanguageDetector.detect("次へ") == "ja")
@@ -12,8 +11,7 @@ struct AutomaticSourceLanguageDetectorTests {
         #expect(AutomaticSourceLanguageDetector.detect("ー", sourceHint: "ja") == nil)
     }
 
-    @Test
-    func fixedJapaneseOCRSourceFiltersOtherLanguages() {
+    @Test func fixedJapaneseOCRSourceFiltersOtherLanguages() {
         for text in ["次へ", "設定"] {
             #expect(AutomaticSourceLanguageDetector.allowsOCRText(text, configuredSourceLanguage: "ja", automaticLanguageFilter: []))
         }
@@ -22,8 +20,7 @@ struct AutomaticSourceLanguageDetectorTests {
         }
     }
 
-    @Test
-    func automaticOCRSourceUsesTheConfiguredLanguageAllowlist() {
+    @Test func automaticOCRSourceUsesTheConfiguredLanguageAllowlist() {
         #expect(AutomaticSourceLanguageDetector.allowsOCRText("これは日本語のメニューです",
             configuredSourceLanguage: "auto", automaticLanguageFilter: ["ja"]))
         #expect(!AutomaticSourceLanguageDetector.allowsOCRText("This English advertisement must be filtered out.",

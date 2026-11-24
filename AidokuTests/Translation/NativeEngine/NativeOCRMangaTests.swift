@@ -7,7 +7,6 @@ import UIKit
 /// Real bundled model checks; opt in through AidokuFull or this focused suite.
 @Suite(.serialized)
 struct NativeOCRMangaTests {
-
     @Test func bundledMangaRecognizerAcceptsDynamicNativeABI() throws {
         let url = try #require(Bundle.main.url(forResource: PipelineRecognitionEngine.modelResourceName, withExtension: "mlmodelc"))
         let configuration = MLModelConfiguration()

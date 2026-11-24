@@ -49,20 +49,13 @@ final class TestableSourceRunner: AidokuRunner.Runner {
 
     let storage = TestableSourceStorage()
     let failsProcessing: Bool
-    private let search: @Sendable (String?) async -> AidokuRunner.MangaPageResult
-    init(
-        failsProcessing: Bool = false,
-        processesPages: Bool = true,
-        processesCovers: Bool = false,
-        search: @escaping @Sendable (String?) async -> AidokuRunner.MangaPageResult = { _ in .init(entries: [], hasNextPage: false) }
-    ) {
+    init(failsProcessing: Bool = false, processesCovers: Bool = false) {
         self.failsProcessing = failsProcessing
-        self.search = search
-        features = .init(processesPages: processesPages, processesCovers: processesCovers)
+        features = .init(processesPages: true, processesCovers: processesCovers)
     }
 
     func getSearchMangaList(query: String?, page: Int, filters: [AidokuRunner.FilterValue]) async throws -> AidokuRunner.MangaPageResult {
-        await search(query)
+        .init(entries: [], hasNextPage: false)
     }
 
     func getMangaUpdate(manga: AidokuRunner.Manga, needsDetails: Bool, needsChapters: Bool) async throws -> AidokuRunner.Manga {

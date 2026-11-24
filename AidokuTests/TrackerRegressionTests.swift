@@ -49,7 +49,7 @@ struct TrackerRegressionTests {
         let oldRequest = await client.authorizedRequest(for: URL(string: "https://fixture.invalid/data")!)
         let barrier = OAuthRefreshBarrier()
         let task = Task { await client.refreshTokens(for: oldRequest) { await barrier.run($0) } }
-        try await waitUntil { await barrier.started }
+        try await RegressionTestWait.until { await barrier.started }
         await client.setTokens(nil)
         await barrier.release(.init(tokenType: "Bearer", refreshToken: "refresh-new", accessToken: "new", expiresIn: 3600))
         #expect(await task.value == nil)
@@ -149,7 +149,7 @@ struct TrackerRegressionTests {
         let sync = Task {
             await fixture.manager.syncPageTrackerHistory(tracker: fixture.tracker, manga: fixture.manga, chapters: fixture.chapters)
         }
-        try await waitUntil { await fixture.tracker.readStarted }
+        try await RegressionTestWait.until { await fixture.tracker.readStarted }
         await fixture.writeHistory(page: 20, completed: completed, date: Date(timeIntervalSince1970: 200))
         await fixture.tracker.releaseRead()
         await sync.value
@@ -158,14 +158,6 @@ struct TrackerRegressionTests {
         #expect(result?.completed == completed)
         #expect(result?.date == Date(timeIntervalSince1970: 200))
         await fixture.close()
-    }
-
-    private func waitUntil(_ condition: () async -> Bool) async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(4))
-        while !(await condition()) {
-            guard ContinuousClock.now < deadline else { throw URLError(.timedOut) }
-            try await Task.sleep(for: .milliseconds(5))
-        }
     }
 }
 
