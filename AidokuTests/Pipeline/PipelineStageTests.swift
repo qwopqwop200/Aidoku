@@ -4,9 +4,7 @@ import Foundation
 import Testing
 @testable import Aidoku
 
-/// Model-free contracts of the pipeline stages: detection line assembly, grouping,
-/// recognition plan, layout detection decode, removal mask, inpaint scatter,
-/// style, layout/paint and translation replay.
+/// Model-free contracts of the pipeline stages (S1-S10).
 struct PipelineStageTests {
     private func rect(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> [CGPoint] {
         [CGPoint(x: x, y: y), CGPoint(x: x + w, y: y), CGPoint(x: x + w, y: y + h), CGPoint(x: x, y: y + h)]
@@ -28,9 +26,7 @@ struct PipelineStageTests {
     private func placedBlock(_ id: Int, _ bounds: CGRect, _ text: String) -> PipelineBlock {
         PipelineBlock(
             id: id, lines: [], bounds: bounds, polygon: [], vertical: false, readingOrder: id, sourceText: "",
-            balloon: nil, role: .dialogue, translation: text,
-            style: PipelineStyle(fontPixels: 40, bold: false, textColor: PipelineRGB(r: 0, g: 0, b: 0),
-                           strokeColor: PipelineRGB(r: 255, g: 255, b: 255), strokeWidth: 2)
+            balloon: nil, role: .dialogue, translation: text, style: styled(40, width: 2)
         )
     }
 
@@ -150,9 +146,9 @@ struct PipelineStageTests {
 
     // MARK: S6 removal mask, S7 inpaint
 
-    /// A white 400 x 200 RGBA page with black `strokes`.
-    private func inkPage(_ strokes: [CGRect]) -> [UInt8] {
-        var rgba = [UInt8](repeating: 255, count: 400 * 200 * 4)
+    /// A white 400 x `height` RGBA page with black `strokes`.
+    private func inkPage(_ strokes: [CGRect], height: Int = 200) -> [UInt8] {
+        var rgba = [UInt8](repeating: 255, count: 400 * height * 4)
         for stroke in strokes {
             for y in Int(stroke.minY)..<Int(stroke.maxY) {
                 for x in Int(stroke.minX)..<Int(stroke.maxX) {
@@ -211,20 +207,11 @@ struct PipelineStageTests {
         let forest = try #require(PipelineRemovalMaskWeights.lineEnds)
         let line = PipelineLine(polygon: rect(100, 50, 50, 200), bounds: CGRect(x: 100, y: 50, width: 50, height: 200),
                           vertical: true, detectionScore: 0.9)
-        func page(_ strokes: [CGRect]) -> [UInt8] {
-            var rgba = [UInt8](repeating: 255, count: width * height * 4)
-            for stroke in strokes {
-                for y in Int(stroke.minY)..<Int(stroke.maxY) {
-                    for x in Int(stroke.minX)..<Int(stroke.maxX) { for c in 0..<3 { rgba[(y * width + x) * 4 + c] = 0 } }
-                }
-            }
-            return rgba
-        }
-        let plain = try #require(page(glyphs).withUnsafeBufferPointer {
+        let plain = try #require(inkPage(glyphs, height: height).withUnsafeBufferPointer {
             PipelineLineEnds.offsets(line, pixels: $0, width: width, height: height, regions: [], forest: forest)
         })
         #expect(abs(plain.0) < 0.1 && abs(plain.1) < 0.1)
-        let refined = page(glyphs + extra).withUnsafeBufferPointer {
+        let refined = inkPage(glyphs + extra, height: height).withUnsafeBufferPointer {
             PipelineLineEnds.refined([line], pixels: $0, width: width, height: height, layout: [], forest: forest)
         }
         #expect(refined[0].bounds.minY == 50 && refined[0].bounds.maxY > 265)
@@ -514,22 +501,19 @@ struct PipelineStageTests {
     @Test func alignedStartsShareTheMedianCentredTop() {
         let sources = [CGRect(x: 0, y: 100, width: 100, height: 200), CGRect(x: 150, y: 110, width: 100, height: 100),
                        CGRect(x: 300, y: 105, width: 100, height: 300), CGRect(x: 900, y: 100, width: 100, height: 100)]
-        var placed = sources.enumerated().map { index, rect in
-            PipelinePlacedText(blockID: index, frame: CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * 7, width: 100, height: 60),
-                         fontPixels: 40, vertical: false, lines: ["가"])
+        func alignedTops(tilting tilted: Int? = nil) -> [CGFloat] {
+            var placed = sources.enumerated().map { index, rect in
+                PipelinePlacedText(blockID: index, frame: CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * 7, width: 100, height: 60),
+                                   fontPixels: 40, vertical: false, lines: ["가"], angle: index == tilted ? 0.1 : nil)
+            }
+            PipelineLayout.alignStarts(&placed, sources.enumerated().map { placedBlock($0.offset, $0.element, "가") },
+                                       sources: [40, 40, 40, 40], page: CGRect(x: 0, y: 0, width: 1000, height: 1000))
+            return placed.map(\.frame.minY)
         }
-        PipelineLayout.alignStarts(&placed, sources.enumerated().map { placedBlock($0.offset, $0.element, "가") },
-                             sources: [40, 40, 40, 40], page: CGRect(x: 0, y: 0, width: 1000, height: 1000))
         // Median of the centred tops 170, 130 and 225; the block 12.5 em away keeps its frame.
-        #expect(placed.map(\.frame.minY) == [170, 170, 170, 121])
+        #expect(alignedTops() == [170, 170, 170, 121])
         // A tilted member keeps its frame; the upright rest still share one top.
-        var tilted = sources.enumerated().map { index, rect in
-            PipelinePlacedText(blockID: index, frame: CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * 7, width: 100, height: 60),
-                         fontPixels: 40, vertical: false, lines: ["가"], angle: index == 1 ? 0.1 : nil)
-        }
-        PipelineLayout.alignStarts(&tilted, sources.enumerated().map { placedBlock($0.offset, $0.element, "가") },
-                             sources: [40, 40, 40, 40], page: CGRect(x: 0, y: 0, width: 1000, height: 1000))
-        #expect(tilted.map(\.frame.minY) == [197.5, 117, 197.5, 121])
+        #expect(alignedTops(tilting: 1) == [197.5, 117, 197.5, 121])
     }
 
     @Test func rotationFollowsTiltedLineQuads() {

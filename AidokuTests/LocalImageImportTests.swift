@@ -80,13 +80,7 @@ struct LocalImageImportTests {
     @Test func hugeImportImagesAreDownsampledBeforeRendering() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
         defer { try? FileManager.default.removeItem(at: url) }
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 100), format: format).image { context in
-            UIColor.red.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 200, height: 100))
-        }
-        try #require(image.pngData()).write(to: url)
+        try writeImage(to: url, color: .red, size: CGSize(width: 200, height: 100))
         let full = try #require(LocalFileManager.loadImportImage(at: url, maxPixels: 200 * 100))
         #expect(full.size == CGSize(width: 200, height: 100))
         let reduced = try #require(LocalFileManager.loadImportImage(at: url, maxPixels: 5000))
@@ -95,10 +89,12 @@ struct LocalImageImportTests {
         #expect(reduced.size.width > reduced.size.height)
     }
 
-    private func writeImage(to url: URL, color: UIColor) throws {
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 18)).image { context in
+    private func writeImage(to url: URL, color: UIColor, size: CGSize = CGSize(width: 12, height: 18)) throws {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
             color.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 12, height: 18))
+            context.fill(CGRect(origin: .zero, size: size))
         }
         try #require(image.pngData()).write(to: url)
     }
@@ -123,6 +119,20 @@ struct LocalImportSchedulingTests {
         let reopened = LocalFileDataManager(context: fixture.newContext())
         #expect(await reopened.hasSeries(id: "fixture"))
         #expect(await reopened.fetchChapters(mangaId: "fixture").map(\.key) == ["first"])
+    }
+
+    /// A local root that cannot be listed must not be treated as "no files" and erase stored series.
+    @Test func unreadableRootCannotEraseLocalMetadata() async throws {
+        let fixture = try TemporaryCoreDataStore(configurations: ["Cloud", "Local"])
+        defer { fixture.close() }
+        let writer = LocalFileDataManager(context: fixture.newContext())
+        try await commit(writer, fixture: fixture, chapter: "chapter")
+        let notDirectory = fixture.directory.appendingPathComponent("not-a-directory")
+        try Data([1]).write(to: notDirectory)
+        let manager = LocalFileManager(dataManager: writer, startsListener: false, localDirectory: notDirectory)
+        await manager.scanLocalFiles()
+        #expect(await writer.hasSeries(id: "fixture"))
+        #expect(await writer.fetchChapters(mangaId: "fixture").map(\.key) == ["chapter"])
     }
 
     private func commit(_ writer: LocalFileDataManager, fixture: TemporaryCoreDataStore, chapter: String) async throws {

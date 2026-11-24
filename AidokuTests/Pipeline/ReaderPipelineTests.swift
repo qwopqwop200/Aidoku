@@ -20,7 +20,7 @@ struct ReaderPipelineTests {
     }
 
     @Test func memoryCacheEvictsLeastRecentlyUsedWithinBudget() {
-        let image = PipelineSyntheticPages.make(index: 0, width: 100, height: 100)
+        let image = PipelineSyntheticPages.make(width: 100, height: 100)
         let cost = PipelinePageMemoryCache.cost(image)
         var cache = PipelinePageMemoryCache()
         cache.insert(image, for: "a", limit: cost * 2)
@@ -81,12 +81,9 @@ final class PipelineSentIDs: @unchecked Sendable {
 /// Synthetic manga-like pages drawn in code (never dataset images): white
 /// balloons with vertical Japanese lettering over a light tone background.
 enum PipelineSyntheticPages {
-    static let lines = [
-        ["今日はいい天気", "ですね"], ["明日も晴れると", "いいな"], ["テスト用の", "文字列です"],
-        ["どこへ行くの", "待って！"], ["本当に", "大丈夫？"], ["ありがとう", "ございます"]
-    ]
+    static let lines = [["本当に", "大丈夫？"], ["ありがとう", "ございます"], ["今日はいい天気", "ですね"]]
 
-    static func make(index: Int, width: Int = 1_200, height: Int = 1_700) -> CGImage {
+    static func make(width: Int = 1_200, height: Int = 1_700) -> CGImage {
         let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                 space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         context.setFillColor(CGColor(red: 0.86, green: 0.86, blue: 0.86, alpha: 1))
@@ -101,8 +98,7 @@ enum PipelineSyntheticPages {
             NSAttributedString.Key(kCTFontAttributeName as String): font,
             NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(red: 0, green: 0, blue: 0, alpha: 1)
         ]
-        let balloons = 3 + index % 2
-        for balloon in 0..<balloons {
+        for (balloon, text) in lines.enumerated() {
             let column = balloon % 2, row = balloon / 2
             let center = CGPoint(x: 330 + CGFloat(column) * 520, y: CGFloat(height) - 380 - CGFloat(row) * 820)
             let ellipse = CGRect(x: center.x - 170, y: center.y - 260, width: 340, height: 520)
@@ -110,7 +106,6 @@ enum PipelineSyntheticPages {
             context.fillEllipse(in: ellipse)
             context.setLineWidth(4)
             context.strokeEllipse(in: ellipse)
-            let text = lines[(index * 2 + balloon) % lines.count]
             // Vertical columns right to left, one glyph per 50 px.
             for (columnIndex, columnText) in text.enumerated() {
                 let x = center.x + 40 - CGFloat(columnIndex) * 70
@@ -127,11 +122,11 @@ enum PipelineSyntheticPages {
 
 /// Model-backed end-to-end check (AidokuFull: loads every pipeline model).
 struct ReaderPipelineAdmissionTests {
-    /// Visible demand joins a running look-ahead for the same key (one provider
-    /// call) and both receive the rendered page.
-    @Test func sameKeyCoalescesIntoOneProviderCall() async throws {
-        let calls = PipelineSentIDs()
-        let gate = PipelineGate()
+    private typealias PageTask = Task<ReaderTranslationPipelineService.PageOutput, Error>
+
+    /// Starts a look-ahead and a visible request for one key; both are joined once the provider call waits on `gate`.
+    private func joinedRequests(gate: PipelineGate, calls: PipelineSentIDs) async throws
+        -> (page: CGImage, lookahead: PageTask, visible: PageTask) {
         let service = ReaderTranslationPipelineService(
             translateBlocks: { blocks, _, _, _, _ in
                 calls.append([blocks.count])
@@ -140,14 +135,22 @@ struct ReaderPipelineAdmissionTests {
                 return blocks.map { var output = $0; output.translation = "번역"; return output }
             },
             diskCache: nil, observesMemoryWarnings: false)
-        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "PipelineCoalesce-\(UUID())")!)
+        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "PipelineAdmission-\(UUID())")!)
         settings.sourceLanguage = "auto"
         _ = try await service.residentModels()
-        let page = PipelineSyntheticPages.make(index: 2)
+        let page = PipelineSyntheticPages.make()
         let lookahead = Task { try await service.translatePage(page, cacheKey: "k", settings: settings, priority: .prefetch) }
         while await gate.waiters == 0 { try await Task.sleep(nanoseconds: 10_000_000) }
         let visible = Task { try await service.translatePage(page, cacheKey: "k", settings: settings) }
         while await service.consumerCount("k") < 2 { await Task.yield() }
+        return (page, lookahead, visible)
+    }
+
+    /// Visible demand joins a running look-ahead for the same key (one provider
+    /// call) and both receive the rendered page.
+    @Test func sameKeyCoalescesIntoOneProviderCall() async throws {
+        let gate = PipelineGate(), calls = PipelineSentIDs()
+        let (page, lookahead, visible) = try await joinedRequests(gate: gate, calls: calls)
         await gate.open()
         let first = try await lookahead.value
         let second = try await visible.value
@@ -159,20 +162,7 @@ struct ReaderPipelineAdmissionTests {
     /// A cancelled joiner returns at once; the shared page keeps running for the other consumer.
     @Test func cancelledJoinerReturnsWithoutStoppingTheSharedPage() async throws {
         let gate = PipelineGate()
-        let service = ReaderTranslationPipelineService(
-            translateBlocks: { blocks, _, _, _, _ in
-                await gate.wait()
-                return blocks.map { var output = $0; output.translation = "번역"; return output }
-            },
-            diskCache: nil, observesMemoryWarnings: false)
-        var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "PipelineCancel-\(UUID())")!)
-        settings.sourceLanguage = "auto"
-        _ = try await service.residentModels()
-        let page = PipelineSyntheticPages.make(index: 2)
-        let lookahead = Task { try await service.translatePage(page, cacheKey: "k", settings: settings, priority: .prefetch) }
-        while await gate.waiters == 0 { try await Task.sleep(nanoseconds: 10_000_000) }
-        let visible = Task { try await service.translatePage(page, cacheKey: "k", settings: settings) }
-        while await service.consumerCount("k") < 2 { await Task.yield() }
+        let (page, lookahead, visible) = try await joinedRequests(gate: gate, calls: PipelineSentIDs())
         visible.cancel()
         await #expect(throws: CancellationError.self) { try await visible.value }
         await gate.open()
