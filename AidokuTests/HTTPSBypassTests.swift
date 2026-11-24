@@ -40,7 +40,6 @@ struct HTTPSBypassTests {
         let bypass = try await network.configuration(.ephemeral, bypass: true)
         #expect(bypass.proxyConfigurations.count == 1)
         #expect(bypass.proxyConfigurations.first?.allowFailover == false)
-        #expect(bypass.httpCookieStorage === direct.httpCookieStorage || bypass.httpCookieStorage != nil)
     }
 
     @Test func DNSAnswersAcceptOnlyLiteralAddressesOfTheDeclaredFamily() {

@@ -21,12 +21,10 @@ struct BuiltInServerSourceTests {
         defer { session.invalidateAndCancel() }
         let (data, _) = try await NativeSourceNetwork.limitedData(for: StreamedBodyProtocol.request(bytes: 4096), session: session, maximum: 4096)
         #expect(data.count == 4096)
-        do {
-            _ = try await NativeSourceNetwork.limitedData(for: StreamedBodyProtocol.request(bytes: 4097), session: session, maximum: 4096)
-            Issue.record("Expected an oversize body to be rejected")
-        } catch let error as URLError {
-            #expect(error.code == .dataLengthExceedsMaximum)
+        let error = await #expect(throws: URLError.self) {
+            try await NativeSourceNetwork.limitedData(for: StreamedBodyProtocol.request(bytes: 4097), session: session, maximum: 4096)
         }
+        #expect(error?.code == .dataLengthExceedsMaximum)
     }
 
     @Test(arguments: [Int.min, Int.max])

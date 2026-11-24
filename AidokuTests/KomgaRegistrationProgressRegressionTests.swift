@@ -5,13 +5,13 @@ import XCTest
 /// Replay-only regression: no real tracker account/network, unique defaults restored.
 final class KomgaRegistrationProgressRegressionTests: XCTestCase {
     func testRegistrationDoesNotMoveRemoteChapterProgressBackwards() async throws {
-        try await verify(useChapters: true, remote: 10, local: 5, expectedUpdate: nil)
+        try await verify(remote: 10, local: 5, expectedUpdate: nil)
     }
     func testRegistrationPreservesValidForwardUpdatePayload() async throws {
-        try await verify(useChapters: true, remote: 2, local: 5, expectedUpdate: 5)
+        try await verify(remote: 2, local: 5, expectedUpdate: 5)
     }
 
-    private func verify(useChapters: Bool, remote: Int, local: Float, expectedUpdate: Int?) async throws {
+    private func verify(remote: Int, local: Float, expectedUpdate: Int?) async throws {
         XCTAssertTrue(URLProtocol.registerClass(KomgaRegistrationReplay.self))
         defer { URLProtocol.unregisterClass(KomgaRegistrationReplay.self) }
         let source = "round2-komga-" + UUID().uuidString
@@ -23,7 +23,7 @@ final class KomgaRegistrationProgressRegressionTests: XCTestCase {
         UserDefaults.standard.set("https://komga-registration-round2.invalid/\(remote)/\(expected)/", forKey: "\(source).server")
         UserDefaults.standard.set("fixture", forKey: "\(source).login.username")
         UserDefaults.standard.set("fixture", forKey: "\(source).login.password")
-        UserDefaults.standard.set(useChapters, forKey: "\(source).useChapters")
+        UserDefaults.standard.set(true, forKey: "\(source).useChapters")
         // Unexpected PUT receives HTTP409 so the production API throws and this test fails.
         _ = try await KomgaTracker().register(trackId: source + "|1", highestChapterRead: local, earliestReadDate: nil)
         XCTAssertEqual(KomgaRegistrationReplay.counts.value(), expectedUpdate == nil ? 0 : 1)
@@ -34,9 +34,9 @@ private final class KomgaRegistrationReplay: URLProtocol {
     final class Counts: @unchecked Sendable {
         private let lock = NSLock()
         private var puts = 0
-        func reset() { lock.lock(); defer { lock.unlock() }; puts = 0 }
-        func increment() { lock.lock(); defer { lock.unlock() }; puts += 1 }
-        func value() -> Int { lock.lock(); defer { lock.unlock() }; return puts }
+        func reset() { lock.withLock { puts = 0 } }
+        func increment() { lock.withLock { puts += 1 } }
+        func value() -> Int { lock.withLock { puts } }
     }
     static let counts = Counts()
     override class func canInit(with request: URLRequest) -> Bool {

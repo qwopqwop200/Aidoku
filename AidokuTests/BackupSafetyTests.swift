@@ -52,9 +52,10 @@ struct BackupSafetyTests {
     }
 
     @Test func cancelledBackupDoesNotReplaceAnExistingFile() async throws {
-        let files = TemporaryBackupStore()
-        try FileManager.default.createDirectory(at: files.directory, withIntermediateDirectories: true)
-        let url = files.directory.appendingPathComponent("existing.aib")
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("existing.aib")
         let original = try PropertyListEncoder().encode(backup())
         try original.write(to: url)
         var changed = backup()
@@ -135,9 +136,4 @@ struct BackupSafetyTests {
         #expect(BackupManager.autoBackupInterval(for: "6hours") == 21_600)
         #expect(BackupManager.autoBackupInterval(for: "weekly") == 604_800)
     }
-}
-
-private final class TemporaryBackupStore {
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    deinit { try? FileManager.default.removeItem(at: directory) }
 }
