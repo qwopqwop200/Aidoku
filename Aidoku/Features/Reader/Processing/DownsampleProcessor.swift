@@ -59,8 +59,7 @@ struct DownsampleProcessor: ImageProcessing {
 }
 
 extension DownsampleProcessor {
-    /// Decode-time counterpart of `init(width:)`, so the full-resolution bitmap is never
-    /// allocated. Only use it when no earlier processor needs full pixels.
+    /// Decode-time `init(width:)`; only valid when no earlier processor needs full pixels.
     static func decodeThumbnail(width: CGFloat) -> ImageRequest.ThumbnailOptions? {
         guard width.isFinite, width > 0 else { return nil }
         return ImageRequest.ThumbnailOptions(

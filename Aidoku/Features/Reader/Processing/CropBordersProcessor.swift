@@ -40,8 +40,7 @@ struct CropBordersProcessor: ImageProcessing {
         let width = cgImage.width
         let heightFloat = CGFloat(height)
         let widthFloat = CGFloat(width)
-        // Native resolution preserves one-pixel strokes without a full-page RGBA
-        // allocation. At most 128 scanlines are decoded into scratch storage.
+        // Decode at most 128 scanlines at a time instead of a full-page RGBA bitmap.
         let stripHeight = min(128, height)
 
         guard
