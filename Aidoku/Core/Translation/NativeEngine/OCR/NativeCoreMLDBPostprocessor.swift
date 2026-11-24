@@ -26,9 +26,8 @@ struct NativeCoreMLDBPostprocessConfiguration: Equatable, Sendable {
 enum NativeCoreMLDBPostprocessor {
     private static let minimumBoxSide = 3.0
 
-    /// 1 for finite values strictly above `threshold`, otherwise 0. The cutoff
-    /// is the largest Float not above `threshold`, so `value > cutoff` is
-    /// exactly `Double(value) > threshold`.
+    /// 1 for finite values above `threshold`; the cutoff is the largest Float not above it,
+    /// so `value > cutoff` is exactly `Double(value) > threshold`.
     private static func foregroundState(values: [Float], threshold: Double) -> [UInt8] {
         let rounded = Float(threshold)
         let cutoff = Double(rounded) > threshold ? rounded.nextDown : rounded
@@ -60,8 +59,7 @@ enum NativeCoreMLDBPostprocessor {
         // 0 = background, 1 = unvisited foreground, 2 = visited foreground.
         var state = foregroundState(values: map.values, threshold: configuration.threshold)
 
-        // Queue horizontal runs, not pixels; scanning adjacent rows one pixel
-        // past each run's ends preserves exact 8-connectivity.
+        // Queue horizontal runs; scanning adjacent rows one pixel past each end keeps 8-connectivity.
         var queue: [ForegroundSpan] = []
         queue.reserveCapacity(256)
         // The convex hull of raster pixels only needs each row's extreme pixels.
@@ -123,8 +121,7 @@ enum NativeCoreMLDBPostprocessor {
                     }
                 }
 
-                // OpenCV's CHAIN_APPROX_SIMPLE contours with fewer than four
-                // points are discarded by PaddleOCR.js.
+                // PaddleOCR.js discards contours with fewer than four points.
                 guard componentPixelCount >= 4 else {
                     resetRowExtrema(touchedRows, minimumX: &rowMinimumX, maximumX: &rowMaximumX, emptyMinimum: map.width)
                     continue
@@ -325,8 +322,7 @@ enum NativeCoreMLDBPostprocessor {
         let maximumX = max(0, min(map.width - 1, Int(ceil(polygon.map(\.x).max() ?? 0))))
         let minimumY = max(0, min(map.height - 1, Int(floor(polygon.map(\.y).min() ?? 0))))
         let maximumY = max(0, min(map.height - 1, Int(ceil(polygon.map(\.y).max() ?? 0))))
-        // Fast-score contract: vertices are truncated to integers before
-        // rasterization; the convex rectangle has one inclusive span per row.
+        // Fast score: vertices truncated to integers; one inclusive span per row.
         let rasterPolygon = polygon.map { CGPoint(x: Int($0.x), y: Int($0.y)) }
         var sum = 0.0
         var count = 0
