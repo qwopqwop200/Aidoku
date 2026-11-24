@@ -2,9 +2,8 @@ import CoreGraphics
 import CoreText
 import Foundation
 
-// S9: per block, binary-search the largest size whose wrapped text fits
-// the balloon interior (else the block bounds plus a margin); below the floor the box grows, then
-// the text may overflow it (clamped to the page). Words are shaped once, so fit probes are arithmetic.
+// S9: per block, the largest size whose wrapped text fits the balloon interior (else the block bounds
+// plus a margin); below the floor the box grows, then the text may overflow it (clamped to the page).
 enum PipelineLayout {
     /// Smallest size the fit search may choose before the box is allowed to grow.
     static let floorPixels: CGFloat = 10
@@ -24,8 +23,7 @@ enum PipelineLayout {
     static let widthSlack: CGFloat = 0.97
     /// Smallest whole-word size, relative to the split-word size, that is preferred over splitting.
     static let wholeWordRatio: CGFloat = 0.85
-    /// Horizontal scale of a condensed fit (whole words narrowed rather than split); 0.85 beat 0.9
-    /// on every fold (compare.py +23, test +7; 0.8 +19, 0.875 +7, 0.95 -62).
+    /// Horizontal scale of a condensed fit (whole words narrowed rather than split).
     static let condenseScale: CGFloat = 0.85
     /// Tilted text keeps the source tilt down to this share of its upright size.
     static let rotationSizeRatio: CGFloat = 0.9
@@ -127,7 +125,7 @@ enum PipelineLayout {
             }
         }
         for cluster in Dictionary(grouping: blocks.indices, by: root).values.sorted(by: { $0[0] < $1[0] }) {
-                let group = cluster.filter { placed[$0].angle == nil }
+            let group = cluster.filter { placed[$0].angle == nil }
             guard group.count >= 2 else { continue }
             let lefts = group.map { blocks[$0].bounds.minX }, tops = group.map { blocks[$0].bounds.minY }
             let top = lefts.max()! - lefts.min()! >= tops.max()! - tops.min()!
@@ -178,8 +176,7 @@ enum PipelineLayout {
 
     static let referenceSize: CGFloat = 100
 
-    /// The legacy overlay face: Apple SD Gothic Neo Medium; bold lettering takes the Heavy weight so the
-    /// emphasis reads clearly against Medium (Bold was barely distinguishable).
+    /// Apple SD Gothic Neo Medium; bold lettering takes Heavy (Bold barely differs from Medium).
     static func font(size: CGFloat, bold: Bool = false) -> CTFont {
         CTFontCreateWithName((bold ? "AppleSDGothicNeo-Heavy" : "AppleSDGothicNeo-Medium") as CFString, size, nil)
     }
@@ -422,7 +419,6 @@ enum PipelineLayout {
                         continue
                     }
                     // Korean phrase coupling: carry the previous word down when the pair fits a line.
-                    // `word.couplesPrevious` is couples(previous.text, word.text) (`last` is the paragraph's previous word).
                     if strict, word.couplesPrevious, let previous = last, current != previous.text,
                        current.hasSuffix(" " + previous.text), previous.width + spaceWidth + word.width <= limit(lines.count + 1) {
                         current = lastStart
@@ -497,7 +493,7 @@ enum PipelineLayout {
         /// Text block extent, excluding stroke.
         var extent: CGSize
         var vertical: Bool
-        /// Measured with the 0.9 horizontal condense.
+        /// Measured with the `condenseScale` horizontal condense.
         var condensed = false
     }
 
@@ -588,7 +584,7 @@ enum PipelineLayout {
     /// long-vowel mark after Hangul becomes a tilde and a stray sokuon is dropped; newlines stay.
     static func displayText(_ text: String) -> String {
         guard text.unicodeScalars.contains(where: { $0.value >= 0x80 || $0 == "<" || $0 == "|" }) else { return text }
-        // Each pattern runs only when its required character is present (a pattern that cannot match is a no-op).
+        // Each pattern runs only when its required character is present.
         func has(_ unit: UInt8, _ string: String) -> Bool { string.utf8.contains(unit) }
         var result = has(0x3C, text)
             ? text.replacingOccurrences(of: "<br\\s*/?>", with: " ", options: [.regularExpression, .caseInsensitive]) : text
@@ -613,7 +609,7 @@ enum PipelineLayout {
                 result = result.replacingOccurrences(of: "[っッ]", with: "", options: .regularExpression)
             }
         }
-        // Two adjacent spaces or tabs (UTF-8 bytes 0x20 / 0x09) are needed for a match.
+        // The collapse needs two adjacent spaces or tabs.
         var blank = false, run = false
         for unit in result.utf8 {
             let space = unit == 0x20 || unit == 0x09
@@ -667,7 +663,7 @@ enum PipelineLayout {
                    let unsplit = largestFit(text, box: inner, vertical: false, minimum: floorPixels, maximum: whole) {
                     horizontal = unsplit
                 } else if whole < horizontal.size, whole / condenseScale >= max(floorPixels, horizontal.size * wholeWordRatio) {
-                    // Before splitting: the same words narrowed to 0.9 width.
+                    // Before splitting: the same words narrowed.
                     let narrow = text.condensed(by: condenseScale)
                     if var unsplit = largestFit(narrow, box: inner, vertical: false, minimum: floorPixels,
                                                 maximum: min(horizontal.size, whole / condenseScale)) {
