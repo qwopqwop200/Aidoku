@@ -17,14 +17,6 @@ enum PipelineCohort {
     static let steps: [CGFloat] = [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65]
     static let minimumPixels: CGFloat = 12
 
-    struct Key: Hashable {
-        var vertical: Bool
-    }
-
-    static func key(_ block: PipelineBlock) -> Key {
-        Key(vertical: block.vertical)
-    }
-
     struct Plan {
         /// Snapped source px per block.
         var sources: [CGFloat]
@@ -36,10 +28,10 @@ enum PipelineCohort {
 
     static func plan(_ blocks: [PipelineBlock], sources raw: [CGFloat], capRatio: (PipelineBlock) -> CGFloat, floor: CGFloat) -> Plan {
         var sources = raw
-        let keys = blocks.map(key)
+        let keys = blocks.map(\.vertical)
         var cohorts: [[Int]] = []
         let byKey = Dictionary(grouping: blocks.indices, by: { keys[$0] })
-        for key in byKey.keys.sorted(by: { "\($0)" < "\($1)" }) {
+        for key in byKey.keys.sorted { !$0 && $1 } {
             let members = byKey[key]!.sorted { (raw[$0], $0) < (raw[$1], $1) }
             for band in chains(members, values: raw, ratio: snapRatio) where band.count >= 2 {
                 let median = median(band.map { raw[$0] })
