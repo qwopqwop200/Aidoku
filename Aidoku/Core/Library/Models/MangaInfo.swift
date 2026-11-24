@@ -19,8 +19,7 @@ struct MangaInfo: Hashable, Sendable {
     var unread: Int = 0
     var downloads: Int = 0
 
-    // Badge counts stay out of identity so a count change updates the library cell in place instead of
-    // a diffable delete+insert that rebuilds the cell and reloads its cover.
+    // Badge counts stay out of identity, so a count change updates the cell in place (no cover reload).
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.id == rhs.id && lhs.coverUrl == rhs.coverUrl && lhs.title == rhs.title && lhs.author == rhs.author && lhs.url == rhs.url
     }
