@@ -2,9 +2,8 @@ import CoreGraphics
 @preconcurrency import CoreML
 import Foundation
 
-// S3: PP-OCRv6 manga line recognition. One `MLModel` handle serializes predictions, so a
-// resident pool of handles predicts exact-width crops longest-first in parallel. Every step
-// after the padded crop (tensor, compact top-k, n-gram CTC decode, 0.30 gate) matches legacy.
+// S3: PP-OCRv6 manga line recognition on a pool of resident handles (one handle serializes its
+// predictions), exact-width crops longest-first. Steps after the padded crop match legacy.
 
 /// Resident recognizer state. `PipelineModels` owns one instance for the process.
 @available(iOS 18.0, *)
@@ -134,14 +133,10 @@ final class PipelineRecognitionEngine: @unchecked Sendable {
     /// `rank` (lower first, read when a handle frees) orders pages that wait for a handle.
     func withHandle<T>(rank: @escaping @Sendable () -> Int = { 0 }, _ body: (MLModel) async throws -> T) async throws -> T {
         let model = await pool.acquire(rank: rank)
-        do {
-            let value = try await body(model)
-            await pool.release(model)
-            return value
-        } catch {
-            await pool.release(model)
-            throw error
-        }
+        let result: Result<T, Error>
+        do { result = .success(try await body(model)) } catch { result = .failure(error) }
+        await pool.release(model)
+        return try result.get()
     }
 
     /// Same format and rules as the legacy dictionary resource parser: one
@@ -232,9 +227,8 @@ final class PipelineRecognitionEngine: @unchecked Sendable {
 }
 
 /// Exclusive handle checkout shared by concurrent pages: a freed handle goes to the best-ranked
-/// waiter, FIFO within a rank. `shrink` (idle or memory pressure) keeps one handle: free extras
-/// go at once, checked-out ones when they come back. The next checkout regrows the pool to its
-/// capacity in the background (one load per missing handle) while pages run on what stayed.
+/// waiter, FIFO within a rank. `shrink` (idle or memory pressure) keeps one handle; the next
+/// checkout regrows the pool to capacity in the background while pages run on what stayed.
 actor PipelineHandlePool<Element: AnyObject> {
     let capacity: Int
     private var free: [Element]
