@@ -61,13 +61,6 @@ class LocalizationValidationTests(unittest.TestCase):
             self.assertTrue(any('untranslated English' in issue for issue in errors))
             self.assertTrue(any('missing table' in issue for issue in errors))
 
-    def test_missing_table_fails(self):
-        with TemporaryDirectory() as directory:
-            root = Path(directory)
-            with patch.object(validator, 'ROOT', root):
-                _, errors = validator.parse(root / 'missing.strings')
-            self.assertTrue(any('missing table' in issue for issue in errors))
-
 
 if __name__ == '__main__':
     unittest.main()

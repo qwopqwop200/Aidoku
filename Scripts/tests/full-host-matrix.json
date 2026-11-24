@@ -1,76 +1,24 @@
 {
   "schemaVersion": 1,
   "commands": [
-    {
-      "name": "native-host: compact CTC first-emission decode and n-gram correction",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-ctc-collapse-contract.py"
-      ]
-    },
-    {
-      "name": "maintained-host: -m unittest discover -s Scripts -v",
-      "command": [
-        "$PYTHON",
-        "-m",
-        "unittest",
-        "discover",
-        "-s",
-        "Scripts",
-        "-v"
-      ]
-    },
-    {
-      "name": "maintained-host: Scripts/validate_localizations.py",
-      "command": [
-        "$PYTHON",
-        "Scripts/validate_localizations.py"
-      ]
-    },
-    {
-      "name": "maintained-host: pipeline host .env/shell/CLI settings resolution and phone import",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-image-environment-smoke.py"
-      ]
-    },
-    {
-      "name": "maintained-host: pipeline host OCR-only, live mock provider, replay, ordering and credential exclusion",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-image-translation-smoke.py"
-      ]
-    },
-    {
-      "name": "native-host: run-blocking-priority-regression",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-blocking-priority-regression.py"
-      ]
-    },
-    {
-      "name": "native-host: NativeCoreMLDetector input padding and fill contract",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-detector-padding-smoke.py"
-      ]
-    },
-    {
-      "name": "native-host: translation codec source/ID fidelity and mocked recovery helper (local mock, no network)",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-translation-source-fidelity-smoke.py"
-      ]
-    },
-    {
-      "name": "native-host: excluded narration/menu sources retain ownership in language filter",
-      "command": [
-        "$PYTHON",
-        "Scripts/tests/run-excluded-source-preservation-smoke.py"
-      ]
-    }
+    {"name": "native-host: compact CTC first-emission decode and n-gram correction",
+     "command": ["$PYTHON", "Scripts/tests/run-ctc-collapse-contract.py"]},
+    {"name": "maintained-host: -m unittest discover -s Scripts -v",
+     "command": ["$PYTHON", "-m", "unittest", "discover", "-s", "Scripts", "-v"]},
+    {"name": "maintained-host: Scripts/validate_localizations.py",
+     "command": ["$PYTHON", "Scripts/validate_localizations.py"]},
+    {"name": "maintained-host: pipeline host .env/shell/CLI settings resolution and phone import",
+     "command": ["$PYTHON", "Scripts/tests/run-image-environment-smoke.py"]},
+    {"name": "maintained-host: pipeline host OCR-only, live mock provider, replay, ordering and credential exclusion",
+     "command": ["$PYTHON", "Scripts/tests/run-image-translation-smoke.py"]},
+    {"name": "native-host: run-blocking-priority-regression",
+     "command": ["$PYTHON", "Scripts/tests/run-blocking-priority-regression.py"]},
+    {"name": "native-host: NativeCoreMLDetector input padding and fill contract",
+     "command": ["$PYTHON", "Scripts/tests/run-detector-padding-smoke.py"]},
+    {"name": "native-host: translation codec source/ID fidelity and mocked recovery helper (local mock, no network)",
+     "command": ["$PYTHON", "Scripts/tests/run-translation-source-fidelity-smoke.py"]},
+    {"name": "native-host: excluded narration/menu sources retain ownership in language filter",
+     "command": ["$PYTHON", "Scripts/tests/run-excluded-source-preservation-smoke.py"]}
   ],
-  "notes": [
-    "Host tooling and pipeline host checks, plus OCR/translation contracts over files the pipeline compiles."
-  ]
+  "notes": ["Host tooling and pipeline host checks, plus OCR/translation contracts over files the pipeline compiles."]
 }

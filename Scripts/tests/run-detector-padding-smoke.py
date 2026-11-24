@@ -1,10 +1,8 @@
 """Exercise the actual production fill kernel without CoreML or app compilation."""
-import hashlib
 import json
 from pathlib import Path
 import subprocess
 import tempfile
-import time
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "Aidoku/Core/Translation/NativeEngine/OCR/NativeCoreMLDetector.swift"
@@ -25,15 +23,10 @@ with tempfile.TemporaryDirectory(prefix="aidoku-detector-padding-") as temporary
     extracted = folder / "ProductionFill.swift"
     extracted.write_text(prefix + kernel + "}\n")
     executable = folder / "padding-smoke"
-    started = time.monotonic()
     subprocess.run(["xcrun", "swiftc", "-O", "-module-cache-path", str(folder / "modules"),
                     str(extracted), str(Path(__file__).with_name("NativeDetectorPaddingSmoke.swift")),
                     "-o", str(executable)], check=True)
-    build_seconds = time.monotonic() - started
-    started = time.monotonic()
     completed = subprocess.run([str(executable)], capture_output=True, text=True, check=True)
     result = json.loads(completed.stdout)
     assert result["passed"] and result["cases"] == 10
-    result.update(sourceSHA256=hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
-                  buildSeconds=build_seconds, testSeconds=time.monotonic() - started)
-    print(json.dumps(result, indent=2))
+    print(completed.stdout, end="")

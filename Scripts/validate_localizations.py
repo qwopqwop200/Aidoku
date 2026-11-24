@@ -16,8 +16,8 @@ TOKEN = re.compile(r'\s+|//[^\n]*|/\*[\s\S]*?\*/|"((?:\\.|[^"\\])*)"\s*=\s*"((?:
 FORMAT = re.compile(r'%(?:(\d+)\$)?[-+#0 ]*(?:\d+|\*)?(?:\.(?:\d+|\*))?(hh|ll|[hljztL])?([@diuoxXfFeEgGaAcCsSp%])')
 SETTING_REFERENCE = re.compile(r'(?:title|footer|subtitle|placeholder):\s*"([A-Z][A-Z_0-9]+)"|SourceError\.message\("([A-Z][A-Z_0-9]+)"')
 REFERENCE = re.compile(r'(?:NSLocalizedString\s*\(\s*|String\s*\(\s*localized:\s*)"([^"\\]+)"')
-# Upstream strings of the disabled (hidden) upscaling feature. Upstream never translated
-# them everywhere; a missing translation falls back to English as it does upstream.
+
+
 def parse(path):
     errors = []
     values = {}
