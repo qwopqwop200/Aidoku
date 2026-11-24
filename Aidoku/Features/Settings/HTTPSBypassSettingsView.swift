@@ -24,9 +24,7 @@ struct HTTPSBypassSettingsView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
-                Button {
-                    check()
-                } label: {
+                Button(action: check) {
                     HStack {
                         Text(NSLocalizedString("HTTPS_BYPASS_TEST"))
                         Spacer()

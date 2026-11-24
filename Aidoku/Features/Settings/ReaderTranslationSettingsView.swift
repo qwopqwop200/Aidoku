@@ -34,12 +34,12 @@ struct ReaderTranslationSettingsView: View {
             publishPendingChange()
             connectionTest.reset()
         }
-        // Each provider change re-checks the connection once editing pauses.
+        // Re-check the connection once provider editing pauses.
         .onChange(of: settings.configuration) { _ in scheduleConnectionCheck() }
         .onChange(of: settings.sourceLanguage) { _ in connectionTest.reset() }
         .onChange(of: settings.targetLanguage) { _ in connectionTest.reset() }
         .onChange(of: apiKey) { _ in connectionTest.reset() }
-        // Like Aidoku text settings, save the key when the field loses focus.
+        // Save the key when the field loses focus.
         .onChange(of: keyFocused) { focused in
             guard !focused else { return }
             let typed = !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -66,8 +66,6 @@ struct ReaderTranslationSettingsView: View {
         ("TRANSLATION_SHORT_SOURCE_LABELS", \.translateSourceLabels, "translation.sourceLabels"),
     ]
 
-    /// Everything that gets translated, then the language it is translated into: pages first,
-    /// then metadata (titles, names, tags, descriptions and source menus, in any source language).
     private var translateSection: some View {
         Section {
             Toggle(NSLocalizedString("TRANSLATION_AUTOMATIC"), isOn: persistedSettings.translatePages)
@@ -91,7 +89,7 @@ struct ReaderTranslationSettingsView: View {
 
     private var concurrencyChoices: [Int] { Array(1...PipelinePerformanceProfile.current.providerConcurrencyCap) }
 
-    // Shows the effective value; larger saved values are capped by the device anyway.
+    // Show the effective value; the device caps larger saved values.
     private var concurrency: Binding<Int> {
         Binding(get: { min(settings.maximumConcurrentRequests, concurrencyChoices.last ?? 1) },
                 set: { persistedSettings.wrappedValue.maximumConcurrentRequests = $0 })
@@ -110,7 +108,6 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    /// Aidoku text row: title on the left, value field right-aligned in the secondary color.
     private func textRow(_ key: String, text: Binding<String>, placeholder: String, id: String, url: Bool = false) -> some View {
         HStack {
             Text(NSLocalizedString(key)).lineLimit(1)
@@ -160,8 +157,6 @@ struct ReaderTranslationSettingsView: View {
         }
     }
 
-    @ViewBuilder
-    // Request tuning sits in its own section right below the provider it belongs to.
     private var requestSection: some View {
         Section {
             Picker(NSLocalizedString("TRANSLATION_API_FORMAT"), selection: persistedSettings.custom.apiProtocol) {
@@ -191,7 +186,7 @@ struct ReaderTranslationSettingsView: View {
             HStack {
                 Text(NSLocalizedString("TRANSLATION_KEY")).lineLimit(1)
                 Spacer()
-                SecureField(hasKey ? NSLocalizedString("TRANSLATION_KEY_SAVED") : (settings.provider == .openAI ? "sk-…" : ""), text: persistedAPIKey)
+                SecureField(hasKey ? NSLocalizedString("TRANSLATION_KEY_SAVED") : (settings.provider == .openAI ? "sk-…" : ""), text: $apiKey)
                     .foregroundStyle(Color.secondaryLabel)
                     .multilineTextAlignment(.trailing)
                     .textContentType(.password)
@@ -201,7 +196,6 @@ struct ReaderTranslationSettingsView: View {
                     .onSubmit(saveKey)
                     .accessibilityIdentifier("translation.apiKey")
             }
-            // Typing a new key replaces the saved one; swipe the row to delete it.
             .swipeActions {
                 if hasKey {
                     Button(NSLocalizedString("TRANSLATION_KEY_DELETE"), role: .destructive, action: deleteKey)
@@ -215,7 +209,6 @@ struct ReaderTranslationSettingsView: View {
 
     @ViewBuilder
     private var connectionTestRows: some View {
-        // The section's only action keeps the accent colour; the trailing icon carries the result.
         Button(action: testConnection) {
             HStack {
                 Text(NSLocalizedString(connectionTest.state == .running ? "TRANSLATION_TEST_RUNNING" : "TRANSLATION_TEST"))
@@ -261,8 +254,7 @@ struct ReaderTranslationSettingsView: View {
         connectionTest.start(settings: testedSettings, apiKey: "")
     }
 
-    // Persist in the binding setter, including edits made in pushed filter views.
-    // Clear the key field synchronously when switching its server account.
+    // Persist in the setter; switching the credential account clears the key field.
     private var persistedSettings: Binding<ReaderTranslationSettings> {
         Binding(get: { settings }, set: { value in
             let accountChanged = settings.selectedCredentialAccount != value.selectedCredentialAccount
@@ -275,10 +267,6 @@ struct ReaderTranslationSettingsView: View {
         })
     }
 
-    private var persistedAPIKey: Binding<String> {
-        Binding(get: { apiKey }, set: { apiKey = $0 })
-    }
-
     private func saveKey() {
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         autosave(apiKey: apiKey)
@@ -289,7 +277,7 @@ struct ReaderTranslationSettingsView: View {
             try settings.autosave(apiKey: apiKey)
             settings.credentialGeneration = ReaderTranslationSettings().credentialGeneration
             if !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { hasKey = true }
-            // Preferences are already durable; only debounce expensive reader/API updates.
+            // Settings are saved already; only debounce the reader/API update.
             pendingChange?.cancel()
             pendingChange = Task { @MainActor in
                 do { try await Task.sleep(nanoseconds: 600_000_000) } catch { return }
@@ -321,5 +309,3 @@ struct ReaderTranslationSettingsView: View {
         } catch { message = error.localizedDescription }
     }
 }
-
-

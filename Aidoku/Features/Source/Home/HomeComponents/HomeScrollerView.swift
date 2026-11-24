@@ -272,9 +272,6 @@ extension HomeComponent.Value.Link {
     }
 
     var subtitleTranslationKind: TitleTranslationKind {
-        if case .manga = value {
-            return .description
-        }
-        return .sourceLabel
+        manga != nil ? .description : .sourceLabel
     }
 }
