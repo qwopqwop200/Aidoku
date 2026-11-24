@@ -30,9 +30,7 @@ enum PipelineRoleFilter {
         let text = block.sourceText
         let letters = text.filter { $0.isLetter || $0.isNumber }.count
         if block.role == .sfx, letters < sfxSpeechLetters, !text.contains(where: "「」『』".contains) { return true }
-        // Short Latin text the LLM itself calls speech is painted (830 live pages, current prompt: 6 speech
-        // painted for 2 non-speech; held-out dev+test 3 for 1).
-        // Digits alone (page numbers) stay source whatever the role.
+        // Short Latin text the LLM calls speech is painted; digits alone (page numbers) stay source.
         if block.role == .dialogue || block.role == .narration, text.contains(where: \.isLetter) { return false }
         return (1...latinLetters).contains(letters) && !text.unicodeScalars.contains {
             PipelineReplyText.isKana($0) || (0x3400...0x9FFF).contains($0.value)
@@ -41,8 +39,7 @@ enum PipelineRoleFilter {
 
     /// Speech rescue (fit on train folds against GT text regions): short text the LLM called SFX is
     /// still speech when RF-DETR sees it inside a balloon (score x coverage >= `rescueBalloon`) and
-    /// not inside an SFX region (score x coverage < `rescueSFX`). Train folds: 15 of 21 such speech
-    /// blocks painted, 1 of 441 SFX wrongly painted; held-out dev+test 3 rescued, 1 wrong.
+    /// not inside an SFX region (score x coverage < `rescueSFX`).
     static var rescueBalloon: CGFloat { PipelineTuning.current.roleRescueBalloon }
     static var rescueSFX: CGFloat { PipelineTuning.current.roleRescueSFX }
 

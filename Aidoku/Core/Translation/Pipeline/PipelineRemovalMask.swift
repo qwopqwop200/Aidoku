@@ -440,20 +440,6 @@ enum PipelineRemovalMask {
         }
     }
 
-    /// Gathered values; `orderMedian` / `orderPercentile` are exact order statistics of them by selection.
-    static func gathered(_ plane: UnsafePointer<Float>, at indices: [Int]) -> [Float] {
-        [Float](unsafeUninitializedCapacity: indices.count) { buffer, count in
-            for (k, i) in indices.enumerated() { buffer[k] = plane[i] }
-            count = indices.count
-        }
-    }
-
-    static func orderMedian(_ plane: UnsafePointer<Float>, at indices: [Int]) -> Float {
-        guard !indices.isEmpty else { return 0 }
-        var values = gathered(plane, at: indices)
-        return median(of: &values)
-    }
-
     /// Exact median of `values` by selection (reorders them).
     static func median(of values: inout [Float]) -> Float {
         guard !values.isEmpty else { return 0 }

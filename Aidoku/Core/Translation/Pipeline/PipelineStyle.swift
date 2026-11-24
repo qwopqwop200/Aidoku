@@ -1,11 +1,10 @@
 import CoreGraphics
 import Foundation
 
-// S8: model-free style per block on a bounded crop. Font px is a geometric
-// rule with grouping, times a learned per-group correction (PipelineFontCorrection); the fill is the k-means colour candidate that TRAIN-fit boosted trees
-// (PipelineStyleParameters; pass 2 is a LightGBM ranker, `port-eval/colorfix/train_fill_lgb.py`) pick, then a
-// second ranker keeps it or moves to a density peak of the line pixels (`train_peaks.py`; thin ink);
-// the outline comes from colour rings around the fill mask.
+// S8: style per block on a bounded crop. Font px: a geometric rule with grouping times a learned per-group
+// correction (PipelineFontCorrection). Fill: the k-means colour candidate picked by TRAIN-fit trees
+// (PipelineStyleParameters), then kept or moved to a density peak of the line pixels (thin ink).
+// Outline: colour rings around the fill mask.
 
 extension PipelineStyle {
     /// Fills `style` on every block; blocks keep order and all other fields.
@@ -1017,7 +1016,7 @@ enum PipelineStyleEstimator {
     static let peakCount = 8
     static let peakSamples = 20_000
 
-    /// CIE Lab of an sRGB colour (D65), as `PipelineStyleConsistency.lab`.
+    /// CIE Lab of an sRGB colour (D65).
     static func lab(_ c: [Double]) -> [Double] {
         func linear(_ v: Double) -> Double {
             let c = v / 255
@@ -1225,10 +1224,6 @@ extension PipelineStyleEstimator {
     }
 
     /// Fill-candidate features (order matches model.py cand_x + twin).
-    static func candidateFeatures(_ f: PipelineStyleFeatures, _ j: Int, consensus: [Double]?) -> [Double] {
-        candidateFeatures(f, j, consensus: consensus, context: CandidateContext(f))
-    }
-
     static func candidateFeatures(_ f: PipelineStyleFeatures, _ j: Int, consensus: [Double]?,
                                   context: CandidateContext) -> [Double] {
         let cl = f.clusters, c = cl[j], font = f.font
@@ -1274,11 +1269,7 @@ extension PipelineStyleEstimator {
         return x
     }
 
-    static func pickFill(_ f: PipelineStyleFeatures, forest: PipelineStyleForest, consensus: [Double]?) -> Int? {
-        scoredPick(f, forest: forest, consensus: consensus)?.index
-    }
-
-    /// `pickFill` with the winner's logit.
+    /// The best-scoring valid fill candidate and its logit.
     static func scoredPick(_ f: PipelineStyleFeatures, forest: PipelineStyleForest,
                            consensus: [Double]?) -> (index: Int, score: Double)? {
         var best: Int?, bestScore = -Double.infinity
@@ -1350,7 +1341,7 @@ extension PipelineStyleEstimator {
         typealias P = PipelineStyleParameters
         // pass 1: per-block fill pick, page consensus colour
         let picked = analyses.compactMap { analysis in
-            analysis.flatMap { a in pickFill(a.features, forest: P.fillPass1, consensus: nil).map { a.features.clusters[$0].core } }
+            analysis.flatMap { a in scoredPick(a.features, forest: P.fillPass1, consensus: nil).map { a.features.clusters[$0].core } }
         }
         let consensus = picked.isEmpty ? nil : median(picked)
         var results: [PipelineStyle] = fonts.map {
@@ -1426,23 +1417,8 @@ enum PipelineStyleConsistency {
     static let strokeWeight = 0.5
     static let minimumCharacters = 4
 
-    static func lab(_ c: PipelineRGB) -> (Double, Double, Double) {
-        func linear(_ v: UInt8) -> Double {
-            let c = Double(v) / 255
-            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
-        }
-        let r = linear(c.r), g = linear(c.g), b = linear(c.b)
-        let x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
-        let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
-        let z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
-        func f(_ t: Double) -> Double { t > 0.008856 ? pow(t, 1.0 / 3) : 7.787 * t + 16.0 / 116 }
-        let fx = f(x), fy = f(y), fz = f(z)
-        return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
-    }
-
     static func deltaE(_ a: PipelineRGB, _ b: PipelineRGB) -> Double {
-        let p = lab(a), q = lab(b)
-        return ((p.0 - q.0) * (p.0 - q.0) + (p.1 - q.1) * (p.1 - q.1) + (p.2 - q.2) * (p.2 - q.2)).squareRoot()
+        PipelineStyleEstimator.deltaE([Double(a.r), Double(a.g), Double(a.b)], [Double(b.r), Double(b.g), Double(b.b)])
     }
 
     static func distance(_ a: PipelineStyle, _ b: PipelineStyle) -> Double {
