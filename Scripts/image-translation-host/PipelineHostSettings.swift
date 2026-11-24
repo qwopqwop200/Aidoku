@@ -1,10 +1,7 @@
 import Foundation
 
-// Host settings for `swift Scripts/image-translation.swift`: dotenv reading and
-// CLI/environment resolution. Foundation plus the production translation model
-// types only, so Scripts/tests/run-image-environment-smoke.py compiles this file
-// on its own. Precedence: CLI arguments > shell environment > .env > defaults.
-// The API key is resolved here but never printed, logged or written.
+// Host settings: dotenv reading and CLI > shell > .env > default resolution. Uses only Foundation and the
+// translation model types (run-image-environment-smoke.py compiles it alone). The API key is never printed or written.
 
 struct PipelineHostError: Error, CustomStringConvertible {
     let description: String
@@ -176,12 +173,8 @@ struct PipelineHostSettings {
             guard let value = UInt64(text) else { throw PipelineHostError("\(name) must be a nonnegative integer") }
             return value
         }
-        func protocolValue(_ text: String, _ name: String) throws -> RemoteTranslationProtocol {
-            guard let value = RemoteTranslationProtocol(rawValue: text) else { throw PipelineHostError("Invalid \(name)") }
-            return value
-        }
-        func reasoning(_ text: String, _ name: String) throws -> OpenAIReasoningEffort {
-            guard let value = OpenAIReasoningEffort(rawValue: text) else { throw PipelineHostError("Invalid \(name)") }
+        func choice<Value: RawRepresentable<String>>(_ text: String, _ name: String) throws -> Value {
+            guard let value = Value(rawValue: text) else { throw PipelineHostError("Invalid \(name)") }
             return value
         }
         func direction(_ text: String, _ name: String) throws -> String {
@@ -196,10 +189,10 @@ struct PipelineHostSettings {
         settings.baseURL = environment["AIDOKU_TRANSLATION_BASE_URL"] ?? settings.baseURL
         settings.model = environment["AIDOKU_TRANSLATION_MODEL"] ?? settings.model
         if let value = environment["AIDOKU_TRANSLATION_PROTOCOL"] {
-            settings.apiProtocol = try protocolValue(value, "AIDOKU_TRANSLATION_PROTOCOL")
+            settings.apiProtocol = try choice(value, "AIDOKU_TRANSLATION_PROTOCOL")
         }
         if let value = environment["AIDOKU_TRANSLATION_REASONING"] {
-            settings.reasoningEffort = try reasoning(value, "AIDOKU_TRANSLATION_REASONING")
+            settings.reasoningEffort = try choice(value, "AIDOKU_TRANSLATION_REASONING")
         }
         if let value = environment["AIDOKU_TRANSLATION_TIMEOUT"] {
             settings.timeout = try seconds(value, "AIDOKU_TRANSLATION_TIMEOUT")
@@ -244,8 +237,8 @@ struct PipelineHostSettings {
             case "--reading-direction": settings.readingDirection = try direction(try value(), "--reading-direction")
             case "--base-url": settings.baseURL = try value()
             case "--model": settings.model = try value()
-            case "--protocol": settings.apiProtocol = try protocolValue(try value(), "--protocol")
-            case "--reasoning": settings.reasoningEffort = try reasoning(try value(), "--reasoning")
+            case "--protocol": settings.apiProtocol = try choice(try value(), "--protocol")
+            case "--reasoning": settings.reasoningEffort = try choice(try value(), "--reasoning")
             case "--timeout": settings.timeout = try seconds(try value(), "--timeout")
             case "--source": settings.sourceLanguage = try value()
             case "--target": settings.targetLanguage = try value()

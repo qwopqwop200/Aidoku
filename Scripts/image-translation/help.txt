@@ -3,14 +3,12 @@ Aidoku page translation host (pipeline, Apple Silicon macOS 15+)
 Usage:
   swift Scripts/image-translation.swift [options] IMAGE|FOLDER ... [--list FILE]
 
-Runs the app's pipeline (Aidoku/Core/Translation/Pipeline)
-on Mac: S1 layout || S2 detect, S3 recognize, S4 group, S5 translate,
-S6 mask, S7 inpaint, S8 style, S9 layout, S10 paint.
+Runs the app's pipeline (Aidoku/Core/Translation/Pipeline) on Mac: S1 layout || S2 detect,
+S3 recognize, S4 group, S5 translate, S6 mask, S7 inpaint, S8 style, S9 layout, S10 paint.
 
 Modes (default: live)
-  live                         S5 calls the real provider through PipelineTranslation and
-                               RemoteTranslationClient with the mandatory page settings
-                               (page image attached, SFX and background filtering on).
+  live                         S5 calls the real provider like the app (page image attached,
+                               SFX and background filtering on).
   --replay-translations DIR    S5 reads saved translations: a legacy run with
                                page-index.json, or a pipeline run with pages/*.json. No LLM.
   --ocr-only                   S1-S4 (plus the S8 style estimate); writes recognized

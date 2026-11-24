@@ -41,8 +41,7 @@ def main():
     if args.dry_run:
         return 0
     cache.mkdir(parents=True, exist_ok=True)
-    # Serialize this helper's builds; direct xcodebuild callers must also avoid
-    # sharing the cache concurrently. Keep the lock file to avoid inode races.
+    # One build per cache; the lock file is kept to avoid inode races.
     with (cache / '.device-release.lock').open('a') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

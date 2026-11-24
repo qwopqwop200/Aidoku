@@ -1,8 +1,6 @@
 #!/usr/bin/env swift
-// macOS launcher for the page-translation pipeline host.
-// Compiles Aidoku/Core/Translation/Pipeline, its explicit production compile closure and
-// Scripts/image-translation-host into one incremental binary, then forwards the CLI
-// arguments. Usage: swift Scripts/image-translation.swift --help
+// macOS launcher: compiles the pipeline, its app closure and Scripts/image-translation-host into one
+// incremental binary, then runs it with the CLI arguments. Usage: swift Scripts/image-translation.swift --help
 import Foundation
 import CryptoKit
 import Darwin
@@ -42,9 +40,7 @@ do {
         .filter { $0.pathExtension == "swift" }.sorted { $0.path < $1.path }
     let hostFiles = try manager.contentsOfDirectory(at: root.appendingPathComponent("Scripts/image-translation-host"),
         includingPropertiesForKeys: nil).filter { $0.pathExtension == "swift" }.sorted { $0.path < $1.path }
-    // Production compile closure of the pipeline stages outside Translation/Pipeline (detector,
-    // recognizer, translation client, painters). Found by iterative
-    // typecheck; update it when these app files move or are split.
+    // App files the pipeline needs outside Translation/Pipeline; update when they move or split.
     let closure = [
         "Extensions/Foundation/NSLocalizedString.swift",
         "Core/Translation/ReaderTranslationPanelOrder.swift",
