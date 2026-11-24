@@ -7,19 +7,17 @@
 
 import Foundation
 
-private enum BlockingTaskPriority {
-    static func current() -> TaskPriority {
-        if let priority = withUnsafeCurrentTask(body: { $0?.priority }) {
-            return priority
-        }
-        // Synchronous callbacks may run on a dispatch worker without a Swift task.
-        switch qos_class_self() {
-        case QOS_CLASS_USER_INTERACTIVE: return TaskPriority(rawValue: 33)
-        case QOS_CLASS_USER_INITIATED: return .high
-        case QOS_CLASS_UTILITY: return .low
-        case QOS_CLASS_BACKGROUND: return .background
-        default: return .medium
-        }
+private func currentBlockingTaskPriority() -> TaskPriority {
+    if let priority = withUnsafeCurrentTask(body: { $0?.priority }) {
+        return priority
+    }
+    // Synchronous callbacks may run on a dispatch worker without a Swift task.
+    switch qos_class_self() {
+    case QOS_CLASS_USER_INTERACTIVE: return TaskPriority(rawValue: 33)
+    case QOS_CLASS_USER_INITIATED: return .high
+    case QOS_CLASS_UTILITY: return .low
+    case QOS_CLASS_BACKGROUND: return .background
+    default: return .medium
     }
 }
 
@@ -47,7 +45,7 @@ final class BlockingTask<T>: @unchecked Sendable {
     private let result = BlockingResult<T, Never>()
 
     init(priority: TaskPriority? = nil, block: @escaping @Sendable () async -> T) {
-        Task.detached(priority: priority ?? BlockingTaskPriority.current()) {
+        Task.detached(priority: priority ?? currentBlockingTaskPriority()) {
             self.result.finish(.success(await block()))
         }
     }
@@ -59,7 +57,7 @@ final class BlockingThrowingTask<T>: @unchecked Sendable {
     private let result = BlockingResult<T, Error>()
 
     init(block: @escaping @Sendable () async throws -> T) {
-        Task.detached(priority: BlockingTaskPriority.current()) {
+        Task.detached(priority: currentBlockingTaskPriority()) {
             do {
                 self.result.finish(.success(try await block()))
             } catch {

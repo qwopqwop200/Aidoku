@@ -11,9 +11,8 @@ final class TranslationImageWorkBudget: Sendable {
 
     enum AdmissionError: Error { case insufficientMemory, imageTooLarge }
 
-    /// Reclaims page caches first, then the resident pipeline models only if headroom is still
-    /// short; each step rechecks so queued recoveries do not evict warm resources again.
-    /// Returns whether the models were purged.
+    /// Reclaims page caches, then the pipeline models only if headroom is still short (rechecked
+    /// per step so queued recoveries do not evict again). Returns whether the models were purged.
     static func reclaimIdleResources(requiredHeadroom: UInt64) async -> Bool {
         @Sendable func short() -> Bool { !Task.isCancelled && ProcessMemory.available() < requiredHeadroom }
         guard short() else { return false }

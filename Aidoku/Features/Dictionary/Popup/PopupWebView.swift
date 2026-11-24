@@ -24,7 +24,6 @@ struct SelectionData {
 }
 
 class AudioHandler: NSObject, WKURLSchemeHandler {
-    // Running fetches by scheme task; cancelled on stop and removed once answered.
     private var tasks: [ObjectIdentifier: Task<Void, Never>] = [:]
 
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
@@ -83,8 +82,7 @@ class ImageHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
-        // Respond synchronously: the data points into the dictionary's mapped file, and a deferred
-        // reply could outlive a rebuilt lookup bundle or reach a task WebKit has already stopped.
+        // Respond synchronously: deferred, the mapped data could outlive a rebuilt dictionary or a stopped task.
         LookupEngine.shared.withMediaFile(dictName: dictionary, mediaPath: mediaPath) { data in
             let mime = mimeType(for: mediaPath)
             do {

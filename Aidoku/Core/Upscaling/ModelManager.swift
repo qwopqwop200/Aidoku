@@ -273,8 +273,7 @@ extension ModelManager {
         guard let modelType = info.type else { return nil }
 
         // load coreml model
-        // Keep one compiled copy per model and reuse it until the model file changes, instead of
-        // compiling a new temporary copy on every launch.
+        // Reuse one compiled copy until the model file changes instead of recompiling every launch.
         let compiledUrl = FileManager.default.cachesDirectory.appendingPathComponent(fileName + ".mlmodelc")
         let date = { (url: URL) in (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate }
         if !(date(compiledUrl).flatMap { compiled in date(fileURL).map { compiled >= $0 } } ?? false) {

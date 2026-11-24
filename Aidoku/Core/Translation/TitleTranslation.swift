@@ -68,11 +68,6 @@ extension TitleTranslationKind {
 }
 
 enum TitleTranslation {
-    /// SwiftUI retains state when a row changes text or role; keep each input separate.
-    static func presentationIdentity(original: String, source: String, kind: TitleTranslationKind, revision: UUID) -> String {
-        ReaderTranslationCacheIdentity.encoded([revision.uuidString, kind.rawValue, original, source])
-    }
-
     /// Title detection is independent even when the reader uses a fixed source language.
     static func effectiveSettings(_ settings: ReaderTranslationSettings, kind: TitleTranslationKind) -> ReaderTranslationSettings {
         var result = settings
@@ -150,8 +145,9 @@ struct TranslatedTitleText: View {
         self.source = source ?? original
     }
 
+    /// SwiftUI retains state when a row changes text or role; keep each input separate.
     private var identity: String {
-        TitleTranslation.presentationIdentity(original: original, source: source, kind: kind, revision: revision)
+        ReaderTranslationCacheIdentity.encoded([revision.uuidString, kind.rawValue, original, source])
     }
 
     var body: some View {
