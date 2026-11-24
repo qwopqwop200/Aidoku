@@ -91,12 +91,9 @@ enum PipelineReplyText {
 
     /// A Japanese sentence re-punctuated by the provider is not a Korean translation; exact
     /// copies (SFX/background preservation), short names and quoted terms are not rejected.
-    static func isUntranslatedJapaneseReply(source: String, translation: String, target: String,
-                                           preservesExactSource: Bool = true) -> Bool {
-        guard target == "ko",
-              (!preservesExactSource || source.trimmingCharacters(in: .whitespacesAndNewlines) !=
-                translation.trimmingCharacters(in: .whitespacesAndNewlines))
-        else { return false }
+    static func isUntranslatedJapaneseReply(source: String, translation: String, target: String) -> Bool {
+        guard target == "ko", source.trimmingCharacters(in: .whitespacesAndNewlines) !=
+                translation.trimmingCharacters(in: .whitespacesAndNewlines) else { return false }
         if containsCopiedJapaneseClause(source: source, translation: translation) { return true }
         let letters = translation.unicodeScalars.filter { $0.properties.isAlphabetic }
         guard letters.count >= 20, letters.filter(isKana).count >= 2,

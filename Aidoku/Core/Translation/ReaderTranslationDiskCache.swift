@@ -191,13 +191,6 @@ actor ReaderTranslationDiskCache {
         pendingTouches.removeAll()
     }
 
-    func remove(_ key: String, kind: Kind) throws {
-        try prepare()
-        try database?.delete(fileName(key, kind: kind))
-    }
-
-    static let legacyPipelinePurgeMarker = "legacy-pipeline-purge-v1"
-
     /// Pipeline page rows (layout JPEGs, translation block JSON) survive the legacy purge.
     static func isPipelinePageRow(kind: Kind, unpacked data: Data, linkedToRegionBase: Bool) -> Bool {
         guard !linkedToRegionBase else { return false }
@@ -214,7 +207,7 @@ actor ReaderTranslationDiskCache {
     func purgeLegacyPipelineRows() async throws -> Int {
         try prepare()
         guard let database else { return 0 }
-        let marker = Self.legacyPipelinePurgeMarker
+        let marker = "legacy-pipeline-purge-v1"
         guard try !database.hasMarker(marker) else { return 0 }
         var cursor = ""
         var deleted = 0
