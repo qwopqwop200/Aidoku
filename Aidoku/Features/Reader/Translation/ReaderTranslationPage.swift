@@ -1,8 +1,6 @@
 import UIKit
 
-/// The translation presentation of one reader image view. Every page renders
-/// through the pipeline (`processPipeline`): the result is a complete page bitmap attached
-/// through the cached-page canvas above the source image.
+/// The translation presentation of one reader image view: a pipeline page bitmap above the source image.
 @MainActor
 final class ReaderTranslationPage {
     static let sourceImageReady = Notification.Name("Reader.translation.sourceImageReady")
@@ -25,7 +23,6 @@ final class ReaderTranslationPage {
     private var diagnosticContext: ReaderTranslationDiagnostics.Context?
     private var generation = UUID()
     private var cachedOverlay: ReaderTranslationCachedPageView?
-    // One fully rendered pipeline page bitmap per source image.
     private var pipelineTask: Task<Void, Never>?
     private var pipelineIdentity: String?
     private weak var pipelineSource: UIImage?
@@ -61,15 +58,8 @@ final class ReaderTranslationPage {
         }
     }
 
-    /// Only a presented pipeline page bitmap can be saved; it is the finished page.
-    var canExportTranslation: Bool { isPresentingPipeline && cachedOverlay?.snapshotImage != nil }
-
-    func exportTranslatedImage() throws -> UIImage {
-        guard isPresentingPipeline, let snapshot = cachedOverlay?.snapshotImage else {
-            throw ReaderTranslationImageExporter.ExportError.unavailable
-        }
-        return snapshot
-    }
+    /// Only a presented pipeline page bitmap can be saved.
+    var translatedImage: UIImage? { isPresentingPipeline ? cachedOverlay?.snapshotImage : nil }
 
     /// Called inside the loader's synchronous source + presentation commit.
     func displayLoadedImage(_ prepared: ReaderTranslationPreparedImage) {
@@ -101,8 +91,7 @@ final class ReaderTranslationPage {
 // MARK: - Pipeline presentation
 
 extension ReaderTranslationPage {
-    /// Starts (or keeps) pipeline translation of the displayed image. Repeated calls for the same
-    /// source and identity are free, and a failure is not retried until `retryPipeline()`.
+    /// Starts (or keeps) translation of the displayed image; a failure waits for `retryPipeline()`.
     func processPipeline(settings: ReaderTranslationSettings, persistsCache: Bool,
                    onPresented: @escaping @MainActor () -> Void,
                    onFailure: @escaping @MainActor (Error) -> Void) {
@@ -155,8 +144,7 @@ extension ReaderTranslationPage {
         }
     }
 
-    /// Cancels in-flight pipeline work for a page leaving the viewport. A finished
-    /// presentation stays attached; unfinished work restarts when visible again.
+    /// For a page leaving the viewport: a finished presentation stays attached.
     func cancelPipelineWork() {
         guard let pipelineTask else { return }
         pipelineTask.cancel()
@@ -188,8 +176,7 @@ extension ReaderTranslationPage {
         displayPipeline(output, source: source, settings: settings)
     }
 
-    /// Attaches a page that finished elsewhere (look-ahead) to every live view showing its source,
-    /// such as a paged neighbour or a webtoon page below the viewport that loaded before it finished.
+    /// Attaches a page finished by look-ahead to every live view showing its source.
     static func presentFinished(_ output: CGImage, key: String, settings: ReaderTranslationSettings) {
         guard #available(iOS 18.0, *) else { return }
         finishedGeneration &+= 1

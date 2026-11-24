@@ -1,7 +1,6 @@
 import UIKit
 
-/// A source-aspect bitmap, ready to attach together with the original UIImage.
-/// The loader retains the original for OCR, dictionary lookup and image export.
+/// A cached translated bitmap, ready to attach together with its source UIImage.
 @MainActor
 struct ReaderTranslationPreparedImage {
     let image: UIImage

@@ -9,9 +9,7 @@ extension Page {
         let imageIdentity = imageContentIdentity ?? imageURL.flatMap { URL(string: $0) }
             .flatMap { ReaderImageContentIdentity.stableRemoteURL($0, sourceKey: sourceId) }?.absoluteString ?? imageURL ?? ""
         var parts = [sourceId, chapterId, String(index), imageIdentity, zipURL ?? "", settingsKey]
-        // Sources may choose different image bytes/headers from the same URL
-        // using page context. Keep legacy nil/empty-context keys stable, while
-        // separating any contextual source request before OCR/cache hydration.
+        // Page context can change the image a URL returns; nil/empty context keeps the legacy key.
         if let context, !context.isEmpty {
             parts.append("page-context-v1")
             for key in context.keys.sorted() {
@@ -23,7 +21,7 @@ extension Page {
             parts.append(base64Identity)
         }
         let data = (try? JSONEncoder().encode(parts)) ?? Data()
-        // Same lowercase hex as String(format: "%02x"), without a formatter per byte (hot on the main thread).
+        // Lowercase hex without a formatter per byte (hot on the main thread).
         let hex = Array("0123456789abcdef".utf8)
         return String(decoding: SHA256.hash(data: data).flatMap { [hex[Int($0 >> 4)], hex[Int($0 & 15)]] }, as: UTF8.self)
     }

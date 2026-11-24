@@ -4,8 +4,7 @@ enum ReaderTranslationWidePageLayout: String, Sendable {
     case whole, halves, pendingSplit
 }
 
-/// Use the same pixel crop as ReaderPageView.splitImage. Fractional crop edges
-/// are expanded by Core Graphics before UIImage applies scale and orientation.
+/// The same pixel crop as ReaderPageView.splitImage (Core Graphics expands fractional edges).
 enum ReaderTranslationSplitGeometry {
     static let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
 

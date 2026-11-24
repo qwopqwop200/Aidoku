@@ -3,8 +3,7 @@ import ImageIO
 import Nuke
 import UIKit
 
-/// Image decoding, raw-image processing, archive I/O and source interception
-/// stay outside MainActor. URL requests retain the normal reader's auth/context.
+/// Loads look-ahead source images off the main actor, with the normal reader's request context.
 actor ReaderTranslationImageLoader {
     private let temporaryStore: ReaderTemporaryPageStore
     private let pipeline = ImagePipeline.shared
@@ -94,8 +93,7 @@ actor ReaderTranslationImageLoader {
                 bytes = try await archiveSource.decodedBytes()
             } else {
                 bytes = TranslationImageWorkBudget.decodedBytes(at: url)
-                // An over-cap file decodes as a bounded thumbnail on any pipeline, not
-                // only through the app pipeline's capped decoder (which covers archives).
+                // An over-cap file decodes as a bounded thumbnail on any pipeline.
                 if request.thumbnail == nil, let size = Self.headerPixelSize(at: url),
                    let thumbnail = ImagePixelCap.thumbnailOptions(width: size.width, height: size.height) {
                     request.thumbnail = thumbnail

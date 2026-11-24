@@ -81,13 +81,6 @@ extension SearchContentView.ViewModel {
         restartSearch(delay: delay)
     }
 
-    func waitForSearch() async {
-        guard isLoading else { return }
-        for await loading in $isLoading.values {
-            if !loading { return }
-        }
-    }
-
     func setSearchVisible(_ visible: Bool) {
         guard searchVisible != visible else { return }
         searchVisible = visible
@@ -119,9 +112,7 @@ extension SearchContentView.ViewModel {
         completedSources.formIntersection(newSources.map(ObjectIdentifier.init))
         sources = newSources
         // A pending debounce reads the latest sources when it starts.
-        if !searchQuery.isEmpty && debounceTask == nil {
-            updateFilters(filters)
-        }
+        if debounceTask == nil { updateFilters(filters) }
     }
 
     func updateFilters(_ filters: [FilterValue]) {

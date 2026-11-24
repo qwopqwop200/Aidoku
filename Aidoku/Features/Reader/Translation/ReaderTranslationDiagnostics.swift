@@ -1,7 +1,6 @@
 import Foundation
 
-/// Content-free correlation shared by reader milestones and fine-grained phase timings.
-/// A page token is a truncated existing SHA-256 identity, never a URL or source text.
+/// Content-free reader event log. A page token is a truncated SHA-256 page key, never a URL or text.
 enum ReaderTranslationDiagnostics {
     struct Context: Sendable, Equatable {
         let trace: UInt64
