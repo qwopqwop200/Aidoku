@@ -40,11 +40,10 @@ struct CropBordersProcessorRegressionTests {
         let source = AidokuRunner.Source.test(runner: runner)
         let request = ImageRequest(urlRequest: URLRequest(url: URL(string: "https://test.invalid/cover")!))
         let container = ImageContainer(image: .mangaPlaceholder)
-        do {
+        await #expect(throws: CancellationError.self) {
             _ = try await CoverInterceptorProcessor(source: source).processAsync(container,
                 context: .init(request: request, response: .init(container: container, request: request), isCompleted: true))
-            Issue.record("Expected cancellation from source")
-        } catch is CancellationError { }
+        }
         #expect(await runner.storage.liveCount() == 0)
     }
 }

@@ -369,17 +369,13 @@ struct LibraryDataTests {
             try context.save()
         }
 
-        var saveFailed = false
-        do {
+        await #expect(throws: (any Error).self) {
             try await writer.perform(for: ids[0], in: container) { context in
                 let invalid = MangaUpdateObject(context: context)
                 invalid.sourceId = nil
                 try context.save()
             }
-        } catch {
-            saveFailed = true
         }
-        #expect(saveFailed)
 
         let counts = try await withThrowingTaskGroup(of: Int.self) { group in
             for index in 0..<24 {

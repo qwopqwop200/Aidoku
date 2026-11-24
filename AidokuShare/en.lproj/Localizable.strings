@@ -2,5 +2,4 @@
 "DONE" = "Done";
 "FORMAT_IMAGE" = "Image";
 "SHARED_IMAGES_SAVED" = "Saved. Open Aidoku to read.";
-
 "SHARED_IMAGE_IMPORT_FAILED" = "Unable to read the shared image. Please try another image.";
