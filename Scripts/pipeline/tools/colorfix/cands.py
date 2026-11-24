@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import RUNS  # noqa: E402
-import json, collections, sys
+import json, collections
 from errors import pairs, de
 from sim import FOLD
 def dump(prefix):

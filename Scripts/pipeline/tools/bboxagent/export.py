@@ -1,15 +1,15 @@
-"""Append the S6 line-end forest (model-fin: LightGBM huber on GT TRAIN folds 2-4 only, core13 features) to PipelineWeights.bin
-as the 5th forest `lineEnds` (after fillPeaks). Layout: scalars f64[base, rate], roots i32, feature i16, threshold f64,
-left i32, right i32, value f64; each table a u32 count + little-endian elements. usage: export.py BIN [--write]"""
+"""Append the line-end forest (model-fin, trained on TRAIN folds 2-4) to PipelineWeights.bin as the 5th forest
+`lineEnds`. Forest layout: f64[base, rate], roots i32, feature i16, threshold f64, left i32, right i32, value f64;
+each table a u32 count + little-endian elements. usage: export.py BIN [--write]"""
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
-from workspace import EVAL, WEIGHTS  # noqa: E402
-import sys, struct, pickle, os, numpy as np, lightgbm as lgb
+from workspace import EVAL  # noqa: E402
+import struct, pickle, os, numpy as np, lightgbm as lgb
 os.environ['ALL'] = '1'
 from learn import BINS
 BIN = sys.argv[1]
-b = lgb.Booster(model_file=str(EVAL / 'bboxagent/model-fin.txt')); cols, prm, nt = pickle.load(open(EVAL / 'bboxagent/model-fin.pkl', 'rb'))
+b = lgb.Booster(model_file=str(EVAL / 'bboxagent/model-fin.txt')); cols = pickle.load(open(EVAL / 'bboxagent/model-fin.pkl', 'rb'))[0]
 names = [f'p{d}_{x:.1f}' for d in (0, 1, 3) for x in BINS] + ['T', 'len', 'score', 'vert', 'which', 'rfText', 'rfBalloon', 'gap', 'bg']
 rows = pickle.load(open(EVAL / 'bboxagent/rows32.pkl', 'rb')); ci = [names.index(c) for c in cols]
 X = np.array([r[3] for r in rows], np.float32)[:, ci]

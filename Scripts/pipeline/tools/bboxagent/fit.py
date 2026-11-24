@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import EVAL  # noqa: E402
-import sys, pickle, json, collections, numpy as np, lightgbm as lgb, os
+import pickle, json, collections, numpy as np, lightgbm as lgb, os
 os.environ['ALL'] = '1'
 from learn import BINS, FOLD
 rows = pickle.load(open(os.environ.get('ROWS', EVAL / 'bboxagent/rows.pkl'), 'rb')); feats = pickle.load(open(os.environ.get('FEATS', EVAL / 'bboxagent/feats-all.pkl'), 'rb'))

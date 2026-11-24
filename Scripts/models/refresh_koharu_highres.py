@@ -33,12 +33,7 @@ def metrics(a, b):
 
 
 def rewrite_depthwise(model):
-    """Inference-equivalent removal of upstream training-only PythonOp.
-
-    _DepthwiseConvWithoutCuDNN.forward is exactly F.conv2d with these
-    parameters; its custom backward and CUDA backend flag do not affect
-    CPU inference. Patch only this model instance, never installed sources.
-    """
+    """Replace the training-only PythonOp: its forward is exactly F.conv2d (patches this instance only)."""
     from rfdetr.models.heads.segmentation import DepthwiseConvBlock
 
     def plain_depthwise(self, x):
@@ -53,12 +48,7 @@ def rewrite_depthwise(model):
 
 
 def specialize_proposal_grid():
-    """Freeze only spatial dimensions for this explicitly fixed input ABI.
-
-    JIT traces shape-derived linspace steps as scalar tensors. coremltools
-    8.3 then builds rank-two linspace outputs and rejects the meshgrid.
-    Constant integer H/W produces the same grid and avoids that frontend bug.
-    """
+    """Use constant H/W for the proposal grid: traced linspace steps make coremltools 8.3 reject the meshgrid."""
     import rfdetr.models.transformer as transformer
     original = transformer.gen_encoder_output_proposals
 
@@ -70,12 +60,7 @@ def specialize_proposal_grid():
 
 
 def rewrite_deformable_attention(model):
-    """Keep the same sampling arithmetic while avoiding rank-six tensors.
-
-    Combine level*point in the offset tensor, then sample each feature level
-    using the original bilinear zero-padding/align_corners=False operation.
-    No learned parameters, sampling points, attention weights, or levels change.
-    """
+    """Same deformable sampling without rank-six tensors (level*point merged, one grid_sample per level)."""
     import torch.nn.functional as F
     from rfdetr.models.ops.modules.ms_deform_attn import MSDeformAttn
 
@@ -149,7 +134,7 @@ def main():
         raise ValueError('Native highres position lattice changed')
     model.backbone[0].encoder.shape = (side, side)
     detector.model.resolution = side; detector.model_config.resolution = side
-    # Source pixels are numerical parity inputs only; no full-page visual review.
+    # Source pixels are numeric parity inputs only.
     sources = json.loads((ROOT / 'segmentation-accuracy-20261106/rf-full/sources.json').read_text())
     source = sources[0]
     original = Image.open(source['source']).convert('RGB')

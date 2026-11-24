@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Pinned Manga v0.3 conversion with dynamic shapes and compact LM alternatives.
-
-Converts only reviewed ONNX operators. Never imports publisher demo code.
-Candidates stay isolated until native parity and corpus checks pass.
-"""
+"""Convert the pinned Manga v0.3 ONNX det/rec models to Core ML with dynamic shapes and top-4 CTC outputs."""
 import argparse
 import copy
 import hashlib
@@ -111,9 +107,8 @@ def install_dynamic_pad():
 
 
 def finite_pool_padding(package):
-    """Pads the stem max-pool with 0 instead of -inf. Its input is a ReLU (>= 0) and every 2x2 window keeps a
-    source cell, so the output is unchanged, but the Core ML CPU backend turns -inf padding into nonfinite
-    probability cells (the GPU does not). CPU then matches GPU to fp16 tolerance and runs about 4x faster."""
+    """Pad the stem max-pool with 0 instead of -inf: its input is a ReLU (>= 0), so the output is unchanged, but
+    Core ML CPU turns -inf padding into nonfinite cells. CPU then matches GPU and runs about 4x faster."""
     spec = ct.utils.load_spec(str(package))
     function = spec.mlProgram.functions['main']; operations = function.block_specializations[function.opset].operations
     consts = {op.outputs[0].name: op for op in operations if op.type == 'const'}
@@ -217,16 +212,14 @@ def main():
     if args.component == 'det':
         shape = (1, 3, ct.RangeDim(32, 1184, default=64), ct.RangeDim(32, 1184, default=96))
         outputs = [ct.TensorType(name='fetch_name_0', dtype=np.float32)]
-        precision = ct.precision.FLOAT16
         name = 'PP-OCRv6-Manga-DetShapes.mlpackage'
     else:
         shape = (ct.RangeDim(1, 8, default=1), 3, 48, ct.RangeDim(32, 2400, default=320))
         outputs = [ct.TensorType(name='ctc_indices', dtype=np.int32), ct.TensorType(name='ctc_scores', dtype=np.float32),
                    ct.TensorType(name='ctc_topk_indices', dtype=np.int32), ct.TensorType(name='ctc_topk_scores', dtype=np.float32)]
-        precision = ct.precision.FLOAT16
         name = 'PP-OCRv6-Manga-RecWidths.mlpackage'
     converted = ct.convert(traced, convert_to='mlprogram', inputs=[ct.TensorType(name='x', shape=shape, dtype=np.float32)],
-                           outputs=outputs, minimum_deployment_target=ct.target.iOS18, compute_precision=precision,
+                           outputs=outputs, minimum_deployment_target=ct.target.iOS18, compute_precision=ct.precision.FLOAT16,
                            skip_model_load=True)
     converted.user_defined_metadata.update({'source_revision': REVISION, 'source_model_version': 'v0.3',
         'source_onnx_sha256': expected[args.component], 'ngram_alternatives': '4' if args.component == 'rec' else 'none'})

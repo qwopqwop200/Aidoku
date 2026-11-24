@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Read publisher n-gram data and export its numeric tables for native use.
-
-The publisher distributes the LM tables, not an arbiter implementation. This
-module documents the sparse interpolated scoring contract and validates it.
-"""
+"""Export the publisher's n-gram LM tables and recognition dictionary for native use, and check the scoring contract."""
 import argparse
 import hashlib
 import json
@@ -75,8 +71,7 @@ def main():
     text = ''.join(json.dumps(c, ensure_ascii=False) + '\n' for c in symbols).encode()
     deflate = zlib.compressobj(9, zlib.DEFLATED, -15)  # raw DEFLATE, read with NSData .zlib
     (directory / 'ppocrv6_manga_rec_character_dict.deflate').write_bytes(deflate.compress(text) + deflate.flush())
-    # The observed discounted mass + interpolation mass should sum to one
-    # within publisher float16 table rounding, including the padded BOS context.
+    # Seen + backoff mass sums to one within float16 rounding, including the padded BOS context.
     contexts = [[], [1], [1,1]]; checks = []
     for context in contexts:
         total = sum(np.exp(lm.log_probability(token, context)) for token in range(1,lm.size + 1))

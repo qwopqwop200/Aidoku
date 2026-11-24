@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import WORKSPACE, GT, data  # noqa: E402
-import json, os, sys, collections, pickle
+import json, os, collections, pickle
 ROOT = str(WORKSPACE)
 CACHE = str(data('colorfix', 'gt.pkl'))
 

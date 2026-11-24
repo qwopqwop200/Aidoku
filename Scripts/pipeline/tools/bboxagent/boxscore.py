@@ -1,19 +1,14 @@
-"""Box metrics of V2 final lines vs GT individual line boxes (numbers only).
-usage: boxscore.py RUN_PREFIX [DUMP_DIR]   (RUN_PREFIX_{dev,train,test}/pages; DUMP_DIR has RF layout per page)
-Per fold: frag/over/miss (lineasm/score.py rules), IoU stats of each GT line's best one-to-one match, boundary error
-(glyph = GT thickness), noise = predicted lines overlapping no GT line (inside<0.1 both ways), split by whether
-the line centre is inside an RF balloon/text region (score>=0.5) ('noiseIn') or not ('noiseOut')."""
+"""Final lines vs GT individual line boxes (numbers only).
+usage: boxscore.py RUN_PREFIX [DUMP_DIR]   (RUN_PREFIX_{dev,train,test}/pages; DUMP_DIR has the RF layout per page)
+Per fold: frag/over/miss (lineasm/score.py rules), IoU of each GT line's one-to-one match, end errors in GT line
+thickness units, noise = lines overlapping no GT line, split by centre inside an RF balloon/text region or not."""
 from pathlib import Path
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
-from workspace import EVAL, RUNS  # noqa: E402
 import json, os, sys, collections
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'lineasm'))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'colorfix'))
-from score import gt, inside
-from sim import FOLD
-from scipy.optimize import linear_sum_assignment
+from score import gt, inside  # noqa: E402  (also puts tools/ and colorfix/ on the path)
+from sim import FOLD  # noqa: E402
+from scipy.optimize import linear_sum_assignment  # noqa: E402
 
 FOLDS = ['f2', 'f3', 'f4', 'dev', 'test']
 
@@ -81,8 +76,7 @@ def page_stats(G, L, R, c, fo):
 
 
 def score(prefix, dump=None, pages=None):
-    G = gt(); P = run_lines(prefix); c = {}
-    c = collections.defaultdict(float)
+    G = gt(); P = run_lines(prefix); c = collections.defaultdict(float)
     for pid, L in P.items():
         if pages is not None and pid not in pages: continue
         fo = FOLD[pid]
