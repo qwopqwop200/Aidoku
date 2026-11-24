@@ -241,7 +241,7 @@ extension DownloadTask {
         let file: (staging: URL, destination: URL)?
     }
 
-    // perform download; returns true once the queue may advance
+    // perform download
     private func download(from source: AidokuRunner.Source) async -> Bool {
         guard running && !downloads.isEmpty else { return false }
 
@@ -334,8 +334,7 @@ extension DownloadTask {
             let ceiling = translationSettings == nil ? Self.maxConcurrentPageTasks : 2
             let limit = AppSettings.downloads.parallel.get()
                 ? max(1, min(source.config?.maximumParallelRequests ?? ceiling, ceiling)) : 1
-            // Translating: `limit` requests fetch the next pages (files) while the translator's
-            // pipeline width of pages translate, so fetches are off the translation critical path.
+            // Translating: `limit` fetches run ahead of the translator's pipeline width of pages.
             let fetchGate = translationSettings.map { _ in TranslationProviderRequestLimiter(maximumConcurrentRequests: limit) }
             let window = translationSettings.map { limit + DownloadImageTranslator.pipelineWidth(settings: $0) } ?? limit
             var next = networkPages.makeIterator()
@@ -396,21 +395,30 @@ extension DownloadTask {
                 }
             }
         }
+
+        // handle completion of the current download
         if !Task.isCancelled, running, downloads.first == download, currentPage == pages.count {
             return await handleChapterDownloadFinish(download: download)
         }
         return false
     }
 
-    // Every result is a file, so queued output never holds decoded images.
-    private func downloadPage(_ page: NetworkPage, source: AidokuRunner.Source, tmpDirectory: URL,
-                              translationSettings: ReaderTranslationSettings?,
-                              fetchGate: TranslationProviderRequestLimiter?) async -> PageDownloadResult {
-        let request = await source.getModifiedImageRequest(url: page.url, context: page.context)
+    // fetch a single page's data
+    private func downloadPage(
+        _ page: NetworkPage,
+        source: AidokuRunner.Source,
+        tmpDirectory: URL,
+        translationSettings: ReaderTranslationSettings?,
+        fetchGate: TranslationProviderRequestLimiter?
+    ) async -> PageDownloadResult {
+        let urlRequest = await source.getModifiedImageRequest(
+            url: page.url,
+            context: page.context
+        )
         let fetched = if let fetchGate {
-            try? await fetchGate.withPermit { await self.fetchPageData(for: request, tmpDirectory: tmpDirectory) }
+            try? await fetchGate.withPermit { await self.fetchPageData(for: urlRequest, tmpDirectory: tmpDirectory) }
         } else {
-            await fetchPageData(for: request, tmpDirectory: tmpDirectory)
+            await fetchPageData(for: urlRequest, tmpDirectory: tmpDirectory)
         }
         guard fetched != nil || source.features.processesPages else { return .init(pageNumber: page.pageNumber, file: nil) }
         defer { fetched?.0.removeItem() }
@@ -426,7 +434,7 @@ extension DownloadTask {
                     decodedBytes: data.map(TranslationImageWorkBudget.decodedBytes) ?? 0) {
                     let image = data.flatMap { PlatformImage(data: $0) } ?? .mangaPlaceholder
                     let container = ImageContainer(image: image, data: data)
-                    let imageRequest = ImageRequest(urlRequest: request, userInfo: [.processesKey: true])
+                    let imageRequest = ImageRequest(urlRequest: urlRequest, userInfo: [.processesKey: true])
                     let processor = PageInterceptorProcessor(source: source, pageContext: page.context)
                     guard let result = try await processor.processAsync(container, context: .init(request: imageRequest,
                         response: .init(container: container, request: imageRequest, urlResponse: response), isCompleted: true)) else {

@@ -7,15 +7,13 @@ import UniformTypeIdentifiers
 enum DownloadImageTranslator {
     private static let pipelineGate = TranslationProviderRequestLimiter(maximumConcurrentRequests: 2)
 
-    /// Pages in the pipeline at once: enough to keep all but one provider slot busy (the one
-    /// left serves the reader), never fewer than 2. Waiting pages hold no pixels.
+    /// Pages in the pipeline at once: all provider slots but one (kept for the reader), at least 2.
     nonisolated static func pipelineWidth(settings: ReaderTranslationSettings) -> Int {
         max(2, PipelinePerformanceProfile.current.providerConcurrency(setting: settings.maximumConcurrentRequests) - 1)
     }
 
-    /// The reader's pipeline cache key for `page` (whole page), when the reader translates the same raster:
-    /// no reader image processors or source page processing, a remote URL or base64 page, and not a
-    /// temporary shared-image session (never persisted). Nil translates without the cache.
+    /// The reader's cache key for the whole page when the reader decodes the same raster (no image or page
+    /// processors, a remote URL or base64 page, not a temporary shared-image session); nil skips the cache.
     nonisolated static func readerCacheKey(
         for page: Page, processesPages: Bool, settings: ReaderTranslationSettings, defaults: UserDefaults = .standard
     ) -> String? {
@@ -60,9 +58,7 @@ enum DownloadImageTranslator {
         return try await encode(output)
     }
 
-    /// The page pipeline: the rendered page needs no reader host or overlay renderer. With the
-    /// reader's key, stored translations are replayed (no provider call, pixels as a fresh
-    /// translation) and new results are stored for the reader.
+    /// With the reader's key, stored translations are replayed without a provider call and new ones are stored.
     private nonisolated static func translateAdmitted(
         _ data: Data, settings: ReaderTranslationSettings, cacheKey: String?
     ) async throws -> CGImage {
@@ -78,8 +74,7 @@ enum DownloadImageTranslator {
         return output.image
     }
 
-    /// The PNG encode (hundreds of ms per page) runs after the pipeline permit is returned,
-    /// so the next page's decode and S1-S4 overlap it.
+    /// Runs after the pipeline permit is returned, so the next page overlaps this slow PNG encode.
     private nonisolated static func encode(_ image: CGImage) async throws -> Data {
         try Task.checkCancellation()
         guard let png = autoreleasepool(invoking: { UIImage(cgImage: image).pngData() }) else {

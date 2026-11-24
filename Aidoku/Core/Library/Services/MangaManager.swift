@@ -64,13 +64,16 @@ actor MangaManager {
         }
 
         // 2. Fallback: Find first uncompleted chapter in sort order (Start Reading)
-        func canStart(_ chapter: AidokuRunner.Chapter) -> Bool {
-            guard readingHistory[chapter.id]?.page != -1 else { return false }
-            guard chapter.locked else { return true }
+        let sorted = sortAscending ? chapters : chapters.reversed()
+
+        return sorted.first(where: { chapter in
             let identifier = ChapterIdentifier(sourceKey: manga.sourceKey, mangaKey: manga.key, chapterKey: chapter.key)
-            return DownloadManager.shared.getDownloadStatus(for: identifier) == .finished
-        }
-        return sortAscending ? chapters.first(where: canStart) : chapters.last(where: canStart)
+            let history = readingHistory[chapter.id]
+            let isCompleted = history?.page ?? 0 == -1
+
+            // the download status check rescans the manga folder, so it runs last
+            return !isCompleted && (!chapter.locked || DownloadManager.shared.getDownloadStatus(for: identifier) == .finished)
+        })
     }
 
     /// Fetches the stored chapters for a manga in the user's sort order, along with the next chapter to read.
