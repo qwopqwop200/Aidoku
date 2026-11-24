@@ -7,9 +7,7 @@ import UIKit
 import UniformTypeIdentifiers
 @testable import Aidoku
 
-/// The shared decoded-pixel cap (`ImagePixelCap`) on the pipeline page entry, the
-/// translation decoders and the global Nuke decoder. Every case injects a small
-/// cap so the synthetic images stay tiny.
+/// The shared decoded-pixel cap (`ImagePixelCap`) on pipeline pages and the Nuke decoder; small injected caps keep images tiny.
 struct PipelineHugePageCapTests {
     private func solidImage(width: Int, height: Int, rgb: (UInt8, UInt8, UInt8) = (200, 40, 90)) throws -> CGImage {
         var pixels = [UInt8](repeating: 255, count: width * height * 4)
@@ -24,7 +22,6 @@ struct PipelineHugePageCapTests {
         }
         return try #require(image)
     }
-
 
     @Test func cappedSizeKeepsAspectAndNeverExceedsTheCap() {
         #expect(!ImagePixelCap.exceeds(width: 100, height: 100, maxPixels: 10_000))

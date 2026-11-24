@@ -20,11 +20,7 @@ struct PipelinePaidRequestTests {
         gate.continuation.yield()
         #expect(try await request.value == 7)       // the request was not cancelled
         #expect(finished.value)
-    }
-
-    @Test func uncancelledWaiterGetsTheResult() async throws {
-        let request = Task { () throws -> String in "ok" }
-        #expect(try await PipelinePaidRequest.awaitUnlessCancelled(request) == "ok")
+        #expect(try await PipelinePaidRequest.awaitUnlessCancelled(request) == 7)  // an uncancelled waiter gets the result
     }
 
     @Test func transientProviderFailuresAreRetried() {
