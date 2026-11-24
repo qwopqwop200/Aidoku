@@ -361,7 +361,6 @@ extension ReaderPageView {
     private func startImageTask(_ request: ImageRequest) async -> Bool {
         let issued = imageLoadGeneration
         var request = request
-        request.priority = imageLoadPriority
         let demand = await imageDownloadDemand.start(request: request, pipeline: imagePipeline, priority: imageLoadPriority)
         defer { imageDownloadDemand.end(demand) }
         guard !Task.isCancelled, imageLoadGeneration == issued else { return false }

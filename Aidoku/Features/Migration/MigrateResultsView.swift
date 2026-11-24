@@ -188,7 +188,6 @@ extension MigrateResultsView {
                 }
 
                 guard !Task.isCancelled else { group.cancelAll(); break }
-                guard matchingDemand[key]?.isActive == true, selectedSeries.contains(where: { $0.identifier == key }) else { continue }
                 // handle result
                 await MainActor.run {
                     guard matchingDemand[key]?.isActive == true, selectedSeries.contains(where: { $0.identifier == key }) else { return }

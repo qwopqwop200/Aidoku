@@ -13,8 +13,7 @@ enum MigrationMatchSearch {
             } catch is CancellationError {
                 return nil
             } catch {
-                // Unavailable sources remain a silent fallback, as before.
-                guard !Task.isCancelled, isNeeded() else { return nil }
+                // Skip unavailable sources; the loop rechecks cancellation.
             }
         }
         return nil
