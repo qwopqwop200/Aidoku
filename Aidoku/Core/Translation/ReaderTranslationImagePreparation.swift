@@ -18,13 +18,7 @@ enum ReaderTranslationImagePreparation {
             throw RemoteTranslationError.invalidRequest("The page image is empty.")
         }
         // 1024 cut provider time 13% on device (4.2 -> 3.6 s) with role drift inside run-to-run noise.
-        var side: CGFloat = 1024, quality: CGFloat = 0.85
-#if AIDOKU_DEVELOPER_PERFORMANCE
-        // On-device A/B (DeveloperAutoRead) of the provider image size.
-        let defaults = UserDefaults.standard
-        if defaults.double(forKey: "AidokuPerfJPEGSide") > 0 { side = defaults.double(forKey: "AidokuPerfJPEGSide") }
-        if defaults.double(forKey: "AidokuPerfJPEGQuality") > 0 { quality = defaults.double(forKey: "AidokuPerfJPEGQuality") }
-#endif
+        let side: CGFloat = 1024, quality: CGFloat = 0.85
         let ratio = min(1, side / max(image.size.width, image.size.height))
         let size = CGSize(width: max(1, (image.size.width * ratio).rounded()),
                           height: max(1, (image.size.height * ratio).rounded()))

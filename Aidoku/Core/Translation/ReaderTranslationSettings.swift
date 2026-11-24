@@ -57,8 +57,6 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var translationSourceLanguages: [String] = []
     // Metadata has no OCR model and must retain its independent language choices.
     var usesOCRLanguagePolicy = true
-    /// Fixed sources the page pipeline accepts (the host CLI's `--source`); the app always detects.
-    var supportedOCRSourceLanguageCodes: Set<String> { IPhoneOCRSettings.translatedSourceLanguageCodes }
 
     /// Transient chapter direction from the reader; the pipeline orders blocks and panels by it.
     var readingDirection: PipelineReadingDirection = .rightToLeft
@@ -71,9 +69,7 @@ struct ReaderTranslationSettings: Equatable, Sendable {
     var metadataInstructions = ""
     var credentialGeneration: UInt64 = 0
     var cacheLimitBytes: Int64 = ReaderTranslationDiskCache.defaultBytes
-    /// Retired preference keys: ignored on load and removed on save.
-    // Source-language choices are retired: pages translate Japanese, Chinese and English only,
-    // and metadata translates every language.
+    /// Retired preference keys (including the source-language choices): ignored on load, removed on save.
     static let retiredKeys = ["Reader.translationPipelineV2", keyPrefix + "authorSourceLanguages",
         keyPrefix + "sourceLabelSourceLanguages", keyPrefix + "mangaTagSourceLanguages",
         keyPrefix + "mangaDescriptionSourceLanguages", keyPrefix + "mangaTitleSourceLanguages",
@@ -116,11 +112,8 @@ struct ReaderTranslationSettings: Equatable, Sendable {
            ReaderTranslationDiskCache.limitChoices.contains(value.int64Value) { cacheLimitBytes = value.int64Value }
     }
 
-    /// One-time fold of the retired OpenAI/custom picker into the single provider. "provider" stays
-    /// "custom" afterwards: the `custom` JSON is authoritative (older builds read it the same way).
-    /// OpenAI users (and fresh installs) get the OpenAI base URL with their model, effort and "openai"
-    /// Keychain account. Custom users keep their settings; the key of a custom api.openai.com URL moves to
-    /// "openai", the account that host now uses.
+    /// One-time fold of the retired OpenAI/custom picker into the single provider ("custom"; its JSON
+    /// is authoritative). The key of a custom api.openai.com URL moves to the "openai" account.
     private static func migrateProvider(_ defaults: UserDefaults, credentialStore: (any TranslationCredentialManaging)?) {
         let custom = RemoteTranslationProvider.custom.rawValue
         let provider = defaults.string(forKey: keyPrefix + "provider")
@@ -180,14 +173,13 @@ struct ReaderTranslationSettings: Equatable, Sendable {
               (1...64).contains(maximumConcurrentRequests),
               ReaderTranslationDiskCache.limitChoices.contains(cacheLimitBytes)
         else { throw RemoteTranslationError.invalidRequest("Invalid OCR or overlay setting.") }
-        guard [translationSourceLanguages].allSatisfy({ languages in
-            languages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count &&
-                Set(languages).count == languages.count &&
-                languages.allSatisfy { AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) }
-        })
+        let languages = translationSourceLanguages
+        guard languages.count <= AutomaticSourceLanguageDetector.supportedLanguageCodes.count,
+              Set(languages).count == languages.count,
+              languages.allSatisfy({ AutomaticSourceLanguageDetector.supportedLanguageCodes.contains($0) })
         else { throw RemoteTranslationError.invalidRequest("Invalid translation source-language filter.") }
         if usesOCRLanguagePolicy {
-            let supported = supportedOCRSourceLanguageCodes
+            let supported = IPhoneOCRSettings.translatedSourceLanguageCodes
             guard sourceLanguage == "auto" || supported.contains(ReaderTranslationLanguageFilter.canonical(sourceLanguage)),
                   translationSourceLanguages.allSatisfy({ supported.contains(ReaderTranslationLanguageFilter.canonical($0)) }) else {
                 throw RemoteTranslationError.invalidRequest(NSLocalizedString("TRANSLATION_OCR_MANGA_HELP"))
