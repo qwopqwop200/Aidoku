@@ -95,8 +95,6 @@ actor BackupManager {
     }
 
     func importBackup(from url: URL) -> Bool {
-        let fileManager = FileManager.default
-        let directory = Self.directory
         var targetLocation = Self.directory.appendingPathComponent(url.lastPathComponent)
         while targetLocation.exists {
             targetLocation = targetLocation.deletingLastPathComponent().appendingPathComponent(
@@ -110,14 +108,14 @@ actor BackupManager {
             }
         }
         do {
-            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-            let stagingDirectory = try fileManager.url(
-                for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: directory, create: true
+            try FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
+            let stagingDirectory = try FileManager.default.url(
+                for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: Self.directory, create: true
             )
-            defer { try? fileManager.removeItem(at: stagingDirectory) }
+            defer { try? FileManager.default.removeItem(at: stagingDirectory) }
             let stagedFile = stagingDirectory.appendingPathComponent("backup")
-            try fileManager.copyItem(at: url, to: stagedFile)
-            try fileManager.moveItem(at: stagedFile, to: targetLocation)
+            try FileManager.default.copyItem(at: url, to: stagedFile)
+            try FileManager.default.moveItem(at: stagedFile, to: targetLocation)
             NotificationCenter.default.post(name: .updateBackupList, object: nil)
             return true
         } catch {
@@ -349,6 +347,141 @@ extension BackupManager {
         }
     }
 
+    func restore(from url: URL) async -> Bool {
+        // Keep the selected file version if a queued restore outlives a rename or automatic pruning.
+        let data = try? Data(contentsOf: url, options: .mappedIfSafe)
+        return await withExclusiveDataAccess {
+            guard let data, let backup = Backup.decode(data) else {
+                await MainActor.run {
+                    UIApplication.shared.appDelegate?.presentAlert(
+                        title: NSLocalizedString("BACKUP_ERROR"),
+                        message: String(format: NSLocalizedString("BACKUP_ERROR_TEXT"), NSLocalizedString("CORRUPTED_BACKUP"))
+                    )
+                }
+                return false
+            }
+            return await doRestore(from: backup)
+        }
+    }
+
+    @discardableResult
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    private func doRestore(from backup: Backup) async -> Bool {
+        await MainActor.run {
+            UIApplication.shared.appDelegate?.showLoadingIndicator()
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
+
+        var backupError: Error?
+        do {
+            try await CoreDataManager.shared.container.performBackgroundTask { context in
+                do {
+                    try Self.restoreDatabase(from: backup, context: context)
+                    try context.save()
+                } catch {
+                    context.rollback()
+                    throw error
+                }
+            }
+            if let sourceLists = backup.sourceLists {
+                await SourceManager.shared.waitForSourceListsLoad()
+                await SourceManager.shared.clearSourceLists()
+                for sourceList in sourceLists {
+                    guard let url = URL(string: sourceList) else { continue }
+                    _ = await SourceManager.shared.addSourceList(url: url, allowUnavailable: true)
+                }
+            }
+            if backup.sources?.contains(where: { $0.config != nil }) == true {
+                await SourceManager.shared.reloadSources()
+            }
+        } catch {
+            backupError = error
+        }
+
+        // Restore application and currently installed source settings as part of the initial restore.
+        if backupError == nil {
+            await restoreSettings(from: backup)
+        }
+
+        await Task { @MainActor in
+            await UIApplication.shared.appDelegate?.hideLoadingIndicator()
+            UIApplication.shared.isIdleTimerDisabled = false
+        }.value
+
+        if backupError == nil {
+            let externalSourceKeys = Set((backup.sources ?? []).lazy.filter { $0.config == nil }.map(\.id))
+            let missingSourceKeys = await SourceManager.shared.missingExternalSourceKeys(in: externalSourceKeys)
+
+            if
+                !missingSourceKeys.isEmpty,
+                Reachability.getConnectionType() != .none,
+                await confirmExternalSourceRestore(keys: missingSourceKeys)
+            {
+                await MainActor.run {
+                    UIApplication.shared.isIdleTimerDisabled = true
+                    UIApplication.shared.appDelegate?.showLoadingIndicator(
+                        style: .progress,
+                        message: NSLocalizedString("INSTALLING_SOURCES")
+                    )
+                }
+
+                var installedSourceKeys: Set<String> = []
+
+                if let (installedSourceKeyStream, total) = await SourceManager.shared.installExternalSources(keys: missingSourceKeys) {
+                    var current = 0
+                    for await key in installedSourceKeyStream {
+                        current += 1
+                        installedSourceKeys.insert(key)
+                        await UIApplication.shared.appDelegate?.updateLoadingIndicator(
+                            progress: Float(current - 1) / Float(total)
+                        )
+                    }
+                }
+
+                await restoreSettings(from: backup, sourceKeys: installedSourceKeys)
+
+                await Task { @MainActor in
+                    let appDelegate = UIApplication.shared.appDelegate
+                    appDelegate?.updateLoadingIndicator(progress: 1)
+                    await appDelegate?.hideLoadingIndicator()
+                    UIApplication.shared.isIdleTimerDisabled = false
+                }.value
+            }
+        }
+
+        NotificationCenter.default.post(name: .updateHistory, object: nil)
+        NotificationCenter.default.post(name: .updateTrackers, object: nil)
+        NotificationCenter.default.post(name: .updateCategories, object: nil)
+        NotificationCenter.default.post(name: .updateLibrary, object: nil)
+
+        let backupSourceKeys = backup.sources?.map { $0.id } ?? []
+        let missingSourceKeys = await SourceManager.shared.missingExternalSourceKeys(in: Set(backupSourceKeys))
+
+        await Task { @MainActor [backupError] in
+            let delegate = UIApplication.shared.appDelegate
+            if let backupError {
+                // show error alert
+                delegate?.presentAlert(
+                    title: NSLocalizedString("BACKUP_ERROR"),
+                    message: String(
+                        format: NSLocalizedString("BACKUP_ERROR_TEXT"),
+                        (backupError as? BackupError)?.stringValue ?? NSLocalizedString("UNKNOWN")
+                    )
+                )
+            } else {
+                // show missing sources alert if there are any
+                if !missingSourceKeys.isEmpty {
+                    delegate?.presentAlert(
+                        title: NSLocalizedString("MISSING_SOURCES"),
+                        message: NSLocalizedString("MISSING_SOURCES_TEXT") + missingSourceKeys.map { "\n\($0)" }.joined()
+                    )
+                }
+            }
+        }.value
+
+        return backupError == nil
+    }
+
     /// Stage a restore in one context. The caller commits only after every section succeeds.
     nonisolated static func restoreDatabase(from backup: Backup, context: NSManagedObjectContext) throws {
         func valid16(_ values: Int?...) -> Bool {
@@ -516,144 +649,6 @@ extension BackupManager {
         }
     }
 
-    @discardableResult
-    func restore(from url: URL) async -> Bool {
-        // Keep the selected file version if a queued restore outlives a rename or automatic pruning.
-        let data = try? Data(contentsOf: url, options: .mappedIfSafe)
-        return await withExclusiveDataAccess {
-            guard let data, let backup = Backup.decode(data) else {
-                await Self.presentRestoreError(NSLocalizedString("CORRUPTED_BACKUP"))
-                return false
-            }
-            return await doRestore(from: backup)
-        }
-    }
-
-    @MainActor
-    private static func presentRestoreError(_ reason: String) {
-        UIApplication.shared.appDelegate?.presentAlert(
-            title: NSLocalizedString("BACKUP_ERROR"),
-            message: String(format: NSLocalizedString("BACKUP_ERROR_TEXT"), reason)
-        )
-    }
-
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private func doRestore(from backup: Backup) async -> Bool {
-        await MainActor.run {
-            UIApplication.shared.appDelegate?.showLoadingIndicator()
-            UIApplication.shared.isIdleTimerDisabled = true
-        }
-
-        var backupError: Error?
-        do {
-            try await CoreDataManager.shared.container.performBackgroundTask { context in
-                do {
-                    try Self.restoreDatabase(from: backup, context: context)
-                    try context.save()
-                } catch {
-                    context.rollback()
-                    throw error
-                }
-            }
-            if let sourceLists = backup.sourceLists {
-                await SourceManager.shared.waitForSourceListsLoad()
-                await SourceManager.shared.clearSourceLists()
-                for sourceList in sourceLists {
-                    guard let url = URL(string: sourceList) else { continue }
-                    _ = await SourceManager.shared.addSourceList(url: url, allowUnavailable: true)
-                }
-            }
-            if backup.sources?.contains(where: { $0.config != nil }) == true {
-                await SourceManager.shared.reloadSources()
-            }
-        } catch {
-            backupError = error
-        }
-
-        // Restore application and currently installed source settings as part of the initial restore.
-        if backupError == nil {
-            await restoreSettings(from: backup)
-        }
-
-        await Task { @MainActor in
-            await UIApplication.shared.appDelegate?.hideLoadingIndicator()
-            UIApplication.shared.isIdleTimerDisabled = false
-        }.value
-
-        if backupError == nil {
-            let externalSourceKeys = Set((backup.sources ?? []).lazy.filter { $0.config == nil }.map(\.id))
-            let missingSourceKeys = await SourceManager.shared.missingExternalSourceKeys(in: externalSourceKeys)
-
-            if
-                !missingSourceKeys.isEmpty,
-                Reachability.getConnectionType() != .none,
-                await confirmExternalSourceRestore(keys: missingSourceKeys)
-            {
-                await MainActor.run {
-                    UIApplication.shared.isIdleTimerDisabled = true
-                    UIApplication.shared.appDelegate?.showLoadingIndicator(
-                        style: .progress,
-                        message: NSLocalizedString("INSTALLING_SOURCES")
-                    )
-                }
-
-                var installedSourceKeys: Set<String> = []
-
-                if let (installedSourceKeyStream, total) = await SourceManager.shared.installExternalSources(keys: missingSourceKeys) {
-                    var current = 0
-                    for await key in installedSourceKeyStream {
-                        current += 1
-                        installedSourceKeys.insert(key)
-                        await UIApplication.shared.appDelegate?.updateLoadingIndicator(
-                            progress: Float(current - 1) / Float(total)
-                        )
-                    }
-                }
-
-                await restoreSettings(from: backup, sourceKeys: installedSourceKeys)
-
-                await Task { @MainActor in
-                    let appDelegate = UIApplication.shared.appDelegate
-                    appDelegate?.updateLoadingIndicator(progress: 1)
-                    await appDelegate?.hideLoadingIndicator()
-                    UIApplication.shared.isIdleTimerDisabled = false
-                }.value
-            }
-        }
-
-        NotificationCenter.default.post(name: .updateHistory, object: nil)
-        NotificationCenter.default.post(name: .updateTrackers, object: nil)
-        NotificationCenter.default.post(name: .updateCategories, object: nil)
-        NotificationCenter.default.post(name: .updateLibrary, object: nil)
-
-        let backupSourceKeys = backup.sources?.map { $0.id } ?? []
-        let missingSourceKeys = await SourceManager.shared.missingExternalSourceKeys(in: Set(backupSourceKeys))
-
-        await Task { @MainActor [backupError] in
-            let delegate = UIApplication.shared.appDelegate
-            if let backupError {
-                // show error alert
-                delegate?.presentAlert(
-                    title: NSLocalizedString("BACKUP_ERROR"),
-                    message: String(
-                        format: NSLocalizedString("BACKUP_ERROR_TEXT"),
-                        (backupError as? BackupError)?.stringValue ?? NSLocalizedString("UNKNOWN")
-                    )
-                )
-            } else {
-                // show missing sources alert if there are any
-                if !missingSourceKeys.isEmpty {
-                    delegate?.presentAlert(
-                        title: NSLocalizedString("MISSING_SOURCES"),
-                        message: NSLocalizedString("MISSING_SOURCES_TEXT") + missingSourceKeys.map { "\n\($0)" }.joined()
-                    )
-                }
-            }
-        }.value
-
-        return backupError == nil
-    }
-
     private func restoreSettings(from backup: Backup, sourceKeys: Set<String>? = nil) async {
         guard let settings = backup.settings else { return }
 
@@ -787,20 +782,16 @@ extension BackupManager {
         }
     }
 
-    // A previously submitted request may arrive after a foreground backup or a settings restore.
-    func performAutoBackupIfDue(_ operation: () async -> Bool) async -> Bool {
+    @discardableResult
+    private func createAutoBackup() async -> Bool {
         guard !isCreatingAutoBackup else { return false }
         isCreatingAutoBackup = true
         defer { isCreatingAutoBackup = false }
-        return await withExclusiveDataAccess {
+        // A previously submitted request may arrive after a foreground backup or a settings restore.
+        let handled = await withExclusiveDataAccess {
             guard let due = nextAutoBackupDate, due <= Date.now else { return true }
-            return await operation()
+            return await saveAutoBackup()
         }
-    }
-
-    @discardableResult
-    private func createAutoBackup() async -> Bool {
-        let handled = await performAutoBackupIfDue { await saveAutoBackup() }
         if handled { scheduleAutoBackup() }
         return handled
     }
