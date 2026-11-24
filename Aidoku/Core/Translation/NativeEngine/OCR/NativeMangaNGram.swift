@@ -51,14 +51,11 @@ final class NativeMangaNGram: @unchecked Sendable {
                 }
             }
         }
-        // Kept as Float16 (exactly widened at lookup): a quarter of the resident Double tables.
-        func values(_ count: Int) -> [Float16] {
-            table(count, as: UInt16.self) { Float16(bitPattern: $0) }
-        }
+        // Values stay Float16 (exactly widened at lookup): a quarter of the resident Double tables.
         let gramKeys = table(g, as: UInt64.self) { $0 }
-        let gramValues = values(g)
+        let gramValues = table(g, as: UInt16.self, transform: Float16.init(bitPattern:))
         let contextKeys = table(c, as: UInt64.self) { $0 }
-        let contextValues = values(c)
+        let contextValues = table(c, as: UInt16.self, transform: Float16.init(bitPattern:))
         guard gramValues.allSatisfy({ $0.isFinite && $0 <= 0 }), contextValues.allSatisfy({ $0.isFinite && $0 <= 0 }),
               zip(gramKeys, gramKeys.dropFirst()).allSatisfy({ $0 < $1 }),
               zip(contextKeys, contextKeys.dropFirst()).allSatisfy({ $0 < $1 }) else { throw Failure.malformedData }

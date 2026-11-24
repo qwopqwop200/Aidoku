@@ -33,16 +33,8 @@ enum TranslationCredentialStoreError: Error, Equatable, LocalizedError {
 struct KeychainTranslationCredentialStore: TranslationCredentialManaging, Sendable {
     static let maximumSecretBytes = 16 * 1024
 
-    let service: String
-    let accessGroup: String?
-
-    init(
-        service: String = "app.aidoku.translation",
-        accessGroup: String? = KeychainTranslationCredentialStore.infoPlistAccessGroup()
-    ) {
-        self.service = service
-        self.accessGroup = accessGroup
-    }
+    var service = "app.aidoku.translation"
+    var accessGroup = KeychainTranslationCredentialStore.infoPlistAccessGroup()
 
     func save(_ secret: String, for account: String) throws {
         try validateAccount(account)

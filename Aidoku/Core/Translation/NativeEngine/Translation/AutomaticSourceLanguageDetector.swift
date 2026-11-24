@@ -17,18 +17,15 @@ enum AutomaticSourceLanguageDetector {
     private static let minimumConfidence = 0.45
     private static let minimumConfidenceGap = 0.15
 
-    /// The PP-OCRv6 languages Apple's `NLLanguage` recognizer can classify
-    /// (OCR covers more). Explicit OCR remains available for every code in
-    /// `supportedLanguageCodes`.
+    /// The PP-OCRv6 languages Apple's `NLLanguage` recognizer can classify (OCR covers more).
     static let automaticallyClassifiableLanguageCodes: Set<String> = [
         "zh", "zh-Hant", "en", "ja", "ca", "hr", "cs", "da", "nl",
         "fi", "fr", "de", "hu", "is", "id", "it", "ms", "no", "pl",
         "pt", "ro", "sk", "es", "sv", "tl", "tr", "vi",
     ]
 
-    /// Natural Language does not consistently produce `tl` directly. Keep
-    /// both its legacy tag and Apple's `fil` tag constrained, then canonicalize
-    /// and refine the Malay-family result with conservative word evidence.
+    /// Natural Language does not consistently produce `tl`: constrain both `tl` and `fil`,
+    /// then canonicalize and refine the Malay-family result with word evidence.
     private static let recognizerLanguages = [
         "zh-Hans", "zh-Hant", "en", "ja", "ca", "hr", "cs", "da",
         "nl", "fi", "fr", "de", "hu", "is", "id", "it", "ms", "no",
@@ -86,7 +83,7 @@ enum AutomaticSourceLanguageDetector {
         return detected
     }
 
-    private static func detectUncached(_ untrimmedText: String, sourceHint: String? = nil) -> String? {
+    private static func detectUncached(_ untrimmedText: String, sourceHint: String?) -> String? {
         let text = untrimmedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
 
@@ -106,9 +103,8 @@ enum AutomaticSourceLanguageDetector {
             if simplifiedCount > traditionalCount { return "zh" }
             if traditionalCount > simplifiedCount { return "zh-Hant" }
 
-            // PP-OCRv6 returns no per-line language tag, so a user-selected
-            // OCR source is the document hint. Use it only for Han-only text
-            // after strong simplified/traditional markers have had a chance to win.
+            // OCR has no per-line language tag, so a fixed source is the hint: only for
+            // Han-only text, after the simplified/traditional markers had a chance to win.
             let hasOnlyHanLetters = scalars
                 .filter { $0.properties.isAlphabetic && !isSharedProlongedSoundMark($0) }
                 .allSatisfy(isHan)
@@ -128,10 +124,8 @@ enum AutomaticSourceLanguageDetector {
             ) {
                 return refined
             }
-            // Apple OS versions that directly identify Malay or Tagalog are
-            // authoritative. An `id` fallback without distinguishing words is
-            // intentionally left unclassified because all three languages can
-            // otherwise collapse into Indonesian.
+            // A direct Malay or Tagalog result is authoritative; a bare `id` stays
+            // unclassified because all three languages can collapse into Indonesian.
             return hypothesis.languageCode == "id" ? nil : hypothesis.languageCode
         }
         if ["da", "no", "sv"].contains(hypothesis.languageCode),
@@ -150,9 +144,8 @@ enum AutomaticSourceLanguageDetector {
         return selectedLanguageCodes.contains(detected)
     }
 
-    /// A fixed source is a one-language allowlist. Auto
-    /// mode uses the optional multi-language translation-source filter; an
-    /// empty auto filter preserves the translate-every-line mode.
+    /// A fixed source is a one-language allowlist; auto mode uses the optional filter
+    /// (empty translates every line).
     static func allowsOCRText(
         _ text: String,
         configuredSourceLanguage: String,
@@ -162,9 +155,7 @@ enum AutomaticSourceLanguageDetector {
         guard !trimmed.isEmpty else { return false }
 
         if configuredSourceLanguage != "auto" {
-            // Some unified-v6 OCR languages have no Apple NaturalLanguage
-            // classifier. Keep those explicit modes usable instead of
-            // deleting every recognized line with an impossible classifier.
+            // Without an Apple classifier for the language, keep every line.
             guard automaticallyClassifiableLanguageCodes.contains(configuredSourceLanguage) else { return true }
             return allows(trimmed, selectedLanguageCodes: [configuredSourceLanguage], sourceHint: configuredSourceLanguage)
         }
