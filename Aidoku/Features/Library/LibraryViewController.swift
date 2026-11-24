@@ -1289,8 +1289,7 @@ extension LibraryViewController: LibraryCategorySelectionHeaderDelegate {
                 guard viewModel.filterGroups.indices.contains(indexPath.row) else { return }
                 viewModel.currentCategory = viewModel.filterGroups[indexPath.row].title
             }
-            // Header syncs (initial selection, category list refresh) re-report the current option; the
-            // ignore flag is reset before this task runs, so skip the redundant full library reload here.
+            // Header syncs re-report the current option; skip the redundant reload.
             guard viewModel.currentCategory != previousCategory else { return }
             locked = viewModel.isCategoryLocked()
             updateLockState()
