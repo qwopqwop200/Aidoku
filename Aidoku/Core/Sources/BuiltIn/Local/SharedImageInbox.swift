@@ -178,9 +178,9 @@ struct SharedImageInbox {
     static let staleStagingAge: TimeInterval = 60 * 60
     private static let attemptsFile = ".attempts"
 
-    func pendingBatches(now: Date = Date()) throws -> [Batch] {
+    func pendingBatches() throws -> [Batch] {
         guard FileManager.default.fileExists(atPath: root.path) else { return [] }
-        removeStaleStaging(now: now)
+        removeStaleStaging()
         return try FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: [.creationDateKey], options: [.skipsHiddenFiles]
         ).sorted {
@@ -234,7 +234,7 @@ struct SharedImageInbox {
         return true
     }
 
-    private func removeStaleStaging(now: Date) {
+    private func removeStaleStaging() {
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey, .isDirectoryKey]
         ) else { return }
@@ -242,7 +242,7 @@ struct SharedImageInbox {
             guard let values = try? entry.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .isDirectoryKey]),
                   values.isDirectory == true else { continue }
             let date = [values.creationDate, values.contentModificationDate].compactMap { $0 }.max() ?? .distantPast
-            if now.timeIntervalSince(date) > Self.staleStagingAge {
+            if Date().timeIntervalSince(date) > Self.staleStagingAge {
                 try? FileManager.default.removeItem(at: entry)
             }
         }

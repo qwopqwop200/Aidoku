@@ -48,20 +48,19 @@ enum CloudflareResponsePolicy {
     }
 
     /// Foundation applies domain, path and secure rules before this expiry check.
-    static func usableClearance(for url: URL, storage: HTTPCookieStorage = .shared, now: Date = Date()) -> HTTPCookie? {
-        SourceLoginBrowserPolicy.cookies(storage.requestCookies(for: url) ?? [], for: url, now: now).first {
+    static func usableClearance(for url: URL) -> HTTPCookie? {
+        SourceLoginBrowserPolicy.cookies(HTTPCookieStorage.shared.requestCookies(for: url) ?? [], for: url).first {
             $0.name == "cf_clearance" && !$0.value.isEmpty
         }
     }
 
     /// Only Cloudflare state is exported; WebKit may hold an older source session than native networking.
-    static func commitVerificationCookies(_ cookies: [HTTPCookie], for url: URL,
-                                          storage: HTTPCookieStorage = .shared, now: Date = Date()) {
+    static func commitVerificationCookies(_ cookies: [HTTPCookie], for url: URL) {
         let allowedNames: Set<String> = ["cf_clearance", "__cf_bm", "_cfuvid"]
-        let verification = SourceLoginBrowserPolicy.cookies(cookies, for: url, now: now).filter {
+        let verification = SourceLoginBrowserPolicy.cookies(cookies, for: url).filter {
             allowedNames.contains($0.name) && !$0.value.isEmpty
         }
-        storage.setCookies(verification, for: url, mainDocumentURL: url)
+        HTTPCookieStorage.shared.setCookies(verification, for: url, mainDocumentURL: url)
     }
 
     /// A verification navigation must not replay the source's POST or upload body.
