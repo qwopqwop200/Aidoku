@@ -1,8 +1,6 @@
 import CoreGraphics
 import Foundation
 
-// Plain values shared by the pipeline stages.
-
 /// One input page in original-image pixel coordinates (top-left origin).
 struct PipelinePage: Sendable {
     let id: String
@@ -38,9 +36,7 @@ struct PipelineLayoutRegion: Sendable, Codable, Equatable {
     var bounds: CGRect
     var score: Float
 
-    /// Least balloon score S1 keeps and S2b/S4/S4b use (fit on train folds against GT balloon masks:
-    /// recall 0.90 -> 0.93 at IoU 0.5, GT text-in-balloon disagreements 70 -> 37; 0.35-0.45 is an
-    /// end-to-end plateau).
+    /// Least balloon score S1 keeps and S2b/S4/S4b use.
     static var balloonFloor: Float { PipelineTuning.current.balloonFloor }
 }
 

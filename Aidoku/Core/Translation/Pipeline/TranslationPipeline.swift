@@ -77,8 +77,8 @@ enum TranslationPipeline {
 
     /// Restored background for one paint set (S6 + S7).
     private struct Erased: Sendable {
-        /// The restored page, whose bytes S10 takes and paints over in place (the async let result
-        /// that carries this value keeps a copy, so the bytes stay unshared only behind a reference).
+        /// The restored page, whose bytes S10 takes and paints over in place (behind a reference so the
+        /// async let result's copy does not share them).
         var restored: PipelineRasterHandoff?
         /// The restored page when no shared raster was decoded.
         var background: CGImage?
@@ -95,9 +95,8 @@ enum TranslationPipeline {
         var stages: [String: Double] = [:]
     }
 
-    /// What the back branch reads from S1 || S2. A reference holds the page raster so its lifetime
-    /// never rests on an `async let` capture: the optimized build borrowed `[front]` there, and
-    /// `front.raster = nil` freed the bytes while S8 still read them (heap-use-after-free).
+    /// What the back branch reads from S1 || S2. The raster lives in a reference, not an `async let`
+    /// capture, which the optimized build borrowed and freed while S8 still read it (use-after-free).
     private final class BackInput: @unchecked Sendable {
         let layout: [PipelineLayoutRegion]
         private let lock = NSLock()

@@ -1,16 +1,11 @@
 import Foundation
 
-/// Fitted tables in Resources/Translation/PipelineWeights.bin, exported from the out-of-repo research
-/// scripts (scripts-mask/export_weights.py, scripts-style/export_swift.py; TRAIN split only). fillPass2 is a
-/// LightGBM lambdarank over each block's candidates (`port-eval/colorfix/export_fill.py`; base 0, rate 1).
-/// An optional fourth forest, fillPeaks, ranks the pick against its density peaks (`train_peaks.py`); an optional
-/// fifth, lineEnds, regresses S6 line-end offsets (`PipelineLineEnds`; port-eval/bboxagent/export.py, GT train folds only).
-/// Each table is a UInt32 element count followed by little-endian elements, in the order read below. The
-/// first two tables (the former S6 MLP, replaced by `PipelineMaskNet`) are unused and skipped.
+/// Fitted tables in Resources/Translation/PipelineWeights.bin (TRAIN split only): style forests, then the
+/// optional density-peak ranker and line-end regressor. Each table is a UInt32 element count followed by
+/// little-endian elements, in the order read below; the first two (a retired S6 MLP) are skipped.
 private enum PipelineWeightFile {
     struct Tables {
         let fillPass1: PipelineStyleForest, fillPass2: PipelineStyleForest, outline: PipelineStyleForest
-        /// Optional trailing forests: the density-peak ranker and the line-end regressor (absent in older files).
         let fillPeaks: PipelineStyleForest?
         let lineEnds: PipelineStyleForest?
     }

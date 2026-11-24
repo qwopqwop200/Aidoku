@@ -1,15 +1,13 @@
 import Foundation
 
-/// The knobs fitted to the current models' outputs (score scales, box geometry, glyph probabilities),
-/// so the ones to re-fit when a model is replaced (port-eval/retune/retune.py). The app always runs
-/// these defaults; only the Mac host overrides them, once before its first page
-/// (AIDOKU_PIPELINE_TUNING, see `PipelineHostTuning`), so one run reads one fixed set.
+/// Knobs fitted to the current models' outputs, to re-fit when a model changes (port-eval/retune/retune.py).
+/// The app runs these defaults; only the Mac host overrides them before its first page (AIDOKU_PIPELINE_TUNING).
 struct PipelineTuning: Equatable, Sendable {
     /// S1 RF-DETR per-class score floors (model class order: text, SFX, frame); balloon is `balloonFloor`.
     var layoutTextFloor: Float = 0.25
     var layoutSFXFloor: Float = 0.20
     var layoutFrameFloor: Float = 0.50
-    /// Least balloon score S1 keeps and S2b/S4/S4b use (see `PipelineLayoutRegion.balloonFloor`).
+    /// Least balloon score S1 keeps and S2b/S4/S4b use (fit against GT balloon masks; 0.35-0.45 is a plateau).
     var balloonFloor: Float = 0.40
     /// S2 PP-OCR DB binarization, box score and unclip (`NativeCoreMLDBPostprocessConfiguration.manga`).
     var detectionThreshold: Double = 0.85
@@ -61,16 +59,7 @@ struct PipelineTuning: Equatable, Sendable {
     nonisolated(unsafe) static var current = PipelineTuning()
 
     /// Field names as `retune.py` and AIDOKU_PIPELINE_TUNING spell them.
-    static let keys: [String] = [
-        "layoutTextFloor", "layoutSFXFloor", "layoutFrameFloor", "balloonFloor",
-        "detectionThreshold", "detectionBoxThreshold", "detectionUnclipRatio", "detectionMaximumSide",
-        "assemblyMinimumOverlap", "assemblyMaximumGap", "recognitionMinimumConfidence", "recognitionLinePadDivisor",
-        "fragmentConfidence", "roleSFXScore", "roleBalloonScore", "roleRescueBalloon",
-        "roleRescueSFX", "parallelOverlap", "parallelGap", "balloonOwnerCoverage",
-        "textScopeCoverage", "balloonEdgeCoverage", "interiorHorizontalReach", "interiorVerticalReach",
-        "interiorFrameScore", "maskThreshold", "maskDilation", "lineEndExtension",
-        "lineEndMargin", "fontLevel",
-    ]
+    static let keys = PipelineTuning().values.keys.sorted()
 
     /// Every field by name (for logs and run summaries).
     var values: [String: Double] {
