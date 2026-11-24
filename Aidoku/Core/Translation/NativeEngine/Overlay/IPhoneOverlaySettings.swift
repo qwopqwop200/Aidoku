@@ -39,39 +39,6 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
     var subtitleMaxLines: Int
     var subtitleContextSentences: Int
 
-    init(
-        visible: Bool,
-        mode: IPhoneOverlayMode,
-        colorMode: IPhoneOverlayColorMode,
-        opacity: Double,
-        textPlacement: IPhoneOverlayTextPlacement,
-        subtitlePosition: IPhoneSubtitlePosition,
-        subtitleMaxLines: Int,
-        subtitleContextSentences: Int
-    ) {
-        self.visible = visible
-        self.mode = mode
-        self.colorMode = colorMode
-        self.opacity = opacity
-        self.textPlacement = textPlacement
-        self.subtitlePosition = subtitlePosition
-        self.subtitleMaxLines = subtitleMaxLines
-        self.subtitleContextSentences = subtitleContextSentences
-    }
-
-    init(from decoder: any Decoder) throws {
-        // Removed font-size and expansion preferences are ignored.
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        visible = try container.decode(Bool.self, forKey: .visible)
-        mode = try container.decode(IPhoneOverlayMode.self, forKey: .mode)
-        colorMode = try container.decode(IPhoneOverlayColorMode.self, forKey: .colorMode)
-        opacity = try container.decode(Double.self, forKey: .opacity)
-        textPlacement = try container.decode(IPhoneOverlayTextPlacement.self, forKey: .textPlacement)
-        subtitlePosition = try container.decode(IPhoneSubtitlePosition.self, forKey: .subtitlePosition)
-        subtitleMaxLines = try container.decode(Int.self, forKey: .subtitleMaxLines)
-        subtitleContextSentences = try container.decode(Int.self, forKey: .subtitleContextSentences)
-    }
-
     /// Legacy subtitle/side-panel fields stay decodable for migration; text is
     /// always rendered directly over its source box.
     mutating func enforceSourceReplacement() {
@@ -84,5 +51,21 @@ struct IPhoneOverlaySettings: Codable, Equatable, Sendable {
         subtitlePosition = .bottom
         subtitleMaxLines = 2
         subtitleContextSentences = 0
+    }
+}
+
+// In an extension so the memberwise initializer stays available.
+extension IPhoneOverlaySettings {
+    init(from decoder: any Decoder) throws {
+        // Removed font-size and expansion preferences are ignored.
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        visible = try container.decode(Bool.self, forKey: .visible)
+        mode = try container.decode(IPhoneOverlayMode.self, forKey: .mode)
+        colorMode = try container.decode(IPhoneOverlayColorMode.self, forKey: .colorMode)
+        opacity = try container.decode(Double.self, forKey: .opacity)
+        textPlacement = try container.decode(IPhoneOverlayTextPlacement.self, forKey: .textPlacement)
+        subtitlePosition = try container.decode(IPhoneSubtitlePosition.self, forKey: .subtitlePosition)
+        subtitleMaxLines = try container.decode(Int.self, forKey: .subtitleMaxLines)
+        subtitleContextSentences = try container.decode(Int.self, forKey: .subtitleContextSentences)
     }
 }

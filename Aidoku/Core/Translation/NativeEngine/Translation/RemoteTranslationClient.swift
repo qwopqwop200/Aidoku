@@ -125,9 +125,7 @@ final class CompactChatOutputRegistry: @unchecked Sendable {
     }
 
     private func finishMetadataWaiter(_ id: UUID, cancelled: Bool) {
-        lock.lock()
-        let waiter = metadataWaiters.removeValue(forKey: id)
-        lock.unlock()
+        let waiter = lock.withLock { metadataWaiters.removeValue(forKey: id) }
         guard let waiter else { return }
         waiter.timeout.cancel()
         if cancelled { waiter.continuation.resume(throwing: CancellationError()) }
@@ -135,23 +133,19 @@ final class CompactChatOutputRegistry: @unchecked Sendable {
     }
 
     func state(for key: String) -> State {
-        lock.lock(); defer { lock.unlock() }
-        return states[key] ?? .unknown
+        lock.withLock { states[key] ?? .unknown }
     }
 
     func markEligible(_ key: String) {
-        lock.lock(); defer { lock.unlock() }
-        if (states[key] ?? .unknown) == .unknown { states[key] = .eligible }
+        lock.withLock { if (states[key] ?? .unknown) == .unknown { states[key] = .eligible } }
     }
 
     func markVerified(_ key: String) {
-        lock.lock(); defer { lock.unlock() }
-        if states[key] == .eligible { states[key] = .verified }
+        lock.withLock { if states[key] == .eligible { states[key] = .verified } }
     }
 
     func markUnsupported(_ key: String) {
-        lock.lock(); defer { lock.unlock() }
-        states[key] = .unsupported
+        lock.withLock { states[key] = .unsupported }
     }
 }
 
@@ -524,9 +518,7 @@ final class RemoteTranslationClient: RemoteTranslating, @unchecked Sendable {
             transportResponse = try await transport.data(
                 for: urlRequest, maximumResponseBytes: maximumBodyBytes, bypassesProxy: endpoint.scheme == "http"
             )
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as RemoteTranslationError {
+        } catch let error where error is CancellationError || error is RemoteTranslationError {
             throw error
         } catch let error as URLError {
             if error.code == .cancelled, Task.isCancelled { throw CancellationError() }

@@ -1,26 +1,18 @@
 import Foundation
 
 struct TranslationHTTPTransportMetrics: Equatable, Sendable {
-    let responseHeadersMilliseconds: Double?
-    let firstBodyByteMilliseconds: Double?
-    let bodyMilliseconds: Double?
-    let totalMilliseconds: Double?
+    var responseHeadersMilliseconds: Double?
+    var firstBodyByteMilliseconds: Double?
+    var bodyMilliseconds: Double?
+    var totalMilliseconds: Double?
 
-    static let unmeasured = Self(
-        responseHeadersMilliseconds: nil, firstBodyByteMilliseconds: nil, bodyMilliseconds: nil, totalMilliseconds: nil
-    )
+    static let unmeasured = Self()
 }
 
 struct TranslationHTTPResponse: @unchecked Sendable {
     let data: Data
     let response: HTTPURLResponse
-    let metrics: TranslationHTTPTransportMetrics
-
-    init(data: Data, response: HTTPURLResponse, metrics: TranslationHTTPTransportMetrics = .unmeasured) {
-        self.data = data
-        self.response = response
-        self.metrics = metrics
-    }
+    var metrics = TranslationHTTPTransportMetrics.unmeasured
 }
 
 protocol TranslationHTTPTransport: Sendable {
@@ -129,9 +121,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unc
                 let task = session.dataTask(with: request)
                 let key = requestKey(session: session, task: task)
                 let state = RequestState(maximumResponseBytes: maximumResponseBytes, continuation: continuation)
-                stateLock.lock()
-                states[key] = state
-                stateLock.unlock()
+                stateLock.withLock { states[key] = state }
 
                 // Install after registering the continuation so a racing cancellation can complete it.
                 taskBox.install(task)
@@ -216,9 +206,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unc
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         let key = requestKey(session: session, task: task)
-        stateLock.lock()
-        let state = states.removeValue(forKey: key)
-        stateLock.unlock()
+        let state = stateLock.withLock { states.removeValue(forKey: key) }
         guard let state else { return }
 
         let completedAt = ProcessInfo.processInfo.systemUptime
@@ -252,9 +240,7 @@ final class BoundedURLSessionTransport: NSObject, TranslationHTTPTransport, @unc
     }
 
     private func finish(key: RequestKey, result: Result<TranslationHTTPResponse, Error>) {
-        stateLock.lock()
-        let state = states.removeValue(forKey: key)
-        stateLock.unlock()
+        let state = stateLock.withLock { states.removeValue(forKey: key) }
         state?.continuation.resume(with: result)
     }
 }
