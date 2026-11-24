@@ -57,7 +57,7 @@ final class PipelineAOTModel: @unchecked Sendable {
         let cw = patch.size.0, ch = patch.size.1
         var canvas = [UInt8](repeating: 255, count: cw * ch * 4)
         var canvasMask = [UInt8](repeating: 0, count: cw * ch)
-        downscale(raster.rgba, mask: removal, width: raster.width, patch: patch, pad: 0,
+        downscale(raster.rgba, mask: removal, width: raster.width, patch: patch,
                   into: &canvas, canvasMask: &canvasMask, canvasWidth: cw)
         return Canvas(patch: patch, rgba: canvas, mask: canvasMask)
     }
@@ -96,9 +96,8 @@ final class PipelineAOTModel: @unchecked Sendable {
         var size: (Int, Int)
     }
 
-
-    /// Integer-area downscale of `patch.rect` into the canvas (any-hit mask), edges replicated `pad` px.
-    static func downscale(_ rgba: [UInt8], mask: [UInt8], width: Int, patch: Patch, pad: Int,
+    /// Integer-area downscale of `patch.rect` into the canvas (any-hit mask).
+    static func downscale(_ rgba: [UInt8], mask: [UInt8], width: Int, patch: Patch,
                           into canvas: inout [UInt8], canvasMask: inout [UInt8], canvasWidth: Int) {
         let (x0, y0, x1, y1) = patch.rect, (pw, ph) = patch.size, (ox, oy) = patch.origin
         let rw = x1 - x0, rh = y1 - y0
@@ -159,17 +158,6 @@ final class PipelineAOTModel: @unchecked Sendable {
         }
         } } }
         } }
-        for y in -pad..<(ph + pad) {
-            // Interior rows only visit their side borders (sources are interior, so order is free).
-            let inside = y >= 0 && y < ph
-            for span in [-pad..<0, (inside ? pw : 0)..<(pw + pad)] {
-                for x in span {
-                    let c = (oy + y) * canvasWidth + ox + x
-                    let s = (oy + min(ph - 1, max(0, y))) * canvasWidth + ox + min(pw - 1, max(0, x))
-                    for k in 0..<4 { canvas[c * 4 + k] = canvas[s * 4 + k] }
-                }
-            }
-        }
     }
 
     /// `mask.contains { $0 != 0 }`, 32 bytes per step.
@@ -365,16 +353,12 @@ enum PipelineInpaint {
     /// Restores `mask` (page-size, nonzero = erase) with AOT. Pixels outside the mask are unchanged.
     static func restore(_ page: PipelinePage, mask: [UInt8], models: PipelineModels) async throws -> CGImage {
         guard PipelineAOTModel.anyNonzero(mask) else { return page.image }
-        return try await restoreImage(PipelinePageRaster(page.image), mask: mask, models: models)
+        let raster = try PipelinePageRaster(page.image), width = raster.width, height = raster.height
+        return try PipelinePageRaster.image(owning: await restorePixels(PipelineRasterHandoff(raster), mask: mask, models: models),
+                                            width: width, height: height)
     }
 
-    /// Restore of `raster` (see `PipelineAOTModel.restoreImage`) as an image, with one page copy.
-    static func restoreImage(_ raster: PipelinePageRaster, mask: [UInt8], models: PipelineModels) async throws -> CGImage {
-        try PipelinePageRaster.image(owning: await restorePixels(PipelineRasterHandoff(raster), mask: mask, models: models),
-                                     width: raster.width, height: raster.height)
-    }
-
-    /// `restoreImage` as canonical page bytes (see `PipelineAOTModel.restorePixels`).
+    /// `restore` as canonical page bytes (see `PipelineAOTModel.restorePixels`).
     static func restorePixels(_ source: PipelineRasterHandoff, mask: [UInt8], models: PipelineModels) async throws -> [UInt8] {
         guard let (width, height) = source.size, mask.count == width * height else { throw PipelineAOTModel.Failure.maskSize }
         // The canvas is instance-free: building it before the hold keeps the instances on predictions.
