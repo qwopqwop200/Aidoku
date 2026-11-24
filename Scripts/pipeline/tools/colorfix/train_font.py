@@ -3,11 +3,12 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 from workspace import RUNS, WEIGHTS  # noqa: E402
-import json, os, sys, itertools, struct, warnings
+import json, os, itertools, warnings
 import numpy as np, lightgbm as lgb
 warnings.filterwarnings('ignore')
 import consistency_metrics as cm
 from sim import FOLD
+import forest
 REG, _, SIZE = cm.gt()
 PRE = str(RUNS / 'imp/fontdump')
 BIN = str(WEIGHTS)
@@ -51,30 +52,8 @@ report(oof, TRAIN, 'train CV ')
 model = lgb.LGBMRegressor(random_state=0, n_jobs=4, verbose=-1, objective='l1', **hp).fit(X[np.isin(fold, TRAIN)], y[np.isin(fold, TRAIN)])
 report(model.predict(X), ['dev', 'test'], 'held-out ')
 print('hp', hp)
-roots, feat, thr, left, right, val = [], [], [], [], [], []
-def add(node):
-    i = len(feat); feat.append(0); thr.append(0.0); left.append(-1); right.append(-1); val.append(0.0)
-    if 'leaf_value' in node: val[i] = node['leaf_value']
-    else:
-        assert node['decision_type'] == '<='
-        feat[i] = node['split_feature']; thr[i] = node['threshold']; left[i] = add(node['left_child']); right[i] = add(node['right_child'])
-    return i
-for t in model.booster_.dump_model()['tree_info']: roots.append(add(t['tree_structure']))
-def ev(x):
-    z = 0.0
-    for r in roots:
-        n = r
-        while left[n] >= 0: n = left[n] if float(np.float32(x[feat[n]])) <= thr[n] else right[n]
-        z += val[n]
-    return z
-diff = max(abs(ev(x) - p) for x, p in zip(X, model.predict(X)))
+trees = forest.flatten(model.booster_)
+diff = max(abs(forest.logit(trees, x) - p) for x, p in zip(X, model.predict(X)))
 print('max |logit diff| exported vs lightgbm', diff)
 if '--write' in sys.argv:
-    data = open(BIN, 'rb').read(); off = 0
-    def skip(fmt):
-        global off
-        n = struct.unpack_from('<I', data, off)[0]; off += 4 + n * struct.calcsize(fmt)
-    for c in ['f', 'f'] + ['d', 'i', 'h', 'd', 'i', 'i', 'd'] * 4: skip(c)  # keep 3 forests + fillPeaks
-    pack = lambda fmt, xs: struct.pack('<I', len(xs)) + struct.pack('<' + fmt * len(xs), *xs)
-    tail = pack('d', [0.0, 1.0]) + pack('i', roots) + pack('h', feat) + pack('d', thr) + pack('i', left) + pack('i', right) + pack('d', val)
-    open(BIN, 'wb').write(data[:off] + tail); print('wrote 5th forest', len(roots), 'trees')
+    forest.write(BIN, 4, trees); print('wrote 5th forest', len(trees[0]), 'trees')  # after 3 forests + fillPeaks

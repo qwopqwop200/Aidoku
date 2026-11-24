@@ -27,31 +27,36 @@ def raster(path):
     return _raster[path]
 
 
+def page(r):
+    """-> [(srcDist or None without a source size, artRisk)] for the painted (non-synthetic) blocks of a page record."""
+    blocks = {b['id']: b for b in r['blocks']}
+    syn = set(r.get('replaySyntheticBlocks') or [])
+    placed = [p for p in r['placed'] if p['blockID'] not in syn]
+    if not placed:
+        return []
+    edge, s = raster(r['image'])
+    keep = np.ones_like(edge)
+    for b in r['blocks']:
+        (x, y), (w, h) = b['bounds']
+        keep[max(0, int(y * s) - 1):int((y + h) * s) + 2, max(0, int(x * s) - 1):int((x + w) * s) + 2] = False
+    out = []
+    for p in placed:
+        b = blocks[p['blockID']]
+        src = (b.get('style') or {}).get('fontPixels') or 0
+        (x, y), (w, h) = b['bounds']
+        (fx, fy), (fw, fh) = p['frame']
+        dist = float(np.hypot(fx + fw / 2 - (x + w / 2), fy + fh / 2 - (y + h / 2)) / src) if src else None
+        sub = edge[int(fy * s):int((fy + fh) * s) + 1, int(fx * s):int((fx + fw) * s) + 1]
+        k = keep[int(fy * s):int((fy + fh) * s) + 1, int(fx * s):int((fx + fw) * s) + 1]
+        n = k.sum()
+        out.append((dist, float((sub & k).sum() / n) if n else 0.0))
+    return out
+
+
 def run(path):
-    dists, risks = [], []
-    for f in sorted(Path(path, 'pages').glob('*.json')):
-        r = json.load(open(f))
-        blocks = {b['id']: b for b in r['blocks']}
-        syn = set(r.get('replaySyntheticBlocks') or [])
-        placed = [p for p in r['placed'] if p['blockID'] not in syn]
-        if not placed:
-            continue
-        edge, s = raster(r['image'])
-        keep = np.ones_like(edge)
-        for b in r['blocks']:
-            (x, y), (w, h) = b['bounds']
-            keep[max(0, int(y * s) - 1):int((y + h) * s) + 2, max(0, int(x * s) - 1):int((x + w) * s) + 2] = False
-        for p in placed:
-            b = blocks[p['blockID']]
-            src = (b.get('style') or {}).get('fontPixels') or 0
-            (x, y), (w, h) = b['bounds']
-            (fx, fy), (fw, fh) = p['frame']
-            if src:
-                dists.append(np.hypot(fx + fw / 2 - (x + w / 2), fy + fh / 2 - (y + h / 2)) / src)
-            sub = edge[int(fy * s):int((fy + fh) * s) + 1, int(fx * s):int((fx + fw) * s) + 1]
-            k = keep[int(fy * s):int((fy + fh) * s) + 1, int(fx * s):int((fx + fw) * s) + 1]
-            n = k.sum()
-            risks.append(float((sub & k).sum() / n) if n else 0.0)
+    rows = [row for f in sorted(Path(path, 'pages').glob('*.json')) for row in page(json.load(open(f)))]
+    dists = [d for d, _ in rows if d is not None]
+    risks = [risk for _, risk in rows]
     return dict(srcDistMedian=round(statistics.median(dists), 3), srcDistP90=round(float(np.percentile(dists, 90)), 3),
                 artRiskMean=round(statistics.mean(risks), 4), artRiskOver5=sum(x > 0.05 for x in risks))
 

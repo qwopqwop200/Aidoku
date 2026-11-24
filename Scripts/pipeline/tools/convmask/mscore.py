@@ -2,20 +2,17 @@
 targeted region: GT glyph region with >= 50% of its pixels inside the bounds of a paintable block.
 resid region = targeted region with miss > 2% of its px; far = mask px > 3 px (Chebyshev) from every GT glyph px;
 art = far px on a strong original-image gradient (|dx|+|dy| > 48)."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
-from workspace import EVAL, RUNS  # noqa: E402
 import json, sys, zlib, collections
+import multiprocessing as mp
 from pathlib import Path
-from multiprocessing import Pool
 import numpy as np
 from PIL import Image
 import cv2
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from workspace import RUNS  # noqa: E402
 import blocks
-S = EVAL / 'convmask'  # GT masks (outside the repository)
-META = json.load(open(S / 'gt' / 'meta.json'))
+from blocks import META, S
 PREFIX = str(RUNS / 'imp/rescue')
 FOLDS = {1: 'dev', 2: 'f2', 3: 'f3', 4: 'f4', 0: 'test'}
 
@@ -72,7 +69,6 @@ def run(dump):
     cache = dump / 'mscore.json'
     if cache.exists(): return json.load(open(cache))
     pids = sorted(p.stem for p in dump.glob('*.z') if p.stem in META)
-    import multiprocessing as mp
     with mp.get_context("spawn").Pool(8) as pool:
         res = dict(x for x in pool.map(page, [(dump, p) for p in pids]) if x[1] is not None)
     json.dump(res, open(cache, 'w'))

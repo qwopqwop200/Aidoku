@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Reclass scorer: per-page item counts for one run dir (cached in RUN/reclass_score.json).
+"""Reclass scorer: per-page item counts for one run dir (cached under RUNS/reclass/cache).
 
-Reuses the allm metric definitions (render/balloon/consistency/place), merge GT (merge_gt_eval), align pairs
-(align_metrics) and adds a GT source-text check (merged_bbox `source`): a block is "bad" when its source text has
-characters (letters only, whitespace/punctuation ignored) that the GT regions it covers do not have, or lacks some.
+Uses the render / balloon / consistency / place / align / merge-GT metrics, plus a GT source-text check: a block
+is "bad" when its source letters (NFKC letters and digits) differ from those of the GT regions it covers.
 """
 import collections, json, sys, unicodedata
 from pathlib import Path
-import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import render_metrics as rm, balloon_metrics as bm, consistency_metrics as cm, place_metrics as pm
 import merge_gt_eval as mg, align_metrics as am
@@ -29,7 +27,7 @@ def _cached_load(f, *a, **k):
     return _load(f, *a, **k)
 
 
-json.load = _cached_load
+json.load = _cached_load  # every GT load (here and in the metric modules) reads the pickled subset
 
 
 def gt_source():
@@ -96,18 +94,13 @@ def run(path):
         p['ovl'] += row.get('pageOverlaps', 0)
         if row['ratio']:
             p['ratios'].append(row['ratio']); p['lt06'] += row['ratio'] < 0.6
-    # balloon (out>5%, fill), per page
+    # balloon: frame > 5% outside its GT balloon, frame / balloon area
     seg = collections.defaultdict(list)
     for rec in json.load(open(GT))['records']:
         if rec['scope'] == 'balloon_narration_instance_segmentation' and rec.get('page_id') in recs:
             seg[rec['page_id']].append(rec['label']['segmentation'])
     for pid, r in recs.items():
-        masks = {pid: []}
-        for sg in seg.get(pid, []):
-            m = bm.decode(sg)
-            ys, xs = np.nonzero(m)
-            if len(xs):
-                masks[pid].append((m, None, int(m.sum())))
+        masks = [(m, int(m.sum())) for m in map(bm.decode, seg.get(pid, [])) if m.any()]
         blocks = {b['id']: b for b in r['blocks']}
         syn = set(r.get('replaySyntheticBlocks') or [])
         for pl in r['placed']:
@@ -117,7 +110,7 @@ def run(path):
             (bx, by), (bw, bh) = b['bounds']
             x0, y0, x1, y1 = int(bx), int(by), int(bx + bw) + 1, int(by + bh) + 1
             best = None
-            for m, box, area in masks.get(pid, []):
+            for m, area in masks:
                 sub = m[max(0, y0):y1, max(0, x0):x1]
                 cov = sub.sum() / max(1, (x1 - x0) * (y1 - y0))
                 if cov >= 0.5 and (best is None or cov > best[0]):
@@ -141,54 +134,14 @@ def run(path):
                     A0, B0, A1, B1 = max(0, int(lx0)), max(0, int(ly0)), int(lx0 + adv), int(ly0 + size * 1.18)
                     t2 = max(1, (A1 - A0) * (B1 - B0))
                     pages[pid]['lineout5'] += (1 - best[1][B0:B1, A0:A1].sum() / t2) > 0.05
-    # consistency classes
-    regions, classes, size = cm.gt()
     for pid, r in recs.items():
-        blocks = {b['id']: b for b in r['blocks']}
-        syn = set(r.get('replaySyntheticBlocks') or [])
-        member = collections.defaultdict(list)
-        for pl in r['placed']:
-            if pl['blockID'] in syn:
-                continue
-            (x, y), (w, h) = blocks[pl['blockID']]['bounds']
-            best, val = None, 0
-            for rid, (a, b, c, d) in regions.get(pid, {}).items():
-                v = max(0, min(x + w, c) - max(x, a)) * max(0, min(y + h, d) - max(y, b)) / max(1e-9, w * h)
-                if v > val:
-                    best, val = rid, v
-            if best is None or val < 0.5:
-                continue
-            member[best].append(pl['fontPixels'])
-            if (pid, best) in size:
-                pages[pid]['vsgt'].append(pl['fontPixels'] / size[(pid, best)])
-        for px, ids in classes.get(pid, []):
-            s = [v for i in ids for v in member.get(i, [])]
-            if len(s) >= 2:
-                pages[pid]['cons'][f'{px}:{",".join(ids)}'] = max(s) / min(s)
-    # place metrics (src distance, art risk) — pixels in code only
-    for pid, r in recs.items():
-        blocks = {b['id']: b for b in r['blocks']}
-        syn = set(r.get('replaySyntheticBlocks') or [])
-        placed = [p for p in r['placed'] if p['blockID'] not in syn]
-        if not placed:
-            continue
-        edge, s = pm.raster(r['image'])
-        keep = np.ones_like(edge)
-        for b in r['blocks']:
-            (x, y), (w, h) = b['bounds']
-            keep[max(0, int(y * s) - 1):int((y + h) * s) + 2, max(0, int(x * s) - 1):int((x + w) * s) + 2] = False
-        for p in placed:
-            b = blocks[p['blockID']]
-            src = (b.get('style') or {}).get('fontPixels') or 0
-            (x, y), (w, h) = b['bounds']
-            (fx, fy), (fw, fh) = p['frame']
-            if src:
-                d = float(np.hypot(fx + fw / 2 - (x + w / 2), fy + fh / 2 - (y + h / 2)) / src)
-                pages[pid]['dists'].append(d); pages[pid]['dist2'] += d > 2
-            sub = edge[int(fy * s):int((fy + fh) * s) + 1, int(fx * s):int((fx + fw) * s) + 1]
-            k = keep[int(fy * s):int((fy + fh) * s) + 1, int(fx * s):int((fx + fw) * s) + 1]
-            n = k.sum()
-            risk = float((sub & k).sum() / n) if n else 0.0
+        spreads, ratios = cm.page(r)
+        pages[pid]['vsgt'] += ratios
+        for px, ids, spread in spreads:
+            pages[pid]['cons'][f'{px}:{",".join(ids)}'] = spread
+        for dist, risk in pm.page(r):
+            if dist is not None:
+                pages[pid]['dists'].append(dist); pages[pid]['dist2'] += dist > 2
             pages[pid]['risks'].append(risk); pages[pid]['art5'] += risk > 0.05
     # align pairs
     for pid, r in recs.items():

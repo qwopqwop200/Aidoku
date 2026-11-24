@@ -4,14 +4,12 @@
 Prefixes name run dirs PREFIX_dev and PREFIX_train (or pass a,b dirs joined by ','). Per page, per metric,
 gain = max(0, improvement), loss = max(0, worsening); pooled train(folds 2,3,4)+dev, also per fold.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
-from workspace import MANIFEST  # noqa: E402
 import collections, json, sys
 from pathlib import Path
 import numpy as np
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools dir
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from workspace import MANIFEST  # noqa: E402
 import score
 
 MAN = str(MANIFEST)
@@ -33,10 +31,13 @@ def load(prefix):
 
 
 def changed(a, b):
-    ca = collections.Counter(json.dumps(x) for x in a['sig']); cb = collections.Counter(json.dumps(x) for x in b['sig'])
-    pa = collections.Counter(k for k in ca.elements() if k.startswith('["p"')); pb = collections.Counter(k for k in cb.elements() if k.startswith('["p"'))
-    ba = collections.Counter(k for k in ca.elements() if k.startswith('["b"')); bb = collections.Counter(k for k in cb.elements() if k.startswith('["b"'))
-    return max((pa - pb).total(), (pb - pa).total(), (ba - bb).total(), (bb - ba).total())
+    """Blocks or placements present in one run and not in the other (the larger count)."""
+    sigs = [collections.Counter(json.dumps(x) for x in r['sig']) for r in (a, b)]
+    out = 0
+    for kind in ('["p"', '["b"'):
+        x, y = (collections.Counter({k: n for k, n in c.items() if k.startswith(kind)}) for c in sigs)
+        out = max(out, (x - y).total(), (y - x).total())
+    return out
 
 
 def compare(base, var):
@@ -51,19 +52,14 @@ def compare(base, var):
         nchg[f] += c
         if c:
             chpages.append(pid)
-        for k in LOWER + (['lineout5'] if '--lines' in sys.argv else []):
-            d = a.get(k, 0) - b.get(k, 0)
+        def tally(k, d):
             if d > 0: g[f][k] += d
             elif d < 0: l[f][k] -= d
-        d = b.get('exact', 0) - a.get('exact', 0)
-        if d > 0: g[f]['exact'] += d
-        elif d < 0: l[f]['exact'] -= d
-        d = b['lt025'] - a['lt025']
-        if d > 0: g[f]['lt025'] += d
-        elif d < 0: l[f]['lt025'] -= d
-        d = a['src'] - b['src']
-        if d > 0: g[f]['src'] += d
-        elif d < 0: l[f]['src'] -= d
+        for k in LOWER + (['lineout5'] if '--lines' in sys.argv else []):
+            tally(k, a.get(k, 0) - b.get(k, 0))
+        tally('exact', b.get('exact', 0) - a.get('exact', 0))
+        tally('lt025', b['lt025'] - a['lt025'])
+        tally('src', a['src'] - b['src'])
         for t, k in ((1.10, 'cons10'), (1.25, 'cons25')):
             for key in set(a['cons']) | set(b['cons']):
                 wa = a['cons'].get(key, 9) <= t; wb = b['cons'].get(key, 9) <= t
@@ -94,7 +90,8 @@ def main():
     else: cls = 'A (손해>=이득)'
     print(f'{var} vs {base}: changed blocks {nb} on {len(chpages)} pages, noise {noise:.1f}')
     print(f'  net {net:+d} = gains {gains} - losses {losses} -> {cls}')
-    print('  gains ', {k: int(v) for k, v in G.items()}); print('  losses', {k: int(v) for k, v in L.items()})
+    ints = lambda c: {k: int(v) for k, v in c.items()}
+    print('  gains ', ints(G)); print('  losses', ints(L))
     for f in sorted(set(nchg)):
         print(f'  fold{f}: changed {nchg[f]} gains {dict(g[f])} losses {dict(l[f])}')
     for name, P in (('base', B), ('var', V)):
@@ -102,8 +99,8 @@ def main():
             ps = [p for p in pages if FOLD[p] == f]
             print(f'  {name} fold{f} report-only', report_only(P, ps))
     if '--json' in sys.argv:
-        json.dump(dict(base=base, var=var, net=int(net), gains={k: int(v) for k, v in G.items()}, losses={k: int(v) for k, v in L.items()}, changed=nb, noise=noise, cls=cls,
-                       pages=chpages, folds={f: dict(g={k: int(v) for k, v in g[f].items()}, l={k: int(v) for k, v in l[f].items()}, changed=nchg[f]) for f in nchg}),
+        json.dump(dict(base=base, var=var, net=int(net), gains=ints(G), losses=ints(L), changed=nb, noise=noise, cls=cls,
+                       pages=chpages, folds={f: dict(g=ints(g[f]), l=ints(l[f]), changed=nchg[f]) for f in nchg}),
                   open(sys.argv[sys.argv.index('--json') + 1], 'w'), ensure_ascii=False, indent=1)
 
 
