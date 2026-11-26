@@ -6,7 +6,7 @@ import Foundation
 struct MangaDescriptionTranslationTests {
     @Test func cachedParagraphSurvivesAnotherParagraphFailingOffline() async {
         let fixture = DescriptionFixture()
-        var settings = ReaderTranslationSettings()
+        var settings = isolatedSettings()
         settings.translateMangaDescriptions = true
         settings.targetLanguage = "ko"
         let cached = "A detective travels around the world."
@@ -22,7 +22,7 @@ struct MangaDescriptionTranslationTests {
 
     @Test func failurePreservesFullDescriptionAndDoesNotCacheIt() async throws {
         let fixture = DescriptionFixture()
-        var settings = ReaderTranslationSettings()
+        var settings = isolatedSettings()
         settings.translateMangaDescriptions = true
         let original = "A young detective travels around the world.\n\nHe discovers a secret hidden in an ancient city."
         #expect(await MangaDescriptionTranslation.translate(original, settings: settings,
@@ -37,6 +37,14 @@ struct MangaDescriptionTranslationTests {
         #expect(chunks.joined() == original)
         #expect(chunks.allSatisfy { $0.utf8.count <= RemoteTranslationRequest.maximumSegmentTextBytes })
     }
+}
+
+/// Settings of their own defaults suite with a model: the app has no default model, and the simulator's saved
+/// settings (which may or may not hold one) must not decide these tests.
+@MainActor private func isolatedSettings() -> ReaderTranslationSettings {
+    var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "MangaDescriptionTranslationTests-\(UUID())")!)
+    settings.model = "test-model"
+    return settings
 }
 
 private actor DescriptionClient: RemoteTranslating {

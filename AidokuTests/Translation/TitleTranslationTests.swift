@@ -7,7 +7,7 @@ import CoreGraphics
 struct TitleTranslationTests {
     @Test func compactMetadataWireContract() throws {
         try MetadataPromptContractChecks.run()
-        let settings = ReaderTranslationSettings()
+        let settings = isolatedSettings()
         for kind in TitleTranslationKind.allCases {
             let effective = TitleTranslation.effectiveSettings(settings, kind: kind)
             #expect(effective.configuration.instructions == kind.instructions)
@@ -17,7 +17,7 @@ struct TitleTranslationTests {
     }
 
     @Test func settingsIdentityIgnoresUnrelatedChanges() {
-        var settings = ReaderTranslationSettings()
+        var settings = isolatedSettings()
         settings.translateMangaTitles = true
         let identity = TitleTranslation.settingsIdentity(kind: .manga, settings: settings)
         var unrelated = settings
@@ -34,7 +34,7 @@ struct TitleTranslationTests {
 
     @Test func previousMetadataContractDoesNotReuseSavedResults() async throws {
         let fixture = TitleCacheFixture()
-        var settings = ReaderTranslationSettings()
+        var settings = isolatedSettings()
         settings.targetLanguage = "ko"
         settings.translateMangaTitles = true
         let original = "The Adventure"
@@ -68,7 +68,7 @@ struct TitleTranslationTests {
         let fixture = TitleCacheFixture()
         let client = TitleTestClient()
         let service = ReaderTranslationService(client: client)
-        var settings = ReaderTranslationSettings()
+        var settings = isolatedSettings()
         settings.translateSourceLabels = true
         settings.targetLanguage = "ko"
         let options = ["人気", "タイトル", "更新順", "評価", "人気"]
@@ -86,7 +86,7 @@ struct TitleTranslationTests {
         let fixture = TitleCacheFixture()
         let client = TitleTestClient()
         let service = ReaderTranslationService(client: client)
-        var settings = ReaderTranslationSettings()
+        var settings = isolatedSettings()
         settings.sourceLanguage = "ja"
         settings.targetLanguage = "ko"
         settings.translateMangaTitles = false
@@ -104,7 +104,7 @@ struct TitleTranslationTests {
 
     @Test func diskSurvivesServiceRestartAndClearRemovesTitles() async throws {
         let fixture = TitleCacheFixture()
-        var settings = ReaderTranslationSettings()
+        var settings = isolatedSettings()
         settings.sourceLanguage = "ja"
         settings.translateMangaTitles = true
         let original = "これは日本語のタイトルです"
@@ -130,7 +130,7 @@ struct TitleTranslationTests {
     }
 
     @Test func titleIdentityTracksTranslationSettingsButNotAppearance() {
-        var settings = ReaderTranslationSettings()
+        var settings = isolatedSettings()
         let key = TitleTranslation.cacheKey("title", kind: .manga, settings: settings)
         settings.overlay.opacity = 0.5
         settings.translateMangaTitles.toggle()
@@ -139,6 +139,14 @@ struct TitleTranslationTests {
         #expect(TitleTranslation.cacheKey("title", kind: .manga, settings: settings) != key)
         #expect(TitleTranslation.cacheKey("other", kind: .manga, settings: settings) != key)
     }
+}
+
+/// Settings of their own defaults suite with a model: the app has no default model, and the simulator's saved
+/// settings (which may or may not hold one) must not decide these tests.
+@MainActor private func isolatedSettings() -> ReaderTranslationSettings {
+    var settings = ReaderTranslationSettings(defaults: UserDefaults(suiteName: "TitleTranslationTests-\(UUID())")!)
+    settings.model = "test-model"
+    return settings
 }
 
 private actor TitleTestClient: RemoteTranslating {
