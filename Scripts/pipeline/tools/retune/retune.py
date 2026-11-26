@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""retune.py NAME [--models DIR] [--knobs a,b|all] [--start FILE] [--final-only] [--plan]
+"""retune.py NAME [--models DIR] [--knobs a,b|all] [--start FILE] [--objective items|typeset] [--final-only] [--plan]
 
 Re-fits the model-coupled PipelineTuning knobs after a model is replaced:
   1. ref    repository models, default knobs (shared across NAMEs, reused when present)
   2. new0   --models DIR (replacement model / dictionary / LM files; missing ones from the repo), default knobs
-  3. sweep  coordinate line search, one knob at a time, on TRAIN folds only (see judge())
+  3. sweep  coordinate line search, one knob at a time, on TRAIN folds only (see judge()); --objective typeset
+            decides on typeset_score.py (one score over every GT-checked aspect) instead of the render items
   4. final  ref, new0 and the fitted set on dev, train and test
 Every run is a --no-png replay of saved translations in one heavy slot (tools/lock.zsh), two at a time.
 Output: $AIDOKU_EVAL_DIR/runs/retune/NAME/{report.md, tuning.json, log.txt}; apply tuning.json by hand.
@@ -64,6 +65,7 @@ MAX_STEPS = 3  # line search: up to 3 steps out from the current value in the wi
 
 lock = threading.Lock()
 LOG = None
+OBJECTIVE = 'items'  # --objective
 
 
 def log(msg):
@@ -145,6 +147,21 @@ def render_cmp(base_dir, var_dir, split='train'):
                 pages=len(chpages), noise=max(3.0, 0.01 * nb))
 
 
+def typeset(r, split='train'):
+    """typeset_score.py pages of a run record (kept on it)."""
+    import typeset_score
+    key = f'typeset_{split}'
+    if key not in r:
+        r[key] = typeset_score.run(r['dirs'][split] if 'dirs' in r else r['dir'])
+    return r[key]
+
+
+def typeset_cmp(base, var, split='train'):
+    """Paired typeset score difference VAR - BASE with its page-bootstrap 95% interval."""
+    import typeset_score
+    return typeset_score.compare(typeset(base, split), typeset(var, split))
+
+
 def merge_gt(run_dir, label):
     out = subprocess.check_output([PY, str(TOOLS / 'merge_gt_eval.py'), str(run_dir)], text=True)
     for line in out.splitlines():
@@ -218,7 +235,9 @@ def colour(run_prefix):
 
 # ---------- decision ----------
 def judge(kind, base, var):
-    """(passes, score, why) for candidate run VAR against the current set BASE on train folds."""
+    """(passes, score, why) for candidate run VAR against the current set BASE on train folds.
+    'render' knobs pass on the render items (net > noise) or, with --objective typeset, on a typeset score gain whose
+    95% interval is above 0; the other kinds use the same measure as their guard (not clearly worse)."""
     if var.get('failed'):
         return False, float('-inf'), f"{var['failed']} page(s) failed (see the run log)"
     rc = render_cmp(base['dir'], var['dir'])
@@ -228,10 +247,14 @@ def judge(kind, base, var):
     merge_ok = dex >= -1 and dR >= -0.002 and dP >= -0.002
     why = (f"render net {rc['net']:+d} (noise {rc['noise']:.0f}, changed {rc['changed']} blocks / {rc['pages']} pages, "
            f"losses {rc['losses']}); merge exact {dex:+d}, line R {dR:+.4f} P {dP:+.4f}")
+    tc = typeset_cmp(base, var)
+    why += f"; typeset {tc['diff']:+.3f} ({tc['low']:+.3f} .. {tc['high']:+.3f})"
     if kind == 'render':
+        if OBJECTIVE == 'typeset':  # a real gain: the whole 95% interval above 0
+            return tc['low'] > 0 and merge_ok, tc['diff'], why
         score = rc['net'] + 3 * dex
         return rc['net'] > rc['noise'] and merge_ok, score, why
-    render_ok = rc['net'] >= -rc['noise']
+    render_ok = tc['high'] >= 0 if OBJECTIVE == 'typeset' else rc['net'] >= -rc['noise']
     if kind == 'font':
         var['font'] = var.get('font') or font(var['dir'])
         fb, fv = base['font'], var['font']
@@ -254,9 +277,12 @@ def main():
     ap.add_argument('--models', help='directory of replacement model files (default: the repository models)')
     ap.add_argument('--knobs', default='all')
     ap.add_argument('--start', help='JSON tuning to start the sweep from (default: PipelineTuning defaults)')
+    ap.add_argument('--objective', choices=('items', 'typeset'), default='items', help='what decides a render knob (see judge)')
     ap.add_argument('--final-only', action='store_true', help='skip the sweep; evaluate --start (or defaults)')
     ap.add_argument('--plan', action='store_true', help='print the plan and exit')
     a = ap.parse_args()
+    global OBJECTIVE
+    OBJECTIVE = a.objective
     check_defaults()
     models = Path(a.models).resolve() if a.models else None
     if models:
@@ -275,7 +301,7 @@ def main():
         print(f'start: {tag_of(start)}; knobs: {knobs}; head {git_head()}')
         print('runs: ref + new0 on train, ~2-6 train runs per knob, final on dev/test (+ref/new0 dev/test)')
         return
-    log(f'== retune {a.name}: models {models or "repository"}, head {git_head()}, knobs {",".join(knobs)}')
+    log(f'== retune {a.name}: models {models or "repository"}, head {git_head()}, knobs {",".join(knobs)}, objective {OBJECTIVE}')
     pool = ThreadPoolExecutor(2)
 
     def evaluate(tuning, label=None, splits=('train',)):
@@ -362,15 +388,16 @@ def main():
         row['merge'] = {s: merge_gt(r['dirs'][s], s) for s in ('dev', 'train')}
         row['colour'] = colour(r['prefix'])
         rows[n] = row
-    cmp = {}
+    cmp, tcmp = {}, {}
     for a_, b_ in (('ref', 'new0'), ('new0', 'fitted'), ('ref', 'fitted')):
         cmp[f'{b_} vs {a_}'] = {s: render_cmp(fin[a_]['dirs'][s], fin[b_]['dirs'][s], s) for s in splits}
-    (out / 'final.json').write_text(json.dumps(dict(rows=rows, compare=cmp, fitted=fitted), indent=1, default=str))
-    report(out, a.name, models, fitted, rows, cmp, history)
+        tcmp[f'{b_} vs {a_}'] = {s: typeset_cmp(fin[a_], fin[b_], s) for s in splits}
+    (out / 'final.json').write_text(json.dumps(dict(rows=rows, compare=cmp, typeset=tcmp, fitted=fitted, objective=OBJECTIVE), indent=1, default=str))
+    report(out, a.name, models, fitted, rows, cmp, history, tcmp)
     log(f'report: {out / "report.md"}')
 
 
-def report(out, name, models, fitted, rows, cmp, history):
+def report(out, name, models, fitted, rows, cmp, history, tcmp):
     L = [f'# retune {name}', '', f'models: `{models or "repository"}`  head: `{git_head()}`', '']
     diff = {k: (DEFAULTS[k], v) for k, v in fitted.items() if v != DEFAULTS[k]}
     L += ['## Fitted knobs (train folds only)', '']
@@ -380,6 +407,12 @@ def report(out, name, models, fitted, rows, cmp, history):
     for c, per in cmp.items():
         for s, r in per.items():
             L.append(f"| {c} | {s} | {r['net']:+d} | {r['noise']:.0f} | {r['changed']} | {r['losses']} |")
+    L += ['', '## Typeset score (typeset_score.py: share of GT regions typeset correctly; a 95% interval off 0 is a real change)', '',
+          '| comparison | split | base | new | difference | 95% interval | aspects that moved |', '|---|---|---|---|---|---|---|']
+    for c, per in tcmp.items():
+        for s, t in per.items():
+            moved = ', '.join(f'{k} {v:+.2f}' for k, v in t['aspects'].items() if abs(v) >= 0.1) or '-'
+            L.append(f"| {c} | {s} | {t['base']} | {t['var']} | {t['diff']:+.3f} | {t['low']:+.3f} .. {t['high']:+.3f} | {moved} |")
     L += ['', '## Detection / grouping (Scripts/pipeline/eval.py)', '',
           '| set | split | recall@0.5 | precision@0.5 | recall@0.7 | group F1 | purity | non-LLM median ms |',
           '|---|---|---|---|---|---|---|---|']
