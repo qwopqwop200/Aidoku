@@ -8,10 +8,12 @@ import Foundation
 // 2. Snap: sources within 1.08x of a band's first value take the band median.
 // 3. Families: chained while max/min <= 1.22, >= 2 members; a lone block joins the nearest family
 //    within 1.08x. Members share the cap median source x largest cap ratio.
-// 4. After the fits, a family takes the largest cap step (1 ... 0.65, >= 12 px) every member
-//    reached (members below the last step keep their fit); the page takes the smallest family
-//    step, and a lower re-fit pulls its family down. Members only shrink; a horizontal fit pulls
-//    vertical members down to no less than 0.95x their smallest fit.
+// 4. After the fits, a family takes the largest cap step (1 ... 0.65, >= 12 px) that
+//    `layoutFamilyShare` of its members reached: the tightest rest, and members below the last
+//    step, keep their own smaller fit (one tight balloon does not shrink the whole page). With
+//    `layoutPageScale` the page takes the smallest family step. A lower re-fit of a member that
+//    reached the step pulls its family down. Members only shrink; a horizontal fit pulls vertical
+//    members down to no less than 0.95x their smallest fit.
 enum PipelineCohort {
     static let snapRatio: CGFloat = 1.08
     static let cohortRatio: CGFloat = 1.22
@@ -84,10 +86,13 @@ enum PipelineCohort {
 
     /// The family's common size (quarter pixels): the largest cap step every member's fit
     /// reaches, ignoring members below the last step; nil when none reaches it.
-    static func familySize(cap: CGFloat, fits: [CGFloat], vertical: [Bool] = []) -> CGFloat? {
+    static func familySize(cap: CGFloat, fits: [CGFloat], vertical: [Bool] = [], share: Double = 1) -> CGFloat? {
         let sizes = steps.map { ((cap * $0) * 4).rounded(.down) / 4 }.filter { $0 >= min(cap, minimumPixels) }
         let vertical = vertical.count == fits.count ? vertical : fits.map { _ in false }
-        let reached = fits.indices.filter { fits[$0] >= (sizes.last ?? .infinity) - 0.01 }
+        var reached = fits.indices.filter { fits[$0] >= (sizes.last ?? .infinity) - 0.01 }
+        // Only `share` of the members must reach the step: the smallest fits beyond that keep their own size.
+        let spared = min(max(0, reached.count - 1), Int((Double(reached.count) * (1 - share) + 1e-9).rounded(.down)))
+        if spared > 0 { reached = Array(reached.sorted { (fits[$0], $0) < (fits[$1], $1) }.dropFirst(spared)) }
         guard let lowest = sizes.last, let need = lowestFit(reached.map { fits[$0] }, vertical: reached.map { vertical[$0] }) else { return nil }
         return sizes.first { $0 <= need + 0.01 } ?? lowest
     }

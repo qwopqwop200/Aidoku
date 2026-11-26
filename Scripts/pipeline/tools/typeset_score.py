@@ -452,6 +452,8 @@ def _stroke(st, em):
     w = st.get('strokeWidth')
     if st.get('strokeColor') is None or not _num(w) or w <= 0:
         return 0.0
+    if st.get('painted'):   # already the painted width in px
+        return float(w)
     ref = st.get('fontPixels')
     return min(max(w * em / ref if _num(ref) and ref > 0 else w, em * STROKE_MIN), em * STROKE_MAX)
 
@@ -983,6 +985,14 @@ def page(r, cfg=CONFIG, study=None):
     need = g['regions']
     X = extras().get(pid) or dict(look={}, tilt={})
     blocks = {b['id']: b for b in r.get('blocks') or [] if isinstance(b, dict) and 'id' in b}
+    # `paints` (newer runs): what S10 painted each block with, after the painter's legibility outline. It replaces
+    # the style the outline would otherwise be modelled from.
+    for q in r.get('paints') or []:
+        b = blocks.get(q.get('blockID')) if isinstance(q, dict) else None
+        if b is not None and isinstance(q.get('fill'), dict):
+            wide = q.get('strokeWidth') if q.get('stroke') is not None else 0
+            blocks[b['id']] = dict(b, style=dict(b.get('style') if isinstance(b.get('style'), dict) else {}, textColor=q['fill'],
+                                                 strokeColor=q.get('stroke'), strokeWidth=wide, painted=True))
     syn = set(r.get('replaySyntheticBlocks') or [])
     sizes = [v[0] for v in g['size'].values()]
     page_px = float(np.median(sizes)) if sizes else None

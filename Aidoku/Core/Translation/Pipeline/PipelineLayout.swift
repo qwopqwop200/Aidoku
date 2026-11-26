@@ -4,11 +4,12 @@ import Foundation
 
 // S9: per block, the largest size whose wrapped text fits the balloon interior (else the block bounds
 // plus a margin); below the floor the box grows, then the text may overflow it (clamped to the page).
+// Its `layout*` knobs live in PipelineTuning (fitted on tools/typeset_score.py).
 enum PipelineLayout {
     /// Smallest size the fit search may choose before the box is allowed to grow.
     static let floorPixels: CGFloat = 10
-    /// Fit-search cap relative to the source lettering size (legacy hold: 1.05x in a balloon).
-    static func capRatio(_ block: PipelineBlock) -> CGFloat { block.balloon != nil ? 1.05 : 1 }
+    /// Fit-search cap relative to the source lettering size (1.05x in a balloon).
+    static func capRatio(_ block: PipelineBlock) -> CGFloat { block.balloon != nil ? PipelineTuning.current.layoutBalloonCap : 1 }
     /// Margin added around block bounds, relative to source px (clamped 4...24 px).
     static let marginRatio: CGFloat = 0.2
     /// Line advance in em; matches the legacy renderer's Korean line height (1.18 em).
@@ -22,7 +23,7 @@ enum PipelineLayout {
     /// Fraction of the box width used for wrapping, leaving room for kerning drift.
     static let widthSlack: CGFloat = 0.97
     /// Smallest whole-word size, relative to the split-word size, that is preferred over splitting.
-    static let wholeWordRatio: CGFloat = 0.85
+    static var wholeWordRatio: CGFloat { PipelineTuning.current.layoutWholeWordRatio }
     /// Horizontal scale of a condensed fit (whole words narrowed rather than split).
     static let condenseScale: CGFloat = 0.85
     /// Tilted text keeps the source tilt down to this share of its upright size.
@@ -46,6 +47,7 @@ enum PipelineLayout {
     static func place(_ blocks: [PipelineBlock], pageSize: CGSize) -> [PipelinePlacedText] {
         let page = CGRect(origin: .zero, size: pageSize)
         guard page.width >= 1, page.height >= 1 else { return [] }
+        let tuning = PipelineTuning.current
         let paintable = blocks.filter(isPaintable).sorted {
             ($0.readingOrder, $0.id) < ($1.readingOrder, $1.id)
         }
@@ -67,21 +69,26 @@ enum PipelineLayout {
         // Families: members are re-fitted at the family size (earlier frames, else all), kept when no larger and clear.
         let firstFits = placed.map(\.fontPixels)
         var sizes = plan.cohorts.map {
-            PipelineCohort.familySize(cap: plan.caps[$0[0]], fits: $0.map { placed[$0].fontPixels }, vertical: $0.map { paintable[$0].vertical })
+            PipelineCohort.familySize(cap: plan.caps[$0[0]], fits: $0.map { placed[$0].fontPixels },
+                                      vertical: $0.map { paintable[$0].vertical }, share: tuning.layoutFamilyShare)
         }
-        // One page scale: every family takes the smallest family step.
-        if let scale = zip(plan.cohorts, sizes).compactMap({ group, size in size.map { $0 / plan.caps[group[0]] } }).min() {
+        let firstSizes = sizes
+        // One page scale (off by default): every family takes the smallest family step.
+        if tuning.layoutPageScale >= 0.5,
+           let scale = zip(plan.cohorts, sizes).compactMap({ group, size in size.map { $0 / plan.caps[group[0]] } }).min() {
             sizes = zip(plan.cohorts, sizes).map { group, size in
                 size.map { _ in max(min(plan.caps[group[0]], PipelineCohort.minimumPixels), (plan.caps[group[0]] * scale * 4).rounded(.down) / 4) }
             }
         }
-        for (cohort, family) in zip(plan.cohorts, sizes) {
+        for (number, (cohort, family)) in zip(plan.cohorts, sizes).enumerated() {
             guard var size = family else { continue }
             // A re-fit can land below the family size; the family then follows its smallest member (3 more rounds).
             for round in 0..<4 {
                 if round > 0 {
+                    // Members a family share below 1 spared (first fit under the family's own step) are not followed.
+                    let own = tuning.layoutFamilyShare < 1 ? firstSizes[number] ?? 0 : 0
                     let reached = cohort.filter {
-                        firstFits[$0] >= ((plan.caps[$0] * PipelineCohort.steps.last!) * 4).rounded(.down) / 4 - 0.01
+                        firstFits[$0] >= max(own, ((plan.caps[$0] * PipelineCohort.steps.last!) * 4).rounded(.down) / 4) - 0.01
                     }
                     guard let low = PipelineCohort.lowestFit(reached.map { placed[$0].fontPixels }, vertical: reached.map { paintable[$0].vertical },
                                                              firstFits: reached.map { firstFits[$0] }),
@@ -499,6 +506,8 @@ enum PipelineLayout {
         var vertical: Bool
         /// Measured with the `condenseScale` horizontal condense.
         var condensed = false
+        /// A word is split between lines.
+        var split = false
     }
 
     static func horizontalFit(_ text: MeasuredText, size: CGFloat, width: CGFloat) -> Fit {
@@ -506,7 +515,7 @@ enum PipelineLayout {
         let limit = max(width * widthSlack, 1) / scale
         let wrapped = text.wrap(limits: { _ in limit })
         let extent = CGSize(width: wrapped.widest * scale, height: (CGFloat(wrapped.lines.count - 1) * lineHeightEm + inkHeightEm) * size)
-        return Fit(size: size, lines: wrapped.lines, extent: extent, vertical: false)
+        return Fit(size: size, lines: wrapped.lines, extent: extent, vertical: false, split: wrapped.split)
     }
 
     static func verticalFit(_ text: MeasuredText, size: CGFloat, height: CGFloat) -> Fit {
@@ -572,8 +581,8 @@ enum PipelineLayout {
         let bounds = block.bounds.intersection(page)
         if let balloon = block.balloon?.intersection(page), !balloon.isNull,
            balloon.width >= 8, balloon.height >= 8 {
-            // Interior is already inside the outline; keep a 4% breathing inset.
-            let inset = min(balloon.width, balloon.height) * 0.04
+            // Interior is already inside the outline; keep a breathing inset.
+            let inset = min(balloon.width, balloon.height) * PipelineTuning.current.layoutBalloonInset
             return balloon.insetBy(dx: inset, dy: inset)
         }
         let base = bounds.isNull ? CGRect(x: page.midX, y: page.midY, width: 1, height: 1) : bounds
@@ -652,9 +661,10 @@ enum PipelineLayout {
         func fit(in box: CGRect, text: MeasuredText) -> Fit? {
             let inset = strokeInset(cap)
             var inner = CGSize(width: max(1, box.width - 2 * inset), height: max(1, box.height - 2 * inset))
-            // A tall paragraph in a balloon is not flattened (lines within 1.35x the source width).
+            // A tall paragraph in a balloon is not flattened (lines within `layoutTallWidth` source widths).
             if block.balloon != nil, block.bounds.height >= block.bounds.width * 1.4 {
-                inner.width = min(inner.width, max(block.bounds.width * 1.35, cap * 3.5, text.widestWord * cap / referenceSize))
+                inner.width = min(inner.width, max(block.bounds.width * PipelineTuning.current.layoutTallWidth, cap * 3.5,
+                                                   text.widestWord * cap / referenceSize))
             }
             guard var horizontal = largestFit(text, box: inner, vertical: false, minimum: floorPixels, maximum: cap) else {
                 return verticalOption(in: inner, horizontal: nil, text: text)
@@ -736,10 +746,19 @@ enum PipelineLayout {
         var shaped = false
         if let rows = block.rows, !fitted.vertical, box == target, target == start {
             let whole = active.widestWord * fitted.size / referenceSize <= (box.width - 2 * strokeInset(fitted.size)) * widthSlack
-            func probe(_ size: CGFloat) -> (fit: Fit, top: CGFloat)? {
-                spanFit(active, size: size, rows: rows, centreY: anchor.y, stroke: strokeInset(size), whole: whole)
+            // A fit that cuts a word first looks for whole words along the row spans, at nearly its size or larger.
+            let rescue = PipelineTuning.current.layoutSpanWhole
+            var unsplit = false
+            if rescue > 0, fitted.split,
+               NativeTranslationFontFitSearch.largestFitting(minimum: fitted.size * rescue, maximum: cap, fits: {
+                   spanFit(active, size: $0, rows: rows, centreY: anchor.y, stroke: strokeInset($0), whole: true) != nil
+               }) != nil {
+                unsplit = true
             }
-            if let size = NativeTranslationFontFitSearch.largestFitting(minimum: fitted.size * 1.03, maximum: cap,
+            func probe(_ size: CGFloat) -> (fit: Fit, top: CGFloat)? {
+                spanFit(active, size: size, rows: rows, centreY: anchor.y, stroke: strokeInset(size), whole: whole || unsplit)
+            }
+            if let size = NativeTranslationFontFitSearch.largestFitting(minimum: fitted.size * (unsplit ? rescue : 1.03), maximum: cap,
                                                                          fits: { probe($0) != nil }),
                let found = probe(size) {
                 let stroke = strokeInset(size)

@@ -32,6 +32,8 @@ struct PipelineHooks: Sendable {
     var capturesBackground = false
     /// Host-only stage checkpoints to reuse and record (nil in the app).
     var checkpoints: PipelineCheckpoints?
+    /// Host-only: the result reports what S10 painted each block with (`PipelinePageResult.paints`).
+    var capturesPaint = false
 }
 
 @available(iOS 18.0, macOS 15.0, *)
@@ -342,12 +344,16 @@ enum TranslationPipeline {
         var painted: [PipelinePlacedText] = []
         var restored: CGImage?
         var background: [PipelineBackgroundPatch]?
+        var paints: [PipelinePaintRecord]?
         if var pixels = erased?.restored?.take()?.rgba {
             background = erased?.regions.map { PipelineBackgroundPatch.capture($0, from: pixels, width: page.width) }
             if let checkpoints = hooks.checkpoints, let erased, let removal = erased.removal {
                 let regions = erased.regions ?? PipelineBackgroundPatch.regions(removal: removal, width: page.width, height: page.height)
                 checkpoints.record(erase: .init(paintable: erased.paintable, removal: removal,
                                                 restored: PipelineBackgroundPatch.capture(regions, from: pixels, width: page.width)))
+            }
+            if hooks.capturesPaint {
+                paints = PipelinePainter.records(pixels: &pixels, width: page.width, height: page.height, blocks: finalBlocks, placed: placed)
             }
             // The only reference to the restored bytes: S10 paints over them in place, no page copy.
             restored = await timings.record(Stage.paint) {
@@ -371,7 +377,7 @@ enum TranslationPipeline {
         return PipelinePageResult(pageID: page.id, blocks: finalBlocks, placed: painted, output: output,
                             timings: timings,
                             failure: failures.isEmpty ? nil : failures.joined(separator: "; "),
-                            background: restored == nil ? nil : background)
+                            background: restored == nil ? nil : background, paints: restored == nil ? nil : paints)
     }
 
     /// The same page within `maxPixels`, else downscaled with its aspect kept; nil when

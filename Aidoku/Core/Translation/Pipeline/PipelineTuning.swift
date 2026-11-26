@@ -47,6 +47,22 @@ struct PipelineTuning: Equatable, Sendable {
     var lineEndMargin = 0.35
     /// S8 font size: global log level on the geometric estimate (`PipelineFontCorrection`).
     var fontLevel = 0.02845
+    /// S9 (fitted on the typesetting score, tools/typeset_score.py). Fit box: inset of the balloon interior, as a
+    /// share of its short side.
+    var layoutBalloonInset: CGFloat = 0.02
+    /// S9 fit cap in a balloon, relative to the source lettering size.
+    var layoutBalloonCap: CGFloat = 1.05
+    /// S9: smallest whole-word size, relative to the split-word size, preferred over splitting a word.
+    var layoutWholeWordRatio: CGFloat = 0.8
+    /// S9: a tall paragraph in a balloon keeps its lines within this many source widths.
+    var layoutTallWidth: CGFloat = 1.7
+    /// S9 cohorts: 1 = every family takes the page's smallest family step, 0 = each family keeps its own.
+    var layoutPageScale = 0.0
+    /// S9 cohorts: share of a family's members that must reach the family step; the tightest rest keep their own fit.
+    var layoutFamilyShare = 0.7
+    /// S9: a fit that cuts a word is replaced by a whole-word fit along the balloon's row spans at no less than
+    /// this share of its size (0 = off).
+    var layoutSpanWhole: CGFloat = 0.9
 
     /// The set every stage reads. Written only by the host before any page runs.
     nonisolated(unsafe) static var current = PipelineTuning()
@@ -83,6 +99,13 @@ struct PipelineTuning: Equatable, Sendable {
             "lineEndExtension": lineEndExtension,
             "lineEndMargin": lineEndMargin,
             "fontLevel": fontLevel,
+            "layoutBalloonInset": Double(layoutBalloonInset),
+            "layoutBalloonCap": Double(layoutBalloonCap),
+            "layoutWholeWordRatio": Double(layoutWholeWordRatio),
+            "layoutTallWidth": Double(layoutTallWidth),
+            "layoutPageScale": layoutPageScale,
+            "layoutFamilyShare": layoutFamilyShare,
+            "layoutSpanWhole": Double(layoutSpanWhole),
         ]
     }
 
@@ -115,6 +138,13 @@ struct PipelineTuning: Equatable, Sendable {
         case "lineEndExtension": lineEndExtension = value
         case "lineEndMargin": lineEndMargin = value
         case "fontLevel": fontLevel = value
+        case "layoutBalloonInset": layoutBalloonInset = CGFloat(value)
+        case "layoutBalloonCap": layoutBalloonCap = CGFloat(value)
+        case "layoutWholeWordRatio": layoutWholeWordRatio = CGFloat(value)
+        case "layoutTallWidth": layoutTallWidth = CGFloat(value)
+        case "layoutPageScale": layoutPageScale = value
+        case "layoutFamilyShare": layoutFamilyShare = value
+        case "layoutSpanWhole": layoutSpanWhole = CGFloat(value)
         default: return false
         }
         return true

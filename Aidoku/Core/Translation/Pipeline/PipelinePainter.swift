@@ -193,17 +193,46 @@ enum PipelinePainter {
     /// separates it from its fill gets the black or white outline that best separates fill (0.85) and
     /// background (0.15). A source outline is the artist's choice for that background and is kept.
     static func legible(block: PipelineBlock, fontPixels: CGFloat, background: PipelineRGB?) -> Paint {
-        let (fill, stroke) = paints(for: block)
-        let width = PipelineLayout.strokeWidth(for: block, fontPixels: fontPixels)
-        let source = Paint(fill: fill, stroke: stroke, strokeWidth: width)
-        guard let background, let text = block.style?.textColor, contrast(text, background) < minimumContrast else { return source }
-        if let outline = block.style?.strokeColor, width > 0, contrast(outline, text) >= minimumContrast {
-            return source
-        }
+        let style = legibleStyle(block: block, fontPixels: fontPixels, background: background)
+        return Paint(fill: color(style.fill), stroke: style.stroke.map(color), strokeWidth: style.strokeWidth)
+    }
+
+    /// `legible` in sRGB bytes (without a style: black text with a white outline).
+    static func legibleStyle(block: PipelineBlock, fontPixels: CGFloat,
+                             background: PipelineRGB?) -> (fill: PipelineRGB, stroke: PipelineRGB?, strokeWidth: CGFloat) {
         let black = PipelineRGB(r: 0, g: 0, b: 0), white = PipelineRGB(r: 255, g: 255, b: 255)
+        let fill = block.style?.textColor ?? black
+        let stroke = block.style == nil ? white : block.style?.strokeColor
+        let width = PipelineLayout.strokeWidth(for: block, fontPixels: fontPixels)
+        guard let background, let text = block.style?.textColor, contrast(text, background) < minimumContrast else {
+            return (fill, stroke, width)
+        }
+        if let outline = block.style?.strokeColor, width > 0, contrast(outline, text) >= minimumContrast {
+            return (fill, stroke, width)
+        }
         func score(_ edge: PipelineRGB) -> CGFloat { 0.85 * contrast(text, edge) + 0.15 * contrast(background, edge) }
         let edge = score(black) >= score(white) ? black : white
-        return Paint(fill: fill, stroke: color(edge), strokeWidth: max(width, haloWidth(fontPixels)))
+        return (fill, edge, max(width, haloWidth(fontPixels)))
+    }
+
+    /// What `paint(pixels:)` will paint each placed block with over the restored background in `pixels`
+    /// (called before painting; the host's page records).
+    static func records(pixels: inout [UInt8], width: Int, height: Int, blocks: [PipelineBlock],
+                        placed: [PipelinePlacedText]) -> [PipelinePaintRecord] {
+        guard width > 0, height > 0, pixels.count == width * height * 4, !placed.isEmpty,
+              let space = CGColorSpace(name: CGColorSpace.sRGB) else { return [] }
+        let byID = Dictionary(blocks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return pixels.withUnsafeMutableBytes { bytes -> [PipelinePaintRecord] in
+            guard let context = bitmap(bytes.baseAddress, width: width, height: height, bytesPerRow: width * 4, space: space) else {
+                return []
+            }
+            return placed.compactMap { item in
+                guard item.fontPixels.isFinite, item.fontPixels > 0, let block = byID[item.blockID] else { return nil }
+                let style = legibleStyle(block: block, fontPixels: item.fontPixels,
+                                         background: sampledBackground(context, under: item.frame))
+                return PipelinePaintRecord(blockID: item.blockID, fill: style.fill, stroke: style.stroke, strokeWidth: style.strokeWidth)
+            }
+        }
     }
 
     /// Median colour of a 5 x 5 sample grid under `frame` in the (opaque, top-row-first) bitmap.

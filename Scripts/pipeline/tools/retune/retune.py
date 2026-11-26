@@ -27,7 +27,9 @@ DEFAULTS = dict(layoutTextFloor=0.25, layoutSFXFloor=0.20, layoutFrameFloor=0.50
                 recognitionLinePadDivisor=20, lineKeepScale=1.0, fragmentConfidence=0.6, roleSFXScore=0.8, roleBalloonScore=0.5,
                 roleRescueBalloon=0.5, roleRescueSFX=0.1,
                 interiorHorizontalReach=8, interiorVerticalReach=3, interiorFrameScore=0.7,
-                maskThreshold=0.15, maskDilation=2, lineEndExtension=0.5, lineEndMargin=0.35, fontLevel=0.02845)
+                maskThreshold=0.15, maskDilation=2, lineEndExtension=0.5, lineEndMargin=0.35, fontLevel=0.02845,
+                layoutBalloonInset=0.02, layoutBalloonCap=1.05, layoutWholeWordRatio=0.8, layoutTallWidth=1.7, layoutPageScale=0.0,
+                layoutFamilyShare=0.7, layoutSpanWhole=0.9)
 # knob: (step, lower, upper, kind). Order = pipeline order, so later knobs are fitted on top of earlier ones.
 # kind 'render' = decided on compare.py + merge GT; 'mask' = mscore (S6 vs GT glyphs) with render as guard;
 # 'font' = S8 source font px vs GT font-size classes with render as guard.
@@ -58,9 +60,15 @@ KNOBS = {
     'lineEndExtension': (0.1, 0.2, 1.0, 'mask'),
     'lineEndMargin': (0.05, 0.1, 0.7, 'mask'),
     'fontLevel': (0.02, -0.1, 0.16, 'font'),
+    'layoutBalloonInset': (0.01, 0.0, 0.08, 'render'),        # S9 knobs: decided on the render items or, better, on
+    'layoutBalloonCap': (0.025, 1.0, 1.15, 'render'),         # --objective typeset (they were fitted on it)
+    'layoutWholeWordRatio': (0.05, 0.6, 0.95, 'render'),
+    'layoutTallWidth': (0.2, 1.0, 2.6, 'render'),
+    'layoutFamilyShare': (0.1, 0.4, 1.0, 'render'),
+    'layoutSpanWhole': (0.05, 0.8, 1.0, 'render'),
 }
 # Left out of --knobs all: no effect on dev (balloonFloor already drops those balloons). Name it to sweep it.
-NOT_IN_ALL = {'roleBalloonScore'}
+NOT_IN_ALL = {'roleBalloonScore', 'layoutPageScale'}
 MAX_STEPS = 3  # line search: up to 3 steps out from the current value in the winning direction
 
 lock = threading.Lock()

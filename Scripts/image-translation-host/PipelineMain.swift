@@ -149,6 +149,8 @@ enum PipelineMain {
         var height: Int
         var blocks: [PipelineBlock]
         var placed: [PipelinePlacedText]
+        /// What S10 painted each placed block with (fill, outline after the legibility rule, outline px).
+        var paints: [PipelinePaintRecord]?
         var timings: [String: Double]
         var failure: String?
         var translatedBlocks: Int?
@@ -292,10 +294,11 @@ enum PipelineMain {
                     var pageHooks = hooks(item.id)
                     pageHooks.checkpoints = stagesFrom.map { PipelineHostStages.load($0, pageID: item.id, resume: resume) }
                         ?? (saveStages ? PipelineCheckpoints() : nil)
+                    pageHooks.capturesPaint = true
                     let result = await TranslationPipeline.run(page, models: models, translate: translator(for: jpeg), hooks: pageHooks)
                     var record = PageRecord(pageID: item.id, image: item.path, mode: mode.rawValue,
                         width: page.width, height: page.height, blocks: result.blocks, placed: result.placed,
-                        timings: result.timings.stages, failure: result.failure,
+                        paints: result.paints, timings: result.timings.stages, failure: result.failure,
                         translatedBlocks: result.blocks.filter { $0.translation != nil }.count)
                     if mode == .ocrOnly { record.translatedBlocks = nil }
                     if mode == .replay {

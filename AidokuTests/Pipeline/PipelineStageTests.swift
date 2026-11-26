@@ -860,6 +860,10 @@ struct PipelineStageTests {
         // The family takes the largest cap step every member reached (members below 0.65 keep theirs).
         #expect(PipelineCohort.familySize(cap: 50, fits: [50, 46, 20]) == 45)
         #expect(PipelineCohort.familySize(cap: 50, fits: [20, 21]) == nil)
+        // With a family share below 1 the tightest members keep their own fit instead of leading the family.
+        #expect(PipelineCohort.familySize(cap: 40, fits: [40, 40, 40, 30]) == 30)
+        #expect(PipelineCohort.familySize(cap: 40, fits: [40, 40, 40, 30], share: 0.7) == 40)
+        #expect(PipelineCohort.familySize(cap: 40, fits: [40, 30], share: 0.7) == 30)   // too few members to spare one
     }
 
     @Test func cohortsJoinOrientationsAndGuardVerticalMembers() {
@@ -937,6 +941,22 @@ struct PipelineStageTests {
         block.style = styled(50, fill: PipelineRGB(r: 222, g: 96, b: 68), stroke: PipelineRGB(r: 200, g: 90, b: 60), width: 5)
         let weak = PipelinePainter.legible(block: block, fontPixels: 50, background: PipelineRGB(r: 237, g: 208, b: 178))
         #expect(weak.stroke?.components?.first == 0)
+    }
+
+    @Test func painterReportsWhatItPaints() {
+        var block = placedBlock(0, CGRect(x: 10, y: 10, width: 60, height: 40), "가")
+        block.style = styled(20, fill: PipelineRGB(r: 20, g: 20, b: 20), stroke: nil, width: 0)
+        let placed = [PipelinePlacedText(blockID: 0, frame: CGRect(x: 10, y: 10, width: 60, height: 40), fontPixels: 20,
+                                         vertical: false, lines: ["가"])]
+        // Dark text on a dark restored background: the record carries the legibility outline, not the source style.
+        var dark = [UInt8](repeating: 30, count: 100 * 80 * 4)
+        for alpha in stride(from: 3, to: dark.count, by: 4) { dark[alpha] = 255 }
+        let halo = PipelinePainter.records(pixels: &dark, width: 100, height: 80, blocks: [block], placed: placed)
+        #expect(halo.count == 1 && halo.first?.stroke == PipelineRGB(r: 255, g: 255, b: 255) && (halo.first?.strokeWidth ?? 0) > 0)
+        var light = [UInt8](repeating: 250, count: 100 * 80 * 4)
+        for alpha in stride(from: 3, to: light.count, by: 4) { light[alpha] = 255 }
+        let plain = PipelinePainter.records(pixels: &light, width: 100, height: 80, blocks: [block], placed: placed)
+        #expect(plain.count == 1 && plain.first?.stroke == nil && plain.first?.fill == PipelineRGB(r: 20, g: 20, b: 20))
     }
 
     @Test func layoutKeepsKoreanPhrasesAndSitsOverTheSource() {

@@ -131,6 +131,14 @@ struct PipelineTimings: Sendable, Codable, Equatable {
 }
 
 /// The complete result for one page.
+/// The paint of a placed block as S10 draws it (after the legibility outline), in sRGB bytes and page px.
+struct PipelinePaintRecord: Sendable, Codable, Equatable {
+    var blockID: Int
+    var fill: PipelineRGB
+    var stroke: PipelineRGB?
+    var strokeWidth: CGFloat
+}
+
 struct PipelinePageResult: Sendable {
     var pageID: String
     var blocks: [PipelineBlock]
@@ -140,4 +148,6 @@ struct PipelinePageResult: Sendable {
     var failure: String?
     /// Restored pixels of the erased regions before S10 (`PipelineHooks.capturesBackground`).
     var background: [PipelineBackgroundPatch]?
+    /// What S10 painted each placed block with (`PipelineHooks.capturesPaint`).
+    var paints: [PipelinePaintRecord]?
 }

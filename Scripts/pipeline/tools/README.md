@@ -19,7 +19,7 @@ Python: the eval venv (`workspace.PYTHON`: numpy, PIL, scipy, shapely, lightgbm)
 | `lineasm/score.py PREFIX`, `bboxagent/boxscore.py PREFIX` | S2b lines and boxes vs GT line boxes |
 | `convmask/mscore.py DUMP RUN_PREFIX` | S6 masks (`AIDOKU_PIPELINE_DUMP_MASKS`) vs GT glyph masks |
 | `colorfix/errors.py PREFIX` | S8 fill / outline colour vs appearance GT |
-| `typeset_score.py RUN...` (`--cmp BASE VAR`, `--selftest RUN`) | one score: per GT text region, (share of its text a reader gets: grouping, text kept, place, balloon, overlap, page, art, contrast) x (how well it is set: mean of size, consistency, margin, position, line breaks, style), scored on what the painter draws; page JSON + GT only (`typeset_gt.py` holds the GT caches) |
+| `typeset_score.py RUN...` (`--cmp BASE VAR`, `--selftest RUN`) | one score: per GT text region, (share of its text a reader gets: grouping, text kept, place, balloon, overlap, page, art, contrast) x (how well it is set: mean of size, consistency, margin, position, line breaks, style), scored on what the painter draws; page JSON + GT only (`typeset_gt.py` holds the GT caches); reads the page record's `paints` (what S10 painted each block with, after the legibility outline) when a run has it |
 | `consistency_metrics.py RUN` | painted size consistency inside GT font-size classes |
 | `../eval.py RUN --split S` | detection recall / precision and grouping F1 |
 
@@ -61,4 +61,6 @@ as `--augment` (runs it names that do not exist are dropped; `--no-augment` trai
 - `retune/retune.py NAME --models DIR`: re-fit the `PipelineTuning` knobs for new model versions on train folds,
   then compare old / new / fitted on dev and test. After a model or stage change, run `retune/retrain.py NAME` first
   (learned parts in pipeline order), then retune the knobs on top. `--objective typeset` decides the render knobs on
-  `typeset_score.py` (a gain whose 95% interval is above 0) instead of the render items; the report lists both
+  `typeset_score.py` (a gain whose 95% interval is above 0) instead of the render items; the report lists both. The S9 layout
+  knobs (`layout*`: balloon inset, cap, whole-word ratio, tall-paragraph width, family share, row-span rescue) were
+  fitted on that score from saved stages (`--from s8`, a minute per train run)
