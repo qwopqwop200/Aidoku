@@ -23,6 +23,8 @@ struct PipelineTuning: Equatable, Sendable {
     var recognitionMinimumConfidence = 0.30
     /// S3 crop: a text line (long >= 1.5 x short) is padded short / this on each side.
     var recognitionLinePadDivisor: CGFloat = 20
+    /// S3 line keep gate: its fitted threshold times this (0 keeps every line, as for retraining the gate).
+    var lineKeepScale = 1.0
     /// S3 recognition: mean confidence under which a short block outside balloons is a fragment.
     var fragmentConfidence: Float = 0.6
     /// S4 roles on RF-DETR scores: SFX / balloon region score cuts before coverage counts, and the
@@ -31,15 +33,6 @@ struct PipelineTuning: Equatable, Sendable {
     var roleBalloonScore: Float = 0.5
     var roleRescueBalloon: CGFloat = 0.5
     var roleRescueSFX: CGFloat = 0.1
-    /// S4 parallel-column overlap, in glyphs.
-    var parallelOverlap: CGFloat = 0.6
-    /// S4 parallel-column gap limit, in glyphs (x 1.25 inside one balloon).
-    var parallelGap: CGFloat = 1
-    /// S4 shares of a line box inside an RF balloon / text box that make it that region's member, and
-    /// the share for an edge to a line of a known balloon.
-    var balloonOwnerCoverage: CGFloat = 0.9
-    var textScopeCoverage: CGFloat = 0.8
-    var balloonEdgeCoverage: CGFloat = 0.7
     /// S4b interior growth reach per side, in source line thicknesses.
     var interiorHorizontalReach: CGFloat = 8
     var interiorVerticalReach: CGFloat = 3
@@ -76,16 +69,12 @@ struct PipelineTuning: Equatable, Sendable {
             "assemblyMaximumGap": Double(assemblyMaximumGap),
             "recognitionMinimumConfidence": recognitionMinimumConfidence,
             "recognitionLinePadDivisor": Double(recognitionLinePadDivisor),
+            "lineKeepScale": lineKeepScale,
             "fragmentConfidence": Double(fragmentConfidence),
             "roleSFXScore": Double(roleSFXScore),
             "roleBalloonScore": Double(roleBalloonScore),
             "roleRescueBalloon": Double(roleRescueBalloon),
             "roleRescueSFX": Double(roleRescueSFX),
-            "parallelOverlap": Double(parallelOverlap),
-            "parallelGap": Double(parallelGap),
-            "balloonOwnerCoverage": Double(balloonOwnerCoverage),
-            "textScopeCoverage": Double(textScopeCoverage),
-            "balloonEdgeCoverage": Double(balloonEdgeCoverage),
             "interiorHorizontalReach": Double(interiorHorizontalReach),
             "interiorVerticalReach": Double(interiorVerticalReach),
             "interiorFrameScore": Double(interiorFrameScore),
@@ -112,16 +101,12 @@ struct PipelineTuning: Equatable, Sendable {
         case "assemblyMaximumGap": assemblyMaximumGap = CGFloat(value)
         case "recognitionMinimumConfidence": recognitionMinimumConfidence = value
         case "recognitionLinePadDivisor": recognitionLinePadDivisor = CGFloat(value)
+        case "lineKeepScale": lineKeepScale = value
         case "fragmentConfidence": fragmentConfidence = Float(value)
         case "roleSFXScore": roleSFXScore = Float(value)
         case "roleBalloonScore": roleBalloonScore = Float(value)
         case "roleRescueBalloon": roleRescueBalloon = CGFloat(value)
         case "roleRescueSFX": roleRescueSFX = CGFloat(value)
-        case "parallelOverlap": parallelOverlap = CGFloat(value)
-        case "parallelGap": parallelGap = CGFloat(value)
-        case "balloonOwnerCoverage": balloonOwnerCoverage = CGFloat(value)
-        case "textScopeCoverage": textScopeCoverage = CGFloat(value)
-        case "balloonEdgeCoverage": balloonEdgeCoverage = CGFloat(value)
         case "interiorHorizontalReach": interiorHorizontalReach = CGFloat(value)
         case "interiorVerticalReach": interiorVerticalReach = CGFloat(value)
         case "interiorFrameScore": interiorFrameScore = Float(value)

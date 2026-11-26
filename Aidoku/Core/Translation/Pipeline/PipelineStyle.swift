@@ -1,9 +1,9 @@
 import CoreGraphics
 import Foundation
 
-// S8: style per block on a bounded crop. Font px: a geometric rule with grouping times a learned per-group
-// correction (PipelineFontCorrection). Fill: the k-means colour candidate picked by TRAIN-fit trees
-// (PipelineStyleParameters), then kept or moved to a density peak of the line pixels (thin ink).
+// S8: style per block on a bounded crop. Font px: a geometric rule with grouping, moved per group toward the
+// lines' character pitch (PipelineFontCorrection). Fill: the k-means colour candidate picked by TRAIN-fit trees
+// (PipelineStyleParameters), then kept or moved to a density peak of the line pixels (PipelineFillPeakRanker).
 // Outline: colour rings around the fill mask.
 
 extension PipelineStyle {
@@ -11,7 +11,9 @@ extension PipelineStyle {
     /// `raster`, the page's decoded RGBA bytes when at hand, spares each crop a draw of `page.image`.
     static func estimate(_ page: PipelinePage, blocks: [PipelineBlock], raster: PipelinePageRaster? = nil) -> [PipelineBlock] {
         var groups: [Int] = []
-        let fonts = PipelineSimpleFont.estimate(blocks, groups: &groups)
+        // Font size reads the line geometry before the S3 line-box refinement (`measure`).
+        let sizing = blocks.map(\.sizingGeometry)
+        let fonts = PipelineSimpleFont.estimate(sizing, groups: &groups)
         // Same bytes as drawing the image only for an sRGB page (no colour conversion either way).
         let raster = raster.flatMap {
             $0.width == page.width && $0.height == page.height && page.image.colorSpace?.name == CGColorSpace.sRGB ? $0 : nil
@@ -28,7 +30,8 @@ extension PipelineStyle {
         let styles = PipelineStyleConsistency.unify(PipelineStyleEstimator.decide(&analyses, fonts: fonts),
                                               characters: blocks.map { $0.sourceText.unicodeScalars.count })
         // Layout reads the corrected size; the colour measurement above keeps the geometric one.
-        let layoutFonts = PipelineFontCorrection.corrected(blocks, fonts: fonts, groups: groups)
+        let layoutFonts = PipelineFontCorrection.corrected(sizing, fonts: fonts, groups: groups, image: page.image,
+                                                         raster: raster)
         // Bold: ridge width of the fill body / layout font and its line cover (`boldMeasure`).
         let measured = analyses.map { $0 != nil }
         let bold = UnsafeMutableBufferPointer<Bool>.allocate(capacity: blocks.count)
@@ -51,6 +54,23 @@ extension PipelineStyle {
 }
 
 // MARK: - Font size (port of NativeSimpleSourceFont)
+
+extension PipelineBlock {
+    /// The block with its lines' pre-refine polygons and bounds (unchanged when no line moved).
+    var sizingGeometry: PipelineBlock {
+        guard let measureBounds else { return self }
+        var block = self
+        block.bounds = measureBounds
+        block.lines = lines.map { line in
+            guard let measure = line.measure else { return line }
+            var line = line
+            line.polygon = measure
+            line.bounds = PipelineGrouping.polygonBounds(measure)
+            return line
+        }
+        return block
+    }
+}
 
 enum PipelineSimpleFont {
     // NativeSourceInferencePolicy minimal-m1-p9-body64-presence95 calibration.
@@ -1117,6 +1137,25 @@ enum PipelineStyleEstimator {
         return (colours, x)
     }
 
+    /// Per-option features of the peak ranker appended to `peakFeatures` (Lab): position `t` on the outline -> pick
+    /// axis (t > 1: past the pick, away from the outline, i.e. purer ink), distance off it, axis length, lightness
+    /// gaps to the outline and the pick, chroma gap to the outline, then the pick cluster's stroke width / font,
+    /// line share, core share and the crop scale.
+    static func axisFeatures(_ f: PipelineStyleFeatures, fill j: Int, colours: [[Double]], outline: [Double]) -> [[Double]] {
+        let p = lab(colours[0]), o = lab(outline)
+        let axis = (0..<3).map { p[$0] - o[$0] }
+        let norm2 = axis.reduce(0) { $0 + $1 * $1 } + 1e-6
+        let c = f.clusters[j]
+        let chromaO = (o[1] * o[1] + o[2] * o[2]).squareRoot()
+        return colours.map { colour in
+            let q = lab(colour)
+            let t = (0..<3).reduce(0) { $0 + (q[$1] - o[$1]) * axis[$1] } / norm2
+            let perp = (0..<3).reduce(0) { $0 + pow(q[$1] - o[$1] - t * axis[$1], 2) }.squareRoot()
+            return [t, perp, norm2.squareRoot(), abs(q[0] - o[0]), q[0] - p[0], (q[1] * q[1] + q[2] * q[2]).squareRoot() - chromaO,
+                    c.strokeWidth / f.font, c.inLines, Double(c.coreCount) / Double(max(1, c.count)), f.scale]
+        }
+    }
+
     static func channelMedian(_ rgb: [UInt8], indices: [Int]) -> [Double] {
         guard !indices.isEmpty else { return [255, 255, 255] }
         var histograms = [Int](repeating: 0, count: 768)
@@ -1369,16 +1408,11 @@ extension PipelineStyleEstimator {
                                 observations[index] = observation
                                 scores[index] = P.outline.logit(observation.features)
                             }
-                            // Second stage: keep the pick or move to a density peak of the line pixels.
-                            if let peaks = P.fillPeaks, !f.modes.isEmpty {
-                                let options = peakFeatures(f, pick: f.clusters[j].core, pickLogit: pickLogit,
-                                                           outline: observation?.colour ?? f.ringBackground)
-                                var best = 0, bestScore = -Double.infinity
-                                for (i, x) in options.x.enumerated() {
-                                    let score = peaks.logit(x)
-                                    if score > bestScore { best = i; bestScore = score }
-                                }
-                                results[index].textColor = rgb(options.colours[best])
+                            // Second stage: keep the pick or move to a density peak of the line pixels, ranked by
+                            // `PipelineFillPeakRanker`.
+                            if !f.modes.isEmpty, let choice = peakChoice(f, fill: j, pickLogit: pickLogit,
+                                                                          outline: observation?.colour ?? f.ringBackground) {
+                                results[index].textColor = rgb(choice)
                             }
                             analyses[index] = analysis
                         }
@@ -1395,12 +1429,102 @@ extension PipelineStyleEstimator {
             let z = P.outlinePage[0] * score + P.outlinePage[1] * pageScore + P.outlinePage[2]
             if z >= 0 {
                 results[index].strokeColor = rgb(observation.colour)
-                let width = P.outlineWidthRing * observation.ringWidth + P.outlineWidthFont * Double(fonts[index]) + P.outlineWidthBias
-                results[index].strokeWidth = CGFloat(max(0, width))
+                results[index].strokeWidth = CGFloat(outlineWidth(ring: observation.ringWidth, font: Double(fonts[index])))
             }
         }
         return results
     }
+
+    /// The fill option (pick or density peak) with the highest ranker score; nil without a ranker (keep the pick).
+    static func peakChoice(_ f: PipelineStyleFeatures, fill j: Int, pickLogit: Double, outline: [Double],
+                           ranker: PipelineFillPeakRanker? = .shared) -> [Double]? {
+        guard let ranker else { return nil }
+        let options = peakFeatures(f, pick: f.clusters[j].core, pickLogit: pickLogit, outline: outline)
+        let axis = axisFeatures(f, fill: j, colours: options.colours, outline: outline)
+        var best = 0, bestScore = -Double.infinity
+        for (i, x) in options.x.enumerated() {
+            let value = ranker.score(x + axis[i])
+            if value > bestScore { best = i; bestScore = value }
+        }
+        return options.colours[best]
+    }
+
+    /// Outline width in page px: the learned interval-hit width (`PipelineOutlineWidthModel`), else the ring line.
+    static func outlineWidth(ring: Double, font: Double, model: PipelineOutlineWidthModel? = .shared) -> Double {
+        typealias P = PipelineStyleParameters
+        let line = max(0, P.outlineWidthRing * ring + P.outlineWidthFont * font + P.outlineWidthBias)
+        guard let model, font > 0 else { return line }
+        return model.width(ring: ring, font: font, line: line)
+    }
+}
+
+/// S8 outline width (Resources/Translation/PipelineOutlineWidth.json, fit on TRAIN pages): a LightGBM classifier gives
+/// the probability that each candidate width lies in the source outline's width range; the width is the most probable
+/// candidate, and among those within `tie` of it the one nearest the `centre` forest (the range centre regressed on
+/// ring width and font). Trees as flat arrays: `x[f] <= t` goes left, a negative child is leaf `-child - 1`.
+struct PipelineOutlineWidthModel: Decodable, Sendable {
+    struct Tree: Decodable, Sendable {
+        let f: [Int], t: [Double], l: [Int], r: [Int], v: [Double]
+    }
+
+    let grid: [Double]
+    let tie: Double
+    /// Log-odds of a candidate inside the range, from (ring width, font, candidate, candidate / font, candidate - ring line).
+    let hit: [Tree]
+    /// Range centre from (ring width, font).
+    let centre: [Tree]
+
+    static func sum(_ trees: [Tree], _ x: [Double]) -> Double {
+        var total = 0.0
+        for tree in trees {
+            var node = 0
+            while node >= 0 { node = x[tree.f[node]] <= tree.t[node] ? tree.l[node] : tree.r[node] }
+            total += tree.v[-node - 1]
+        }
+        return total
+    }
+
+    /// `line`: the ring-line width (`PipelineStyleEstimator.outlineWidth` without a model), an input feature.
+    func width(ring: Double, font: Double, line: Double) -> Double {
+        guard !grid.isEmpty else { return line }
+        let p = grid.map { c in 1 / (1 + exp(-Self.sum(hit, [ring, font, c, c / font, c - line]))) }
+        let top = p.max()!, target = Self.sum(centre, [ring, font])
+        var best = 0, gap = Double.infinity
+        for i in grid.indices where p[i] >= top - tie && abs(grid[i] - target) < gap { best = i; gap = abs(grid[i] - target) }
+        return grid[best]
+    }
+
+    static let shared: PipelineOutlineWidthModel? = {
+        var urls = [Bundle.main.url(forResource: "PipelineOutlineWidth", withExtension: "json")].compactMap { $0 }
+        if let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] {
+            urls.append(URL(fileURLWithPath: root).appendingPathComponent("Aidoku/Resources/Translation/PipelineOutlineWidth.json"))
+        }
+        return urls.lazy.compactMap { try? Data(contentsOf: $0) }
+            .compactMap { try? JSONDecoder().decode(PipelineOutlineWidthModel.self, from: $0) }.first
+    }()
+}
+
+/// S8 fill peak ranker (Resources/Translation/PipelineFillPeaks.json, LambdaRank fit on TRAIN pages): scores each fill
+/// option from `peakFeatures` + `axisFeatures`, in place of the fillPeaks forest of PipelineWeights.bin (left unread).
+/// Trees as flat arrays: `x[f] <= t` goes left, a negative child is leaf `-child - 1`.
+struct PipelineFillPeakRanker: Decodable, Sendable {
+    let features: Int
+    let trees: [PipelineOutlineWidthModel.Tree]
+
+    func score(_ x: [Double]) -> Double { PipelineOutlineWidthModel.sum(trees, x) }
+
+    static let shared: PipelineFillPeakRanker? = {
+        var urls = [Bundle.main.url(forResource: "PipelineFillPeaks", withExtension: "json")].compactMap { $0 }
+        if let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] {
+            urls.append(URL(fileURLWithPath: root).appendingPathComponent("Aidoku/Resources/Translation/PipelineFillPeaks.json"))
+        }
+        return urls.lazy.compactMap { try? Data(contentsOf: $0) }
+            .compactMap { try? JSONDecoder().decode(PipelineFillPeakRanker.self, from: $0) }
+            .first { $0.features == featureCount }
+    }()
+
+    /// 16 `peakFeatures` + 10 `axisFeatures`.
+    static let featureCount = 26
 }
 
 // MARK: - Page style consistency

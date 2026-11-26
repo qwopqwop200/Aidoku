@@ -2,14 +2,14 @@ import Foundation
 
 /// Stage checkpoints on disk (`--save-stages`, `--from-stages DIR --from S`): a later run reuses the
 /// expensive stages before S and recomputes the rest. Per page, in OUTPUT/stages:
-///   ID.front.json    S1-S4b (layout regions, S4 blocks, S4b blocks)
+///   ID.front.json    S1-S4b (layout regions, S3 lines, S4 blocks, S4b blocks)
 ///   ID.erase.json    S6/S7 paint set, page size and the regions S7 writes
 ///   ID.removal.z     S6 mask, raw deflate of width x height bytes
 ///   ID.restored.z    S7 restored pixels of those regions (canonical RGBA, concatenated), raw deflate
 /// Reuse is valid only while the reused stages, their models and their tuning knobs are unchanged.
 enum PipelineHostStages {
-    /// The first recomputed stage: s5 reuses S1-S4b, s7 also the S6 mask, s8 also the S7 restore.
-    enum Resume: String, CaseIterable { case s5, s7, s8 }
+    /// The first recomputed stage: s4 reuses S1-S3, s5 S1-S4b, s7 also the S6 mask, s8 also the S7 restore.
+    enum Resume: String, CaseIterable { case s4, s5, s7, s8 }
 
     private struct EraseMeta: Codable {
         var paintable: [Int]
@@ -23,8 +23,13 @@ enum PipelineHostStages {
     /// The saved checkpoints of one page up to `resume` (missing files: those stages recompute).
     static func load(_ run: URL, pageID: String, resume: Resume) -> PipelineCheckpoints {
         let directory = directory(run)
-        let front = (try? Data(contentsOf: directory.appendingPathComponent(pageID + ".front.json")))
+        var front = (try? Data(contentsOf: directory.appendingPathComponent(pageID + ".front.json")))
             .flatMap { try? JSONDecoder().decode(PipelineCheckpoints.Front.self, from: $0) }
+        if resume == .s4 {
+            front?.classified = nil
+            front?.blocks = nil
+            return PipelineCheckpoints(front: front?.recognized == nil ? nil : front)
+        }
         guard resume != .s5, let meta = (try? Data(contentsOf: directory.appendingPathComponent(pageID + ".erase.json")))
                 .flatMap({ try? JSONDecoder().decode(EraseMeta.self, from: $0) }),
               let removal = inflate(directory.appendingPathComponent(pageID + ".removal.z")),
@@ -51,7 +56,8 @@ enum PipelineHostStages {
     static func save(_ checkpoints: PipelineCheckpoints, run: URL, pageID: String, width: Int, height: Int) throws {
         let directory = directory(run)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        if let front = checkpoints.front ?? checkpoints.savedFront {
+        if var front = checkpoints.front ?? checkpoints.savedFront {
+            if front.recognized == nil { front.recognized = checkpoints.savedFront?.recognized }
             try JSONEncoder().encode(front).write(to: directory.appendingPathComponent(pageID + ".front.json"))
         }
         guard let erase = checkpoints.erase, erase.removal.count == width * height, let restored = erase.restored else { return }

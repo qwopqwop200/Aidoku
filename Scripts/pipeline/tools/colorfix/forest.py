@@ -1,4 +1,4 @@
-"""LightGBM trees in the PipelineWeights.bin forest layout (see export_fill.py), their Swift-style evaluation, and
+"""LightGBM trees in the PipelineWeights.bin forest layout (written by retrain/fill and retrain/lineends), their Swift-style evaluation, and
 appending one forest to the weights file."""
 import struct
 import numpy as np

@@ -90,7 +90,7 @@ struct PipelineHostSettings {
     /// Stage checkpoints: written to OUTPUT/stages, and reused from an earlier run up to `resume`.
     var saveStages = false
     var stagesFrom: URL?
-    /// First recomputed stage (`PipelineHostStages.Resume`): s5, s7 or s8.
+    /// First recomputed stage (`PipelineHostStages.Resume`): s4, s5, s7 or s8.
     var resume = "s8"
     var translateDelay: UInt64 = 0
     var readingDirection = "rightToLeft"
@@ -244,7 +244,7 @@ struct PipelineHostSettings {
             case "--from-stages": settings.stagesFrom = URL(fileURLWithPath: try value()).standardizedFileURL
             case "--from":
                 settings.resume = try value()
-                guard ["s5", "s7", "s8"].contains(settings.resume) else { throw PipelineHostError("Invalid --from") }
+                guard ["s4", "s5", "s7", "s8"].contains(settings.resume) else { throw PipelineHostError("Invalid --from") }
             case "--translate-delay-ms": settings.translateDelay = UInt64(try integer(try value(), "--translate-delay-ms", 0...600_000))
             case "--reading-direction": settings.readingDirection = try direction(try value(), "--reading-direction")
             case "--base-url": settings.baseURL = try value()

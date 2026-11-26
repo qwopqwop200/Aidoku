@@ -2,8 +2,10 @@ import CoreGraphics
 import Foundation
 
 // S4b: free lettering space around each block on the S4 gray raster (RF-DETR balloons are often
-// missing or wrong). The bounds grow per side, stopped by other text and balloons, the panel, the
-// line reach and ink; the result becomes `PipelineBlock.balloon`, the box S9 fits into.
+// missing or wrong). The rule grows the bounds per side, stopped by other text and balloons, the panel,
+// the line reach and ink; for blocks a gate places in a balloon, a side model on the block's paper
+// component replaces it (`PipelineLearnedInterior`). The result becomes `PipelineBlock.balloon`, the box
+// S9 fits into, with `rows` for rounded balloons.
 enum PipelineInterior {
     typealias Box = (x0: Int, y0: Int, x1: Int, y1: Int)
     /// Raster row spans: rows `first...`, half-widths in cells about column `centre`.
@@ -31,8 +33,19 @@ enum PipelineInterior {
     /// A panel frame bounds the growth when it holds this share of the block.
     static let frameHold: CGFloat = 0.95
 
+    /// The rule box (`ruleApply`), replaced for blocks the balloon gate accepts by the side model's box
+    /// (`PipelineInteriorModel`); without the model file the rule box stays.
     static func apply(_ blocks: [PipelineBlock], raster: PipelineGrayRaster?, pageSize: CGSize,
-                      layout: [PipelineLayoutRegion] = []) -> [PipelineBlock] {
+                      layout: [PipelineLayoutRegion] = [], model: PipelineInteriorModel? = .shared) -> [PipelineBlock] {
+        let ruled = ruleApply(blocks, raster: raster, pageSize: pageSize, layout: layout)
+        guard let model, let raster, raster.width > 2, raster.height > 2, raster.pixels.count == raster.width * raster.height,
+              pageSize.width >= 1, pageSize.height >= 1 else { return ruled }
+        return PipelineLearnedInterior.apply(blocks, ruled: ruled, raster: raster, pageSize: pageSize, model: model)
+    }
+
+    /// The grow rule: free lettering space per side, stopped by other text, balloons, panel, reach and ink.
+    static func ruleApply(_ blocks: [PipelineBlock], raster: PipelineGrayRaster?, pageSize: CGSize,
+                          layout: [PipelineLayoutRegion] = []) -> [PipelineBlock] {
         guard let raster, raster.width > 2, raster.height > 2, raster.pixels.count == raster.width * raster.height,
               pageSize.width >= 1, pageSize.height >= 1 else { return blocks }
         let sx = CGFloat(raster.width) / pageSize.width, sy = CGFloat(raster.height) / pageSize.height
@@ -455,5 +468,517 @@ enum PipelineInterior {
         let qx = (rect.x1 - rect.x0) / 4, qy = (rect.y1 - rect.y0) / 4
         guard mx >= rect.x0 - qx, mx <= rect.x1 + qx, my >= rect.y0 - qy, my <= rect.y1 + qy else { return nil }
         return rect
+    }
+}
+
+/// S4b side model and balloon gate (Resources/Translation/PipelineInterior.json, fit on TRAIN pages):
+/// LightGBM trees as flat arrays (`x[f] <= t` goes left; a negative child is leaf `-child - 1`).
+struct PipelineInteriorModel: Decodable, Sendable {
+    struct Tree: Decodable, Sendable {
+        let f: [Int], t: [Double], l: [Int], r: [Int], v: [Double]
+    }
+
+    struct Forest: Decodable, Sendable {
+        let trees: [Tree]
+
+        func sum(_ x: [Double]) -> Double {
+            var total = 0.0
+            for tree in trees {
+                var node = 0
+                while node >= 0 { node = x[tree.f[node]] <= tree.t[node] ? tree.l[node] : tree.r[node] }
+                total += tree.v[-node - 1]
+            }
+            return total
+        }
+    }
+
+    /// Least gate probability for the model box.
+    let threshold: Double
+    /// Outward offset of one side in line thicknesses (quantile 0.35), from `PipelineLearnedInterior.sideFeatures`.
+    let joint: Forest
+    /// Log-odds that the block lies in a balloon or narration box, from `PipelineLearnedInterior.gateFeatures`.
+    let gate: Forest
+
+    static let shared: PipelineInteriorModel? = {
+        var urls = [Bundle.main.url(forResource: "PipelineInterior", withExtension: "json")].compactMap { $0 }
+        if let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] {
+            urls.append(URL(fileURLWithPath: root).appendingPathComponent("Aidoku/Resources/Translation/PipelineInterior.json"))
+        }
+        return urls.lazy.compactMap { try? Data(contentsOf: $0) }
+            .compactMap { try? JSONDecoder().decode(PipelineInteriorModel.self, from: $0) }.first
+    }()
+}
+
+/// The learned S4b box: the block's paper component (flood from the text box over cells within 64 gray levels of
+/// the paper, own lines erased, inside the text box +- 14 line thicknesses and the panel) gives a candidate box
+/// (the largest rectangle in the block's share of it); side profiles of ink, other text and the panel plus the
+/// candidate offsets feed one side model, and a gate keeps the rule box for free text.
+enum PipelineLearnedInterior {
+    typealias Box = PipelineInterior.Box
+    static let windowReach = 14, closing = 2, openReach = 3, profileReach: CGFloat = 20
+    static let missing = -100.0
+    /// Component paths, as feature codes.
+    enum Path: Int { case none, toned, open, openRF, enclosed, tonedRF, closed }
+
+    struct Grid {
+        let raster: PipelineGrayRaster, sx: CGFloat, sy: CGFloat
+        var width: Int { raster.width }
+        var height: Int { raster.height }
+
+        func cells(_ rect: CGRect?) -> Box? {
+            guard let rect, !rect.isNull, rect.width > 0, rect.height > 0,
+                  [rect.minX, rect.minY, rect.maxX, rect.maxY].allSatisfy({ $0.isFinite && abs($0) < 1e9 }) else { return nil }
+            let x0 = max(0, Int((rect.minX * sx).rounded(.down))), x1 = min(width, Int((rect.maxX * sx).rounded(.up)))
+            let y0 = max(0, Int((rect.minY * sy).rounded(.down))), y1 = min(height, Int((rect.maxY * sy).rounded(.up)))
+            return x0 < x1 && y0 < y1 ? (x0, y0, x1, y1) : nil
+        }
+
+        /// Nearest cell edges.
+        func rounded(_ rect: CGRect?) -> Box? {
+            guard let rect, !rect.isNull, [rect.minX, rect.minY, rect.maxX, rect.maxY].allSatisfy({ $0.isFinite }) else { return nil }
+            return (Int((rect.minX * sx).rounded()), Int((rect.minY * sy).rounded()),
+                    Int((rect.maxX * sx).rounded()), Int((rect.maxY * sy).rounded()))
+        }
+
+        func rect(_ box: Box) -> CGRect {
+            CGRect(x: CGFloat(box.x0) / sx, y: CGFloat(box.y0) / sy,
+                   width: CGFloat(box.x1 - box.x0) / sx, height: CGFloat(box.y1 - box.y0) / sy)
+        }
+
+        func gray(_ x: Int, _ y: Int) -> Int { Int(raster.pixels[y * width + x]) }
+    }
+
+    static func apply(_ blocks: [PipelineBlock], ruled: [PipelineBlock], raster: PipelineGrayRaster, pageSize: CGSize,
+                      model: PipelineInteriorModel) -> [PipelineBlock] {
+        let grid = Grid(raster: raster, sx: CGFloat(raster.width) / pageSize.width, sy: CGFloat(raster.height) / pageSize.height)
+        let text = blocks.map { $0.role != .background ? grid.cells($0.bounds) : nil }
+        return ruled.indices.map { index in
+            var block = ruled[index]
+            guard let item = Item(index, blocks: blocks, ruled: ruled, text: text, grid: grid),
+                  1 / (1 + exp(-model.gate.sum(item.gateFeatures))) >= model.threshold else { return block }
+            let offsets = (0..<4).map { max(0, model.joint.sum(item.sideFeatures($0))) }
+            let s = item.source, e = Double(item.em)
+            let box: Box = (max(0, Int((Double(s.x0) - offsets[0] * e).rounded())),
+                            max(0, Int((Double(s.y0) - offsets[2] * e).rounded())),
+                            min(grid.width, Int((Double(s.x1) + offsets[1] * e).rounded())),
+                            min(grid.height, Int((Double(s.y1) + offsets[3] * e).rounded())))
+            block.balloon = grid.rect(box)
+            block.rows = item.component.flatMap { rows($0, box: box, grid: grid) }
+            return block
+        }
+    }
+
+    /// One block's features.
+    struct Item {
+        let source: Box
+        let em: CGFloat
+        let general: [Double]
+        let profiles: [[Double]]
+        let offsets: [[Double]]   // comp, comp_c2, rule, RF inscribed, RF (left, right, top, bottom)
+        let component: Mask?
+
+        init?(_ index: Int, blocks: [PipelineBlock], ruled: [PipelineBlock], text: [Box?], grid: Grid) {
+            let block = blocks[index]
+            guard let s = text[index], !block.lines.isEmpty else { return nil }
+            let thickness = block.lines.map { block.vertical ? $0.bounds.width : $0.bounds.height }.sorted()
+            let line = thickness[thickness.count / 2]
+            let em = max(1, line * grid.sx), cells = max(1, Int((line * grid.sx).rounded(.up)))
+            let (paper, toned) = PipelineLearnedInterior.paper(grid, s)
+            let panel = ruled[index].panel
+            let rule = grid.rounded(ruled[index].balloon), rf = grid.cells(block.balloon)
+            var inscribed: Box?
+            if let balloon = block.balloon {
+                let k = (1 - PipelineInterior.ellipseInscribed) / 2
+                inscribed = grid.rounded(balloon.insetBy(dx: balloon.width * k, dy: balloon.height * k).union(block.bounds))
+            }
+            let pass = PipelineLearnedInterior.component(index, blocks: blocks, text: text, grid: grid, em: cells,
+                                                         paper: paper, toned: toned, panel: panel)
+            let comp = pass.map { $0.box } ?? rule, second = pass.map { $0.closedBox } ?? rule
+            source = s
+            self.em = em
+            component = pass?.mask
+            general = [Double(CGFloat(s.x1 - s.x0) / em), Double(CGFloat(s.y1 - s.y0) / em), block.vertical ? 1 : 0,
+                       Double(block.lines.count), toned ? 1 : 0, rf != nil ? 1 : 0,
+                       Double((pass?.path ?? .none).rawValue), Double((pass?.closedPath ?? .none).rawValue)]
+            profiles = PipelineLearnedInterior.profiles(index, blocks: blocks, text: text, grid: grid, em: em, paper: paper,
+                                                        panel: grid.cells(panel))
+            func outward(_ box: Box?) -> [Double] {
+                guard let box else { return [Double](repeating: PipelineLearnedInterior.missing, count: 4) }
+                return [Double(CGFloat(s.x0 - box.x0) / em), Double(CGFloat(box.x1 - s.x1) / em),
+                        Double(CGFloat(s.y0 - box.y0) / em), Double(CGFloat(box.y1 - s.y1) / em)]
+            }
+            offsets = [outward(comp), outward(second), outward(rule), outward(inscribed), outward(rf)]
+        }
+
+        /// Side model input: side, general, profiles and offsets with this side first.
+        func sideFeatures(_ side: Int) -> [Double] {
+            let order = [side] + (0..<4).filter { $0 != side }
+            var x = [Double(side)] + general
+            for t in order { x += profiles[t] }
+            for o in offsets { x += order.map { o[$0] } }
+            return x
+        }
+
+        /// Gate input: general, profiles, then the comp, rule, RF inscribed and RF offsets.
+        var gateFeatures: [Double] {
+            var x = general
+            for p in profiles { x += p }
+            for k in [0, 2, 3, 4] { x += offsets[k] }
+            return x
+        }
+    }
+
+    /// Paper level of the text box: the mean of its most common 16-level band; toned for mid-gray paper.
+    static func paper(_ grid: Grid, _ s: Box) -> (Int, Bool) {
+        var bands = [Int](repeating: 0, count: 16), sums = [Int](repeating: 0, count: 16)
+        for y in s.y0..<s.y1 { for x in s.x0..<s.x1 { let v = grid.gray(x, y); bands[v >> 4] += 1; sums[v >> 4] += v } }
+        let band = bands.indices.max { bands[$0] < bands[$1] } ?? 15
+        let paper = bands[band] > 0 ? sums[band] / bands[band] : 255
+        return (paper, bands[band] == 0 || (96 < paper && paper < 160))
+    }
+
+    /// Cells of a window, row-major.
+    struct Mask {
+        let x0: Int, y0: Int, width: Int, height: Int
+        var on: [Bool]
+    }
+
+    struct Pass {
+        let box: Box, path: Path, closedBox: Box, closedPath: Path
+        let mask: Mask
+    }
+
+    /// Ink in a window, thresholded on first use; own lines (padded) are paper.
+    struct Ink {
+        let grid: Grid, x0: Int, y0: Int, width: Int, height: Int, paper: Int
+        var state: [UInt8]
+
+        init(grid: Grid, window: Box, paper: Int, own: [Box]) {
+            self.grid = grid; self.paper = paper
+            x0 = window.x0; y0 = window.y0; width = window.x1 - window.x0; height = window.y1 - window.y0
+            state = [UInt8](repeating: 0, count: width * height)
+            for b in own {
+                let bx0 = max(b.x0, x0), bx1 = min(b.x1, window.x1), by0 = max(b.y0, y0), by1 = min(b.y1, window.y1)
+                guard bx0 < bx1, by0 < by1 else { continue }
+                for y in by0..<by1 { for x in bx0..<bx1 { state[(y - y0) * width + x - x0] = 1 } }
+            }
+        }
+
+        /// Window-relative cell.
+        mutating func dirty(_ x: Int, _ y: Int) -> Bool {
+            let i = y * width + x
+            if state[i] == 0 { state[i] = abs(grid.gray(x + x0, y + y0) - paper) > 64 ? 2 : 1 }
+            return state[i] == 2
+        }
+    }
+
+    static func ownBoxes(_ block: PipelineBlock, grid: Grid, pad: Int) -> [Box] {
+        block.lines.compactMap { grid.cells($0.bounds) }.map { ($0.x0 - pad, $0.y0 - pad, $0.x1 + pad, $0.y1 + pad) }
+    }
+
+    /// 4-connected paper cells (no ink within `radius` cells) reached from the paper of `seed` (window-relative);
+    /// nil if there is none, or when `stopAtBorder` and the flood reaches the window border.
+    static func flood(_ ink: inout Ink, seed: Box, radius: Int, stopAtBorder: Bool) -> (on: [Bool], bounds: Box)? {
+        let width = ink.width, height = ink.height, x0 = ink.x0, y0 = ink.y0, paper = ink.paper, stride = ink.grid.width
+        var on = [Bool](repeating: false, count: width * height)
+        var queue = [Int32](unsafeUninitializedCapacity: 2 * width * height) { _, count in count = 2 * width * height }
+        var count = 0, reached = false, bx0 = width, by0 = height, bx1 = 0, by1 = 0
+        // Closed test per cell, once (0 unknown, 1 free, 2 near ink).
+        var closedState = [UInt8](repeating: 0, count: radius > 0 ? width * height : 0)
+        ink.grid.raster.pixels.withUnsafeBufferPointer { pixels in
+            ink.state.withUnsafeMutableBufferPointer { state in
+              closedState.withUnsafeMutableBufferPointer { closedState in
+                on.withUnsafeMutableBufferPointer { on in
+                    queue.withUnsafeMutableBufferPointer { queue in
+                        @inline(__always) func dirty(_ x: Int, _ y: Int) -> Bool {
+                            let i = y * width + x
+                            var v = state[i]
+                            if v == 0 {
+                                v = abs(Int(pixels[(y + y0) * stride + x + x0]) - paper) > 64 ? 2 : 1
+                                state[i] = v
+                            }
+                            return v == 2
+                        }
+                        @inline(__always) func free(_ x: Int, _ y: Int) -> Bool {
+                            guard radius > 0 else { return !dirty(x, y) }
+                            let i = y * width + x
+                            if closedState[i] == 0 {
+                                closedState[i] = 1
+                                search: for dy in -radius...radius where y + dy >= 0 && y + dy < height {
+                                    let r = radius - abs(dy)
+                                    for dx in -r...r where x + dx >= 0 && x + dx < width && dirty(x + dx, y + dy) {
+                                        closedState[i] = 2
+                                        break search
+                                    }
+                                }
+                            }
+                            return closedState[i] == 1
+                        }
+                        @inline(__always) func push(_ x: Int, _ y: Int) {
+                            let i = y * width + x
+                            guard !on[i], free(x, y) else { return }
+                            on[i] = true
+                            queue[2 * count] = Int32(x)
+                            queue[2 * count + 1] = Int32(y)
+                            count += 1
+                            bx0 = min(bx0, x); bx1 = max(bx1, x + 1); by0 = min(by0, y); by1 = max(by1, y + 1)
+                            if x == 0 || y == 0 || x == width - 1 || y == height - 1 { reached = true }
+                        }
+                        for y in seed.y0..<seed.y1 { for x in seed.x0..<seed.x1 { push(x, y) } }
+                        var head = 0
+                        while head < count, !(stopAtBorder && reached) {
+                            let x = Int(queue[2 * head]), y = Int(queue[2 * head + 1])
+                            head += 1
+                            if x > 0 { push(x - 1, y) }
+                            if x + 1 < width { push(x + 1, y) }
+                            if y > 0 { push(x, y - 1) }
+                            if y + 1 < height { push(x, y + 1) }
+                        }
+                    }
+                }
+              }
+            }
+        }
+        return count == 0 || (stopAtBorder && reached) ? nil : (on, (bx0, by0, bx1, by1))
+    }
+
+    static func touchesBorder(_ on: [Bool], width: Int, height: Int) -> Bool {
+        for x in 0..<width where on[x] || on[(height - 1) * width + x] { return true }
+        for y in 0..<height where on[y * width] || on[y * width + width - 1] { return true }
+        return false
+    }
+
+    /// The paper component and its candidate box; a component reaching the window is retried with the ink closed
+    /// by `closing` cells, else clipped to the RF balloon or the text box +- `reach` line thicknesses.
+    static func component(_ index: Int, blocks: [PipelineBlock], text: [Box?], grid: Grid, em: Int, paper: Int,
+                          toned: Bool, panel: CGRect?) -> Pass? {
+        let block = blocks[index]
+        guard let s = text[index] else { return nil }
+        var window: Box = (max(0, s.x0 - windowReach * em), max(0, s.y0 - windowReach * em),
+                           min(grid.width, s.x1 + windowReach * em), min(grid.height, s.y1 + windowReach * em))
+        if let p = grid.cells(panel) {
+            window = (max(window.x0, p.x0), max(window.y0, p.y0), min(window.x1, p.x1), min(window.y1, p.y1))
+        }
+        guard window.x0 < window.x1, window.y0 < window.y1 else { return nil }
+        let w = window.x1 - window.x0, h = window.y1 - window.y0
+        let pad = max(2, Int((CGFloat(em) * 0.2).rounded()))
+        var ink = Ink(grid: grid, window: window, paper: paper, own: ownBoxes(block, grid: grid, pad: pad))
+        let s0: Box = (max(0, s.x0 - window.x0), max(0, s.y0 - window.y0), min(window.x1, s.x1) - window.x0, min(window.y1, s.y1) - window.y0)
+        guard s0.x0 < s0.x1, s0.y0 < s0.y1, let first = flood(&ink, seed: s0, radius: 0, stopAtBorder: false) else { return nil }
+        let touches = first.bounds.x0 == 0 || first.bounds.y0 == 0 || first.bounds.x1 == w || first.bounds.y1 == h
+        var variants: [(on: [Bool], bounds: Box, open: Bool, path: Path)] =
+            [(first.on, first.bounds, touches, toned ? .toned : touches ? .open : .enclosed)]
+        // A closed flood reaching the border reaches it after the dilation too: it is dropped as soon as it does.
+        if touches, let core = flood(&ink, seed: s0, radius: closing, stopAtBorder: true) {
+            // Dilate back by `closing` cells, onto paper only.
+            var closed = core.on
+            let b = core.bounds
+            let grown: Box = (max(0, b.x0 - closing), max(0, b.y0 - closing), min(w, b.x1 + closing), min(h, b.y1 + closing))
+            for y in b.y0..<b.y1 { for x in b.x0..<b.x1 where core.on[y * w + x] {
+                for dy in -closing...closing {
+                    let r = closing - abs(dy)
+                    for dx in -r...r where x + dx >= 0 && x + dx < w && y + dy >= 0 && y + dy < h { closed[(y + dy) * w + x + dx] = true }
+                }
+            } }
+            for y in grown.y0..<grown.y1 { for x in grown.x0..<grown.x1 where closed[y * w + x] && ink.dirty(x, y) { closed[y * w + x] = false } }
+            if !touchesBorder(closed, width: w, height: h) { variants.append((closed, grown, false, toned ? .toned : .closed)) }
+        }
+        var results: [(Box, Path, Mask)] = []
+        for (on, onBounds, open, base) in variants {
+            var path = base, keep: Box?
+            if open {
+                if block.balloon != nil {
+                    path = base == .toned ? .tonedRF : .openRF
+                    keep = grid.cells(block.balloon).map { ($0.x0 - window.x0, $0.y0 - window.y0, $0.x1 - window.x0, $0.y1 - window.y0) }
+                        ?? (0, 0, 0, 0)
+                } else {
+                    keep = (s.x0 - openReach * em - window.x0, s.y0 - openReach * em - window.y0,
+                            s.x1 + openReach * em - window.x0, s.y1 + openReach * em - window.y0)
+                }
+            }
+            var mask = Mask(x0: window.x0, y0: window.y0, width: w, height: h, on: on)
+            if let keep {
+                for y in onBounds.y0..<onBounds.y1 {
+                    for x in onBounds.x0..<onBounds.x1 where mask.on[y * w + x] && !(x >= keep.x0 && x < keep.x1 && y >= keep.y0 && y < keep.y1) {
+                        mask.on[y * w + x] = false
+                    }
+                }
+            }
+            // Everything below changes cells only inside the on cells' bounds and the text box.
+            var bounds = s0
+            if let b = extent(mask, within: onBounds) {
+                fillHoles(&mask, b)
+                bounds = (min(b.x0, s0.x0), min(b.y0, s0.y0), max(b.x1, s0.x1), max(b.y1, s0.y1))
+            }
+            for y in s0.y0..<s0.y1 { for x in s0.x0..<s0.x1 { mask.on[y * w + x] = true } }
+            share(&mask, bounds, index: index, text: text, s0: s0)
+            let r = maxRect(mask, bounds)
+            results.append(((min(r.x0 + window.x0, s.x0), min(r.y0 + window.y0, s.y0),
+                             max(r.x1 + window.x0, s.x1), max(r.y1 + window.y0, s.y1)), path, mask))
+        }
+        let second = results.count > 1 ? results[1] : results[0]
+        return Pass(box: results[0].0, path: results[0].1, closedBox: second.0, closedPath: second.1, mask: results[0].2)
+    }
+
+    /// Off cells of the mask's bounding box that do not reach its border through off cells become on.
+    static func fillHoles(_ mask: inout Mask, _ bounds: Box) {
+        let w = mask.width
+        let bw = bounds.x1 - bounds.x0, bh = bounds.y1 - bounds.y0
+        var outside = [Bool](repeating: false, count: bw * bh), queue: [Int32] = []
+        func visit(_ x: Int, _ y: Int) {
+            let i = y * bw + x
+            guard !outside[i], !mask.on[(y + bounds.y0) * w + x + bounds.x0] else { return }
+            outside[i] = true; queue.append(Int32(i))
+        }
+        for x in 0..<bw { visit(x, 0); visit(x, bh - 1) }
+        for y in 0..<bh { visit(0, y); visit(bw - 1, y) }
+        var head = 0
+        while head < queue.count {
+            let i = Int(queue[head]), x = i % bw, y = i / bw
+            head += 1
+            if x > 0 { visit(x - 1, y) }
+            if x + 1 < bw { visit(x + 1, y) }
+            if y > 0 { visit(x, y - 1) }
+            if y + 1 < bh { visit(x, y + 1) }
+        }
+        for y in 0..<bh { for x in 0..<bw where !outside[y * bw + x] { mask.on[(y + bounds.y0) * w + x + bounds.x0] = true } }
+    }
+
+    /// Bounding box of the on cells inside `within` (window-relative).
+    static func extent(_ mask: Mask, within: Box) -> Box? {
+        var x0 = mask.width, y0 = mask.height, x1 = -1, y1 = -1
+        for y in within.y0..<within.y1 { for x in within.x0..<within.x1 where mask.on[y * mask.width + x] {
+            x0 = min(x0, x); x1 = max(x1, x); y0 = min(y0, y); y1 = max(y1, y)
+        } }
+        return x1 >= 0 ? (x0, y0, x1 + 1, y1 + 1) : nil
+    }
+
+    /// Keeps the cells nearer this block's text box than the other text boxes lying >= 50% in the mask
+    /// (squared cell distance, ties to this block).
+    static func share(_ mask: inout Mask, _ bounds: Box, index: Int, text: [Box?], s0: Box) {
+        let w = mask.width, h = mask.height
+        var members: [Box] = []
+        for (j, c) in text.enumerated() {
+            guard j != index, let c else { continue }
+            let x0 = max(c.x0 - mask.x0, 0), y0 = max(c.y0 - mask.y0, 0), x1 = min(c.x1 - mask.x0, w), y1 = min(c.y1 - mask.y0, h)
+            guard x0 < x1, y0 < y1 else { continue }
+            var count = 0
+            for y in y0..<y1 { for x in x0..<x1 where mask.on[y * w + x] { count += 1 } }
+            if 2 * count >= (c.x1 - c.x0) * (c.y1 - c.y0) {
+                members.append((c.x0 - mask.x0, c.y0 - mask.y0, c.x1 - mask.x0, c.y1 - mask.y0))
+            }
+        }
+        guard !members.isEmpty else { return }
+        func distance(_ b: Box, _ x: Int, _ y: Int) -> Int {
+            let dx = max(b.x0 - x, 0, x - (b.x1 - 1)), dy = max(b.y0 - y, 0, y - (b.y1 - 1))
+            return dx * dx + dy * dy
+        }
+        for y in bounds.y0..<bounds.y1 { for x in bounds.x0..<bounds.x1 where mask.on[y * w + x] {
+            let own = distance(s0, x, y)
+            if members.contains(where: { distance($0, x, y) < own }) { mask.on[y * w + x] = false }
+        } }
+        for y in s0.y0..<s0.y1 { for x in s0.x0..<s0.x1 { mask.on[y * w + x] = true } }
+    }
+
+    /// Largest all-on rectangle (histogram stack, rows top to bottom; the first of equal areas), window-relative.
+    static func maxRect(_ mask: Mask, _ b: Box) -> Box {
+        let w = b.x1 - b.x0
+        var heights = [Int](repeating: 0, count: w), best = 0, rect: Box = (0, 0, 0, 0)
+        var stack: [(start: Int, height: Int)] = []
+        for y in b.y0..<b.y1 {
+            for x in 0..<w { heights[x] = mask.on[y * mask.width + x + b.x0] ? heights[x] + 1 : 0 }
+            stack.removeAll(keepingCapacity: true)
+            for x in 0...w {
+                let current = x < w ? heights[x] : 0
+                var start = x
+                while let top = stack.last, top.height >= current {
+                    stack.removeLast()
+                    start = top.start
+                    let area = top.height * (x - start)
+                    if area > best { best = area; rect = (start + b.x0, y - top.height + 1, x + b.x0, y + 1) }
+                }
+                stack.append((start, current))
+            }
+        }
+        return rect
+    }
+
+    /// Per side (left, right, top, bottom), along strips across the text box out to text +- 20 line thicknesses:
+    /// first distance where the strip's ink share passes 0.05 / 0.2 / 0.5 / 0.9, first other-text contact, distance
+    /// to the panel (or raster) edge, all in line thicknesses, and the ink share over the first 1 / 2 / 4.
+    static func profiles(_ index: Int, blocks: [PipelineBlock], text: [Box?], grid: Grid, em: CGFloat, paper: Int,
+                         panel: Box?) -> [[Double]] {
+        guard let s = text[index] else { return [] }
+        let d = Int(profileReach * em)
+        let window: Box = (max(0, s.x0 - d), max(0, s.y0 - d), min(grid.width, s.x1 + d), min(grid.height, s.y1 + d))
+        let own = ownBoxes(blocks[index], grid: grid, pad: max(2, Int((em * 0.2).rounded())))
+        let others = text.enumerated().compactMap { $0.offset != index ? $0.element : nil }
+        func dirty(_ x: Int, _ y: Int) -> Bool {
+            guard abs(grid.gray(x, y) - paper) > 64 else { return false }
+            return !own.contains { x >= max($0.x0, window.x0) && x < $0.x1 && y >= max($0.y0, window.y0) && y < $0.y1 }
+        }
+        let clip = panel ?? (0, 0, grid.width, grid.height)
+        let e = Double(em)
+        return (0..<4).map { side in
+            // Strip k: column (left/right) or row (top/bottom) k + 1 cells outside the text box.
+            let length: Int, span: Int, edge: Int
+            switch side {
+            case 0: length = s.x0 - window.x0; span = s.y1 - s.y0; edge = s.x0 - clip.x0
+            case 1: length = window.x1 - s.x1; span = s.y1 - s.y0; edge = clip.x1 - s.x1
+            case 2: length = s.y0 - window.y0; span = s.x1 - s.x0; edge = s.y0 - clip.y0
+            default: length = window.y1 - s.y1; span = s.x1 - s.x0; edge = clip.y1 - s.y1
+            }
+            // Other text across the strip line: boxes overlapping the text box's span on the line's position.
+            let across = side < 2 ? others.filter { $0.y0 < s.y1 && $0.y1 > s.y0 } : others.filter { $0.x0 < s.x1 && $0.x1 > s.x0 }
+            var counts = [Int](repeating: 0, count: length), contact = Double(length)
+            for k in 0..<length {
+                var ink = 0
+                let at = side == 0 ? s.x0 - 1 - k : side == 1 ? s.x1 + k : side == 2 ? s.y0 - 1 - k : s.y1 + k
+                let touched = across.contains { side < 2 ? $0.x0 <= at && at < $0.x1 : $0.y0 <= at && at < $0.y1 }
+                for j in 0..<span {
+                    let (x, y): (Int, Int)
+                    switch side {
+                    case 0: (x, y) = (s.x0 - 1 - k, s.y0 + j)
+                    case 1: (x, y) = (s.x1 + k, s.y0 + j)
+                    case 2: (x, y) = (s.x0 + j, s.y0 - 1 - k)
+                    default: (x, y) = (s.x0 + j, s.y1 + k)
+                    }
+                    if dirty(x, y) { ink += 1 }
+                }
+                counts[k] = ink
+                if touched, contact == Double(length) { contact = Double(k) }
+            }
+            var features = [0.05, 0.2, 0.5, 0.9].map { share in
+                Double(counts.firstIndex { Double($0) / Double(span) > share } ?? length) / e
+            }
+            features += [contact / e, Double(edge) / e]
+            for first in [1.0, 2.0, 4.0] {
+                let n = min(max(1, Int(first * e)), length)
+                features.append(n > 0 ? Double(counts[..<n].reduce(0, +)) / Double(n * span) : 1)
+            }
+            return features
+        }
+    }
+
+    /// Row spans of the component through the box centre: per row the centred paper half-width minus one cell,
+    /// contiguous rows about the centre row, kept when some row is wider than the box.
+    static func rows(_ mask: Mask, box: Box, grid: Grid) -> PipelineRowSpans? {
+        let w = mask.width, h = mask.height
+        let cx = (box.x0 + box.x1) / 2 - mask.x0, cy = (box.y0 + box.y1) / 2 - mask.y0
+        guard cx >= 0, cx < w, cy >= 0, cy < h else { return nil }
+        func half(_ y: Int) -> Int {
+            guard mask.on[y * w + cx] else { return 0 }
+            var left = cx, right = cx
+            while left - 1 >= 0, mask.on[y * w + left - 1] { left -= 1 }
+            while right + 1 < w, mask.on[y * w + right + 1] { right += 1 }
+            return max(0, min(cx - left, right - cx) - 1)
+        }
+        var halves = [half(cy)], top = cy, bottom = cy
+        guard halves[0] > 0 else { return nil }
+        while top - 1 >= 0 { let v = half(top - 1); guard v > 0 else { break }; halves.insert(v, at: 0); top -= 1 }
+        while bottom + 1 < h { let v = half(bottom + 1); guard v > 0 else { break }; halves.append(v); bottom += 1 }
+        guard (halves.max() ?? 0) > (box.x1 - box.x0) / 2 + 1 else { return nil }
+        return PipelineRowSpans(top: CGFloat(top + mask.y0) / grid.sy, step: 1 / grid.sy,
+                                centre: (CGFloat(cx + mask.x0) + 0.5) / grid.sx, halfWidths: halves.map { CGFloat($0) / grid.sx })
     }
 }

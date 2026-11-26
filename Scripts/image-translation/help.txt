@@ -60,7 +60,8 @@ Replay evaluation
 Stage checkpoints (replay or OCR-only)
   --save-stages                save S1-S4b, the S6 mask and the S7 restore per page in OUTPUT/stages
   --from-stages DIR            reuse a run saved with --save-stages; recompute from --from on
-  --from S                     s5 (reuse S1-S4b), s7 (+ S6 mask) or s8 (+ S7 restore; default).
+  --from S                     s4 (reuse S1-S3), s5 (S1-S4b), s7 (+ S6 mask) or s8 (+ S7 restore;
+                               default). With --ocr-only, s4 reruns S4/S4b alone.
                                Valid only while the reused stages, models and tuning are unchanged.
   --translate-delay-ms N       hold S5 for N ms (models a provider wait)
 

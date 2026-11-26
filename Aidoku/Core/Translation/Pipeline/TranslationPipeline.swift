@@ -47,6 +47,8 @@ enum TranslationPipeline {
         static let assemble = "s2_assemble"
         static let parallel = "s1_s2_wall"
         static let recognize = "s3_recognize"
+        /// S3refine: the line-box edge snap after the keep gate (PipelineLineBoxes).
+        static let refine = "s3_refine"
         static let group = "s4_group"
         static let translate = "s5_translate"
         static let style = "s8_style"
@@ -144,12 +146,14 @@ enum TranslationPipeline {
         let pageSize = CGSize(width: page.width, height: page.height)
 
         // S1 || S2 (after one shared pixel decode), or a saved S1-S4b checkpoint (host only).
-        let savedFront = hooks.checkpoints?.savedFront
+        let savedFront = hooks.checkpoints?.savedFront.flatMap { $0.blocks != nil || $0.recognized != nil ? $0 : nil }
         var front = Front()
         if let savedFront {
             let start = DispatchTime.now().uptimeNanoseconds
             front.raster = decodePixels(page.image).raster
             front.layout = savedFront.layout
+            // S4/S4b rerun on the saved lines read the gray page.
+            if savedFront.blocks == nil { front.gray = PipelineGrayRaster(image: page.image) }
             front.stages[Stage.decode] = milliseconds(since: start)
         } else {
             front = await timings.record(Stage.parallel) { await runFront(page, models: models) }
@@ -163,13 +167,29 @@ enum TranslationPipeline {
         }
         let layout = front.layout
         let classified: [PipelineBlock]
-        if let savedFront {
-            classified = savedFront.classified
+        var read: [PipelineLine] = savedFront?.recognized ?? []
+        // The S3 lines after the keep gate, before S3refine (a checkpoint field).
+        var unrefined = savedFront?.unrefined
+        if let saved = savedFront?.classified, savedFront?.blocks != nil {
+            classified = saved
+        } else if savedFront != nil {
+            // An S4 rerun refines the saved pre-refine lines with the current model (older checkpoints without
+            // them keep their saved lines).
+            if let unrefined {
+                let fragments = savedFront?.detected ?? [], gray = front.gray
+                read = await timings.record(Stage.refine) {
+                    PipelineLineBoxes.refine(unrefined, fragments: fragments, layout: layout, gray: gray, pageSize: pageSize)
+                }
+            }
+            classified = await timings.record(Stage.group) {
+                let grouped = PipelineGrouping.group(read, layout: layout, pageSize: pageSize, raster: front.gray,
+                                               direction: page.readingDirection)
+                return PipelineRoleFilter.classify(grouped, layout: layout)
+            }
         } else {
             let lines = await timings.record(Stage.assemble) { PipelineLineAssembly.assemble(front.lines, layout: layout) }
 
             // S3
-            var read: [PipelineLine] = []
             do {
                 read = try await timings.record(Stage.recognize) {
                     if let frame = front.frame {
@@ -178,6 +198,12 @@ enum TranslationPipeline {
                     }
                     return try await PipelineRecognition.recognize(page, lines: lines, engine: models.recognition,
                                                              rank: hooks.recognitionRank)
+                }
+                read = PipelineLineKeep.filter(read, layout: layout, pageSize: pageSize)
+                let kept = read, fragments = front.lines, gray = front.gray
+                unrefined = kept
+                read = await timings.record(Stage.refine) {
+                    PipelineLineBoxes.refine(kept, fragments: fragments, layout: layout, gray: gray, pageSize: pageSize)
                 }
             } catch { failures.append("s3: \(error)") }
 
@@ -197,14 +223,17 @@ enum TranslationPipeline {
             }
         }()
         var blocks: [PipelineBlock]
-        if let savedFront {
-            blocks = savedFront.blocks
+        if let saved = savedFront?.blocks {
+            blocks = saved
         } else {
             let gray = front.gray
             blocks = await timings.record(Stage.group) {
                 PipelineInterior.apply(classified, raster: gray, pageSize: pageSize, layout: layout)
             }
-            if failures.isEmpty { hooks.checkpoints?.record(front: .init(layout: layout, classified: classified, blocks: blocks)) }
+            if failures.isEmpty {
+                hooks.checkpoints?.record(front: .init(layout: layout, recognized: read, classified: classified, blocks: blocks,
+                                                       detected: savedFront?.detected ?? front.lines, unrefined: unrefined))
+            }
         }
         timings.stages[Stage.front] = milliseconds(since: started)
         hooks.frontFinished()

@@ -66,7 +66,9 @@ enum PipelineLayout {
         }
         // Families: members are re-fitted at the family size (earlier frames, else all), kept when no larger and clear.
         let firstFits = placed.map(\.fontPixels)
-        var sizes = plan.cohorts.map { PipelineCohort.familySize(cap: plan.caps[$0[0]], fits: $0.map { placed[$0].fontPixels }) }
+        var sizes = plan.cohorts.map {
+            PipelineCohort.familySize(cap: plan.caps[$0[0]], fits: $0.map { placed[$0].fontPixels }, vertical: $0.map { paintable[$0].vertical })
+        }
         // One page scale: every family takes the smallest family step.
         if let scale = zip(plan.cohorts, sizes).compactMap({ group, size in size.map { $0 / plan.caps[group[0]] } }).min() {
             sizes = zip(plan.cohorts, sizes).map { group, size in
@@ -80,8 +82,10 @@ enum PipelineLayout {
                 if round > 0 {
                     let reached = cohort.filter {
                         firstFits[$0] >= ((plan.caps[$0] * PipelineCohort.steps.last!) * 4).rounded(.down) / 4 - 0.01
-                    }.map { placed[$0].fontPixels }
-                    guard let low = reached.min(), low < size - 0.01 else { break }
+                    }
+                    guard let low = PipelineCohort.lowestFit(reached.map { placed[$0].fontPixels }, vertical: reached.map { paintable[$0].vertical },
+                                                             firstFits: reached.map { firstFits[$0] }),
+                          low < size - 0.01 else { break }
                     size = (low * 4).rounded(.down) / 4
                 }
                 for index in cohort where placed[index].fontPixels > size + 0.01 {

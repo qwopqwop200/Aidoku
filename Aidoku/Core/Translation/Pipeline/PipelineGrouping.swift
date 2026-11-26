@@ -81,19 +81,12 @@ enum PipelineGrouping {
             line.polygon.count >= 3 && line.polygon.allSatisfy { $0.x.isFinite && $0.y.isFinite }
         }
         guard !usable.isEmpty else { return [] }
-        func scopes(_ kind: PipelineLayoutKind) -> [PipelineParagraphGrouping.Scope] {
-            layout.enumerated().compactMap { index, region in
-                region.kind == kind && region.bounds.isFinite
-                    ? .init(owner: index, box: region.bounds, confidence: Double(region.score)) : nil
-            }
-        }
         let inputs = usable.map { line in
-            PipelineParagraphGrouping.Input(polygon: line.polygon, vertical: line.vertical,
+            PipelineParagraphGrouping.Input(polygon: line.polygon, bounds: line.bounds, vertical: line.vertical,
                 confidence: Double(line.confidence), source: line.text)
         }
-        let units = PipelineBalloonUnits(lines: usable, raster: raster, pageSize: pageSize)
-        let groups = PipelineParagraphGrouping.group(inputs, textScopes: scopes(.text), balloons: scopes(.balloon), joins: units.gap)
-            // Invalid scope geometry: keep every line as its own block.
+        let groups = PipelineParagraphGrouping.group(inputs, layout: layout)
+            // Invalid geometry: keep every line as its own block.
             ?? usable.indices.map { index in
                 PipelineParagraphGrouping.Group(members: [index], readingOrder: [index], polygon: usable[index].polygon,
                                           vertical: usable[index].vertical)
@@ -102,10 +95,12 @@ enum PipelineGrouping {
         var blocks = groups.map { group -> PipelineBlock in
             let members = group.readingOrder.map { usable[$0] }
             let bounds = members.reduce(CGRect.null) { $0.union(polygonBounds($1.polygon)) }
+            let measured = members.contains { $0.measure != nil }
+                ? members.reduce(CGRect.null) { $0.union(polygonBounds($1.measure ?? $1.polygon)) } : nil
             // Ruby readings are erased with the block (S6 uses its lines) but are not part of its text or bounds.
             return PipelineBlock(id: 0, lines: members + group.readings.map { usable[$0] }, bounds: bounds, polygon: group.polygon,
                 vertical: group.vertical, readingOrder: 0,
-                sourceText: joinedText(members.map(\.text)), balloon: enclosingBalloon(bounds, balloons))
+                sourceText: joinedText(members.map(\.text)), balloon: enclosingBalloon(bounds, balloons), measureBounds: measured)
         }
         let order = readingOrder(blocks, layout: layout, pageSize: pageSize, raster: raster, direction: direction)
         blocks = order.enumerated().map { rank, index in

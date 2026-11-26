@@ -4,11 +4,17 @@ import Foundation
 /// recomputing, and the ones this run produced. Reuse is only valid while the stages before the
 /// resumed one, their models and their `PipelineTuning` knobs are unchanged.
 final class PipelineCheckpoints: @unchecked Sendable {
-    /// S1-S4b: layout regions, the S4 blocks S5 reads and the S4b blocks.
+    /// S1-S4b: layout regions, the S3 lines, the S4 blocks S5 reads and the S4b blocks. Without the
+    /// blocks (resume at S4) S4/S4b rerun on the saved lines, re-refined from `unrefined` when present.
+    /// `detected` (the S2 lines before S2b) is kept for evaluation and that S3refine rerun.
     struct Front: Codable, Sendable {
         var layout: [PipelineLayoutRegion]
-        var classified: [PipelineBlock]
-        var blocks: [PipelineBlock]
+        var recognized: [PipelineLine]?
+        var classified: [PipelineBlock]?
+        var blocks: [PipelineBlock]?
+        var detected: [PipelineLine]? = nil
+        /// S3 lines after the keep gate, before S3refine (`recognized` holds the refined lines S4 reads).
+        var unrefined: [PipelineLine]? = nil
     }
     /// S6 removal mask (page-sized, nonzero = erase) for one paint set, and S7's restored pixels of the
     /// regions it writes (lossless; nil when only the mask is reused).

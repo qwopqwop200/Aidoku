@@ -24,6 +24,8 @@ struct PipelineLine: Sendable, Codable, Equatable {
     var detectionScore: Float
     var text: String = ""
     var confidence: Float = 0
+    /// The polygon before the S3 line-box refinement moved it (nil when unmoved): S8 sizes fonts on it.
+    var measure: [CGPoint]? = nil
 }
 
 enum PipelineLayoutKind: String, Sendable, Codable {
@@ -77,6 +79,8 @@ struct PipelineBlock: Sendable, Codable, Equatable {
     var role: PipelineRole = .dialogue
     var translation: String?
     var style: PipelineStyle?
+    /// `bounds` over the members' pre-refine polygons (`PipelineLine.measure`), when any moved: S8 font sizing.
+    var measureBounds: CGRect? = nil
 }
 
 /// Symmetric clean spans about `centre` (page x) for rows `top + i * step` (page px).

@@ -38,6 +38,60 @@ struct PipelineStageTests {
 
     // MARK: S1-S3 detection and grouping
 
+    @Test func lineKeepFeaturesMatchThePythonReference() throws {
+        let text = PipelineLineKeep.textFeatures("\u{3042}\u{3042}\u{FF01}\u{FF01} AB12\u{6F22}")
+        let two: Double = 2.0 / 9, one: Double = 1.0 / 9, seven: Double = 7.0 / 9
+        let shares: [Double] = [9, two, one, two, two, two, two, two, seven, 1]
+        #expect(text == shares)
+        let first = column(100, 100, 200, "\u{3042}\u{3044}\u{3046}")
+        var second = column(150, 100, 160, "\u{3048}\u{304A}")
+        second.confidence = 0.7
+        let layout = [PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 90, y: 90, width: 110, height: 230), score: 0.8)]
+        let rows = PipelineLineKeep.features([first, second], layout: layout, pageSize: CGSize(width: 1000, height: 1500))
+        let expected: [Double] = [0.9, 0.7, 0.5, 2, 1, 0, 0, 0, 0, 0, 0.5, 1, 1, 0.8, 1, 0, 0, 0, 0, 0, 0, 0.026667,
+                                  0.106667, 4, 0.004267, 1, 1, 0.17, 0.12, 0.066667, 0, 0, 1, 2]
+        #expect(rows[1].count == expected.count)
+        for (value, want) in zip(rows[1], expected) { #expect(abs(value - want) < 1e-6) }
+        if let model = PipelineLineKeep.shared { #expect(model.features.count == expected.count) }
+    }
+
+    @Test func learnedResourcesLoadWithTheFittedConstants() throws {
+        let join = try #require(PipelineLineAssembly.model)
+        #expect(join.features.count == 22 && join.mean.count == 22 && join.scale.count == 22 && join.weights.count == 22)
+        #expect(join.threshold == 0.4)
+        let grouping = try #require(PipelineParagraphGrouping.Model.shared)
+        #expect(grouping.features.count == grouping.weights.count)
+        // Retrained thresholds move (tools/retrain/grouping): check their order, not their values.
+        #expect(grouping.cutBelow > 0 && grouping.cutBelow < grouping.joinAbove && grouping.joinAbove < 1)
+        #expect(grouping.pitchRatio.map { $0 > 1 } ?? true)
+        let font = try #require(PipelineFontCorrection.model)
+        #expect(font.bias.isFinite && font.cellOffset.isFinite && font.n0 >= 0 && font.maxSpread > 0)
+        #expect(font.cellWeights.count == 12)
+        #expect(PipelineStyleParameters.outlinePage == [0.4094924613695863, 0.19954881908897934, -0.9404877504298349])
+        #expect(PipelineStyleParameters.outlineWidthRing == 0.49653723604023625)
+        #expect(PipelineStyleParameters.outlineWidthFont == 0.042260916827793475)
+        #expect(PipelineStyleParameters.outlineWidthBias == -0.04776139182973868)
+        let boxes = try #require(PipelineLineBoxes.shared)
+        #expect(boxes.classes.count == 6)
+        #expect(PipelineLineKeep.shared != nil && PipelineInteriorModel.shared != nil)
+    }
+
+    @Test func lineBoxRefineKeepsLinesWithoutARaster() {
+        let lines = [column(100, 100, 200, "\u{3042}\u{3044}"), column(150, 100, 160, "\u{3046}")]
+        let refined = PipelineLineBoxes.refine(lines, fragments: lines, layout: [], gray: nil,
+                                               pageSize: CGSize(width: 1000, height: 1500))
+        #expect(refined == lines)
+        #expect(PipelineLineBoxes.refine([], fragments: [], layout: [], gray: nil, pageSize: .zero).isEmpty)
+    }
+
+    @Test func lineKeepForestGoesLeftAtOrBelowTheSplit() throws {
+        let json = #"{"features":["a"],"threshold":0.5,"roots":[0],"feature":[0,-1,-1],"split":[1.0,0,0],"#
+            + #""left":[1,-1,-1],"right":[2,-1,-1],"value":[0,-1,1]}"#
+        let model = try JSONDecoder().decode(PipelineLineKeep.self, from: Data(json.utf8))
+        #expect(abs(model.probability([1.0]) - 1 / (1 + exp(1.0))) < 1e-12)
+        #expect(model.probability([1.5]) > model.threshold)
+    }
+
     @Test func detectionJoinsSplitColumnsButNotAcrossBalloons() {
         let fragments = [line(100, 100, 40, 120), line(102, 250, 38, 90), line(101, 360, 40, 40)]
         let joined = PipelineLineAssembly.assemble(fragments, layout: [])
@@ -59,6 +113,17 @@ struct PipelineStageTests {
         ])
     }
 
+    /// The pair model joins a narrow glyph centred under its column (thickness ratio 2.2, past the hand rule)
+    /// and keeps apart two long columns stacked 1.4 thicknesses apart but offset across.
+    @Test func assemblyJoinsNarrowGlyphsButNotOffsetColumns() {
+        let glyph = PipelineLineAssembly.assemble([line(100, 100, 40, 200), line(108, 302, 18, 30)], layout: [])
+        #expect(glyph.count == 1)
+        #expect(glyph[0].bounds == CGRect(x: 100, y: 100, width: 40, height: 232))
+        #expect(PipelineLineAssembly.assemble([line(100, 100, 40, 240), line(112, 396, 40, 240)], layout: []).count == 2)
+        #expect(PipelineLineAssembly.joinGap(CGRect(x: 100, y: 100, width: 40, height: 240),
+                                             CGRect(x: 112, y: 396, width: 40, height: 240)) != nil)
+    }
+
     @Test func groupingReadsBalloonColumnsRightToLeft() {
         let balloon = PipelineLayoutRegion(kind: .balloon, bounds: CGRect(x: 380, y: 80, width: 200, height: 400), score: 0.95)
         let lines = [column(420, 100, 300, "左"), column(470, 100, 300, "右"), column(100, 900, 200, "下")]
@@ -69,28 +134,76 @@ struct PipelineStageTests {
         #expect(blocks.map(\.readingOrder) == [0, 1])
     }
 
-    /// Legacy paragraph rules: complete quoted units stay apart; a one-glyph line may join a column.
-    @Test func groupingKeepsQuotesApartAndJoinsOneGlyphLines() {
+    /// Cascade stage 1: a next column 0.25 glyph away joins whatever its text; lines of two orientations never join.
+    @Test func groupingJoinsTightColumnsButNotAcrossOrientations() {
         let size = CGSize(width: 1000, height: 1400)
         let quoted = [column(470, 100, 200, "「はい」"), column(420, 100, 200, "「いいえ」")]
-        #expect(PipelineGrouping.group(quoted, layout: [], pageSize: size).count == 2)
+        #expect(PipelineGrouping.group(quoted, layout: [], pageSize: size).count == 1)
         let glyph = PipelineLine(polygon: rect(470, 310, 40, 40), bounds: CGRect(x: 470, y: 310, width: 40, height: 40),
                            vertical: false, detectionScore: 0.9, text: "！", confidence: 0.95)
-        #expect(PipelineGrouping.group([column(470, 100, 200, "あいうえ"), glyph], layout: [], pageSize: size).count == 1)
-        // A narrow fragment cut off a column head continues it and reads first.
-        let head = PipelineLine(polygon: rect(480, 110, 18, 36), bounds: CGRect(x: 480, y: 110, width: 18, height: 36),
-                          vertical: true, detectionScore: 0.9, text: "ち", confidence: 0.95)
-        let joined = PipelineGrouping.group([column(470, 140, 200, "ゃんと"), head], layout: [], pageSize: size)
-        #expect(joined.map(\.sourceText) == ["ちゃんと"])
+        #expect(PipelineGrouping.group([column(470, 100, 200, "あいうえ"), glyph], layout: [], pageSize: size).count == 2)
     }
 
-    /// SFX guard: an unquoted line outside every RF text region does not join quoted speech below its quote.
-    @Test func groupingKeepsSFXOutOfQuotedSpeech() {
+    /// Cascade stage 2 (resolver): columns 0.7 glyph apart join only inside one RF text box.
+    @Test func groupingJoinsLooseColumnsOnlyInsideOneTextBox() {
         let size = CGSize(width: 1000, height: 1400)
-        let lines = [column(470, 100, 200, "「やだぁ」"), column(470, 320, 80, "どちんっ")]
-        #expect(PipelineGrouping.group(lines, layout: [], pageSize: size).count == 1)
-        let text = PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 460, y: 90, width: 60, height: 220), score: 0.9)
-        #expect(PipelineGrouping.group(lines, layout: [text], pageSize: size).count == 2)
+        let lines = [column(470, 100, 300, "ことばです"), column(402, 100, 300, "つづきです")]
+        #expect(PipelineGrouping.group(lines, layout: [], pageSize: size).count == 2)
+        let text = PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 392, y: 90, width: 138, height: 320), score: 0.9)
+        #expect(PipelineGrouping.group(lines, layout: [text], pageSize: size).count == 1)
+    }
+
+    /// A wide low-confidence column under an RF SFX box is junk: it stays out of the speech next to it.
+    @Test func groupingKeepsSFXOutOfSpeech() {
+        let size = CGSize(width: 1000, height: 1400)
+        let speech = [column(470, 100, 300, "ことばです"), column(420, 100, 300, "つづきです")]
+        let sfx = PipelineLine(polygon: rect(300, 80, 90, 340), bounds: CGRect(x: 300, y: 80, width: 90, height: 340),
+                               vertical: true, detectionScore: 0.9, text: "ドン", confidence: 0.5)
+        let layout = [PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 410, y: 90, width: 110, height: 320), score: 0.9),
+                      PipelineLayoutRegion(kind: .sfx, bounds: CGRect(x: 295, y: 75, width: 100, height: 350), score: 0.9)]
+        let blocks = PipelineGrouping.group(speech + [sfx], layout: layout, pageSize: size)
+        #expect(blocks.map(\.sourceText).sorted() == ["ことばですつづきです", "ドン"])
+    }
+
+    /// Page 0001: RF boxes each of two adjacent paragraphs strongly and both weakly as one; the columns 0.85 glyph
+    /// apart stay two paragraphs with the boxes and without any.
+    @Test func groupingKeepsAdjacentParagraphsApartUnderAMergedTextBox() {
+        let size = CGSize(width: 1000, height: 1400)
+        let right = [column(600, 100, 300, "みぎの"), column(555, 100, 300, "ことば"), column(510, 100, 300, "です")]
+        let left = [column(436, 100, 300, "ひだり"), column(391, 100, 300, "のことば")]
+        let strong = [PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 500, y: 90, width: 150, height: 320), score: 0.66),
+                      PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 381, y: 90, width: 105, height: 320), score: 0.66)]
+        let merged = PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 375, y: 85, width: 280, height: 330), score: 0.28)
+        for layout in [strong + [merged], []] {
+            let split = PipelineGrouping.group(right + left, layout: layout, pageSize: size)
+            #expect(split.map(\.sourceText).sorted() == ["ひだりのことば", "みぎのことばです"])
+        }
+    }
+
+    /// Page 0666: big display lettering, a two-glyph piece at its end and a credit line under that piece; the
+    /// lettering and the credit line never share a block.
+    @Test func groupingKeepsDisplayLetteringApartFromSmallText() {
+        func row(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat, _ text: String) -> PipelineLine {
+            PipelineLine(polygon: rect(x, y, width, height), bounds: CGRect(x: x, y: y, width: width, height: height),
+                         vertical: false, detectionScore: 0.9, text: text, confidence: 0.99)
+        }
+        let lettering = row(131, 2394, 1415, 269, "おおきなじ"), piece = row(1532, 2571, 161, 70, "小字")
+        let credit = row(176, 2699, 1476, 62, "ちいさなもじのいちぎょうです")
+        let blocks = PipelineGrouping.group([lettering, piece, credit], layout: [], pageSize: CGSize(width: 2160, height: 2880))
+        #expect(blocks.contains { $0.sourceText == "ちいさなもじのいちぎょうです" })
+        #expect(!blocks.contains { $0.sourceText.contains("おおきなじ") && $0.sourceText.contains("ちいさな") })
+    }
+
+    /// Page 0064: two paragraphs side by side, columns 0-4 px apart inside each and 20 px (0.9 glyph) between them.
+    @Test func groupingSplitsAtAGutterWiderThanTheParagraphsColumnGaps() {
+        let size = CGSize(width: 1000, height: 1400)
+        func col(_ x: CGFloat, _ text: String) -> PipelineLine {
+            PipelineLine(polygon: rect(x, 100, 22, 180), bounds: CGRect(x: x, y: 100, width: 22, height: 180), vertical: true,
+                         detectionScore: 0.9, text: text, confidence: 0.99)
+        }
+        let paired = [col(600, "みぎのぶん"), col(576, "つづきです"), col(534, "ひだりのぶ"), col(510, "んつづきで")]
+        #expect(PipelineGrouping.group(paired, layout: [], pageSize: size).map(\.sourceText).sorted()
+                == ["ひだりのぶんつづきで", "みぎのぶんつづきです"])
     }
 
     /// Legacy intercolumn ruby: a narrow kana rail just right of one kanji column is erased with it, never translated.
@@ -100,6 +213,39 @@ struct PipelineStageTests {
         let blocks = PipelineGrouping.group([column(400, 100, 200, "漢字です"), ruby], layout: [], pageSize: CGSize(width: 1000, height: 1400))
         #expect(blocks.count == 1)
         #expect(blocks.first?.sourceText == "漢字です" && blocks.first?.lines.count == 2)
+    }
+
+    private func textLine(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ text: String, vertical: Bool) -> PipelineLine {
+        PipelineLine(polygon: rect(x, y, w, h), bounds: CGRect(x: x, y: y, width: w, height: h), vertical: vertical,
+                     detectionScore: 0.9, text: text, confidence: 0.95)
+    }
+
+    /// A column the detector cut in two (1.3 thicknesses apart) joins only inside one RF text box.
+    @Test func groupingJoinsStackedPiecesOfOneTextBox() {
+        let size = CGSize(width: 1000, height: 1400)
+        let pieces = [textLine(400, 100, 40, 200, "漢字の文章です", vertical: true), textLine(402, 352, 40, 150, "続きの文章", vertical: true)]
+        let box = PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 380, y: 80, width: 100, height: 450), score: 0.9)
+        #expect(PipelineGrouping.group(pieces, layout: [box], pageSize: size).count == 1)
+        #expect(PipelineGrouping.group(pieces, layout: [], pageSize: size).count == 2)
+    }
+
+    /// Horizontal CJK lines of one balloon: a title over a smaller-pitch subtitle stays apart, equal pitch joins.
+    @Test func groupingKeepsHorizontalTitleApartFromSubtitle() {
+        let size = CGSize(width: 1000, height: 1400)
+        let layout = [PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 90, y: 90, width: 320, height: 130), score: 0.9),
+                      PipelineLayoutRegion(kind: .balloon, bounds: CGRect(x: 80, y: 80, width: 340, height: 150), score: 0.9)]
+        let title = [textLine(100, 100, 300, 60, "大きな題名", vertical: false), textLine(100, 170, 245, 40, "小さな副題です", vertical: false)]
+        #expect(PipelineGrouping.group(title, layout: layout, pageSize: size).count == 2)
+        let text = [textLine(100, 100, 300, 40, "同じ大きさの文", vertical: false), textLine(100, 150, 260, 40, "次の行の文章", vertical: false)]
+        #expect(PipelineGrouping.group(text, layout: layout, pageSize: size).count == 1)
+    }
+
+    /// Two columns of one RF text box with the middle columns read as rows (page 0528) form one paragraph.
+    @Test func groupingBridgesColumnsAcrossMisorientedRows() {
+        let lines = [textLine(600, 100, 40, 300, "右の列の文章です", vertical: true), textLine(440, 100, 40, 300, "左の列の文章です", vertical: true),
+                     textLine(490, 150, 100, 30, "横の行", vertical: false), textLine(490, 250, 100, 30, "横の文", vertical: false)]
+        let box = PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 420, y: 80, width: 240, height: 340), score: 0.9)
+        #expect(PipelineGrouping.group(lines, layout: [box], pageSize: CGSize(width: 1000, height: 1400)).count == 1)
     }
 
     /// Finite but overflowing coordinates give a NaN axis; grouping must fall back, not trap.
@@ -214,7 +360,50 @@ struct PipelineStageTests {
         let refined = inkPage(glyphs + extra, height: height).withUnsafeBufferPointer {
             PipelineLineEnds.refined([line], pixels: $0, width: width, height: height, layout: [], forest: forest)
         }
-        #expect(refined[0].bounds.minY == 50 && refined[0].bounds.maxY > 265)
+        let bare = inkPage(glyphs, height: height).withUnsafeBufferPointer {
+            PipelineLineEnds.refined([line], pixels: $0, width: width, height: height, layout: [], forest: forest)
+        }
+        // Ink past the end reaches further than none (how far is the retrained regressor's call).
+        #expect(refined[0].bounds.minY == 50 && refined[0].bounds.maxY > bare[0].bounds.maxY)
+    }
+
+    /// Inside a text region a flagged end reaches along the ink run (a glyph 8-44 px past the end of a 50 px column:
+    /// 44 px = 0.88 T, plus 0.1 T), capped at the region's edge; an end without ink past it gains nothing, and
+    /// outside any text region the classifier is not asked.
+    @Test func lineEndClassifierExtendsAlongTheInkRun() throws {
+        let width = 400, height = 400
+        var glyphs: [CGRect] = []
+        for k in 0..<4 {
+            glyphs += [CGRect(x: 105, y: 55 + k * 50, width: 40, height: 6), CGRect(x: 122, y: 55 + k * 50, width: 6, height: 40)]
+        }
+        glyphs += [CGRect(x: 105, y: 262, width: 40, height: 6), CGRect(x: 122, y: 258, width: 6, height: 36)]
+        let forest = try #require(PipelineRemovalMaskWeights.lineEnds)
+        let shared = try #require(PipelineLineEndClassifier.shared)
+        #expect(shared.trees.count == 100 && shared.features == PipelineLineEndClassifier.featureCount)
+        let leaf = PipelineOutlineWidthModel.Tree(f: [0], t: [0], l: [-1], r: [-1], v: [0])
+        let always = PipelineLineEndClassifier(features: 45, threshold: -1, trees: [leaf])
+        let never = PipelineLineEndClassifier(features: 45, threshold: 1, trees: [leaf])
+        let line = PipelineLine(polygon: rect(100, 50, 50, 200), bounds: CGRect(x: 100, y: 50, width: 50, height: 200),
+                          vertical: true, detectionScore: 0.9)
+        let page = inkPage(glyphs, height: height)
+        func offsets(_ classifier: PipelineLineEndClassifier?, _ regions: [PipelineLayoutRegion]) throws -> (Double, Double) {
+            try #require(page.withUnsafeBufferPointer {
+                PipelineLineEnds.offsets(line, pixels: $0, width: width, height: height, regions: regions,
+                                         forest: forest, classifier: classifier)
+            })
+        }
+        func text(_ height: CGFloat) -> [PipelineLayoutRegion] {
+            [PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 90, y: 40, width: 70, height: height), score: 0.9)]
+        }
+        let margin = PipelineLineEnds.margin
+        let open = try offsets(nil, text(360)), quiet = try offsets(never, text(360)), fired = try offsets(always, text(360))
+        #expect(quiet.0 == open.0 && quiet.1 == open.1)
+        #expect(abs(fired.1 - max(open.1, 0.88 + 0.1 - margin)) < 1e-9)
+        #expect(abs(fired.0 - max(open.0, 0.1 - margin)) < 1e-9)
+        let near = try offsets(nil, text(220)), capped = try offsets(always, text(220))
+        #expect(abs(capped.1 - max(near.1, 0.2 + 0.1 - margin)) < 1e-9)
+        let bare = try offsets(nil, []), ungated = try offsets(always, [])
+        #expect(ungated.0 == bare.0 && ungated.1 == bare.1)
     }
 
     /// `Int(floor(-1e300))` used to trap while computing the block frame.
@@ -316,6 +505,50 @@ struct PipelineStageTests {
         #expect(sizes.allSatisfy { abs($0 - alone) < 0.001 })
     }
 
+    @Test func sourceSizeCellsCountRunsOnce() {
+        let kana = PipelineFontCorrection.cellCount("あいう")
+        #expect(abs(kana - (3 * PipelineFontCorrection.cellWeights[0] + PipelineFontCorrection.cellOffset)) < 1e-12)
+        // A !? run sets as one cell however many marks it holds (tate-chu-yoko).
+        #expect(abs(PipelineFontCorrection.cellCount("!!") - PipelineFontCorrection.cellCount("!")) < 0.05)
+        #expect(PipelineFontCorrection.cellCount("あ あ") == PipelineFontCorrection.cellCount("ああ"))
+        // Ink rows 10..89 of a 40 x 100 column, the rest paper.
+        var gray = [UInt8](repeating: 250, count: 40 * 100)
+        for y in 10..<90 { for x in 12..<28 { gray[y * 40 + x] = 10 } }
+        #expect(PipelineFontCorrection.inkExtent(gray: gray, width: 40, height: 100, vertical: true) == 80)
+        #expect(PipelineFontCorrection.inkExtent(gray: gray, width: 40, height: 100, vertical: false) == 16)
+    }
+
+    @Test func sourceSizeFollowsCharacterPitch() throws {
+        let width = 400, height = 400
+        let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setFillColor(gray: 0, alpha: 1)
+        // Five 30 px glyphs at a 40 px pitch (page y 20..210) in a 60 px wide, loosely detected column.
+        for k in 0..<5 { context.fill(CGRect(x: 105, y: height - (20 + 40 * k) - 30, width: 30, height: 30)) }
+        let image = try #require(context.makeImage())
+        let column = PipelineLine(polygon: rect(90, 10, 60, 210), bounds: CGRect(x: 90, y: 10, width: 60, height: 210),
+                                  vertical: true, detectionScore: 1, text: "あいうえお", confidence: 1)
+        let block = PipelineBlock(id: 0, lines: [column], bounds: column.bounds, polygon: column.polygon, vertical: true,
+                                  readingOrder: 0, sourceText: "あいうえお", balloon: nil)
+        var groups: [Int] = []
+        let fonts = PipelineSimpleFont.estimate([block], groups: &groups)
+        let drawn = PipelineFontCorrection.corrected([block], fonts: fonts, groups: groups, image: image)
+        let raster = try PipelinePageRaster(image)
+        // The raster bytes and a 1:1 draw of the image measure the same ink.
+        #expect(drawn == PipelineFontCorrection.corrected([block], fonts: fonts, groups: groups, image: image, raster: raster))
+        // Pitch 190 px of ink / 4.94 cells pulls the geometric size toward ~38 px.
+        let geometric = Double(fonts[0]) * exp(PipelineFontCorrection.level - PipelineFontCorrection.bias)
+        let pitch = 190 / PipelineFontCorrection.cellCount("あいうえお") * exp(PipelineFontCorrection.level)
+        let size = Double(drawn[0])
+        #expect(min(geometric, pitch) < size && size < max(geometric, pitch))
+        // Without pixels the geometric size stands.
+        let blind = PipelineFontCorrection.corrected([block], fonts: fonts, groups: groups, image: nil)
+        #expect(abs(Double(blind[0]) - geometric) < 1e-9)
+    }
+
     // MARK: S9 layout and paint, S10 replay
 
     @Test func layoutFitsTextInsideBoxAndStaysInsidePage() {
@@ -404,16 +637,88 @@ struct PipelineStageTests {
         let line = PipelineLine(polygon: rect(560, 400, 80, 400), bounds: bounds, vertical: true, detectionScore: 1)
         let block = PipelineBlock(id: 0, lines: [line], bounds: bounds, polygon: [], vertical: true, readingOrder: 0,
                             sourceText: "あいうえお")
-        let interior = PipelineInterior.apply([block], raster: raster, pageSize: CGSize(width: 1200, height: 1200))[0].balloon
+        let interior = PipelineInterior.ruleApply([block], raster: raster, pageSize: CGSize(width: 1200, height: 1200))[0].balloon
         #expect(interior.map { $0.width > bounds.width * 1.5 } == true)
         #expect(interior.map { CGRect(x: 0, y: 236, width: 1200, height: 728).contains($0) } == true)
         // Tone (mid-gray paper) still grows but gets no row spans; background blocks are skipped.
         let gray = PipelineGrayRaster(pixels: [UInt8](repeating: 128, count: size * size), width: size, height: size)
-        let toned = PipelineInterior.apply([block], raster: gray, pageSize: CGSize(width: 1200, height: 1200))[0]
+        let toned = PipelineInterior.ruleApply([block], raster: gray, pageSize: CGSize(width: 1200, height: 1200))[0]
         #expect(toned.balloon != nil && toned.rows == nil)
         var background = block
         background.role = .background
+        #expect(PipelineInterior.ruleApply([background], raster: raster, pageSize: CGSize(width: 1200, height: 1200))[0].balloon == nil)
         #expect(PipelineInterior.apply([background], raster: raster, pageSize: CGSize(width: 1200, height: 1200))[0].balloon == nil)
+    }
+
+    /// 300x300 raster (page 1200x1200): white, a 4-cell black ring around x 100...200, y 60...240, and a
+    /// striped text column at x 140...160; the block is that column.
+    private func ringPage() -> (PipelineGrayRaster, PipelineBlock) {
+        let size = 300
+        var pixels = [UInt8](repeating: 255, count: size * size)
+        func fill(_ x0: Int, _ y0: Int, _ x1: Int, _ y1: Int, _ value: UInt8) {
+            for y in y0..<y1 { for x in x0..<x1 { pixels[y * size + x] = value } }
+        }
+        fill(96, 56, 204, 60, 0); fill(96, 240, 204, 244, 0); fill(96, 56, 100, 244, 0); fill(200, 56, 204, 244, 0)
+        for y in stride(from: 100, to: 200, by: 6) { fill(142, y, 158, y + 2, 0) }
+        let bounds = CGRect(x: 560, y: 400, width: 80, height: 400)
+        let line = PipelineLine(polygon: rect(560, 400, 80, 400), bounds: bounds, vertical: true, detectionScore: 1)
+        return (PipelineGrayRaster(pixels: pixels, width: size, height: size),
+                PipelineBlock(id: 0, lines: [line], bounds: bounds, polygon: [], vertical: true, readingOrder: 0, sourceText: "あいうえお"))
+    }
+
+    @Test func interiorComponentFindsTheEnclosedBalloon() {
+        let (raster, block) = ringPage()
+        let grid = PipelineLearnedInterior.Grid(raster: raster, sx: 0.25, sy: 0.25)
+        let text = [grid.cells(block.bounds)]
+        let (paper, toned) = PipelineLearnedInterior.paper(grid, text[0]!)
+        #expect(paper > 200 && !toned)
+        // Line thickness 20 cells: the 14-line window covers the page; the ring encloses the paper.
+        let pass = PipelineLearnedInterior.component(0, blocks: [block], text: text, grid: grid, em: 20, paper: paper,
+                                                     toned: false, panel: nil)
+        #expect(pass?.path == .enclosed)
+        #expect(pass.map { $0.box == (100, 60, 200, 240) } == true)
+        #expect(pass.map { PipelineLearnedInterior.rows($0.mask, box: (140, 100, 160, 200), grid: grid) != nil } == true)
+        // Without the ring the paper reaches the window: clipped to the text box +- 3 lines (no RF balloon).
+        let white = PipelineGrayRaster(pixels: [UInt8](repeating: 255, count: 300 * 300), width: 300, height: 300)
+        let open = PipelineLearnedInterior.component(0, blocks: [block], text: text, grid: PipelineLearnedInterior.Grid(raster: white, sx: 0.25, sy: 0.25),
+                                                     em: 20, paper: 255, toned: false, panel: nil)
+        #expect(open?.path == .open)
+        #expect(open.map { $0.box == (80, 40, 220, 260) } == true)
+    }
+
+    @Test func interiorMaskHelpers() {
+        // 6x5 mask: a 4x3 block with a hole, and a stray cell.
+        var mask = PipelineLearnedInterior.Mask(x0: 10, y0: 20, width: 6, height: 5, on: [Bool](repeating: false, count: 30))
+        for y in 1..<4 { for x in 1..<5 { mask.on[y * 6 + x] = true } }
+        mask.on[2 * 6 + 2] = false
+        mask.on[0 * 6 + 5] = true
+        let bounds = PipelineLearnedInterior.extent(mask, within: (0, 0, 6, 5))
+        #expect(bounds.map { $0 == (1, 0, 6, 4) } == true)
+        PipelineLearnedInterior.fillHoles(&mask, bounds!)
+        #expect(mask.on[2 * 6 + 2])
+        #expect(PipelineLearnedInterior.maxRect(mask, bounds!) == (1, 1, 5, 4))
+        // A second text box splits the mask by nearest box.
+        var shared = PipelineLearnedInterior.Mask(x0: 0, y0: 0, width: 10, height: 2, on: [Bool](repeating: true, count: 20))
+        PipelineLearnedInterior.share(&shared, (0, 0, 10, 2), index: 0, text: [(0, 0, 2, 2), (8, 0, 10, 2)], s0: (0, 0, 2, 2))
+        #expect(shared.on[4] && !shared.on[6])
+    }
+
+    @Test func interiorModelBoxAndGate() {
+        let (raster, block) = ringPage()
+        let leaf = { (value: Double) in PipelineInteriorModel.Forest(trees: [.init(f: [0], t: [0], l: [-1], r: [-1], v: [value])]) }
+        // Gate open, every side one line out: the text cells +- 20.
+        let model = PipelineInteriorModel(threshold: 0.5, joint: leaf(1), gate: leaf(10))
+        let page = CGSize(width: 1200, height: 1200)
+        let out = PipelineInterior.apply([block], raster: raster, pageSize: page, model: model)[0]
+        #expect(out.balloon == CGRect(x: 480, y: 320, width: 240, height: 560))
+        // Gate closed: the rule box.
+        let closed = PipelineInteriorModel(threshold: 0.5, joint: leaf(1), gate: leaf(-10))
+        #expect(PipelineInterior.apply([block], raster: raster, pageSize: page, model: closed)[0].balloon
+                == PipelineInterior.ruleApply([block], raster: raster, pageSize: page)[0].balloon)
+        // A tree routes on its feature threshold; the bundled model loads.
+        let tree = PipelineInteriorModel.Forest(trees: [.init(f: [1], t: [0.5], l: [-1], r: [-2], v: [1, 2])])
+        #expect(tree.sum([0, 0.4]) == 1 && tree.sum([0, 0.6]) == 2)
+        #expect(PipelineInteriorModel.shared != nil)
     }
 
     @Test func balloonLobeLeavesTheTailOut() {
@@ -430,6 +735,65 @@ struct PipelineStageTests {
     private func styled(_ px: CGFloat, fill: PipelineRGB = PipelineRGB(r: 0, g: 0, b: 0), stroke: PipelineRGB? = PipelineRGB(r: 255, g: 255, b: 255),
                         width: CGFloat = 3) -> PipelineStyle {
         PipelineStyle(fontPixels: px, bold: false, textColor: fill, strokeColor: stroke, strokeWidth: width)
+    }
+
+    @Test func outlineWidthTakesTheMostProbableCandidateNearestTheCentre() throws {
+        typealias M = PipelineOutlineWidthModel
+        // Candidates 2, 4, 6: 4 and 6 tie on the hit model (split on the candidate, feature 2); the centre breaks it.
+        let hit = [M.Tree(f: [2, 2], t: [3, 5], l: [-1, -2], r: [1, -3], v: [-2, 2, 2])]
+        let centre = { (value: Double) in [M.Tree(f: [0], t: [1e300], l: [-1], r: [-1], v: [value])] }
+        #expect(M(grid: [2, 4, 6], tie: 0.02, hit: hit, centre: centre(5.9)).width(ring: 5, font: 40, line: 4) == 6)
+        #expect(M(grid: [2, 4, 6], tie: 0.02, hit: hit, centre: centre(4.2)).width(ring: 5, font: 40, line: 4) == 4)
+        // Without a model the ring line stays.
+        let line = PipelineStyleParameters.outlineWidthRing * 6 + PipelineStyleParameters.outlineWidthFont * 50
+            + PipelineStyleParameters.outlineWidthBias
+        #expect(abs(PipelineStyleEstimator.outlineWidth(ring: 6, font: 50, model: nil) - line) < 1e-12)
+        // The shipped model (TRAIN fit) against its Python reference (`tools/retrain/outline/train.py` width()).
+        let model = try #require(M.shared)
+        #expect(model.grid.count == 23 && model.hit.count == 150 && model.centre.count == 50)
+        for (ring, font, width) in [(0.0, 30.0, 2.0), (3, 40, 4.5), (6, 50, 5), (8, 60, 7), (12, 80, 8), (20, 120, 8)] {
+            #expect(PipelineStyleEstimator.outlineWidth(ring: ring, font: font) == width)
+        }
+    }
+
+    @Test func fillPeakRankerMovesPastTheBlendAwayFromTheOutline() throws {
+        // A blue pick blended with a white outline, and a darker blue peak further along the outline -> pick axis.
+        var f = PipelineStyleFeatures(font: 40)
+        var cluster = PipelineStyleFeatures.Cluster()
+        cluster.count = 100; cluster.coreCount = 50; cluster.inLines = 0.3; cluster.strokeWidth = 4; cluster.core = [110, 110, 170]
+        f.clusters = [cluster]
+        f.modes = [.init(rgb: [255, 255, 255], share: 0.3), .init(rgb: [60, 60, 140], share: 0.2)]
+        let white: [Double] = [255, 255, 255]
+        let options = PipelineStyleEstimator.peakFeatures(f, pick: cluster.core, pickLogit: 1, outline: white)
+        let axis = PipelineStyleEstimator.axisFeatures(f, fill: 0, colours: options.colours, outline: white)
+        #expect(abs(axis[0][0] - 1) < 1e-6 && axis[0][1] < 1e-6)
+        #expect(abs(axis[1][0]) < 1e-6)
+        #expect(axis[2][0] > 1 && axis[2][6] == 0.1 && axis[2][8] == 0.5 && axis[2][9] == 1)
+        // A stub ranker that prefers t > 1.05 (feature 16) moves to the darker peak; without a ranker the pick stays.
+        typealias T = PipelineOutlineWidthModel.Tree
+        let stub = PipelineFillPeakRanker(features: 26, trees: [T(f: [16], t: [1.05], l: [-1], r: [-2], v: [0, 1])])
+        #expect(PipelineStyleEstimator.peakChoice(f, fill: 0, pickLogit: 1, outline: white, ranker: stub) == [60, 60, 140])
+        #expect(PipelineStyleEstimator.peakChoice(f, fill: 0, pickLogit: 1, outline: white, ranker: nil) == nil)
+        // The shipped ranker (TRAIN fit): option vectors (pick, then a peak) with their scores from the LightGBM fit.
+        let ranker = try #require(PipelineFillPeakRanker.shared)
+        #expect(ranker.trees.count == 300 && ranker.features == PipelineFillPeakRanker.featureCount)
+        let fixtures: [([Double], Double)] = [
+            ([1, 0, -1, 0, 96.8961, 98.9366, 0.3922, 0.9848, 0, 0, 96.8961, 98.9366, 1.1097, 0.648, 2, 0, 1, 0, 98.9366, 98.9203, 0, -1.7656, 0.079,
+             0.1846, 0.3738, 0.8027], 5.002126962612887),
+            ([0, 0.6343, 0, 98.577, 2.2491, 0.6304, 98.9425, 3.2281, 98.5503, 2.2433, 96.8961, 98.9366, 1.1097, 0.648, 2, -94.647, 0.0036, 0.5168,
+             98.9366, 0.37, 98.5503, 0.4777, 0.079, 0.1846, 0.3738, 0.8027], -10.49954961876545),
+            ([1, 0, -1, 0, 96.478, 98.4576, 0.7048, 1.2446, 0, 0, 96.478, 98.4576, 2.5338, 0.5042, 4, 0, 1, 0, 98.4576, 98.4571, 0, -0.3125, 0.0749,
+             0.1761, 0.3237, 0.9708], 6.287208883754404),
+            ([0, 0.5618, 0, 98.1119, 1.7469, 0.3457, 98.8162, 1.5583, 98.1114, 0.3137, 96.478, 98.4576, 2.5338, 0.5042, 4, -94.7311, 0.0035, 0.0023,
+             98.4576, 0.3457, 98.1114, 0.0012, 0.0749, 0.1761, 0.3237, 0.9708], -11.264573289423746),
+            ([1, 0, -1, 0, 71.7949, 99.9421, 100, 0.0117, 0, 0, 71.7949, 99.9421, 3.1088, 0.4579, 5, 0, 1, 0, 99.9421, 99.9417, 0, -0.2656, 0.0893,
+             0.1744, 0.3912, 1], 5.617907918305052),
+            ([0, 0.2586, 0, 99.7258, 30.2586, 0.3514, 0.2742, 0.0001, -99.7258, -0.0116, 71.7949, 99.9421, 3.1088, 0.4579, 5, -41.5363, 0.0022,
+             0.2767, 99.9421, 0.2159, -99.7258, -0.2772, 0.0893, 0.1744, 0.3912, 1], -8.945545499428905),
+        ]
+        for (x, score) in fixtures {
+            #expect(abs(ranker.score(x) - score) < 1e-9)
+        }
     }
 
     @Test func pageStylesUnifyWithinTheDistance() {
@@ -496,6 +860,25 @@ struct PipelineStageTests {
         // The family takes the largest cap step every member reached (members below 0.65 keep theirs).
         #expect(PipelineCohort.familySize(cap: 50, fits: [50, 46, 20]) == 45)
         #expect(PipelineCohort.familySize(cap: 50, fits: [20, 21]) == nil)
+    }
+
+    @Test func cohortsJoinOrientationsAndGuardVerticalMembers() {
+        var tall = placedBlock(1, CGRect(x: 200, y: 0, width: 100, height: 300), "가")
+        tall.vertical = true
+        let blocks = [placedBlock(0, CGRect(x: 0, y: 0, width: 300, height: 100), "가"), tall]
+        // One source size: vertical and horizontal text share a family.
+        let plan = PipelineCohort.plan(blocks, sources: [40, 40], capRatio: { _ in 1 }, floor: 10)
+        #expect(plan.cohorts.map { $0.sorted() } == [[0, 1]])
+        // A horizontal fit pulls vertical members down to no less than 0.95x their smallest fit.
+        #expect(PipelineCohort.lowestFit([30, 40], vertical: [false, true]) == 38)
+        #expect(PipelineCohort.lowestFit([39, 40], vertical: [false, true]) == 39)
+        #expect(PipelineCohort.lowestFit([30, 40], vertical: [false, false]) == 30)
+        // Re-fit rounds guard against the first fits: a vertical member already at 38 is not pulled to 30.
+        #expect(PipelineCohort.lowestFit([30, 38], vertical: [false, true], firstFits: [30, 40]) == 38)
+        // A vertical re-fit that itself landed lower still leads.
+        #expect(PipelineCohort.lowestFit([30, 35], vertical: [false, true], firstFits: [30, 40]) == 35)
+        #expect(PipelineCohort.familySize(cap: 40, fits: [30, 40], vertical: [false, true]) == 38)
+        #expect(PipelineCohort.familySize(cap: 40, fits: [30, 40]) == 30)
     }
 
     @Test func alignedStartsShareTheMedianCentredTop() {
@@ -603,6 +986,30 @@ struct PipelineStageTests {
         #expect(PipelineRoleFilter.classify([block("6", confidence: 0.4)], layout: [])[0].role == .background)
     }
 
+    @Test func shortLatinAndKanaFragmentsOutsideBalloonsKeepTheirSource() {
+        func block(_ text: String, confidence: Float, balloon: CGRect? = nil) -> PipelineBlock {
+            let line = PipelineLine(polygon: rect(0, 0, 40, 40), bounds: CGRect(x: 0, y: 0, width: 40, height: 40), vertical: true,
+                              detectionScore: 1, text: text, confidence: confidence)
+            return PipelineBlock(id: 0, lines: [line], bounds: line.bounds, polygon: [], vertical: true, readingOrder: 0,
+                           sourceText: text, balloon: balloon)
+        }
+        let inBalloon = CGRect(x: 0, y: 0, width: 80, height: 80)
+        // Latin-only: below 0.9 mean confidence, outside balloons, at most four characters.
+        #expect(PipelineRoleFilter.isFragment(block("ABC", confidence: 0.85)))
+        #expect(!PipelineRoleFilter.isFragment(block("ABC", confidence: 0.95)))
+        #expect(!PipelineRoleFilter.isFragment(block("ABC", confidence: 0.85, balloon: inBalloon)))
+        #expect(!PipelineRoleFilter.isFragment(block("ABCDE", confidence: 0.85)))
+        // Kana-only, no kanji or punctuation, without RF text or balloon evidence.
+        #expect(PipelineRoleFilter.isFragment(block("ドド", confidence: 0.99)))
+        #expect(!PipelineRoleFilter.isFragment(block("ドド!", confidence: 0.99)))
+        #expect(!PipelineRoleFilter.isFragment(block("ドー", confidence: 0.99)))
+        #expect(!PipelineRoleFilter.isFragment(block("本ド", confidence: 0.99)))
+        let text = PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 0, y: 0, width: 40, height: 40), score: 0.9)
+        #expect(!PipelineRoleFilter.isFragment(block("ドド", confidence: 0.99), layout: [text]))
+        #expect(PipelineRoleFilter.classify([block("ドド", confidence: 0.99)], layout: [])[0].role == .background)
+        #expect(PipelineRoleFilter.classify([block("ドド", confidence: 0.99)], layout: [text])[0].role != .background)
+    }
+
     @Test func shortSFXInsideAnRFBalloonIsSpeech() {
         var block = placedBlock(0, CGRect(x: 100, y: 100, width: 40, height: 80), "あっ")
         block.sourceText = "あっ"
@@ -614,6 +1021,36 @@ struct PipelineStageTests {
         // RF also sees an SFX region there, or no balloon at all: the LLM's SFX stands.
         #expect(PipelineRoleFilter.rescuingSpeech([block], layout: [balloon, sfx])[0].role == .sfx)
         #expect(PipelineRoleFilter.rescuingSpeech([block], layout: [])[0].role == .sfx)
+    }
+
+    @Test func uprightShortSFXOrBackgroundInsideItsBalloonUnderRFTextIsSpeech() {
+        let bounds = CGRect(x: 100, y: 100, width: 40, height: 80)
+        func block(_ role: PipelineRole, polygon: [CGPoint]) -> PipelineBlock {
+            var block = placedBlock(0, bounds, "아")
+            block.sourceText = "あっ"
+            block.role = role
+            block.balloon = CGRect(x: 80, y: 80, width: 120, height: 160)
+            block.lines = [PipelineLine(polygon: polygon, bounds: bounds, vertical: true, detectionScore: 1, text: "あっ", confidence: 1)]
+            return block
+        }
+        let upright = rect(100, 100, 40, 80)
+        let tilted = [CGPoint(x: 100, y: 100), CGPoint(x: 140, y: 104), CGPoint(x: 136, y: 184), CGPoint(x: 96, y: 180)]
+        let text = PipelineLayoutRegion(kind: .text, bounds: CGRect(x: 90, y: 90, width: 60, height: 100), score: 0.6)
+        let sfx = PipelineLayoutRegion(kind: .sfx, bounds: CGRect(x: 90, y: 90, width: 60, height: 100), score: 0.5)
+        #expect(PipelineRoleFilter.tilt(upright) == 0)
+        #expect(PipelineRoleFilter.tilt(tilted) > 5)
+        #expect(PipelineRoleFilter.rescuingSpeech([block(.sfx, polygon: upright)], layout: [text])[0].role == .dialogue)
+        #expect(PipelineRoleFilter.rescuingSpeech([block(.background, polygon: upright)], layout: [text])[0].role == .dialogue)
+        // Tilted lines, an SFX region, no RF text or no S4 balloon: the LLM's role stands.
+        #expect(PipelineRoleFilter.rescuingSpeech([block(.sfx, polygon: tilted)], layout: [text])[0].role == .sfx)
+        #expect(PipelineRoleFilter.rescuingSpeech([block(.sfx, polygon: upright)], layout: [text, sfx])[0].role == .sfx)
+        #expect(PipelineRoleFilter.rescuingSpeech([block(.background, polygon: upright)], layout: [])[0].role == .background)
+        var free = block(.background, polygon: upright)
+        free.balloon = nil
+        #expect(PipelineRoleFilter.rescuingSpeech([free], layout: [text])[0].role == .background)
+        var untranslated = block(.sfx, polygon: upright)
+        untranslated.translation = nil
+        #expect(PipelineRoleFilter.rescuingSpeech([untranslated], layout: [text])[0].role == .sfx)
     }
 
     @Test func shortLatinTextIsPaintedOnlyWhenTheLLMCallsItSpeech() {

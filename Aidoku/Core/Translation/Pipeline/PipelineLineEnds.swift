@@ -4,6 +4,8 @@ import Foundation
 /// S6 input: where each detector line really ends (the DB box often stops short of the last glyph).
 /// Per end, a LightGBM forest (`PipelineWeights.bin` lineEnds) predicts the offset in line thicknesses
 /// from the ink profile and the enclosing text/balloon edge; S6 alone uses the moved ends.
+/// A whole missing glyph (often 1-3 T) is flagged by `PipelineLineEndClassifier` on the same features inside an
+/// RF text region; such an end reaches along the ink run, at most to that region's edge.
 enum PipelineLineEnds {
     /// Ink thresholds (|gray - box median|) of the two profiles.
     static let deltas: [Double] = [40, 90]
@@ -14,14 +16,18 @@ enum PipelineLineEnds {
     /// An end is searched up to its predicted position plus this many thicknesses (train-fold CV).
     static var margin: Double { PipelineTuning.current.lineEndMargin }
     static let regionMinimumScore: Float = 0.5
+    /// Ink run past a flagged end: `deltas[0]` profile above `runInk`, gaps up to `runGap` T, at most `runReach` T;
+    /// the reach is the run (capped at the RF text edge) plus `runPad` T (train-fold CV).
+    static let runInk = 0.02, runGap = 0.4, runReach = 3.0, runPad = 0.1
 
     /// `lines` with ends moved outward by `max(0, (offset + margin - lineEndExtension) * T)`.
     static func refined(_ lines: [PipelineLine], pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int,
-                        layout: [PipelineLayoutRegion], forest: PipelineStyleForest) -> [PipelineLine] {
+                        layout: [PipelineLayoutRegion], forest: PipelineStyleForest,
+                        classifier: PipelineLineEndClassifier? = .shared) -> [PipelineLine] {
         let regions = layout.filter { $0.score >= regionMinimumScore && ($0.kind == .text || $0.kind == .balloon) }
         return lines.map { line in
             guard let (start, end) = offsets(line, pixels: pixels, width: width, height: height, regions: regions,
-                                             forest: forest) else { return line }
+                                             forest: forest, classifier: classifier) else { return line }
             let b = line.bounds
             let vertical = b.height >= b.width
             let thickness = Double(vertical ? b.width : b.height)
@@ -40,9 +46,11 @@ enum PipelineLineEnds {
         }
     }
 
-    /// Predicted (start, end) offsets in thicknesses (positive = the lettering runs past the box).
+    /// Predicted (start, end) offsets in thicknesses (positive = the lettering runs past the box). Where `classifier`
+    /// flags a missing glyph inside a text region, the offset is at least the capped ink run + `runPad` - `margin`.
     static func offsets(_ line: PipelineLine, pixels: UnsafeBufferPointer<UInt8>, width: Int, height: Int,
-                        regions: [PipelineLayoutRegion], forest: PipelineStyleForest) -> (Double, Double)? {
+                        regions: [PipelineLayoutRegion], forest: PipelineStyleForest,
+                        classifier: PipelineLineEndClassifier? = nil) -> (Double, Double)? {
         let b = line.bounds
         let x0 = Double(b.minX), y0 = Double(b.minY), x1 = Double(b.maxX), y1 = Double(b.maxY)
         guard [x0, y0, x1, y1].allSatisfy({ $0.isFinite && abs($0) <= 1_000_000 }) else { return nil }
@@ -129,6 +137,70 @@ enum PipelineLineEnds {
                   distance(.text), distance(.balloon), background]
             return x
         }
-        return (forest.logit(features(0)), forest.logit(features(1)))
+        // Ink run outward from the rounded end, in thicknesses: the `deltas[0]` fraction per along position,
+        // measured only for flagged ends (the feature profile keeps its 1.5 T reach and bin rounding).
+        func run(_ which: Int) -> Double {
+            let e = Int((which == 1 ? alongHigh : alongLow).rounded(.toNearestOrEven))
+            let gap = runGap * thickness
+            var last = -1, i = 0
+            while Double(i) <= runReach * thickness {
+                let along = which == 1 ? e + i : e - 1 - i
+                guard along >= 0, along < alongLimit else { break }
+                var hits = 0
+                for cross in a..<c where abs(Double(vertical ? gray(cross, along) : gray(along, cross)) - background) > deltas[0] {
+                    hits += 1
+                }
+                if Double(hits) / Double(c - a) > runInk {
+                    last = i
+                } else if Double(i - last) > gap {
+                    break
+                }
+                i += 1
+            }
+            return Double(last + 1) / thickness
+        }
+        func offset(_ which: Int) -> Double {
+            let x = features(which)
+            let predicted = forest.logit(x)
+            // distance(.text): 9 when no text region encloses the line; outside one the classifier mostly fires on
+            // art and lines the GT does not hold, so it is not asked there.
+            let edge = x[x.count - 3]
+            guard let classifier, edge < 9, classifier.fires(x) else { return predicted }
+            return max(predicted, min(run(which), max(edge, 0)) + runPad - margin)
+        }
+        return (offset(0), offset(1))
     }
+}
+
+/// Missing-glyph classifier of the line-end search (Resources/Translation/PipelineLineEnds.json, LightGBM fit on
+/// TRAIN pages): fires when the raw score of the 45 `PipelineLineEnds` features reaches `threshold` (p >= 0.3).
+/// Trees as flat arrays: `Float(x[f]) <= t` goes left, a negative child is leaf `-child - 1`.
+struct PipelineLineEndClassifier: Decodable, Sendable {
+    let features: Int
+    let threshold: Double
+    let trees: [PipelineOutlineWidthModel.Tree]
+
+    func fires(_ x: [Double]) -> Bool {
+        guard x.count == features else { return false }
+        var total = 0.0
+        for tree in trees {
+            var node = 0
+            while node >= 0 { node = Double(Float(x[tree.f[node]])) <= tree.t[node] ? tree.l[node] : tree.r[node] }
+            total += tree.v[-node - 1]
+        }
+        return total >= threshold
+    }
+
+    static let shared: PipelineLineEndClassifier? = {
+        var urls = [Bundle.main.url(forResource: "PipelineLineEnds", withExtension: "json")].compactMap { $0 }
+        if let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] {
+            urls.append(URL(fileURLWithPath: root).appendingPathComponent("Aidoku/Resources/Translation/PipelineLineEnds.json"))
+        }
+        return urls.lazy.compactMap { try? Data(contentsOf: $0) }
+            .compactMap { try? JSONDecoder().decode(PipelineLineEndClassifier.self, from: $0) }
+            .first { $0.features == featureCount }
+    }()
+
+    /// 38 profile bins + 7 geometry/region features (`PipelineLineEnds.offsets`).
+    static let featureCount = 45
 }

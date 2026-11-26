@@ -23,9 +23,8 @@ RUNS = E / 'runs/retune'
 DEFAULTS = dict(layoutTextFloor=0.25, layoutSFXFloor=0.20, layoutFrameFloor=0.50, balloonFloor=0.40,
                 detectionThreshold=0.85, detectionBoxThreshold=0.25, detectionUnclipRatio=1.4, detectionMaximumSide=1120,
                 assemblyMinimumOverlap=0.6, assemblyMaximumGap=1.5, recognitionMinimumConfidence=0.30,
-                recognitionLinePadDivisor=20, fragmentConfidence=0.6, roleSFXScore=0.8, roleBalloonScore=0.5,
-                roleRescueBalloon=0.5, roleRescueSFX=0.1, parallelOverlap=0.6, parallelGap=1.0,
-                balloonOwnerCoverage=0.9, textScopeCoverage=0.8, balloonEdgeCoverage=0.7,
+                recognitionLinePadDivisor=20, lineKeepScale=1.0, fragmentConfidence=0.6, roleSFXScore=0.8, roleBalloonScore=0.5,
+                roleRescueBalloon=0.5, roleRescueSFX=0.1,
                 interiorHorizontalReach=8, interiorVerticalReach=3, interiorFrameScore=0.7,
                 maskThreshold=0.15, maskDilation=2, lineEndExtension=0.5, lineEndMargin=0.35, fontLevel=0.02845)
 # knob: (step, lower, upper, kind). Order = pipeline order, so later knobs are fitted on top of earlier ones.
@@ -44,16 +43,12 @@ KNOBS = {
     'assemblyMaximumGap': (0.25, 0.5, 3.0, 'render'),
     'recognitionLinePadDivisor': (5, 8, 80, 'render'),       # pad = short / divisor (20 = 5%)
     'recognitionMinimumConfidence': (0.05, 0.1, 0.55, 'render'),
+    'lineKeepScale': (0.5, 0.0, 4.0, 'render'),               # S3 keep gate threshold x this (0 = gate off)
     'fragmentConfidence': (0.05, 0.3, 0.9, 'render'),
     'roleSFXScore': (0.05, 0.5, 0.95, 'render'),
     'roleBalloonScore': (0.05, 0.3, 0.8, 'render'),
     'roleRescueBalloon': (0.05, 0.3, 0.8, 'render'),
     'roleRescueSFX': (0.05, 0.05, 0.4, 'render'),
-    'parallelOverlap': (0.2, 0.2, 1.6, 'render'),
-    'parallelGap': (0.1, 0.6, 1.6, 'render'),
-    'balloonOwnerCoverage': (0.05, 0.7, 1.0, 'render'),
-    'textScopeCoverage': (0.05, 0.6, 0.95, 'render'),
-    'balloonEdgeCoverage': (0.05, 0.5, 0.95, 'render'),
     'interiorHorizontalReach': (2, 2, 16, 'render'),
     'interiorVerticalReach': (0.5, 1, 6, 'render'),
     'interiorFrameScore': (0.05, 0.5, 0.9, 'render'),         # only acts at or above layoutFrameFloor
@@ -414,14 +409,15 @@ def report(out, name, models, fitted, rows, cmp, history):
     for n, row in rows.items():
         c = row['colour']
         L.append(f"| {n} | {c['fillErrors']} | {c['outlineMissed']} | {c['outlineInvented']} |")
-    L += ['', 'If new0/fitted is clearly worse than ref here, retrain the learned part on the new models\' outputs:',
-          '- S6 MaskNet: tools/convmask (prep.py -> train.py -> convert.py), threshold re-fit = maskThreshold above',
-          '- S8 fill/outline forests in PipelineWeights.bin: tools/colorfix (train_fill_lgb.py, train_peaks.py, export_fill.py)',
-          '- font-size correction forest (fontLevel only shifts its global level): tools/colorfix/train_font.py',
-          '- line-end regressor (lineEnds forest; lineEndMargin is fitted with it): tools/bboxagent/export.py',
-          '- n-gram arbiter gates on the recognizer\'s top-k probabilities (NativeMangaNGram): no scorer, re-check by hand',
-          '- S8 bold rule (boldLineCover / boldRidgeRatio): no scorer here (bold GT: source_font_weight records)',
-          '  (these read Swift-side feature dumps; re-add the dump hook for the stage when retraining)',
+    L += ['', 'If new0/fitted is clearly worse than ref here, retrain the learned parts on the new models\' outputs, in',
+          'pipeline order, with `retune/retrain.py NAME` (trainers in tools/retrain/<part>/train.py; `--plan` lists them):',
+          '- S2b line joiner (PipelineLineJoin.json), S3 keep gate (PipelineLineKeep.json), S3 line boxes (PipelineLineBoxes.json)',
+          '- S4 grouping (PipelineGrouping.json), S4b interior (PipelineInterior.json)',
+          '- S6 line ends (PipelineLineEnds.json + PipelineWeights.bin slot 4; re-fit lineEndMargin here afterwards)',
+          '- S8 font size (PipelineFontSize.json; fontLevel shifts its level), outline (PipelineOutlineWidth.json),',
+          '  fill (PipelineFillPeaks.json + PipelineWeights.bin fill forests)',
+          'Not covered by retrain.py: S6 MaskNet (tools/convmask: prep.py -> train.py -> convert.py; maskThreshold here),',
+          'the outline presence forest (outline/train.py --full only), the n-gram arbiter gates and the S8 bold rule.',
           '', f'## Sweep log ({len(history)} candidates)', '']
     for h in history:
         L.append(f"- {h['knob']} {fmt(h['base'])} -> {fmt(h['value'])}: {'PASS' if h['passes'] else 'no'} — {h['why']}")

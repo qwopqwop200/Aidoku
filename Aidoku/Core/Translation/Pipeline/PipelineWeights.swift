@@ -1,12 +1,11 @@
 import Foundation
 
 /// Fitted tables in Resources/Translation/PipelineWeights.bin (TRAIN split only): style forests, then the
-/// optional density-peak ranker and line-end regressor. Each table is a UInt32 element count followed by
-/// little-endian elements, in the order read below; the first two (a retired S6 MLP) are skipped.
+/// optional old density-peak ranker (unused) and line-end regressor. Each table is a UInt32 element count followed
+/// by little-endian elements, in the order read below; the first two (a retired S6 MLP) are skipped.
 private enum PipelineWeightFile {
     struct Tables {
         let fillPass1: PipelineStyleForest, fillPass2: PipelineStyleForest, outline: PipelineStyleForest
-        let fillPeaks: PipelineStyleForest?
         let lineEnds: PipelineStyleForest?
     }
 
@@ -36,11 +35,34 @@ private enum PipelineWeightFile {
         }
         _ = read(Float.self); _ = read(Float.self)
         let fillPass1 = forest(), fillPass2 = forest(), outline = forest()
-        let fillPeaks = offset < data.count ? forest() : nil
+        // The old fill density-peak forest: read past and left unused (PipelineFillPeakRanker replaces it).
+        if offset < data.count { _ = forest() }
         let tables = Tables(fillPass1: fillPass1, fillPass2: fillPass2, outline: outline,
-                            fillPeaks: fillPeaks, lineEnds: offset < data.count ? forest() : nil)
+                            lineEnds: offset < data.count ? forest() : nil)
         precondition(offset == data.count, "PipelineWeights.bin has trailing data")
         return tables
+    }()
+}
+
+/// S8 outline constants beside the width model in Resources/Translation/PipelineOutlineWidth.json (fit on TRAIN pages,
+/// `Scripts/pipeline/tools/retrain/outline`): `presencePage` (the page-consensus logistic of the outline score) and
+/// `ringLine` (the ring-line width). Read from the bundle, then $AIDOKU_PIPELINE_ROOT.
+private enum PipelineOutlineConstants {
+    struct File: Decodable {
+        let presencePage: [Double]
+        let ringLine: [Double]
+    }
+
+    static let file: File = {
+        var urls = [Bundle.main.url(forResource: "PipelineOutlineWidth", withExtension: "json")].compactMap { $0 }
+        if let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] {
+            urls.append(URL(fileURLWithPath: root).appendingPathComponent("Aidoku/Resources/Translation/PipelineOutlineWidth.json"))
+        }
+        guard let file = urls.lazy.compactMap({ try? Data(contentsOf: $0) })
+            .compactMap({ try? JSONDecoder().decode(File.self, from: $0) }).first,
+            file.presencePage.count == 3, file.ringLine.count == 3
+        else { fatalError("PipelineOutlineWidth.json (presencePage, ringLine) is missing from the bundle") }
+        return file
     }()
 }
 
@@ -52,11 +74,12 @@ enum PipelineStyleParameters {
     static var fillPass1: PipelineStyleForest { PipelineWeightFile.tables.fillPass1 }
     static var fillPass2: PipelineStyleForest { PipelineWeightFile.tables.fillPass2 }
     static var outline: PipelineStyleForest { PipelineWeightFile.tables.outline }
-    static var fillPeaks: PipelineStyleForest? { PipelineWeightFile.tables.fillPeaks }
-    static let outlinePage: [Double] = [0.4094924613695863, 0.19954881908897934, -0.9404877504298349]
-    static let outlineWidthRing: Double = 0.49653723604023625
-    static let outlineWidthFont: Double = 0.042260916827793475
-    static let outlineWidthBias: Double = -0.04776139182973868
+    /// Page consensus of the outline score (score, page median score, bias), from PipelineOutlineWidth.json.
+    static let outlinePage: [Double] = PipelineOutlineConstants.file.presencePage
+    /// Ring-line outline width (ring, font, bias): an input of `PipelineOutlineWidthModel` and its fallback.
+    static let outlineWidthRing: Double = PipelineOutlineConstants.file.ringLine[0]
+    static let outlineWidthFont: Double = PipelineOutlineConstants.file.ringLine[1]
+    static let outlineWidthBias: Double = PipelineOutlineConstants.file.ringLine[2]
     /// Bold when the fill body's ridge width / font and its line-polygon cover both reach these
     /// (`PipelineStyleEstimator.boldMeasure`; rule and thresholds from TRAIN-fold CV, `port-eval/bold/bo`).
     static let boldRidgeRatio: Double = 0.151

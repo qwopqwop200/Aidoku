@@ -1,20 +1,15 @@
 import Foundation
 import CoreGraphics
 
-/// Model-free paragraph graph over pipeline lines. RF boxes are hints, never contours.
+/// S4 paragraph grouping, a cascade over line pairs: obvious joins by rule, the ambiguous pairs by a 7-feature
+/// logistic resolver, its unsure band by the nearest-column fallback rule. RF boxes are hints, never contours.
+/// Fitted on the train folds (benchmark `cascade_abstain` with 7 features, constants in `Model`), plus three
+/// residual rules (port-eval/stageopt/grouping2, `hyb`): stacked pieces in one RF text box join, horizontal CJK lines
+/// of different char pitch never join, vertical columns bridged by misoriented rows of their RF text box join.
 enum PipelineParagraphGrouping {
-    /// Minimum fraction of a line inside an owning balloon for an edge to a line of that balloon.
-    static var balloonEdgeCoverage: CGFloat { PipelineTuning.current.balloonEdgeCoverage }
-    /// Neighbouring columns/rows may overlap across by up to this many glyphs and still be parallel
-    /// (tight or slanted columns).
-    static var parallelOverlap: CGFloat { PipelineTuning.current.parallelOverlap }
-    struct Scope {
-        let owner: Int
-        let box: CGRect
-        let confidence: Double
-    }
     struct Input {
         let polygon: [CGPoint]
+        let bounds: CGRect
         let vertical: Bool
         let confidence: Double
         var source = ""
@@ -27,23 +22,337 @@ enum PipelineParagraphGrouping {
         /// Ruby lines erased with the group but not part of its text.
         var readings: [Int] = []
     }
-    private struct Atom {
-        let input: Input
-        let box: CGRect
-        let along: CGPoint
-        let balloon: Scope?
-        let text: Set<Int>?
-        /// Non-whitespace characters and an unclosed quote of `input.source` (read per pair).
-        var letters = 0
-        var openQuote = false
+
+    /// A line in reading axes: `u` across (increasing to the next column / row), `v` along the line.
+    private struct Line {
+        var u0: CGFloat, u1: CGFloat, v0: CGFloat, v1: CGFloat
+        let vertical: Bool
+        /// Across thickness, at least 1 px (feature scale).
+        let width: CGFloat
+        /// Thickness over the page-median line thickness.
+        let relative: CGFloat
+        /// SFX, art or a blob: joins at most one partner.
+        let junk: Bool
+        /// RF text/balloon regions holding 80% of the line.
+        let regions: Set<Int>
+        /// The RF text box and the balloon holding most (>= 50%) of the line.
+        let textBox: Int?
+        let balloon: Int?
+        let letters: Int
+        let ends: Bool
+        let cjk: CGFloat
+        /// Along length over letters (0 without text).
+        let pitch: CGFloat
     }
-    private struct Edge {
-        let distance: CGFloat
-        let low: [CGFloat]
-        let high: [CGFloat]
-        let first: Int
-        let second: Int
+
+    /// Candidate pair (i, j): j is i's next column / row (`next`), stacked below it in one column, or overlapping it.
+    private enum Kind { case next, stacked, overlap }
+
+    /// Resolver: logistic regression over standardized features (gap in median thicknesses, head offset, same RF text
+    /// box, same balloon, first line ends a sentence, CJK share, relative thickness), its abstain band, and the R2 pitch
+    /// ratio: horizontal CJK lines whose char pitch differs more than this are different paragraphs (title over
+    /// subtitle; nil = no veto). Resources/Translation/PipelineGrouping.json, fit on TRAIN pages by
+    /// Scripts/pipeline/tools/retrain/grouping/train.py (Python reference: ref.py). Without it the resolver abstains.
+    struct Model: Decodable, Sendable {
+        let features: [String]
+        let mean: [CGFloat]
+        let scale: [CGFloat]
+        let weights: [CGFloat]
+        let bias: CGFloat
+        let joinAbove: CGFloat
+        let cutBelow: CGFloat
+        let pitchRatio: CGFloat?
+
+        static let shared: Model? = {
+            var urls = [Bundle.main.url(forResource: "PipelineGrouping", withExtension: "json")].compactMap { $0 }
+            if let root = ProcessInfo.processInfo.environment["AIDOKU_PIPELINE_ROOT"] {
+                urls.append(URL(fileURLWithPath: root).appendingPathComponent("Aidoku/Resources/Translation/PipelineGrouping.json"))
+            }
+            let names = ["gap_med", "head", "rftext_same", "balloon_same", "A_end", "min_cjk", "max_wn"]
+            return urls.lazy.compactMap { try? Data(contentsOf: $0) }
+                .compactMap { try? JSONDecoder().decode(Model.self, from: $0) }
+                .first { $0.features == names && [$0.mean, $0.scale, $0.weights].allSatisfy { $0.count == names.count } }
+        }()
     }
+
+    private static let sentenceEnds = Set("。．.！!？?…‥」』）)〉》】♡♥♪".unicodeScalars)
+
+    /// Nil means invalid geometry, not an empty page.
+    static func group(_ inputs: [Input], layout: [PipelineLayoutRegion]) -> [Group]? {
+        guard inputs.allSatisfy({
+            $0.polygon.count >= 3 && $0.polygon.allSatisfy { $0.x.isFinite && $0.y.isFinite } && edges($0.bounds).allSatisfy(\.isFinite)
+        }) else { return nil }
+        let layout = layout.filter { edges($0.bounds).allSatisfy(\.isFinite) }
+        let (lines, median) = prepare(inputs, layout: layout)
+        let root = cascade(lines, median: median)
+        let rails = rubyRails(inputs)
+        var components: [[Int]] = [], rootIndex: [Int: Int] = [:]
+        for i in inputs.indices where rails[i] == nil {
+            if rootIndex[root[i]] == nil { rootIndex[root[i]] = components.count; components.append([]) }
+            components[rootIndex[root[i]]!].append(i)
+        }
+        return components.map { members in
+            var group = assemble(members, inputs)
+            group.readings = rails.keys.sorted().filter { members.contains(rails[$0]!) }
+            return group
+        }
+    }
+
+    private static func edges(_ r: CGRect) -> [CGFloat] { [r.minX, r.minY, r.maxX, r.maxY] }
+
+    /// Share of `b`'s area inside `r`.
+    private static func frac(_ b: CGRect, _ r: CGRect) -> CGFloat {
+        let ix = max(0, min(b.maxX, r.maxX) - max(b.minX, r.minX)) * max(0, min(b.maxY, r.maxY) - max(b.minY, r.minY))
+        return ix / max(1e-6, (b.maxX - b.minX) * (b.maxY - b.minY))
+    }
+
+    private static func isCJK(_ s: Unicode.Scalar) -> Bool {
+        switch s.value {
+        case 0x2E80...0xA4CF, 0xAC00...0xD7AF, 0xF900...0xFAFF, 0xFF00...0xFFEF: true
+        default: false
+        }
+    }
+
+    /// The lines in reading axes and the page-median line thickness.
+    private static func prepare(_ inputs: [Input], layout: [PipelineLayoutRegion]) -> ([Line], CGFloat) {
+        let thick = inputs.map { min($0.bounds.maxX - $0.bounds.minX, $0.bounds.maxY - $0.bounds.minY) }.sorted()
+        let median = thick.isEmpty ? 1 : max(1, thick[thick.count / 2])
+        let scopes = layout.filter { $0.kind == .text || $0.kind == .balloon }.map(\.bounds)
+        let texts = layout.filter { $0.kind == .text }.map(\.bounds)
+        let balloons = layout.filter { $0.kind == .balloon }.map(\.bounds)
+        let sfx = layout.filter { $0.kind == .sfx }.map(\.bounds)
+        /// The region holding most of `b` (first on ties), if it holds at least half.
+        func owner(_ b: CGRect, _ regions: [CGRect]) -> Int? {
+            var best: (Int, CGFloat)?
+            for (k, r) in regions.enumerated() where best == nil || frac(b, r) > best!.1 { best = (k, frac(b, r)) }
+            return best.flatMap { $0.1 >= 0.5 ? $0.0 : nil }
+        }
+        let lines = inputs.map { input in
+            let b = input.bounds
+            let (u0, u1, v0, v1) = input.vertical ? (-b.maxX, -b.minX, b.minY, b.maxY) : (b.minY, b.maxY, b.minX, b.maxX)
+            let text = input.source.unicodeScalars.filter { !$0.properties.isWhitespace }
+            let inScope = scopes.map { frac(b, $0) }.max() ?? 0, inSFX = sfx.map { frac(b, $0) }.max() ?? 0
+            let relative = (u1 - u0) / median
+            let junk = (inScope < 0.5 && (relative > 1.6 || input.confidence < 0.8 || inSFX > 0.5)) || (inScope < 0.9 && relative > 1.6)
+            return Line(u0: u0, u1: u1, v0: v0, v1: v1, vertical: input.vertical, width: max(1, u1 - u0), relative: relative,
+                        junk: junk, regions: Set(scopes.indices.filter { frac(b, scopes[$0]) >= 0.8 }),
+                        textBox: owner(b, texts), balloon: owner(b, balloons), letters: text.count,
+                        ends: text.last.map(sentenceEnds.contains) ?? false,
+                        cjk: text.isEmpty ? 0 : CGFloat(text.filter(isCJK).count) / CGFloat(text.count),
+                        pitch: text.isEmpty ? 0 : max(1, v1 - v0) / CGFloat(text.count))
+        }
+        return (lines, median)
+    }
+
+    private static func candidates(_ lines: [Line]) -> [(i: Int, j: Int, kind: Kind)] {
+        var out: [(i: Int, j: Int, kind: Kind)] = []
+        for (i, a) in lines.enumerated() {
+            let wi = a.u1 - a.u0
+            for (j, b) in lines.enumerated() where j != i && b.vertical == a.vertical {
+                let wj = b.u1 - b.u0, w = (wi + wj) / 2
+                let ov = min(a.v1, b.v1) - max(a.v0, b.v0), uov = min(a.u1, b.u1) - max(a.u0, b.u0)
+                if ov > 0, uov > 0, ov * uov > 0.3 * min(wi * (a.v1 - a.v0), wj * (b.v1 - b.v0)) {
+                    if i < j { out.append((i, j, .overlap)) }
+                    continue
+                }
+                if ov > 0, b.u0 >= a.u0 + 0.5 * wi, b.u0 - a.u1 < 3 * w {
+                    out.append((i, j, .next))
+                } else if uov > 0.5 * min(wi, wj), b.v0 >= a.v1 - 0.2 * w, b.v0 - a.v1 < 3 * w {
+                    out.append((i, j, .stacked))
+                }
+            }
+        }
+        return out
+    }
+
+    private struct Pair: Hashable { let i: Int, j: Int }
+
+    /// The fallback rule: each line links to its nearest next column passing hand geometry rules; an aligned (loose)
+    /// link is dropped where the chain around it is over 3x tighter.
+    private static func fallbackLinks(_ lines: [Line], _ cand: [(i: Int, j: Int, kind: Kind)]) -> Set<Pair> {
+        var byLine: [Int: [Int]] = [:], order: [Int] = []
+        for c in cand where c.kind == .next {
+            if byLine[c.i] == nil { order.append(c.i) }
+            byLine[c.i, default: []].append(c.j)
+        }
+        var link: [Int: (j: Int, tight: Bool, gap: CGFloat)] = [:], linkOrder: [Int] = []
+        for i in order where !lines[i].junk {
+            let a = lines[i], wi = a.u1 - a.u0
+            let options = byLine[i]!.filter { !lines[$0].junk }.sorted { x, y in
+                let gx: CGFloat = lines[x].u0 - a.u1, gy: CGFloat = lines[y].u0 - a.u1
+                return gx != gy ? gx < gy : x < y
+            }
+            for j in options {
+                let b = lines[j], wj = b.u1 - b.u0, gap = b.u0 - a.u1
+                let ov = min(a.v1, b.v1) - max(a.v0, b.v0), w = (wi + wj) / 2, head = abs(b.v0 - a.v0)
+                let short = min(a.v1 - a.v0, b.v1 - b.v0), wr = max(wi, wj) / max(1e-6, min(wi, wj))
+                if !a.regions.isEmpty, !b.regions.isEmpty, a.regions.isDisjoint(with: b.regions) { continue }
+                if wr > 3.2 { continue }
+                if !a.vertical, wr > 1.2, min(a.letters, b.letters) > 0, max(a.letters, b.letters) <= 5 { continue }
+                var kind = 0
+                if gap < 0.5 * w && (ov >= 0.75 * short || (ov >= 0.5 * short && wr < 1.5)) {
+                    kind = 1
+                } else if short - ov > max((1 - 0.9) * short, 0.7 * w) {
+                    kind = 0
+                } else if a.vertical {
+                    kind = gap < 0.55 * w ? 1 : (gap < 0.9 * w && head < 0.8 * w ? 2 : 0)
+                } else {
+                    kind = gap < 1.2 * w ? 1 : 0
+                }
+                if kind > 0 {
+                    link[i] = (j, kind == 1, gap / w); linkOrder.append(i)
+                    break
+                }
+            }
+        }
+        var into: [Int: [CGFloat]] = [:]
+        for i in linkOrder where link[i]!.tight { into[link[i]!.j, default: []].append(link[i]!.gap) }
+        var accepted = Set<Pair>()
+        for i in linkOrder {
+            let (j, tight, gap) = link[i]!
+            if !tight {
+                var around = into[i] ?? []
+                if let next = link[j], next.tight { around.append(next.gap) }
+                if let tightest = around.min(), tightest < 0.33 * gap { continue }
+            }
+            accepted.insert(Pair(i: i, j: j))
+        }
+        return accepted
+    }
+
+    /// Union-find roots of the cascade's joins.
+    private static func cascade(_ lines: [Line], median: CGFloat) -> [Int] {
+        let cand = candidates(lines), fallback = fallbackLinks(lines, cand)
+        // Nearest next-column gap out of / into each line, for the candidate rank.
+        var outGap = [CGFloat](repeating: 9, count: lines.count), inGap = outGap
+        for c in cand where c.kind == .next {
+            let w = (lines[c.i].width + lines[c.j].width) / 2, g = (lines[c.j].u0 - lines[c.i].u1) / w
+            outGap[c.i] = min(outGap[c.i], g); inGap[c.j] = min(inGap[c.j], g)
+        }
+        let model = Model.shared
+        var joins: [(Pair, CGFloat)] = []
+        for c in cand {
+            let a = lines[c.i], b = lines[c.j], w = (a.width + b.width) / 2
+            let wr = max(a.width, b.width) / min(a.width, b.width)
+            let gap: CGFloat, ov: CGFloat, head: CGFloat
+            if c.kind == .stacked {
+                gap = (b.v0 - a.v1) / w; ov = (min(a.u1, b.u1) - max(a.u0, b.u0)) / min(a.width, b.width); head = abs(b.u0 - a.u0) / w
+            } else {
+                gap = (b.u0 - a.u1) / w; ov = (min(a.v1, b.v1) - max(a.v0, b.v0)) / max(1, min(a.v1 - a.v0, b.v1 - b.v0))
+                head = abs(b.v0 - a.v0) / w
+            }
+            let rankI = c.kind == .next ? gap - outGap[c.i] : 0, rankJ = c.kind == .next ? gap - inGap[c.j] : 0
+            let regionsDiffer = !a.regions.isEmpty && !b.regions.isEmpty && a.regions.isDisjoint(with: b.regions)
+            let isFallback = fallback.contains(Pair(i: c.i, j: c.j))
+            let junk = (a.junk ? 1 : 0) + (b.junk ? 1 : 0)
+            let sameText = a.textBox != nil && a.textBox == b.textBox
+            // Rules: a detector-split column inside one RF text box joins; horizontal CJK lines of different pitch never do.
+            let stackedPiece = c.kind == .stacked && a.vertical && sameText && junk == 0
+            if let ratio = model?.pitchRatio, c.kind == .next, !a.vertical, min(a.cjk, b.cjk) >= 0.5, min(a.letters, b.letters) >= 2,
+               max(a.pitch, b.pitch) > ratio * min(a.pitch, b.pitch) { continue }
+            // Stage 1: obvious joins (each tier 100% precise on the train folds).
+            var core = stackedPiece || c.kind == .next && a.vertical && junk == 0 && gap < 0.45 && ov >= 0.9 && wr < 1.3 && !regionsDiffer
+                && rankI <= 1e-9 && rankJ <= 1e-9
+            core = core || (isFallback && a.vertical && gap < 0.55)
+            core = core || (c.kind == .overlap && junk == 0 && wr < 2 && ov >= 0.8 && !regionsDiffer)
+            core = core || (c.kind != .stacked && junk == 1 && ov >= 0.8 && gap < 0.5 && wr < 1.3)
+            // Stage 2 on link-like pairs (a column further away never joins directly); stage 3 in the unsure band.
+            let eligible = c.kind != .next || min(rankI, rankJ) <= 0.3 || isFallback
+            var p: CGFloat = 1, resolved = isFallback
+            if let m = model {
+                let x: [CGFloat] = [gap * w / median, head,
+                                    sameText ? 1 : 0, a.balloon != nil && a.balloon == b.balloon ? 1 : 0,
+                                    a.ends ? 1 : 0, min(a.cjk, b.cjk), max(a.relative, b.relative)]
+                var z = m.bias
+                for k in x.indices { z += (x[k] - m.mean[k]) / m.scale[k] * m.weights[k] }
+                p = 1 / (1 + exp(-z))
+                resolved = p >= m.joinAbove || (p > m.cutBelow && isFallback)
+            }
+            if core || (eligible && resolved) { joins.append((Pair(i: c.i, j: c.j), p)) }
+        }
+        var parent = Array(lines.indices)
+        func find(_ index: Int) -> Int {
+            var i = index
+            while parent[i] != i { parent[i] = parent[parent[i]]; i = parent[i] }
+            return i
+        }
+        // A junk line joins at most its strongest non-junk partner.
+        var strongest: [Int: (CGFloat, Pair)] = [:]
+        for (pair, p) in joins {
+            let ja = lines[pair.i].junk, jb = lines[pair.j].junk
+            if ja && jb { continue }
+            if ja || jb {
+                let k = ja ? pair.i : pair.j
+                if strongest[k] == nil || p > strongest[k]!.0 { strongest[k] = (p, pair) }
+            } else {
+                let x = find(pair.i), y = find(pair.j)
+                if x != y { parent[y] = x }
+            }
+        }
+        for pair in strongest.values.map(\.1) + bridges(lines) {
+            let x = find(pair.i), y = find(pair.j)
+            if x != y { parent[y] = x }
+        }
+        return lines.indices.map(find)
+    }
+
+    /// Two vertical columns of one RF text box with two or more horizontal lines of that box centred between them:
+    /// the detector read the middle columns as rows. Joins the columns and the rows.
+    private static func bridges(_ lines: [Line]) -> [Pair] {
+        var out: [Pair] = []
+        for (i, a) in lines.enumerated() where a.vertical && !a.junk && a.textBox != nil {
+            for (j, b) in lines.enumerated() where j != i && b.vertical && !b.junk && b.textBox == a.textBox {
+                let w = (a.width + b.width) / 2
+                guard b.u0 - a.u1 > 0.5 * w, min(a.v1, b.v1) - max(a.v0, b.v0) >= 0.3 * min(a.v1 - a.v0, b.v1 - b.v0) else { continue }
+                let rows = lines.indices.filter { m in
+                    let r = lines[m], across = -(r.v0 + r.v1) / 2, along = (r.u0 + r.u1) / 2
+                    return !r.vertical && r.textBox == a.textBox && a.u1 < across && across < b.u0
+                        && max(a.v0, b.v0) - w < along && along < min(a.v1, b.v1) + w
+                }
+                if rows.count >= 2 { out += [Pair(i: i, j: j)] + rows.map { Pair(i: i, j: $0) } }
+            }
+        }
+        return out
+    }
+
+    /// Reading order and outline of one paragraph.
+    private static func assemble(_ members: [Int], _ inputs: [Input]) -> Group {
+        let vertical = inputs[members[0]].vertical
+        // Opposed or non-finite axes (overflowing polygon coordinates) can sum to no direction.
+        let direction = unit(members.reduce(CGPoint.zero) { let a = axis(inputs[$1]); return .init(x: $0.x+a.x, y: $0.y+a.y) })
+            .flatMap { $0.x.isFinite && $0.y.isFinite ? $0 : nil }
+            ?? (vertical ? CGPoint(x: 0, y: 1) : CGPoint(x: 1, y: 0))
+        let (a, c, cross) = intervals(members.flatMap { inputs[$0].polygon }, direction, vertical)
+        let legacyOrder = members.sorted {
+            let x = bounds(inputs[$0].polygon), y = bounds(inputs[$1].polygon)
+            let xa = vertical ? -x.midX : x.midY, ya = vertical ? -y.midX : y.midY
+            if xa != ya { return xa < ya }
+            let xb = vertical ? x.minY : x.minX, yb = vertical ? y.minY : y.minX
+            return xb == yb ? $0 < $1 : xb < yb
+        }
+        let corners = vertical ? [(a[0], c[0]), (a[0], c[1]), (a[1], c[1]), (a[1], c[0])]
+            : [(a[0], c[0]), (a[1], c[0]), (a[1], c[1]), (a[0], c[1])]
+        let polygon = members.count == 1 ? inputs[members[0]].polygon : corners.map {
+            CGPoint(x: $0.0*direction.x+$0.1*cross.x, y: $0.0*direction.y+$0.1*cross.y)
+        }
+        let projections = members.map { intervals(inputs[$0].polygon, direction, vertical) }
+        let crossSpans = projections.map { $0.1 }
+        var readingOrder = legacyOrder
+        if vertical, members.count > 1 {
+            let along = projections.map { $0.0 }
+            if commonColumn(Array(members.indices), cross: crossSpans) {
+                if let sequence = orderedDisjoint(Array(members.indices), along: along) {
+                    readingOrder = sequence.map { members[$0] }
+                }
+            } else if members.count > 2 {
+                let indexByMember = Dictionary(uniqueKeysWithValues: members.enumerated().map { ($0.element, $0.offset) })
+                readingOrder = orderColumnRuns(legacyOrder.map { indexByMember[$0]! }, along: along, cross: crossSpans)
+                    .map { members[$0] }
+            }
+        }
+        return .init(members: members, readingOrder: readingOrder, polygon: polygon, vertical: vertical)
+    }
+
     private static func unit(_ v: CGPoint) -> CGPoint? {
         let length = hypot(v.x, v.y)
         return length > 0 ? CGPoint(x: v.x/length, y: v.y/length) : nil
@@ -63,27 +372,15 @@ enum PipelineParagraphGrouping {
         if (vertical ? v.y : v.x) < 0 { v = .init(x: -v.x, y: -v.y) }
         return v
     }
-    private struct Extents {
-        var start: CGFloat, end: CGFloat, low: CGFloat, high: CGFloat
-        var maxULP: CGFloat { max(max(start.ulp, end.ulp), max(low.ulp, high.ulp)) }
-    }
-    private static func extents(_ points: [CGPoint], along: CGPoint, cross: CGPoint) -> Extents {
-        var span = Extents(start: .infinity, end: -.infinity, low: .infinity, high: -.infinity)
-        for p in points {
-            let a = p.x*along.x + p.y*along.y, c = p.x*cross.x + p.y*cross.y
-            span.start = min(span.start, a)
-            span.end = max(span.end, a)
-            span.low = min(span.low, c)
-            span.high = max(span.high, c)
-        }
-        return span
-    }
     private static func intervals(_ points: [CGPoint], _ along: CGPoint, _ vertical: Bool) -> ([CGFloat], [CGFloat], CGPoint) {
         let cross = vertical ? CGPoint(x: along.y, y: -along.x) : CGPoint(x: -along.y, y: along.x)
-        let span = extents(points, along: along, cross: cross)
-        return ([span.start, span.end], [span.low, span.high], cross)
+        var start = CGFloat.infinity, end = -CGFloat.infinity, low = CGFloat.infinity, high = -CGFloat.infinity
+        for p in points {
+            let a = p.x*along.x + p.y*along.y, c = p.x*cross.x + p.y*cross.y
+            start = min(start, a); end = max(end, a); low = min(low, c); high = max(high, c)
+        }
+        return ([start, end], [low, high], cross)
     }
-    private static func overlap(_ a: [CGFloat], _ b: [CGFloat]) -> CGFloat { max(0, min(a[1], b[1])-max(a[0], b[0])) }
     private static func commonColumn(_ indices: [Int], cross: [[CGFloat]]) -> Bool {
         let shared = indices.map { cross[$0][1] }.min()! - indices.map { cross[$0][0] }.max()!
         return shared >= indices.map { cross[$0][1] - cross[$0][0] }.min()! / 2
@@ -136,306 +433,31 @@ enum PipelineParagraphGrouping {
         return order
     }
 
-    private static func key(_ box: CGRect) -> [CGFloat] { [box.minX, box.minY, box.maxX, box.maxY] }
-    private static func less(_ a: [CGFloat], _ b: [CGFloat]) -> Bool { a.lexicographicallyPrecedes(b) }
-    private static func distance(_ a: Atom, _ b: Atom) -> (gap: CGFloat, isParallel: Bool)? {
-        guard a.along.x*b.along.x+a.along.y*b.along.y >= cos(.pi/12),
-              let direction = unit(.init(x: a.along.x+b.along.x, y: a.along.y+b.along.y)) else { return nil }
-        let vertical = a.input.vertical
-        let cross = vertical ? CGPoint(x: direction.y, y: -direction.x) : CGPoint(x: -direction.y, y: direction.x)
-        let x = extents(a.input.polygon, along: direction, cross: cross)
-        let y = extents(b.input.polygon, along: direction, cross: cross)
-        let ga = x.high-x.low, gb = y.high-y.low, glyph = min(ga, gb)
-        guard glyph > 0 else { return nil }
-        let fits = max(ga, gb) <= glyph*2
-        let sharedText = a.text.map { x in b.text.map { !x.isDisjoint(with: $0) } ?? false } ?? false
-        let ag = max(x.start, y.start)-min(x.end, y.end), cg = max(x.low, y.low)-min(x.high, y.high)
-        // Same-column continuation: a 2 glyph gap, 4 below an unclosed quote; a shared RF text scope
-        // lifts the width-fit limit, and one RF balloon allows a wider gutter.
-        let sameBalloon = a.balloon != nil && a.balloon?.owner == b.balloon?.owner
-        let sameLimit = glyph*((x.start <= y.start ? a : b).openQuote ? 4 : 2)
-        let parallelLimit = glyph*(sameBalloon ? 1.25*PipelineTuning.current.parallelGap : PipelineTuning.current.parallelGap)
-        let epsilon = max(max(x.maxULP, y.maxULP), max(max(glyph.ulp, sameLimit.ulp), max(ag.ulp, cg.ulp)))*4
-        // A one- or two-glyph fragment cut off a column or row end continues it, measured in the full line's glyphs.
-        let fragments = [a.letters <= 2, b.letters <= 2]
-        if fragments[0] != fragments[1] {
-            let (f, o) = fragments[0] ? (x, y) : (y, x)
-            let thick = o.high-o.low
-            if f.high-f.low <= thick*1.3, overlap([f.low, f.high], [o.low, o.high]) >= (f.high-f.low)/2,
-               ag >= -(f.end-f.start)/2, ag <= thick*1.5 {
-                return (max(0, ag)/thick, false)
-            }
-        }
-        let same = (fits || sharedText) && max(0, -cg) >= glyph/2 && ag >= -glyph/4 && ag <= sameLimit+epsilon
-        let shorter = min(x.end-x.start, y.end-y.start)
-        let parallel = fits && cg >= -glyph*parallelOverlap && cg <= parallelLimit+epsilon
-            && max(0, -ag) >= shorter/2 && shorter >= glyph*1.5
-            && (vertical || min(abs(x.start-y.start), abs(x.end-y.end)) <= glyph*1.5)
-        return same || parallel ? (max(0, same ? ag : cg)/glyph, !same) : nil
-    }
-
-    /// Evaluate the nearest source rows on each side of an accepted tree edge.
-    /// A shared RF box is not enough to make two separately set rows one paragraph.
-    private static func hasHorizontalRowBoundary(_ left: [Int], _ right: [Int], atoms: [Atom]) -> Bool {
-        let both = left+right
-        guard let direction = unit(both.sorted().reduce(CGPoint.zero, {
-            .init(x: $0.x+atoms[$1].along.x, y: $0.y+atoms[$1].along.y)
-        })) else { return false }
-        let frames = Dictionary(uniqueKeysWithValues: both.map { ($0, intervals(atoms[$0].input.polygon, direction, false)) })
-        var nearest: (gap: CGFloat, i: Int, j: Int)?
-        for i in left { for j in right {
-            let a = frames[i]!.1, b = frames[j]!.1
-            let gap = max(a[0], b[0])-min(a[1], b[1])
-            if gap < 0 { return false }
-            if nearest == nil || gap < nearest!.gap { nearest = (gap, i, j) }
-        } }
-        guard let (gap, i, j) = nearest else { return false }
-        func measure(_ index: Int) -> (extent: [CGFloat], height: CGFloat, width: CGFloat, advance: CGFloat)? {
-            let (extent, cross, _) = frames[index]!
-            let height = cross[1]-cross[0], width = extent[1]-extent[0]
-            let source = atoms[index].input.source.filter { !$0.isWhitespace }
-            let count = source.count
-            guard count > 0, height > 0, width > 0 else { return nil }
-            let full = source.unicodeScalars.filter { scalar in
-                switch scalar.value {
-                case 0x2E80...0xA4CF, 0xAC00...0xD7AF, 0xF900...0xFAFF, 0x20000...0x323AF: true
-                default: false
-                }
-            }.count
-            let advance = width/CGFloat(count)
-            return 2*full >= count && advance >= height*0.75 ? (extent, height, width, advance) : nil
-        }
-        guard let a = measure(i), let b = measure(j),
-              overlap(a.extent, b.extent) >= 0.8*min(a.width, b.width) else { return false }
-        let shorter = min(a.height, b.height)
-        return gap >= 0.75*shorter || max(a.height, b.height) >= 1.25*shorter ||
-            (gap >= 0.45*shorter && (max(a.width, b.width) >= 1.2*min(a.width, b.width) ||
-                max(a.advance, b.advance) >= 1.25*min(a.advance, b.advance)))
-    }
-
-    /// Try removing one edge from the existing horizontal component. Using the
-    /// accepted forest prevents unrelated candidate edges from reconnecting it.
-    private static func splitHorizontalRows(_ members: [Int], links: [Edge], atoms: [Atom]) -> [[Int]] {
-        guard members.count > 1, !links.isEmpty, let first = members.first else { return [members] }
-        var neighbors: [Int: [(Int, Int)]] = [:]
-        for (index, edge) in links.enumerated() {
-            neighbors[edge.first, default: []].append((edge.second, index))
-            neighbors[edge.second, default: []].append((edge.first, index))
-        }
-        for cut in links.indices {
-            var seen: Set<Int> = [first]
-            var stack = [first]
-            while let i = stack.popLast() {
-                for (j, edgeIndex) in neighbors[i] ?? [] where edgeIndex != cut {
-                    if seen.insert(j).inserted { stack.append(j) }
-                }
-            }
-            let left = members.filter { seen.contains($0) }
-            let right = members.filter { !seen.contains($0) }
-            if !right.isEmpty, hasHorizontalRowBoundary(left, right, atoms: atoms) { return [left, right] }
-        }
-        return [members]
-    }
-
-    private static func opens(_ text: String) -> Bool { text.first { !$0.isWhitespace }.map { "「『“\"".contains($0) } ?? false }
-    private static func closes(_ text: String) -> Bool {
-        text.last { !$0.isWhitespace && $0 != "♡" && $0 != "♥" }.map { "。.!?！？…」』".contains($0) } ?? false
-    }
-    private static func hasOpenQuote(_ text: String) -> Bool {
-        let pairs: [Character: Character] = ["「": "」", "『": "』", "（": "）", "(": ")", "“": "”"]
-        var stack: [Character] = []
-        for c in text {
-            if let closing = pairs[c] { stack.append(closing) } else if stack.last == c { stack.removeLast() }
-        }
-        return !stack.isEmpty
-    }
-    /// Two components that must stay separate paragraphs.
-    private static func utteranceBoundary(_ x: [Int], _ y: [Int], atoms: [Atom], sharedText: Bool) -> Bool {
-        let vertical = atoms[x[0]].input.vertical
-        func text(_ ids: [Int]) -> String {
-            ids.sorted {
-                let a = atoms[$0].box, b = atoms[$1].box
-                return vertical ? (a.midX, b.minY) > (b.midX, a.minY) : (a.midY, a.minX) < (b.midY, b.minX)
-            }.map { atoms[$0].input.source }.joined()
-        }
-        func box(_ ids: [Int]) -> CGRect { ids.reduce(CGRect.null) { $0.union(atoms[$1].box) } }
-        func thickness(_ i: Int) -> CGFloat { vertical ? atoms[i].box.width : atoms[i].box.height }
-        let a = text(x), b = text(y), p = box(x), q = box(y)
-        if opens(a) && closes(a) && opens(b) && closes(b) { return true }
-        // Along = y for columns, x for rows; cross the other axis.
-        let along = vertical ? (min(p.maxY, q.maxY) - max(p.minY, q.minY)) : (min(p.maxX, q.maxX) - max(p.minX, q.minX))
-        let cross = vertical ? (min(p.maxX, q.maxX) - max(p.minX, q.minX)) : (min(p.maxY, q.maxY) - max(p.minY, q.minY))
-        if opens(a) && opens(b) {
-            let glyph = min(x.map(thickness).min()!, y.map(thickness).min()!)
-            let leading = (vertical ? p.minY <= q.minY : p.minX <= q.minX) ? a : b
-            return !(hasOpenQuote(leading) && cross >= glyph*0.75 && -along <= glyph*2)
-        }
-        guard vertical, closes(a) || closes(b), !sharedText else { return false }
-        let widths = (x+y).map(thickness).sorted(), glyph = widths[widths.count/2]
-        return -cross > glyph*0.75 && along >= min(p.height, q.height)*0.25
-    }
-
-    /// Nil means invalid geometry, not an empty or filtered page.
-    static func group(_ inputs: [Input], textScopes: [Scope], balloons: [Scope],
-                      joins: ((Int, Int) -> CGFloat?)? = nil) -> [Group]? {
-        guard inputs.allSatisfy({ $0.polygon.count >= 3 && $0.polygon.allSatisfy { $0.x.isFinite && $0.y.isFinite } }),
-              (textScopes+balloons).allSatisfy({
-                  !$0.box.isNull && [$0.box.minX, $0.box.minY, $0.box.maxX, $0.box.maxY].allSatisfy(\.isFinite)
-                      && $0.confidence.isFinite
-              }) else { return nil }
-        let tuning = PipelineTuning.current
-        let ownerCoverage = tuning.balloonOwnerCoverage, scopeCoverage = tuning.textScopeCoverage
-        let textFloor = Double(tuning.layoutTextFloor)
-        var atoms = inputs.map { input -> Atom in
-            let box = bounds(input.polygon)
-            let owners = balloons.filter { $0.confidence >= Double(PipelineLayoutRegion.balloonFloor) && PipelineLineAssembly.coverage(box, $0.box) >= ownerCoverage }
-            let text = Set(textScopes.filter { $0.confidence >= textFloor && PipelineLineAssembly.coverage(box, $0.box) >= scopeCoverage }.map(\.owner))
-            return .init(input: input, box: box, along: axis(input), balloon: owners.count == 1 ? owners[0] : nil,
-                         text: text.isEmpty ? nil : text, letters: input.source.filter { !$0.isWhitespace }.count,
-                         openQuote: hasOpenQuote(input.source))
-        }
-        var parent = Array(atoms.indices)
-        var owners = atoms.map { $0.balloon?.owner }, texts = atoms.map(\.text), members = atoms.indices.map { [$0] }
-        func find(_ index: Int) -> Int {
-            var i = index
-            while parent[i] != i { parent[i] = parent[parent[i]]; i = parent[i] }
-            return i
-        }
-        // A one-glyph line's direction is a guess: it may join a column or a row.
-        func guessed(_ atom: Atom) -> Bool { atom.letters == 1 }
-        func flipped(_ atom: Atom) -> Atom {
-            let input = Input(polygon: atom.input.polygon, vertical: !atom.input.vertical, confidence: atom.input.confidence,
-                              source: atom.input.source)
-            return .init(input: input, box: atom.box, along: axis(input), balloon: atom.balloon, text: atom.text,
-                         letters: atom.letters, openQuote: atom.openQuote)
-        }
-        func quoted(_ root: Int) -> Bool { members[root].contains { atoms[$0].input.source.contains(where: "「」『』".contains) } }
-        let rails = rubyRails(atoms)
-        var edges: [Edge] = []
-        for i in atoms.indices where rails[i] == nil { for j in (i+1)..<atoms.count where rails[j] == nil {
-            var a = atoms[i], b = atoms[j]
-            if a.input.vertical != b.input.vertical {
-                if guessed(b) { b = flipped(b) } else if guessed(a) { a = flipped(a) } else { continue }
-            }
-            if let x = a.balloon, let y = b.balloon, x.owner != y.owner { continue }
-            if let known = a.balloon {
-                if PipelineLineAssembly.coverage(b.box, known.box) < balloonEdgeCoverage { continue }
-            } else if let known = b.balloon, PipelineLineAssembly.coverage(a.box, known.box) < balloonEdgeCoverage { continue }
-            guard let relation = distance(a, b) ?? joins?(i, j).map({ ($0, false) }) else { continue }
-            // Keep weak unsupported parallel atoms separate; do not drop their source.
-            let ca = a.input.confidence, cb = b.input.confidence
-            if relation.isParallel, ca.isFinite, cb.isFinite,
-               min(ca, cb) < 0.60, abs(ca - cb) >= 0.30,
-               a.text.map({ x in b.text.map { x.isDisjoint(with: $0) } ?? true }) ?? true {
-                continue
-            }
-            let x = key(a.box), y = key(b.box)
-            edges.append(.init(distance: relation.gap, low: less(x, y) ? x : y, high: less(x, y) ? y : x, first: i, second: j))
-        } }
-        edges.sort {
-            if $0.distance != $1.distance { return $0.distance < $1.distance }
-            if $0.low != $1.low { return less($0.low, $1.low) }
-            if $0.high != $1.high { return less($0.high, $1.high) }
-            if $0.first != $1.first { return $0.first < $1.first }
-            return $0.second < $1.second
-        }
-        var horizontalForest: [Edge] = []
-        for edge in edges {
-            let a = find(edge.first), b = find(edge.second)
-            guard a != b else { continue }
-            if let x = owners[a], let y = owners[b], x != y { continue }
-            if let x = texts[a], let y = texts[b], x.isDisjoint(with: y) { continue }
-            // SFX guard: a component outside every RF text scope and without a quote mark never joins quoted speech.
-            if (texts[a] == nil) != (texts[b] == nil), quoted(texts[a] == nil ? b : a), !quoted(texts[a] == nil ? a : b) { continue }
-            let shared = texts[a].flatMap { x in texts[b].map { x.intersection($0) } }
-            if utteranceBoundary(members[a], members[b], atoms: atoms, sharedText: shared != nil) { continue }
-            if atoms[a].input.vertical != atoms[b].input.vertical {
-                guard let side = [b, a].first(where: { members[$0].allSatisfy { guessed(atoms[$0]) } }) else { continue }
-                for k in members[side] { atoms[k] = flipped(atoms[k]) }
-            }
-            let text = shared ?? texts[a] ?? texts[b]
-            parent[b] = a; owners[a] = owners[a] ?? owners[b]; texts[a] = text; members[a] += members[b]
-            if !atoms[edge.first].input.vertical { horizontalForest.append(edge) }
-        }
-        var components: [[Int]] = [], rootIndex: [Int: Int] = [:]
-        for i in atoms.indices {
-            let root = find(i)
-            if rootIndex[root] == nil { rootIndex[root] = components.count; components.append([]) }
-            components[rootIndex[root]!].append(i)
-        }
-        let horizontalLinks = Dictionary(grouping: horizontalForest) { find($0.first) }
-        let finalized = components.flatMap { members -> [[Int]] in
-            guard let links = horizontalLinks[find(members[0])] else { return [members] }
-            return splitHorizontalRows(members, links: links, atoms: atoms)
-        }.sorted { $0[0] < $1[0] }
-        let groups = finalized.filter { rails[$0[0]] == nil }.map { members -> Group in
-            let vertical = atoms[members[0]].input.vertical
-            // Opposed or non-finite axes (overflowing polygon coordinates) can sum to no direction.
-            let direction = unit(members.reduce(CGPoint.zero) { .init(x: $0.x+atoms[$1].along.x, y: $0.y+atoms[$1].along.y) })
-                .flatMap { $0.x.isFinite && $0.y.isFinite ? $0 : nil }
-                ?? (vertical ? CGPoint(x: 0, y: 1) : CGPoint(x: 1, y: 0))
-            let (a, c, cross) = intervals(members.flatMap { atoms[$0].input.polygon }, direction, vertical)
-            let legacyOrder = members.sorted {
-                let x = atoms[$0].box, y = atoms[$1].box
-                let xa = vertical ? -x.midX : x.midY, ya = vertical ? -y.midX : y.midY
-                if xa != ya { return xa < ya }
-                let xb = vertical ? x.minY : x.minX, yb = vertical ? y.minY : y.minX
-                return xb == yb ? $0 < $1 : xb < yb
-            }
-            let corners = vertical ? [(a[0], c[0]), (a[0], c[1]), (a[1], c[1]), (a[1], c[0])]
-                : [(a[0], c[0]), (a[1], c[0]), (a[1], c[1]), (a[0], c[1])]
-            let polygon = members.count == 1 ? atoms[members[0]].input.polygon : corners.map {
-                CGPoint(x: $0.0*direction.x+$0.1*cross.x, y: $0.0*direction.y+$0.1*cross.y)
-            }
-            let projections = members.map { intervals(atoms[$0].input.polygon, direction, vertical) }
-            let crossSpans = projections.map { $0.1 }
-            let single = vertical && commonColumn(Array(members.indices), cross: crossSpans)
-            var readingOrder = legacyOrder
-            if vertical, members.count > 1 {
-                let along = projections.map { $0.0 }
-                if single {
-                    if let sequence = orderedDisjoint(Array(members.indices), along: along) {
-                        readingOrder = sequence.map { members[$0] }
-                    }
-                } else if members.count > 2 {
-                    let indexByMember = Dictionary(uniqueKeysWithValues: members.enumerated().map { ($0.element, $0.offset) })
-                    readingOrder = orderColumnRuns(legacyOrder.map { indexByMember[$0]! }, along: along, cross: crossSpans)
-                        .map { members[$0] }
-                }
-            }
-            return .init(members: members, readingOrder: readingOrder, polygon: polygon, vertical: vertical)
-        }
-        return groups.map { group in
-            var group = group
-            group.readings = rails.keys.sorted().filter { group.members.contains(rails[$0]!) }
-            return group
-        }
-    }
-
     /// Intercolumn ruby: a kana-only singleton
     /// column at most 1/1.5 as wide, just right of ONE kanji column and within its extent, is
     /// erased with that host and never translated, unless it continues another column end to end.
-    private static func rubyRails(_ atoms: [Atom]) -> [Int: Int] {
+    private static func rubyRails(_ inputs: [Input]) -> [Int: Int] {
         func kana(_ s: Unicode.Scalar) -> Bool {
             (0x3041...0x3096).contains(s.value) || (0x30A1...0x30FA).contains(s.value) || [0x3099, 0x309A, 0x30FC].contains(s.value)
         }
         func kanji(_ s: Unicode.Scalar) -> Bool { (0x3400...0x9FFF).contains(s.value) || (0xF900...0xFAFF).contains(s.value) }
+        let boxes = inputs.map { bounds($0.polygon) }
         var rails: [Int: Int] = [:]
-        for (i, rail) in atoms.enumerated() where rail.input.vertical {
-            let c = rail.box, text = rail.input.source.unicodeScalars
+        for (i, rail) in inputs.enumerated() where rail.vertical {
+            let c = boxes[i], text = rail.source.unicodeScalars
             guard c.height > c.width, !text.isEmpty, text.allSatisfy(kana) else { continue }
-            let hosts = atoms.indices.filter { j in
-                let h = atoms[j].box, size = h.width, gap = c.minX - h.maxX
-                return j != i && atoms[j].input.vertical && h.height > size && c.width*1.5 <= size
-                    && atoms[j].input.source.unicodeScalars.contains(where: kanji)
+            let hosts = inputs.indices.filter { j in
+                let h = boxes[j], size = h.width, gap = c.minX - h.maxX
+                return j != i && inputs[j].vertical && h.height > size && c.width*1.5 <= size
+                    && inputs[j].source.unicodeScalars.contains(where: kanji)
                     && gap >= -size/4 && gap <= size/2 && c.midX > h.maxX - size/4
                     && c.minY >= h.minY - size/4 && c.maxY <= h.maxY + size/4
             }
             guard hosts.count == 1, let host = hosts.first else { continue }
-            let continues = atoms.indices.contains { j in
-                let p = atoms[j].box, glyph = min(c.width, p.width)
+            let continues = inputs.indices.contains { j in
+                let p = boxes[j], glyph = min(c.width, p.width)
                 let gap = max(c.minY, p.minY) - min(c.maxY, p.maxY)
-                return j != i && j != host && atoms[j].input.vertical && max(c.width, p.width) >= atoms[host].box.width*0.75
+                return j != i && j != host && inputs[j].vertical && max(c.width, p.width) >= boxes[host].width*0.75
                     && max(c.width, p.width) <= glyph*1.8 && abs(c.midX - p.midX) <= glyph/2
                     && gap >= -min(c.height, p.height)/4 && gap <= glyph*0.75
             }
