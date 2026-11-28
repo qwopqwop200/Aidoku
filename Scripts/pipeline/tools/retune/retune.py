@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""retune.py NAME [--models DIR] [--knobs a,b|all] [--start FILE] [--objective items|typeset] [--final-only] [--plan]
+"""retune.py NAME [--models DIR] [--knobs a,b|all] [--start FILE] [--objective items|typeset] [--final-only] [--light] [--plan]
 
 Re-fits the model-coupled PipelineTuning knobs after a model is replaced:
   1. ref    repository models, default knobs (shared across NAMEs, reused when present)
@@ -7,10 +7,12 @@ Re-fits the model-coupled PipelineTuning knobs after a model is replaced:
   3. sweep  coordinate line search, one knob at a time, on TRAIN folds only (see judge()); --objective typeset
             decides on typeset_score.py (one score over every GT-checked aspect) instead of the render items
   4. final  ref, new0 and the fitted set on dev, train and test
-Every run is a --no-png replay of saved translations in one heavy slot (tools/lock.zsh), two at a time.
+Every run is a --no-png replay of saved translations in one heavy slot (tools/lock.zsh), two at a time (--light: one,
+on efficiency cores). Stopped? Run the same NAME again: finished runs are reused while their inputs (compiled code,
+resources / models, manifest, translations: not the git commit) and knobs are unchanged.
 Output: $AIDOKU_EVAL_DIR/runs/retune/NAME/{report.md, tuning.json, log.txt}; apply tuning.json by hand.
 """
-import argparse, collections, functools, json, os, re, shutil, subprocess, sys, threading
+import argparse, collections, functools, hashlib, json, os, re, shutil, subprocess, sys, threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -74,6 +76,7 @@ MAX_STEPS = 3  # line search: up to 3 steps out from the current value in the wi
 lock = threading.Lock()
 LOG = None
 OBJECTIVE = 'items'  # --objective
+LIGHT = False  # --light: one run at a time, one page job, background QoS (efficiency cores)
 
 
 def log(msg):
@@ -104,10 +107,15 @@ def tag_of(tuning):
 def run(dir_prefix, split, tuning, models, allow_fail=False):
     """Replays one split into DIR_PREFIX_SPLIT (skipped when it finished before with the same settings)."""
     out = Path(f'{dir_prefix}_{split}')
-    meta = dict(tuning=tuning, models=str(models) if models else 'repository', head=git_head())
+    meta = dict(tuning=tuning, models=str(models) if models else 'repository', inputs=inputs(models))
     stamp = out / 'retune.json'
-    if stamp.exists() and json.loads(stamp.read_text()) == meta and (out / 'summary.json').exists():
-        return out
+    if stamp.exists() and (out / 'summary.json').exists():
+        old = json.loads(stamp.read_text())
+        # A stamp from before content keys holds the git head instead: still valid at that same head.
+        legacy = dict(tuning=meta['tuning'], models=meta['models'], head=git_head())
+        if old == meta or old == legacy:
+            stamp.write_text(json.dumps(meta))
+            return out
     shutil.rmtree(out, ignore_errors=True)
     for c in (E / 'runs/reclass/cache').glob(str(out).replace('/', '_') + '*'):
         c.unlink()
@@ -117,8 +125,11 @@ def run(dir_prefix, split, tuning, models, allow_fail=False):
         env['AIDOKU_PIPELINE_MODELS'] = str(models)
     else:
         env.pop('AIDOKU_PIPELINE_MODELS', None)
+    if LIGHT:
+        env['AIDOKU_HOST_COMPILER_JOBS'] = '1'
+    host = 'taskpolicy -b swift' if LIGHT else 'swift'
     cmd = (f'source {TOOLS}/lock.zsh; take_slot retune-{out.name[:40]}; cd {REPO}; '
-           f'swift Scripts/image-translation.swift --split {split} --manifest {MANIFEST} --jobs 4 --no-png '
+           f'{host} Scripts/image-translation.swift --split {split} --manifest {MANIFEST} --jobs {1 if LIGHT else 4} --no-png '
            f'--replay-translations {REPLAY} --replay-fill-unmatched --output {out} > {out}.log 2>&1; '
            f'st=$?; rm -rf "${{slot:?}}"; exit $st')
     r = subprocess.run(['zsh', '-c', cmd], env=env)
@@ -126,6 +137,33 @@ def run(dir_prefix, split, tuning, models, allow_fail=False):
         raise RuntimeError(f'run failed: {out} (see {out}.log)')
     stamp.write_text(json.dumps(meta))
     return out
+
+
+@functools.cache
+def inputs(models=None):
+    """What a run's output depends on besides its knobs: the code the host compiles (its own fingerprint), the
+    resources and models it loads (content), the manifest and the saved translations. Not the git commit, so a
+    commit, a comment-free edit elsewhere or a tool change keeps saved runs; an edit to compiled code reruns them."""
+    env = dict(os.environ, AIDOKU_HOST_FINGERPRINT='1')
+    code = subprocess.check_output(['swift', 'Scripts/image-translation.swift', '--split', 'train'], cwd=REPO, env=env,
+                                   text=True).split()[-1]
+    h = hashlib.sha256()
+    for base in [REPO / 'Aidoku/Resources/Translation'] + ([models] if models else []):
+        for f in sorted(p for p in Path(base).rglob('*') if p.is_file()):
+            h.update(str(f.relative_to(base)).encode())
+            h.update(f.read_bytes())
+    for f in [Path(MANIFEST)]:
+        h.update(f.read_bytes())
+    return dict(code=code[:16], resources=h.hexdigest()[:16], replay=str(REPLAY))
+
+
+def ref_prefix():
+    """The shared ref run, named by its inputs; an older one named by git head is reused while that head is current."""
+    legacy = RUNS / f'ref-{git_head()[:12]}'
+    if Path(f'{legacy}_train/retune.json').exists():
+        return str(legacy)
+    i = inputs(None)
+    return str(RUNS / f"ref-{i['code'][:8]}{i['resources'][:4]}")
 
 
 @functools.cache
@@ -287,10 +325,12 @@ def main():
     ap.add_argument('--start', help='JSON tuning to start the sweep from (default: PipelineTuning defaults)')
     ap.add_argument('--objective', choices=('items', 'typeset'), default='items', help='what decides a render knob (see judge)')
     ap.add_argument('--final-only', action='store_true', help='skip the sweep; evaluate --start (or defaults)')
+    ap.add_argument('--light', action='store_true', help='low load (no fan): one run at a time, --jobs 1, background QoS')
     ap.add_argument('--plan', action='store_true', help='print the plan and exit')
     a = ap.parse_args()
-    global OBJECTIVE
+    global OBJECTIVE, LIGHT
     OBJECTIVE = a.objective
+    LIGHT = a.light
     check_defaults()
     models = Path(a.models).resolve() if a.models else None
     if models:
@@ -309,11 +349,12 @@ def main():
         print(f'start: {tag_of(start)}; knobs: {knobs}; head {git_head()}')
         print('runs: ref + new0 on train, ~2-6 train runs per knob, final on dev/test (+ref/new0 dev/test)')
         return
-    log(f'== retune {a.name}: models {models or "repository"}, head {git_head()}, knobs {",".join(knobs)}, objective {OBJECTIVE}')
-    pool = ThreadPoolExecutor(2)
+    inputs(None), inputs(models)  # once, before the runs start in two threads
+    log(f'== retune {a.name}: models {models or "repository"}, head {git_head()}, inputs {inputs(models)}, knobs {",".join(knobs)}, objective {OBJECTIVE}')
+    pool = ThreadPoolExecutor(1 if LIGHT else 2)
 
     def evaluate(tuning, label=None, splits=('train',)):
-        prefix = str(out / (label or tag_of(tuning))) if label != 'ref' else str(RUNS / f'ref-{git_head()[:12]}')
+        prefix = str(out / (label or tag_of(tuning))) if label != 'ref' else ref_prefix()
         # Only sweep candidates may fail pages (e.g. a canvas the model rejects); they are then rejected.
         dirs = {s: run(prefix, s, tuning, None if label == 'ref' else models, allow_fail=label is None) for s in splits}
         failed = sum(len(json.load(open(d / 'summary.json')).get('failedPages') or []) for d in dirs.values())

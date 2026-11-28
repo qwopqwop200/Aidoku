@@ -62,6 +62,8 @@ do {
         pipelineHash.update(data: try Data(contentsOf: file))
     }
     let pipelineFingerprint = pipelineHash.finalize().map { String(format: "%02x", $0) }.joined()
+    // retune.py keys its saved runs on this (the code the host compiles), not on the git commit.
+    if ProcessInfo.processInfo.environment["AIDOKU_HOST_FINGERPRINT"] == "1" { print(pipelineFingerprint); exit(0) }
     let pipelineBinary = pipelineCache.appendingPathComponent("image-translation-host")
     let pipelineStamp = pipelineCache.appendingPathComponent("fingerprint")
     if (try? read(pipelineStamp)) != pipelineFingerprint || !manager.fileExists(atPath: pipelineBinary.path) {
