@@ -19,7 +19,7 @@ Python: the eval venv (`workspace.PYTHON`: numpy, PIL, scipy, shapely, lightgbm)
 | `lineasm/score.py PREFIX`, `bboxagent/boxscore.py PREFIX` | S2b lines and boxes vs GT line boxes |
 | `convmask/mscore.py DUMP RUN_PREFIX` | S6 masks (`AIDOKU_PIPELINE_DUMP_MASKS`) vs GT glyph masks |
 | `colorfix/errors.py PREFIX` | S8 fill / outline colour vs appearance GT |
-| `typeset_score.py RUN...` (`--cmp BASE VAR`, `--selftest RUN`) | one score: per GT text region, (share of its text a reader gets: grouping, text kept, place, balloon, overlap, page, art, contrast) x (how well it is set: mean of size, consistency, margin, position, line breaks, style), scored on what the painter draws; page JSON + GT only (`typeset_gt.py` holds the GT caches); reads the page record's `paints` (what S10 painted each block with, after the legibility outline) when a run has it |
+| `typeset_score.py RUN...` (`--cmp BASE VAR`, `--selftest RUN`) | one score: per GT text region, (share of its text a reader gets: grouping, text kept, place, balloon, overlap, page, art, contrast) x (how well it is set: mean of size, consistency, margin, position, line breaks, style), scored on what the painter draws; page JSON + GT only (`typeset_gt.py` holds the GT caches), plus the saved translations to skip GT regions whose translation equals the source (the pipeline keeps those as they are); reads the page record's `paints` (what S10 painted each block with, after the legibility outline) when a run has it |
 | `consistency_metrics.py RUN` | painted size consistency inside GT font-size classes |
 | `../eval.py RUN --split S` | detection recall / precision and grouping F1 |
 

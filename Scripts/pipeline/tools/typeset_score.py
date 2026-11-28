@@ -24,6 +24,8 @@ What is scored is the paint, rebuilt from the record as PipelinePainter draws it
             strings, a bad angle or condense, or no block record is not painted and counts as paint at no region's
             place; a colour that is not a colour makes the block unreadable (contrast 0).
 Blocks in `replaySyntheticBlocks` are not scored (the app drops them after the LLM); their paint is an obstacle.
+GT regions whose saved translations all equal their source (kept_source: the pipeline leaves such text as it is) are
+not scored either; their source ink stays an obstacle.
 
 A painted block belongs to the GT region that its detector bounds share most area with, when that is at least half
 of the smaller of the two. `place` says whether its paint is there: 1 while the paint touches the region box, the
@@ -1151,7 +1153,43 @@ def page(r, cfg=CONFIG, study=None):
             for f in rows:
                 if f['region'] in mem:
                     f['consistency'] = math.exp(-abs(ratio[f['region']] - med))
-    return rows, len(need), extra
+    keep = kept_source(pid) & set(need)
+    return [f for f in rows if f['region'] not in keep], len(need) - len(keep), extra
+
+
+@lru_cache(maxsize=None)
+def _replay_index():
+    f = Path(ws.REPLAY) / 'page-index.json'
+    return json.load(open(f)) if f.exists() else {}
+
+
+@lru_cache(maxsize=None)
+def kept_source(pid):
+    """GT regions whose saved translations all equal their source (letters, whitespace aside): the pipeline keeps
+    such source text as it is (PipelineTranslationLengthCap.copiesSource), so they are not scored. Fixed by the
+    saved translations and the GT, whatever the run does."""
+    rec = _replay_index().get(pid)
+    f = rec and Path(rec.get('dir', '')) / 'final.json'
+    need = (tg.gt().get(pid) or EMPTY)['regions']
+    if not f or not f.exists() or not need:
+        return frozenset()
+    d = json.load(open(f))
+    W, H = d.get('width', 1), d.get('height', 1)
+    norm = lambda t: re.sub(r'\s', '', t)
+    saved = []
+    for e in d.get('regions', []):
+        q, src, tr = e.get('rect'), e.get('source'), e.get('translation')
+        if isinstance(q, dict) and isinstance(src, str) and isinstance(tr, str) and norm(tr):
+            x, y = q.get('x', 0) * W, q.get('y', 0) * H
+            same = norm(tr) == norm(src) and any(c.isalpha() for c in norm(src))
+            saved.append(((x, y, x + q.get('width', 0) * W, y + q.get('height', 0) * H), same))
+    out = set()
+    for rid, box in need.items():
+        a = (box[2] - box[0]) * (box[3] - box[1])
+        on = [same for e, same in saved if _inter(e, box) >= 0.5 * max(1e-9, min(a, (e[2] - e[0]) * (e[3] - e[1])))]
+        if on and all(on):
+            out.add(rid)
+    return frozenset(out)
 
 
 # ---------- runs ----------
@@ -1201,7 +1239,8 @@ def score_records(recs, expect=True, **over):
     if expect and res:
         G = tg.gt()
         for pid in expected(res):
-            res.setdefault(pid, dict(q=0.0, n=len(G[pid]['regions']), regions=len(G[pid]['regions']), extra=0, painted=0, weight=0.0))
+            n = len(set(G[pid]['regions']) - kept_source(pid))
+            res.setdefault(pid, dict(q=0.0, n=n, regions=n, extra=0, painted=0, weight=0.0))
     return res
 
 
@@ -1250,6 +1289,13 @@ def selftest(path):
             for k, x in enumerate(r['blocks'] if style else r['placed']):
                 if not style or x.get('style'):
                     fn(x['style'] if style else x, k)
+            # `paints` (what S10 drew) replaces the style when present: damage it the same way.
+            for k, q in enumerate(r.get('paints') or [] if style else []):
+                if isinstance(q, dict) and isinstance(q.get('fill'), dict):
+                    st = dict(textColor=q['fill'], strokeColor=q.get('stroke'), strokeWidth=q.get('strokeWidth'),
+                              fontPixels=q.get('fontPixels'))
+                    fn(st, k)
+                    q.update(fill=st['textColor'], stroke=st['strokeColor'], strokeWidth=st.get('strokeWidth'))
         return out
 
     def scale(c, every=1):
