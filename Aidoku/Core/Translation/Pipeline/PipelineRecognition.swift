@@ -436,9 +436,18 @@ enum PipelineRecognition {
         tensor.values.withUnsafeBufferPointer { source in
             input.dataPointer.copyMemory(from: source.baseAddress!, byteCount: source.count * MemoryLayout<Float>.stride)
         }
-        let provider = try MLDictionaryFeatureProvider(dictionary: ["x": MLFeatureValue(multiArray: input)])
-        let output = try await model.prediction(from: provider)
-        let compact = try pack(output, timeSteps: tensor.bucket.timeSteps)
+        // Host replays memoize the packed CTC output by the exact crop tensor (PipelineMemo; nil in the app).
+        let compact = try await PipelineMemo.cached(.recognize, key: {
+            PipelineMemo.key {
+                PipelineMemo.update(&$0, [width, tensor.bucket.timeSteps])
+                PipelineMemo.update(&$0, tensor.values)
+            }
+        }, encode: { PipelineMemo.encode(PipelineMemo.floats($0).map { [$0] } ?? []) },
+           decode: { PipelineMemo.decodeArrays($0)?.first }) {
+            let provider = try MLDictionaryFeatureProvider(dictionary: ["x": MLFeatureValue(multiArray: input)])
+            let output = try await model.prediction(from: provider)
+            return try pack(output, timeSteps: tensor.bucket.timeSteps)
+        }
         let decoded = try NativeCoreMLCTCDecoder.decode(
             output: compact, dictionary: engine.dictionary, expectedShape: [1, tensor.bucket.timeSteps],
             languageModel: engine.languageModel)

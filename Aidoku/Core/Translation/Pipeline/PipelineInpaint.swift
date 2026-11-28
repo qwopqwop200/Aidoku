@@ -79,14 +79,62 @@ final class PipelineAOTModel: @unchecked Sendable {
             return raster.rgba
         }
         let patch = prepared.patch
-        let content = try predict(rgba: prepared.rgba, removal: prepared.mask, width: patch.size.0, height: patch.size.1)
-        guard content == patch.size else { throw Failure.modelContract }
+        // Host replays memoize the prediction window scatter reads, by the exact canvas (PipelineMemo; nil in the app).
+        let window = (x: patch.origin.0, y: patch.origin.1, width: patch.size.0, height: patch.size.1)
+        func prediction() throws -> Bool {
+            let content = try predict(rgba: prepared.rgba, removal: prepared.mask, width: patch.size.0, height: patch.size.1)
+            guard content == patch.size else { throw Failure.modelContract }
+            return true
+        }
+        _ = try PipelineMemo.cached(.inpaint, key: {
+            PipelineMemo.key {
+                PipelineMemo.update(&$0, [patch.size.0, patch.size.1, patch.origin.0, patch.origin.1])
+                PipelineMemo.update(&$0, prepared.rgba)
+                PipelineMemo.update(&$0, prepared.mask)
+            }
+        }, encode: { _ in PipelineMemo.data(self.window(window)) },
+           decode: { data in self.setWindow(window, PipelineMemo.values(data, as: Float16.self)) ? true : nil },
+           compute: prediction)
         guard var restored = source.take()?.rgba else { throw Failure.maskSize }
         try restored.withUnsafeMutableBufferPointer { bytes in
             try Self.scatter(into: bytes, mask: removal, width: width, height: height,
                              raw: output, content: patch.size, region: patch.rect, origin: patch.origin)
         }
         return restored
+    }
+
+    /// The 3 output planes inside `window` (channel, row, column order), as `PipelineMemo` stores them.
+    private func window(_ window: (x: Int, y: Int, width: Int, height: Int)) -> [Float16] {
+        let strides = output.strides.map(\.intValue)
+        let values = UnsafePointer(output.dataPointer.assumingMemoryBound(to: Float16.self))
+        var out: [Float16] = []
+        out.reserveCapacity(3 * window.width * window.height)
+        for channel in 0..<3 {
+            for row in window.y..<(window.y + window.height) {
+                let base = channel * strides[1] + row * strides[2]
+                for column in window.x..<(window.x + window.width) { out.append(values[base + column * strides[3]]) }
+            }
+        }
+        return out
+    }
+
+    /// Writes a stored `window` back into the output backing (false: wrong size).
+    private func setWindow(_ window: (x: Int, y: Int, width: Int, height: Int), _ stored: [Float16]) -> Bool {
+        guard stored.count == 3 * window.width * window.height, window.x >= 0, window.y >= 0,
+              window.x + window.width <= Self.side, window.y + window.height <= Self.side else { return false }
+        let strides = output.strides.map(\.intValue)
+        let values = output.dataPointer.assumingMemoryBound(to: Float16.self)
+        var index = 0
+        for channel in 0..<3 {
+            for row in window.y..<(window.y + window.height) {
+                let base = channel * strides[1] + row * strides[2]
+                for column in window.x..<(window.x + window.width) {
+                    values[base + column * strides[3]] = stored[index]
+                    index += 1
+                }
+            }
+        }
+        return true
     }
 
     /// A page rect (x0, y0, x1, y1; exclusive) drawn at `origin` of the model canvas at `size`.

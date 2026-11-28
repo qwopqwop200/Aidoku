@@ -100,7 +100,15 @@ enum PipelineMain {
         return loaded
     }
 
+    /// `AIDOKU_PIPELINE_MEMO`: model outputs and decoded pages reused across runs (PipelineHostMemo).
+    nonisolated(unsafe) static var memo: PipelineHostMemo?
+
     static func loadImage(_ path: String) throws -> CGImage {
+        if let memo { return try memo.image(file: URL(fileURLWithPath: path)) { try decodeImage(path) } }
+        return try decodeImage(path)
+    }
+
+    static func decodeImage(_ path: String) throws -> CGImage {
         guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw PipelineHostError("cannot decode \(path)") }
         return image
@@ -205,6 +213,22 @@ enum PipelineMain {
             log("Tuning \(PipelineHostTuning.describe(PipelineTuning.current)); models \(modelOverride?.path ?? "repository")")
         }
 
+        if let memoRoot = shell["AIDOKU_PIPELINE_MEMO"], !memoRoot.isEmpty {
+            let repository = root.appendingPathComponent("Aidoku/Resources/Translation")
+            func package(_ name: String) -> URL {
+                let file = name + ".mlpackage"
+                if let override = modelOverride?.appendingPathComponent(file), FileManager.default.fileExists(atPath: override.path) {
+                    return override
+                }
+                return repository.appendingPathComponent(file)
+            }
+            let store = try PipelineHostMemo(root: URL(fileURLWithPath: memoRoot), packages: [
+                .layout: package(PipelineRFDETRModel.resourceName), .detect: package(PipelineModels.detectorResourceName),
+                .recognize: package(PipelineRecognitionEngine.modelResourceName), .mask: package(PipelineMaskNet.resourceName),
+                .inpaint: package(PipelineAOTModel.resourceName)])
+            memo = store
+            PipelineMemo.store = store
+        }
         let loadStart = DispatchTime.now().uptimeNanoseconds
         let bundle = try prepareBundle(root: root, cache: cache, models: modelOverride)
         // AIDOKU_PIPELINE_DETECTORS / AIDOKU_PIPELINE_INPAINTERS override the resident pool sizes (default 2/2).
@@ -403,6 +427,7 @@ enum PipelineMain {
         let nonLLM = stages[TranslationPipeline.Stage.nonLLM] ?? [:]
         log("Done: \(finished.count) pages (\(failed.count) failed) in \(Int(wall)) ms wall; non-LLM median "
             + "\(Int(nonLLM["median"] ?? 0)) ms, p90 \(Int(nonLLM["p90"] ?? 0)) ms")
+        if let memo { log("Memo hits: \(memo.summary)") }
         print(output.path)
         return failed.isEmpty ? 0 : 1
     }

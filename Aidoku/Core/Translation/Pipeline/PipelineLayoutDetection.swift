@@ -56,17 +56,25 @@ final class PipelineRFDETRModel: @unchecked Sendable {
         let input = try self.input ?? Self.makeInput()
         self.input = input
         Self.preprocess(raster, into: input)
-        let provider = try MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(multiArray: input)])
-        let output = try model.prediction(from: provider)
-        func array(_ name: String, _ shape: [Int]) throws -> MLMultiArray {
-            guard let value = output.featureValue(for: name)?.multiArrayValue, value.dataType == .float32,
-                  value.shape.map(\.intValue) == shape, value.strides.allSatisfy({ $0.intValue > 0 }) else {
-                throw Failure.modelContract(name)
+        return try PipelineMemo.cached(.layout, key: { PipelineMemo.key { PipelineMemo.update(&$0, input) } },
+            encode: { raw in
+                PipelineMemo.encode([PipelineMemo.floats(raw.boxes), PipelineMemo.floats(raw.logits)].compactMap { $0 })
+            },
+            decode: { data in
+                PipelineMemo.decodeArrays(data).flatMap { $0.count == 2 ? RawOutput(boxes: $0[0], logits: $0[1]) : nil }
+            }) {
+            let provider = try MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(multiArray: input)])
+            let output = try model.prediction(from: provider)
+            func array(_ name: String, _ shape: [Int]) throws -> MLMultiArray {
+                guard let value = output.featureValue(for: name)?.multiArrayValue, value.dataType == .float32,
+                      value.shape.map(\.intValue) == shape, value.strides.allSatisfy({ $0.intValue > 0 }) else {
+                    throw Failure.modelContract(name)
+                }
+                return value
             }
-            return value
+            return RawOutput(boxes: try array("boxes", [1, Self.queries, 4]),
+                             logits: try array("logits", [1, Self.queries, Self.classes]))
         }
-        return RawOutput(boxes: try array("boxes", [1, Self.queries, 4]),
-                         logits: try array("logits", [1, Self.queries, Self.classes]))
     }
 
     /// Flattened per-output-pixel filter taps: output `i` reads source

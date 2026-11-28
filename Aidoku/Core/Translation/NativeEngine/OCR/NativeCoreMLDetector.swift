@@ -139,20 +139,35 @@ final class NativeCoreMLDetector: @unchecked Sendable {
                 try loadPredictor(cancellationCheck: check)
             }.value
             try check()
-            let output: MLMultiArray
-            do {
-                output = try await predictor.predict(array: prepared.input)
-            } catch let error as CancellationError {
-                throw error
-            } catch let error as NativeCoreMLDetectorError {
-                throw error
-            } catch {
-                throw NativeCoreMLDetectorError.predictionFailed(String(describing: error))
+            // Host replays memoize the probability map by its exact input (PipelineMemo; nil in the app).
+            let map = try await PipelineMemo.cached(.detect, key: {
+                PipelineMemo.key {
+                    PipelineMemo.update(&$0, prepared.input)
+                    PipelineMemo.update(&$0, [prepared.resizedWidth, prepared.resizedHeight])
+                }
+            }, encode: { (map: NativeCoreMLDetectionMap) in PipelineMemo.data([Int32(map.width), Int32(map.height)]) + PipelineMemo.data(map.values) },
+               decode: { data in
+                guard data.count >= 8 else { return nil }
+                let size: [Int32] = PipelineMemo.values(data.prefix(8), as: Int32.self)
+                let values: [Float] = PipelineMemo.values(data.dropFirst(8), as: Float.self)
+                guard Int(size[0]) * Int(size[1]) == values.count else { return nil }
+                return NativeCoreMLDetectionMap(width: Int(size[0]), height: Int(size[1]), values: values)
+            }) {
+                let output: MLMultiArray
+                do {
+                    output = try await predictor.predict(array: prepared.input)
+                } catch let error as CancellationError {
+                    throw error
+                } catch let error as NativeCoreMLDetectorError {
+                    throw error
+                } catch {
+                    throw NativeCoreMLDetectorError.predictionFailed(String(describing: error))
+                }
+                try check()
+                return try NativeCoreMLDetectionOutput.makeMap(
+                    output: output, width: prepared.resizedWidth,
+                    height: prepared.resizedHeight, expectedShape: [1, 1] + prepared.input.shape.suffix(2).map(\.intValue))
             }
-            try check()
-            let map = try NativeCoreMLDetectionOutput.makeMap(
-                output: output, width: prepared.resizedWidth,
-                height: prepared.resizedHeight, expectedShape: [1, 1] + prepared.input.shape.suffix(2).map(\.intValue))
             try check()
             let boxes = try NativeCoreMLDBPostprocessor.decode(
                 map: map, sourceWidth: frame.width, sourceHeight: frame.height,

@@ -11,7 +11,9 @@ Every run is a --no-png replay of saved translations in one heavy slot (tools/lo
 on efficiency cores). Stopped? Run the same NAME again: finished runs are reused while their inputs (compiled code,
 resources / models, manifest, translations: not the git commit) and knobs are unchanged.
 A candidate for a knob of a later stage (FROM) replays the saved stages before it (--from-stages) of a train run
-with the same earlier knobs: the S8 / S9 knobs take a minute or two instead of a full run.
+with the same earlier knobs: the S8 / S9 knobs take a minute or two instead of a full run. Every run memoizes model
+outputs and decoded pages by their exact input ($AIDOKU_EVAL_DIR/cache/memo): a knob that changes few predictions
+reruns only those.
 Output: $AIDOKU_EVAL_DIR/runs/retune/NAME/{report.md, tuning.json, log.txt}; apply tuning.json by hand.
 """
 import argparse, collections, functools, hashlib, json, os, re, shutil, subprocess, sys, threading
@@ -87,6 +89,7 @@ MAX_STEPS = 3  # line search: up to 3 steps out from the current value in the wi
 lock = threading.Lock()
 LOG = None
 OBJECTIVE = 'items'  # --objective
+MEMO = E / 'cache/memo'  # model outputs + decoded pages reused across runs (--no-memo: off)
 LIGHT = False  # --light: one run at a time, one page job, background QoS (efficiency cores)
 
 
@@ -120,6 +123,16 @@ def run(dir_prefix, split, tuning, models, allow_fail=False, save=False, frm=Non
     save: keep stage checkpoints (--save-stages) when it runs; frm=(BASE_PREFIX, stage): reuse BASE's stages
     before `stage` (output identical to a full run, so only the stage is part of the stamp)."""
     out = Path(f'{dir_prefix}_{split}')
+    with _dir_locks_guard:  # two threads asking for one directory (ref == new0): the second waits, then reuses it
+        lock = _dir_locks.setdefault(str(out), threading.Lock())
+    with lock:
+        return _run(out, split, tuning, models, allow_fail, save, frm)
+
+
+_dir_locks, _dir_locks_guard = {}, threading.Lock()
+
+
+def _run(out, split, tuning, models, allow_fail, save, frm):
     meta = dict(tuning=tuning, models=str(models) if models else 'repository', inputs=inputs(models))
     if frm:
         meta['from'] = frm[1]
@@ -142,6 +155,10 @@ def run(dir_prefix, split, tuning, models, allow_fail=False, save=False, frm=Non
         env.pop('AIDOKU_PIPELINE_MODELS', None)
     if LIGHT:
         env['AIDOKU_HOST_COMPILER_JOBS'] = '1'
+    if MEMO:
+        env['AIDOKU_PIPELINE_MEMO'] = str(MEMO)
+    else:
+        env.pop('AIDOKU_PIPELINE_MEMO', None)
     host = 'taskpolicy -b swift' if LIGHT else 'swift'
     stage_args = f' --from-stages {frm[0]}_{split} --from {frm[1]}' if frm else (' --save-stages' if save else '')
     cmd = (f'source {TOOLS}/lock.zsh; take_slot retune-{out.name[:40]}; cd {REPO}; '
@@ -236,7 +253,7 @@ def merge_gt(run_dir, label):
 
 def detection(run_dir, split):
     out = Path(run_dir) / 'eval.json'
-    cmd = ['python3', str(REPO / 'Scripts/pipeline/eval.py'), str(run_dir), '--split', split, '--out', str(out)]
+    cmd = [sys.executable, str(REPO / 'Scripts/pipeline/eval.py'), str(run_dir), '--split', split, '--out', str(out)]
     if split == 'test':
         cmd.append('--allow-test')
     subprocess.run(cmd, check=True, capture_output=True)
@@ -342,9 +359,12 @@ def main():
     ap.add_argument('--objective', choices=('items', 'typeset'), default='items', help='what decides a render knob (see judge)')
     ap.add_argument('--final-only', action='store_true', help='skip the sweep; evaluate --start (or defaults)')
     ap.add_argument('--light', action='store_true', help='low load (no fan): one run at a time, --jobs 1, background QoS')
+    ap.add_argument('--no-memo', action='store_true', help='do not reuse model outputs / decoded pages (AIDOKU_PIPELINE_MEMO)')
     ap.add_argument('--plan', action='store_true', help='print the plan and exit')
     a = ap.parse_args()
-    global OBJECTIVE, LIGHT
+    global OBJECTIVE, LIGHT, MEMO
+    if a.no_memo:
+        MEMO = None
     OBJECTIVE = a.objective
     LIGHT = a.light
     check_defaults()

@@ -29,11 +29,19 @@ final class PipelineMaskNet: @unchecked Sendable {
 
     /// Probabilities (row-major `height` x `width`) for an input of `channels` planes of `height` x `width`.
     func predict(_ input: MLMultiArray, height: Int, width: Int) throws -> [Float] {
-        let features = try MLDictionaryFeatureProvider(dictionary: ["input": input])
-        let result = try model.prediction(from: features)
-        guard let prob = result.featureValue(for: "prob")?.multiArrayValue, prob.shape.count == 4,
-              prob.shape[2].intValue == height, prob.shape[3].intValue == width else { throw Failure.modelContract }
-        return Self.plane(prob, height: height, width: width)
+        // Host replays memoize by the exact input (PipelineMemo; nil in the app).
+        try PipelineMemo.cached(.mask, key: { PipelineMemo.key { PipelineMemo.update(&$0, input) } },
+                                encode: { PipelineMemo.data($0) },
+                                decode: { data in
+                                    let out: [Float] = PipelineMemo.values(data, as: Float.self)
+                                    return out.count == height * width ? out : nil
+                                }) {
+            let features = try MLDictionaryFeatureProvider(dictionary: ["input": input])
+            let result = try model.prediction(from: features)
+            guard let prob = result.featureValue(for: "prob")?.multiArrayValue, prob.shape.count == 4,
+                  prob.shape[2].intValue == height, prob.shape[3].intValue == width else { throw Failure.modelContract }
+            return Self.plane(prob, height: height, width: width)
+        }
     }
 
     enum Failure: Error { case modelContract }
