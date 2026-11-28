@@ -10,6 +10,8 @@ Re-fits the model-coupled PipelineTuning knobs after a model is replaced:
 Every run is a --no-png replay of saved translations in one heavy slot (tools/lock.zsh), two at a time (--light: one,
 on efficiency cores). Stopped? Run the same NAME again: finished runs are reused while their inputs (compiled code,
 resources / models, manifest, translations: not the git commit) and knobs are unchanged.
+A candidate for a knob of a later stage (FROM) replays the saved stages before it (--from-stages) of a train run
+with the same earlier knobs: the S8 / S9 knobs take a minute or two instead of a full run.
 Output: $AIDOKU_EVAL_DIR/runs/retune/NAME/{report.md, tuning.json, log.txt}; apply tuning.json by hand.
 """
 import argparse, collections, functools, hashlib, json, os, re, shutil, subprocess, sys, threading
@@ -69,6 +71,15 @@ KNOBS = {
     'layoutFamilyShare': (0.1, 0.4, 1.0, 'render'),
     'layoutSpanWhole': (0.05, 0.8, 1.0, 'render'),
 }
+# The first stage a knob changes (PipelineTuning readers): a candidate replays the saved stages before it
+# (--from-stages) of a run that has the same values for every knob of an earlier stage. Unlisted: S1-S3, full run.
+FROM = dict(fragmentConfidence='s4', roleSFXScore='s4', roleBalloonScore='s4',          # S4 classify
+            interiorHorizontalReach='s4', interiorVerticalReach='s4', interiorFrameScore='s4',  # S4b
+            roleRescueBalloon='s5', roleRescueSFX='s5',                                 # rescue after S5
+            maskThreshold='s5', maskDilation='s5', lineEndExtension='s5', lineEndMargin='s5',  # S6
+            fontLevel='s8', layoutBalloonInset='s8', layoutBalloonCap='s8', layoutWholeWordRatio='s8',  # S8 / S9
+            layoutTallWidth='s8', layoutFamilyShare='s8', layoutSpanWhole='s8', layoutPageScale='s8')
+RANK = {None: 0, 's4': 1, 's5': 2, 's8': 3}
 # Left out of --knobs all: no effect on dev (balloonFloor already drops those balloons). Name it to sweep it.
 NOT_IN_ALL = {'roleBalloonScore', 'layoutPageScale'}
 MAX_STEPS = 3  # line search: up to 3 steps out from the current value in the winning direction
@@ -104,10 +115,14 @@ def tag_of(tuning):
 
 
 # ---------- runs ----------
-def run(dir_prefix, split, tuning, models, allow_fail=False):
-    """Replays one split into DIR_PREFIX_SPLIT (skipped when it finished before with the same settings)."""
+def run(dir_prefix, split, tuning, models, allow_fail=False, save=False, frm=None):
+    """Replays one split into DIR_PREFIX_SPLIT (skipped when it finished before with the same settings).
+    save: keep stage checkpoints (--save-stages) when it runs; frm=(BASE_PREFIX, stage): reuse BASE's stages
+    before `stage` (output identical to a full run, so only the stage is part of the stamp)."""
     out = Path(f'{dir_prefix}_{split}')
     meta = dict(tuning=tuning, models=str(models) if models else 'repository', inputs=inputs(models))
+    if frm:
+        meta['from'] = frm[1]
     stamp = out / 'retune.json'
     if stamp.exists() and (out / 'summary.json').exists():
         old = json.loads(stamp.read_text())
@@ -128,9 +143,10 @@ def run(dir_prefix, split, tuning, models, allow_fail=False):
     if LIGHT:
         env['AIDOKU_HOST_COMPILER_JOBS'] = '1'
     host = 'taskpolicy -b swift' if LIGHT else 'swift'
+    stage_args = f' --from-stages {frm[0]}_{split} --from {frm[1]}' if frm else (' --save-stages' if save else '')
     cmd = (f'source {TOOLS}/lock.zsh; take_slot retune-{out.name[:40]}; cd {REPO}; '
            f'{host} Scripts/image-translation.swift --split {split} --manifest {MANIFEST} --jobs {1 if LIGHT else 4} --no-png '
-           f'--replay-translations {REPLAY} --replay-fill-unmatched --output {out} > {out}.log 2>&1; '
+           f'--replay-translations {REPLAY} --replay-fill-unmatched --output {out}{stage_args} > {out}.log 2>&1; '
            f'st=$?; rm -rf "${{slot:?}}"; exit $st')
     r = subprocess.run(['zsh', '-c', cmd], env=env)
     if not (out / 'summary.json').exists() or (r.returncode != 0 and not allow_fail):
@@ -353,10 +369,41 @@ def main():
     log(f'== retune {a.name}: models {models or "repository"}, head {git_head()}, inputs {inputs(models)}, knobs {",".join(knobs)}, objective {OBJECTIVE}')
     pool = ThreadPoolExecutor(1 if LIGHT else 2)
 
-    def evaluate(tuning, label=None, splits=('train',)):
+    bases = []  # (tuning, prefix, models) of train runs with saved stages
+    base_lock = threading.Lock()
+
+    def stage_base(tuning, stage, base_tuning):
+        """A train run with stages whose knobs before `stage` equal the candidate's (made from base_tuning if none)."""
+        same = lambda t: all(t.get(k) == v for k, v in tuning.items() if RANK[FROM.get(k)] < RANK[stage])
+        with base_lock:
+            for t, p, m in bases:
+                if m == models and same(t) and Path(f'{p}_train/stages').is_dir():
+                    return p
+            p = str(out / ('base-' + tag_of(base_tuning)))
+            run(p, 'train', base_tuning, models, save=True)
+            bases.append((dict(base_tuning), p, models))
+            return p
+
+    def prune(best):
+        """Drops saved stages no later candidate can use (S1-S3 knobs differ from the current best)."""
+        with base_lock:
+            for b in list(bases):
+                t, p, m = b
+                if m != models or any(t.get(k) != v for k, v in best['tuning'].items() if FROM.get(k) is None):
+                    shutil.rmtree(f'{p}_train/stages', ignore_errors=True)
+                    bases.remove(b)
+
+    def evaluate(tuning, label=None, splits=('train',), knob=None, base_tuning=None):
         prefix = str(out / (label or tag_of(tuning))) if label != 'ref' else ref_prefix()
+        m = None if label == 'ref' else models
+        stage = FROM.get(knob) if knob else None
+        sweep = splits == ('train',)  # sweep runs (and ref / new0 on train) are stage bases or replay one
+        frm = (stage_base(tuning, stage, base_tuning), stage) if sweep and stage else None
         # Only sweep candidates may fail pages (e.g. a canvas the model rejects); they are then rejected.
-        dirs = {s: run(prefix, s, tuning, None if label == 'ref' else models, allow_fail=label is None) for s in splits}
+        dirs = {s: run(prefix, s, tuning, m, allow_fail=label is None, save=sweep and not frm, frm=frm) for s in splits}
+        if sweep and not frm and Path(f'{prefix}_train/stages').is_dir():
+            with base_lock:
+                bases.append((dict(tuning), prefix, m))
         failed = sum(len(json.load(open(d / 'summary.json')).get('failedPages') or []) for d in dirs.values())
         return dict(tuning=dict(tuning), prefix=prefix, dir=dirs.get('train'), dirs=dirs, failed=failed)
 
@@ -389,7 +436,7 @@ def main():
 
             def cand(v):
                 t = dict(best['tuning'], **{k: round(v, 6)})
-                return pool.submit(evaluate, t)
+                return pool.submit(evaluate, t, knob=k, base_tuning=dict(best['tuning']))
             vals = [v for v in (cur - step, cur + step) if lo <= v <= hi]
             futs = {v: cand(v) for v in vals}
             results = {}
@@ -402,6 +449,7 @@ def main():
             winners = [(s, v) for v, (ok, s, _) in results.items() if ok]
             if not winners:
                 log(f'   keep {k} = {fmt(cur)}')
+                prune(best)
                 continue
             s, v = max(winners)
             direction = 1 if v > cur else -1
@@ -419,6 +467,7 @@ def main():
                     break
                 best = r
                 log(f'   take {k} = {fmt(nv)}')
+            prune(best)
     fitted = best['tuning']
     (out / 'tuning.json').write_text(json.dumps({k: v for k, v in fitted.items() if v != DEFAULTS[k]}, indent=1))
     (out / 'history.json').write_text(json.dumps(history, indent=1))
